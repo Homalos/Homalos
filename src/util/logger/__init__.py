@@ -27,79 +27,26 @@ DEFAULT_LOG_FORMAT = (
     " <magenta>{extra[config_env]}</magenta> - "
     "<level>{message}</level>"
 )
-DEFAULT_SERVICE_NAME = "nilotica_default"  # 默认服务名称(Default service name if not patched)
+DEFAULT_SERVICE_NAME = "service_default"  # 默认服务名称(Default service name if not patched)
 DEFAULT_LOG_ROTATION = "100 MB"  # 当文件超过 100MB 时(Rotate when file exceeds 100MB)
 DEFAULT_LOG_RETENTION = "7 days"  # 保留日志 7 天(Keep logs for 7 days)
 
 # --- 全局记录器对象(Global Logger Object) ---
 # 从 loguru 重新导出记录器对象(Re-export the logger object from loguru)
-__all__ = ["get_level_name", "logger", "setup_logging", "INFO", "DEBUG", "WARNING", "WARN", "ERROR", "FATAL",
-           "CRITICAL", "NOTSET"]
+__all__ = ["logger", "setup_logging"]
 
 # 从 vnpy 设置中读取日志级别(Read log level from vnpy settings)
 DEFAULT_LOG_LEVEL: str = SETTINGS.get("log.level", "INFO")
 
-CRITICAL = 50
-FATAL = CRITICAL
-ERROR = 40
-WARNING = 30
-WARN = WARNING
-INFO = 20
-DEBUG = 10
-NOTSET = 0
-
-_levelToName = {
-    CRITICAL: 'CRITICAL',
-    ERROR: 'ERROR',
-    WARNING: 'WARNING',
-    INFO: 'INFO',
-    DEBUG: 'DEBUG',
-    NOTSET: 'NOTSET',
-}
-
-_nameToLevel = {
-    'CRITICAL': CRITICAL,
-    'FATAL': FATAL,
-    'ERROR': ERROR,
-    'WARN': WARNING,
-    'WARNING': WARNING,
-    'INFO': INFO,
-    'DEBUG': DEBUG,
-    'NOTSET': NOTSET,
-}
-
-
-def get_level_name(level: int | str):
-    """
-    根据日志级别获取相应的名称。
-
-    Args:
-        level (int | str): 日志级别，可以是整数或字符串。
-
-    Returns:
-        str: 日志级别的名称。
-
-    Raises:
-        TypeError: 如果 level 不是整数或字符串类型，将引发 TypeError 异常。
-    """
-    if level is not None:
-        if isinstance(level, int):
-            return _levelToName.get(level)
-        elif isinstance(level, str):
-            return level.upper()
-        else:
-            raise TypeError('Expected a string or integer value for level')
-
-
 # --- Setup Function ---
 def setup_logging(
-        level: str | int = DEFAULT_LOG_LEVEL,  # 允许 int 类型(Allow int type)
+        level: str | int = DEFAULT_LOG_LEVEL,
         format_ft: str = DEFAULT_LOG_FORMAT,
-        service_name: str = DEFAULT_SERVICE_NAME,  # 服务名称现在主要用于文件名(Service name mainly for filename now)
+        service_name: str = DEFAULT_SERVICE_NAME,
         config_env: Optional[str] = None,
         rotation: str = DEFAULT_LOG_ROTATION,
         retention: str = DEFAULT_LOG_RETENTION,
-        **kwargs  # 如果需要，将附加参数传递给 loguru.add()[Pass additional arguments to loguru.add() if needed]
+        **kwargs
 ):
     """
     为应用程序配置 loguru 记录器。
@@ -140,19 +87,10 @@ def setup_logging(
         record (dict): loguru记录(The loguru record)
         """
         translator = get_translator()  # 获取线程特定的翻译器(Get thread-specific translator)
-        # Loguru 将原始消息（格式字符串或字面量）存储在 record["message"] 中
-        # 如果传递了参数，则它们存储在 record["parameters"] 中
-        # 我们需要翻译格式字符串 record["message"]
-
-        # Loguru stores the original message (format string or literal) in record["message"]
-        # If args were passed, they are in record["parameters"]
-        # We want to translate the format string record["message"]
         if isinstance(record["message"], str):
             record["message"] = translator(record["message"])
 
     logger.configure(patcher=i18n_patcher)  # Apply the patcher
-
-    level_name = get_level_name(level)
 
     current_config_env = config_env if config_env else "base"  # Use "base" if None
 
@@ -171,14 +109,14 @@ def setup_logging(
         try:
             logger.add(
                 sys.stderr,
-                level=level_name,
+                level=level,  # Directly use the level argument
                 format=format_ft,
                 colorize=True,
                 filter=filter_func,
                 **kwargs_cleaned
             )
         except Exception as e:
-            logger.error(f"Error adding console logger: {e}", file=sys.stderr)
+            print(f"Error adding console logger: {e}", file=sys.stderr) # Use print for robustness
 
     if SETTINGS.get("log.file", False):
         log_path: Path = get_folder_path("log")
@@ -186,7 +124,7 @@ def setup_logging(
         try:
             logger.add(
                 sink=file_sink,
-                level=level_name,
+                level=level,  # Directly use the level argument
                 format=format_ft,
                 rotation=rotation,
                 retention=retention,
@@ -196,7 +134,5 @@ def setup_logging(
                 **kwargs_cleaned
             )
         except Exception as e:
-            try:
-                logger.error(f"Error adding file logger for path '{file_sink}': {e}")
-            except Exception as e_log:
-                logger.error(f"Error adding file logger for path '{file_sink}': {e_log}", file=sys.stderr)
+            # Fallback to print for robustness if logger.error itself might fail
+            print(f"Error adding file logger for path '{file_sink}': {e}", file=sys.stderr)
