@@ -5,6 +5,7 @@ from pathlib import Path
 from time import sleep
 import json
 import os
+from typing import cast
 
 from src.config.path import GlobalPath
 from src.config.global_var import product_info, instrument_exchange_id_map
@@ -56,32 +57,19 @@ class CtpGateway(BaseGateway):
     exchanges: list[str] = list(EXCHANGE_CTP2VT.values())
 
     def __init__(self, gateway_name: str) -> None:
-        """构造函数"""
         super().__init__(gateway_name)
 
         self.query_functions = None
-        self.td_api: CtpTdApi | None = None # Will be initialized on demand
-        self.md_api: CtpMdApi | None = None # Will be initialized on demand
+        self.td_api: CtpTdApi | None = None
+        self.md_api: CtpMdApi | None = None
         self.count: int = 0
 
-        # +++ 加载合约交易所映射文件 +++
+        # 加载合约交易所映射文件
         self.instrument_exchange_map: dict = {}
-        #  获取项目根目录的绝对路径 (Adjust if your file structure is different)
-        # current_file_path = os.path.abspath(__file__)
-        # gateway_dir = os.path.dirname(current_file_path) # ctp/gateway/
-        # ctp_dir = os.path.dirname(gateway_dir) # ctp/
-        # project_root_dir = os.path.dirname(ctp_dir) # Project Root /
-        # map_file_path = os.path.join(project_root_dir, "config", "project_files", "instrument_exchange_id.json")
         map_file_path = ""
-        # --- 使用更可靠的相对路径定位方法 ---
-        #   假定 ctp 文件夹与 config 文件夹在同一项目根目录下
         try:
-            # 获取当前文件（ctp_gateway.py）的目录
             current_dir = os.path.dirname(os.path.abspath(__file__))
             # 构建到 instrument_exchange_id.json 的相对路径
-            # .. -> ctp/
-            # .. -> Project Root/
-            # 然后进入 config/project_files/
             map_file_path = os.path.join(current_dir, "..", "..", "config", "project_files", "instrument_exchange_id.json")
             map_file_path = os.path.normpath(map_file_path) # 规范化路径
 
@@ -93,17 +81,24 @@ class CtpGateway(BaseGateway):
                 self.write_log(f"警告：合约交易所映射文件未找到于 {map_file_path}。回退逻辑可能受限。")
         except Exception as e:
             self.write_log(f"加载合约交易所映射文件 {map_file_path} 时出错: {e}")
-        # +++ 结束加载 +++
 
     @staticmethod
     def _prepare_address(address: str) -> str:
-        """Helper to prepend tcp:// if no scheme is present."""
+        """
+        如果没有方案，则帮助程序会在前面添加 tcp:// 作为前缀。
+        :param address:
+        :return:
+        """
         if not any(address.startswith(scheme) for scheme in ["tcp://", "ssl://", "socks://"]):
             return "tcp://" + address
         return address
 
     def connect_md(self, setting: dict) -> None:
-        """只连接行情接口"""
+        """
+        只连接行情接口
+        :param setting:
+        :return:
+        """
         if not self.md_api:
             self.md_api = CtpMdApi(self)
 
@@ -115,7 +110,11 @@ class CtpGateway(BaseGateway):
         self.md_api.connect(md_address, userid, password, broker_id)
 
     def connect_td(self, setting: dict) -> None:
-        """只连接交易接口"""
+        """
+        只连接交易接口
+        :param setting:
+        :return:
+        """
         if not self.td_api:
             self.td_api = CtpTdApi(self)
 
@@ -130,7 +129,11 @@ class CtpGateway(BaseGateway):
         self.td_api.connect(td_address, userid, password, broker_id, auth_code, appid)
 
     def connect(self, setting: dict) -> None:
-        """连接行情和交易接口（保持兼容性，推荐分别调用connect_md和connect_td）"""
+        """
+        连接行情和交易接口（保持兼容性，推荐分别调用connect_md和connect_td）
+        :param setting:
+        :return:
+        """
         self.write_log(_("注意：CtpGateway.connect() 同时连接行情和交易。推荐分别调用 connect_md() 和 connect_td() 以实现更清晰的职责分离。"))
         self.connect_md(setting)
         self.connect_td(setting)
@@ -138,49 +141,75 @@ class CtpGateway(BaseGateway):
         self.init_query() # Querying account/positions is TD related
 
     def subscribe(self, req: SubscribeRequest) -> None:
-        """订阅行情"""
+        """
+        订阅行情
+        :param req:
+        :return:
+        """
         if not self.md_api or not self.md_api.connect_status:
             self.write_log(_("无法订阅行情：行情接口未连接或未初始化。"))
             return
         self.md_api.subscribe(req)
 
     def send_order(self, req: OrderRequest) -> str:
-        """委托下单"""
+        """
+        委托下单
+        :param req:
+        :return:
+        """
         if not self.td_api or not self.td_api.connect_status:
             self.write_log(_("无法发送订单：交易接口未连接或未初始化。"))
             return ""
         return self.td_api.send_order(req)
 
     def cancel_order(self, req: CancelRequest) -> None:
-        """委托撤单"""
+        """
+        委托撤单
+        :param req:
+        :return:
+        """
         if not self.td_api or not self.td_api.connect_status:
             self.write_log(_("无法撤销订单：交易接口未连接或未初始化。"))
             return
         self.td_api.cancel_order(req)
 
     def query_account(self) -> None:
-        """查询资金"""
+        """
+        查询资金
+        :return:
+        """
         if not self.td_api or not self.td_api.connect_status:
             self.write_log(_("无法查询资金：交易接口未连接或未初始化。"))
             return
         self.td_api.query_account()
 
     def query_position(self) -> None:
-        """查询持仓"""
+        """
+        查询持仓
+        :return:
+        """
         if not self.td_api or not self.td_api.connect_status:
             self.write_log(_("无法查询持仓：交易接口未连接或未初始化。"))
             return
         self.td_api.query_position()
 
     def close(self) -> None:
-        """关闭接口"""
+        """
+        关闭接口
+        :return:
+        """
         if self.td_api and self.td_api.connect_status:
             self.td_api.close()
         if self.md_api and self.md_api.connect_status:
             self.md_api.close()
 
     def write_error(self, msg: str, error: dict) -> None:
-        """输出错误信息日志"""
+        """
+        输出错误信息日志
+        :param msg:
+        :param error:
+        :return:
+        """
         error_id = error.get("ErrorID", "N/A")
         error_msg = error.get("ErrorMsg", str(error))
         log_msg = f"{_(msg)}，{_('代码')}：{error_id}，{_('信息')}：{error_msg}"
@@ -191,7 +220,10 @@ class CtpGateway(BaseGateway):
         pass  # 事件驱动已剥离，不再处理定时事件
 
     def init_query(self) -> None:
-        """初始化查询任务"""
+        """
+        初始化查询任务
+        :return:
+        """
         if not self.td_api:
             self.write_log("交易接口未初始化，跳过查询任务初始化。")
             return
@@ -199,10 +231,11 @@ class CtpGateway(BaseGateway):
 
 
 class CtpMdApi(MdApi):
-    """CTP行情接口"""
+    """
+    CTP行情接口
+    """
 
     def __init__(self, gateway: CtpGateway) -> None:
-        """构造函数"""
         super().__init__()
 
         self.gateway: CtpGateway = gateway
@@ -222,7 +255,10 @@ class CtpMdApi(MdApi):
         self.last_disconnect_time = 0
 
     def onFrontConnected(self) -> None:
-        """服务器连接成功回报"""
+        """
+        服务器连接成功回报
+        :return:
+        """
         self.gateway.write_log(_("行情服务器连接成功"))
         self.login()
 
@@ -247,7 +283,14 @@ class CtpMdApi(MdApi):
         self.gateway.write_log(_("行情服务器连接断开，原因：{}").format(reason))
 
     def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool) -> None:
-        """用户登录请求回报"""
+        """
+        用户登录请求回报
+        :param data:
+        :param error:
+        :param reqid:
+        :param last:
+        :return:
+        """
         if not error["ErrorID"]:
             self.login_status = True
             global_var.md_login_success = True
@@ -259,18 +302,35 @@ class CtpMdApi(MdApi):
             self.gateway.write_error(_("行情服务器登录失败"), error)
 
     def onRspError(self, error: dict, reqid: int, last: bool) -> None:
-        """请求报错回报"""
+        """
+        请求报错回报
+        :param error:
+        :param reqid:
+        :param last:
+        :return:
+        """
         self.gateway.write_error(_("行情接口报错"), error)
 
     def onRspSubMarketData(self, data: dict, error: dict, reqid: int, last: bool) -> None:
-        """订阅行情回报"""
+        """
+        订阅行情回报
+        :param data:
+        :param error:
+        :param reqid:
+        :param last:
+        :return:
+        """
         if not error or not error["ErrorID"]:
             return
 
         self.gateway.write_error(_("行情订阅失败"), error)
 
     def onRtnDepthMarketData(self, data: dict) -> None:
-        """行情数据推送"""
+        """
+        行情数据推送
+        :param data:
+        :return:
+        """
         # 过滤没有时间戳的异常行情数据
         if not data["UpdateTime"]:
             return
@@ -279,7 +339,7 @@ class CtpMdApi(MdApi):
         contract_from_map: ContractData | None = symbol_contract_map.get(instrument_id, None)
 
         exchange_enum: Exchange | None = None
-        contract_name: str = instrument_id  # Default name to InstrumentID
+        contract_name: str = instrument_id  # 默认名称为 InstrumentID
 
         if contract_from_map:
             exchange_enum = contract_from_map.exchange
@@ -290,30 +350,30 @@ class CtpMdApi(MdApi):
             ctp_exchange_id_value = data.get("ExchangeID")
             self.gateway.write_log(f"CtpMdApi: For {instrument_id}, raw data.get(\\'ExchangeID\\') is: {repr(ctp_exchange_id_value)} (Type: {type(ctp_exchange_id_value)})")
 
-            if ctp_exchange_id_value and ctp_exchange_id_value != "": # If CTP provides a non-empty ExchangeID
+            if ctp_exchange_id_value and ctp_exchange_id_value != "": # 如果 CTP 提供非空的 ExchangeID
                 exchange_str = str(ctp_exchange_id_value)
                 exchange_enum = EXCHANGE_CTP2VT.get(exchange_str)
                 if exchange_enum:
                     self.gateway.write_log(f"CtpMdApi: Fallback 1: Used CTP ExchangeID '{exchange_str}' -> {exchange_enum} for {instrument_id}.")
                 else:
                     self.gateway.write_log(f"CtpMdApi: Fallback 1: Unknown CTP ExchangeID '{exchange_str}' for {instrument_id}. Available CTP_IDs: {list(EXCHANGE_CTP2VT.keys())}")
-                    # Attempt JSON fallback even if CTP ID is present but unknown
+                    # 即使 CTP ID 存在但未知，也尝试 JSON 回退
             
-            # Fallback 2: If no exchange from CTP ID (it was empty, None, or unknown)
+            # 后备方案 2：如果没有来自 CTP ID 的交换（为空、无或未知）
             if not exchange_enum: 
                 json_exchange_str = self.gateway.instrument_exchange_map.get(instrument_id)
                 if json_exchange_str:
                     try:
-                        exchange_enum = Exchange[json_exchange_str] # Convert string like "CZCE" to Exchange.CZCE
+                        exchange_enum = cast(Exchange, Exchange[json_exchange_str]) # 将"CZCE"之类的字符串转换为Exchange.CZCE
                         self.gateway.write_log(f"CtpMdApi: Fallback 2: Used JSON map for {instrument_id} -> Exchange '{json_exchange_str}' -> {exchange_enum}.")
                     except KeyError:
                         self.gateway.write_log(f"CtpMdApi: Fallback 2: Invalid exchange string '{json_exchange_str}' in JSON map for {instrument_id}.")
-                        # No return here, proceed to final check
+                        # 此处不返回，继续进行最后检查
                 else:
                     self.gateway.write_log(f"CtpMdApi: Fallback 2: InstrumentID {instrument_id} not found in JSON map.")
-                    # No return here, proceed to final check
+                    # 此处不返回，继续进行最后检查
 
-        # Final check: If no exchange could be determined after all fallbacks, drop the tick.
+        # 最后检查：如果在所有回退之后仍无法确定交换，则删除勾选。
         if not exchange_enum:
             self.gateway.write_log(f"CtpMdApi: CRITICAL: Unable to determine exchange for {instrument_id} after all fallbacks. Dropping tick. CTP_ID_was: '{data.get('ExchangeID')}', Mapped_JSON_Exchange: '{self.gateway.instrument_exchange_map.get(instrument_id)}'")
             return
@@ -385,7 +445,14 @@ class CtpMdApi(MdApi):
         self.gateway.write_log(_("行情账户：{} 已登出").format(data['UserID']))
 
     def connect(self, address: str, userid: str, password: str, brokerid: str) -> None:
-        """连接服务器"""
+        """
+        连接服务器
+        :param address:
+        :param userid:
+        :param password:
+        :param brokerid:
+        :return:
+        """
         self.userid = userid
         self.password = password
         self.broker_id = brokerid
@@ -401,7 +468,10 @@ class CtpMdApi(MdApi):
             self.connect_status = True
 
     def login(self) -> None:
-        """用户登录"""
+        """
+        用户登录
+        :return:
+        """
         ctp_req: dict = {
             "UserID": self.userid,
             "Password": self.password,
@@ -412,26 +482,37 @@ class CtpMdApi(MdApi):
         self.reqUserLogin(ctp_req, self.req_id)
 
     def subscribe(self, req: SubscribeRequest) -> None:
-        """订阅行情"""
+        """
+        订阅行情
+        :param req:
+        :return:
+        """
         if self.login_status:
             self.subscribeMarketData(req.symbol)
         self.subscribed.add(req.symbol)
 
     def close(self) -> None:
-        """关闭连接"""
+        """
+        关闭连接
+        :return:
+        """
         if self.connect_status:
             self.exit()
 
     def update_date(self) -> None:
-        """更新当前日期"""
+        """
+        更新当前日期
+        :return:
+        """
         self.current_date = datetime.now().strftime("%Y%m%d")
 
 
 class CtpTdApi(TdApi):
-    """CTP交易接口"""
+    """
+    CTP交易接口
+    """
 
     def __init__(self, gateway: CtpGateway) -> None:
-        """构造函数"""
         super().__init__()
 
         self.gateway: CtpGateway = gateway
@@ -562,7 +643,14 @@ class CtpTdApi(TdApi):
             self.gateway.write_error(_("查询产品失败"), error)
 
     def onRspOrderInsert(self, data: dict, error: dict, reqid: int, last: bool) -> None:
-        """委托下单失败回报"""
+        """
+        委托下单失败回报
+        :param data:
+        :param error:
+        :param reqid:
+        :param last:
+        :return:
+        """
         order_ref: str = data["OrderRef"]
         orderid: str = f"{self.front_id}_{self.session_id}_{order_ref}"
 
@@ -585,7 +673,14 @@ class CtpTdApi(TdApi):
         self.gateway.write_error(_("交易委托失败"), error)
 
     def onRspOrderAction(self, data: dict, error: dict, reqid: int, last: bool) -> None:
-        """委托撤单失败回报"""
+        """
+        委托撤单失败回报
+        :param data:
+        :param error:
+        :param reqid:
+        :param last:
+        :return:
+        """
         self.gateway.write_error(_("交易撤单失败"), error)
 
     def onRspSettlementInfoConfirm(self, data: dict, error: dict, reqid: int, last: bool) -> None:
@@ -691,7 +786,14 @@ class CtpTdApi(TdApi):
             self.gateway.write_error(_("查询持仓明细失败"), error)
 
     def onRspQryTradingAccount(self, data: dict, error: dict, reqid: int, last: bool) -> None:
-        """资金查询回报"""
+        """
+        资金查询回报，当执行 ReqQryTradingAccount 后，该方法被调用
+        :param data:
+        :param error:
+        :param reqid:
+        :param last:
+        :return:
+        """
         if "AccountID" not in data:
             return
         account: AccountData = AccountData(
@@ -746,7 +848,11 @@ class CtpTdApi(TdApi):
             self.gateway.write_error(_("onRspQryInstrument 异常：{}").format(e), error)
 
     def onRtnOrder(self, data: dict) -> None:
-        """委托更新推送"""
+        """
+        委托更新推送，报单发出后有状态变动则通过此接口返回。公有流
+        :param data:
+        :return:
+        """
         if not self.contract_inited:
             self.order_data.append(data)
             return
@@ -911,7 +1017,16 @@ class CtpTdApi(TdApi):
         auth_code: str,
         appid: str
     ) -> None:
-        """连接服务器"""
+        """
+        连接服务器
+        :param address:
+        :param userid:
+        :param password:
+        :param brokerid:
+        :param auth_code:
+        :param appid:
+        :return:
+        """
         self.userid = userid
         self.password = password
         self.broker_id = brokerid
@@ -949,7 +1064,10 @@ class CtpTdApi(TdApi):
             self.authenticate()
 
     def authenticate(self) -> None:
-        """发起授权验证"""
+        """
+        发起授权验证
+        :return:
+        """
         if self.auth_failed:
             return
 
@@ -964,7 +1082,10 @@ class CtpTdApi(TdApi):
         self.reqAuthenticate(ctp_req, self.req_id)
 
     def login(self) -> None:
-        """用户登录"""
+        """
+        用户登录
+        :return:
+        """
         if self.login_failed:
             return
 
@@ -978,7 +1099,11 @@ class CtpTdApi(TdApi):
         self.reqUserLogin(ctp_req, self.req_id)
 
     def send_order(self, req: OrderRequest) -> str:
-        """委托下单"""
+        """
+        委托下单
+        :param req:
+        :return:
+        """
         if req.offset not in OFFSET_VT2CTP:
             self.gateway.write_log(_("请选择开平方向"))
             return ""
@@ -1026,7 +1151,11 @@ class CtpTdApi(TdApi):
         return order.vt_orderid     # type: ignore
 
     def cancel_order(self, req: CancelRequest) -> None:
-        """委托撤单"""
+        """
+        委托撤单
+        :param req:
+        :return:
+        """
         front_id, session_id, order_ref = req.orderid.split("_")
 
         ctp_req: dict = {
@@ -1044,12 +1173,18 @@ class CtpTdApi(TdApi):
         self.reqOrderAction(ctp_req, self.req_id)
 
     def query_account(self) -> None:
-        """查询资金"""
+        """
+        查询资金
+        :return:
+        """
         self.req_id += 1
         self.reqQryTradingAccount({}, self.req_id)
 
     def query_position(self) -> None:
-        """查询持仓"""
+        """
+        查询持仓
+        :return:
+        """
         if not symbol_contract_map:
             return
 
@@ -1098,13 +1233,20 @@ class CtpTdApi(TdApi):
                     sleep(1)
 
     def close(self) -> None:
-        """关闭连接"""
+        """
+        关闭连接
+        :return:
+        """
         if self.connect_status:
             self.exit()
 
 
 def adjust_price(price: float) -> float:
-    """将异常的浮点数最大值（MAX_FLOAT）数据调整为0"""
+    """
+    将异常的浮点数最大值（MAX_FLOAT）数据调整为0
+    :param price:
+    :return:
+    """
     if price == MAX_FLOAT:
         price = 0
     return price
