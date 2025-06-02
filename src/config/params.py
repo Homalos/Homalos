@@ -13,7 +13,6 @@ class Params(object):
 
     # ----------------------------项目中目录名称----------------------------
     project_name = "Homalos"  # 项目名称
-    project_files_dir_name = "project_files"  # 配置文件目录名
     log_dir_name = "log"  # 日志目录名
     tick_data_name = "recorded_data"  # 实时数据目录名
     tick_dev_data_name = "dev_recorded_data"  # 开发环境下实时数据目录名
@@ -23,7 +22,7 @@ class Params(object):
     # ----------------------------项目中目录名称----------------------------
 
     # ----------------------------项目参数配置文件----------------------------
-    brokers_config_filename = "brokers_config.json"  # 多源服务器节点配置文件名
+    broker_config_filename = "broker_config.json"  # 多源服务器节点配置文件名
     global_config_filename = "global_config.yaml"  # 全局配置文件名
     prod_config_filename = "prod_config.yaml"  # 生产环境配置文件名
     dev_config_filename = "dev_config.yaml"  # 开发环境配置文件名

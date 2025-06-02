@@ -7,15 +7,6 @@
 # - 特定于策略的参数通常在单独的文件中管理（例如，strategies_setting.json 或 Strategies.yaml）。
 # - 动态配置或需要运行时逻辑的配置（例如 CHINA_TZ）由 Python 代码处理。
 
-# Global System Configuration
-# version: 1.0 # Optional versioning for your config file
-
-# Notes:
-# - Paths like 'data_recording_path' are relative to the project root.
-#   The config_manager.py will be responsible for resolving them to absolute paths.
-# - Strategy-specific parameters are typically managed in a separate file (e.g., strategies_setting.json or strategies.yaml).
-# - Dynamic configurations or those requiring runtime logic (like CHINA_TZ) are handled in Python code.
-
 # 系统语言配置 (System language Configuration)
 system:
   language: "" # 或 "en" 或 ""空代表默认原中文输出
@@ -23,17 +14,13 @@ system:
 logging:
   # 如果未被命令行参数覆盖，则服务的默认日志级别。
   # 服务仍然可以使用自己的 --log-level 参数来指定。
-  # Default log level for services if not overridden by command-line arguments.
-  # Services can still use their own --log-level argument to specify.
   default_level: "INFO"
   # 未来：在此处添加更多日志配置，如文件输出、旋转、格式。
-  # Future: Add more logging configurations here, like file output, rotation, format.
 
 paths:
   # 相对于项目根目录 (Relative to project root)
   data_recording_path: "zmq_services/recorded_data/"
   # 将由 config_manager 解析或默认为 data_recording_path
-  # Will be resolved by config_manager or defaults to data_recording_path
   backtest_data_source_path: "zmq_services/recorded_data/"
   # 如果全局需要，则指向产品信息的路径 (Path to product info, if needed globally)
   product_info_ini: "config/project_files/product_info.ini"
@@ -53,7 +40,6 @@ zmq_addresses:
 # 通用服务配置 (General service configurations)
 service_settings:
   # 处理发布者队列中的消息的批量大小（例如，在 OrderExecutionGateway 中）
-  # Batch size for processing messages in publisher queues (e.g., in OrderExecutionGateway)
   publish_batch_size: 1000
   recorder_batch_size: 100 # 您可以按需调整这个值
 
@@ -86,8 +72,6 @@ engine_communication:
 
 # 默认订阅的合约列表（例如，MarketDataGateway、DataRecorder）
 # 个别策略可能会覆盖或指定自己的合约。
-# List of symbols to subscribe to by default (e.g., for MarketDataGateway, DataRecorder)
-# Individual strategies might override or specify their own symbols.
 default_subscribe_symbols:
   - "SA509.CZCE"
   - "rb2510.SHFE"
@@ -95,4 +79,4 @@ default_subscribe_symbols:
 
 # 更多全局的参数 (A more global parameter)
 order_submission:
-  default_cool_down_seconds: 2 # Default cool-down for orders if not specified by strategy 
+  default_cool_down_seconds: 2 # Default cool-down for orders if not specified by strategy

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 @ProjectName: Homalos
-@FileName   : file_helper
+@FileName   : file_helper.py
 @Date       : 2025/5/28 00:02
 @Author     : Donny
 @Email      : donnymoving@gmail.com
@@ -12,16 +12,15 @@
 import configparser
 import json
 import os
-from typing import Dict, Any, Tuple
+from typing import Dict, Any
 
 import yaml
 
-from src.util.logger import logger, setup_logging, INFO
+from src.core.object import INFO
 from src.util.i18n import _
+from src.util.logger import logger, setup_logging
 
-
-
-setup_logging(service_name=__name__, level=INFO)
+setup_logging(service_name="file_helper", level=INFO)
 
 
 def load_yaml_file(file_path: str) -> Dict[str, Any]:
@@ -99,9 +98,7 @@ def load_ini_file(file_path: str):
     # 检查文件是否存在，如果不存在则创建一个空的ini文件
     if not os.path.exists(file_path):
         with open(file_path, 'w', encoding='utf-8') as f:
-            # 可以选择写入一些默认的空section或者注释，如果需要的话
-            # f.write("# Empty product_info.ini created by system\n")
-            pass  # 创建一个空文件
+            f.write("")
     parser.read(file_path, encoding='utf-8')
 
     return parser

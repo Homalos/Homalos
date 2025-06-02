@@ -11,8 +11,13 @@
 """
 import logging
 import os
+import sys
 import threading
 import polib  # 引入 polib
+
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '....'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 __all__ = ['_', 'get_translator']
 # 获取一个专门用于i18n模块的logger(Get a logger specifically for the i18n module)

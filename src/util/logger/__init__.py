@@ -33,14 +33,14 @@ DEFAULT_LOG_RETENTION = "7 days"  # 保留日志 7 天(Keep logs for 7 days)
 
 # --- 全局记录器对象(Global Logger Object) ---
 # 从 loguru 重新导出记录器对象(Re-export the logger object from loguru)
-__all__ = ["logger", "setup_logging"]
+__all__ = ["logger", "setup_logging", "log"]
 
-# 从 vnpy 设置中读取日志级别(Read log level from vnpy settings)
+# 从设置中读取日志级别
 DEFAULT_LOG_LEVEL: str = SETTINGS.get("log.level", "INFO")
 
 # --- Setup Function ---
 def setup_logging(
-        level: str | int = DEFAULT_LOG_LEVEL,
+        level: str | int = "INFO",
         format_ft: str = DEFAULT_LOG_FORMAT,
         service_name: str = DEFAULT_SERVICE_NAME,
         config_env: Optional[str] = None,
@@ -92,7 +92,7 @@ def setup_logging(
 
     logger.configure(patcher=i18n_patcher)  # Apply the patcher
 
-    current_config_env = config_env if config_env else "base"  # Use "base" if None
+    current_config_env = config_env if config_env else "dev"  # Use "base" if None, "dev"、"prod" otherwise
 
     def filter_func(record):
         record["extra"].setdefault("service", service_name)
@@ -134,5 +134,9 @@ def setup_logging(
                 **kwargs_cleaned
             )
         except Exception as e:
-            # Fallback to print for robustness if logger.error itself might fail
+            # 如果 logger.error 本身可能失败，则回退到打印以确保稳健性
             print(f"Error adding file logger for path '{file_sink}': {e}", file=sys.stderr)
+
+
+def log(msg: str, level: str = "INFO"):
+    logger.log(level, msg)

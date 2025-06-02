@@ -36,17 +36,17 @@ def del_num(content):
     res = re.sub(r'\d', '', content)
     return res
 
-def calculate_commission_rate(product_parser: ConfigParser, pTrade):
+def calculate_commission_rate(product_parser: ConfigParser, p_trade):
     """
     计算手续费
     :param product_parser:
-    :param pTrade:
+    :param p_trade:
     :return:
     """
     # 产品
-    product = del_num(pTrade['InstrumentID'])
+    product = del_num(p_trade['InstrumentID'])
     # 数量
-    volume = pTrade['Volume']
+    volume = p_trade['Volume']
     # 合约乘数
     volume_multiple = float(product_parser[product]["contract_multiplier"])
     # 开仓手续费率
@@ -67,23 +67,23 @@ def calculate_commission_rate(product_parser: ConfigParser, pTrade):
     # 这个信号是根据下单来决定的，填的平仓，实际平的是今仓，但是回报里是平仓，会按照平仓进行计算，有的时候会造成错误
     # 比如，m合约，平今手续费0.1，平昨是0.2
     # 开仓
-    if pTrade.OffsetFlag == '0':
-        fee = volume * (pTrade.Price * volume_multiple * open_ratio_by_money + open_ratio_by_volume)
+    if p_trade.OffsetFlag == '0':
+        fee = volume * (p_trade.Price * volume_multiple * open_ratio_by_money + open_ratio_by_volume)
         pass
     # 平仓
-    elif pTrade.OffsetFlag == '1':
-        fee = volume * (pTrade.Price * volume_multiple * close_ratio_by_money + close_ratio_by_volume)
+    elif p_trade.OffsetFlag == '1':
+        fee = volume * (p_trade.Price * volume_multiple * close_ratio_by_money + close_ratio_by_volume)
         pass
     # 强平
-    elif pTrade.OffsetFlag == '2':
+    elif p_trade.OffsetFlag == '2':
         pass
     # 平今
-    elif pTrade.OffsetFlag == '3':
-        fee = volume * (pTrade.Price * volume_multiple * close_today_ratio_by_money + close_today_ratio_by_volume)
+    elif p_trade.OffsetFlag == '3':
+        fee = volume * (p_trade.Price * volume_multiple * close_today_ratio_by_money + close_today_ratio_by_volume)
         pass
     # 平昨
-    elif pTrade.OffsetFlag == '4':
-        fee = volume * (pTrade.Price * volume_multiple * close_ratio_by_money + close_ratio_by_volume)
+    elif p_trade.OffsetFlag == '4':
+        fee = volume * (p_trade.Price * volume_multiple * close_ratio_by_money + close_ratio_by_volume)
         pass
 
     return fee
@@ -99,7 +99,7 @@ def ctp_build_contract(data: dict, gateway_name: str) -> ContractData | None:
         name=data.get("InstrumentName", ""),
         product=product,
         size=data.get("VolumeMultiple", 1),
-        pricetick=data.get("PriceTick", 0.0),
+        price_tick=data.get("PriceTick", 0.0),
         min_volume=data.get("MinLimitOrderVolume", 1),
         max_volume=data.get("MaxLimitOrderVolume", 1),
         gateway_name=gateway_name

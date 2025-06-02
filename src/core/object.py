@@ -87,7 +87,7 @@ class TickData(BaseData):
 
     def __post_init__(self) -> None:
         """"""
-        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
 
 @dataclass
@@ -111,13 +111,13 @@ class BarData(BaseData):
 
     def __post_init__(self) -> None:
         """"""
-        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
 
 @dataclass
 class OrderData(BaseData):
     """
-    Order data contains information for tracking lastest status
+    Order data contains information for tracking latest status
     of a specific order.
     """
 
@@ -137,8 +137,8 @@ class OrderData(BaseData):
 
     def __post_init__(self) -> None:
         """"""
-        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
-        self.vt_orderid: str = f"{self.gateway_name}.{self.orderid}"
+        self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.ho_orderid: str = f"{self.gateway_name}.{self.orderid}"
 
     def is_active(self) -> bool:
         """
@@ -176,9 +176,9 @@ class TradeData(BaseData):
 
     def __post_init__(self) -> None:
         """"""
-        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
-        self.vt_orderid: str = f"{self.gateway_name}.{self.orderid}"
-        self.vt_tradeid: str = f"{self.gateway_name}.{self.tradeid}"
+        self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.ho_orderid: str = f"{self.gateway_name}.{self.orderid}"
+        self.ho_tradeid: str = f"{self.gateway_name}.{self.tradeid}"
 
 
 @dataclass
@@ -199,8 +199,8 @@ class PositionData(BaseData):
 
     def __post_init__(self) -> None:
         """"""
-        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
-        self.vt_positionid: str = f"{self.gateway_name}.{self.vt_symbol}.{self.direction.value}"
+        self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.ho_position_id: str = f"{self.gateway_name}.{self.ho_symbol}.{self.direction.value}"
 
 
 @dataclass
@@ -210,7 +210,7 @@ class AccountData(BaseData):
     available.
     """
 
-    accountid: str
+    account_id: str
 
     balance: float = 0
     frozen: float = 0
@@ -218,17 +218,16 @@ class AccountData(BaseData):
     def __post_init__(self) -> None:
         """"""
         self.available: float = self.balance - self.frozen
-        self.vt_accountid: str = f"{self.gateway_name}.{self.accountid}"
+        self.ho_account_id: str = f"{self.gateway_name}.{self.account_id}"
 
 
 @dataclass
 class LogData(BaseData):
     """
-    Log data is used for recording log messages on GUI or in log files.
+    日志数据用于在控制台或日志文件中记录日志消息。
     """
-
     msg: str
-    level: int = INFO
+    level: int | str = INFO
 
     def __post_init__(self) -> None:
         """"""
@@ -238,7 +237,7 @@ class LogData(BaseData):
 @dataclass
 class ContractData(BaseData):
     """
-    Contract data contains basic information about each contract traded.
+    合约数据包含每份交易合约的基本信息。
     """
 
     symbol: str
@@ -246,7 +245,7 @@ class ContractData(BaseData):
     name: str
     product: Product
     size: float
-    pricetick: float
+    price_tick: float
 
     min_volume: float = 1                   # minimum order volume
     max_volume: float | None = None      # maximum order volume
@@ -255,7 +254,7 @@ class ContractData(BaseData):
     history_data: bool = False              # whether gateway provides bar history data
 
     option_strike: float | None = None
-    option_underlying: str | None = None     # vt_symbol of underlying contract
+    option_underlying: str | None = None     # ho_symbol of underlying contract
     option_type: OptionType | None = None
     option_listed: Datetime | None = None
     option_expiry: Datetime | None = None
@@ -264,19 +263,19 @@ class ContractData(BaseData):
 
     def __post_init__(self) -> None:
         """"""
-        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
 
 @dataclass
 class QuoteData(BaseData):
     """
-    Quote data contains information for tracking lastest status
+    Quote data contains information for tracking latest status
     of a specific quote.
     """
 
     symbol: str
     exchange: Exchange
-    quoteid: str
+    quote_id: str
 
     bid_price: float = 0.0
     bid_volume: int = 0
@@ -290,8 +289,8 @@ class QuoteData(BaseData):
 
     def __post_init__(self) -> None:
         """"""
-        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
-        self.vt_quoteid: str = f"{self.gateway_name}.{self.quoteid}"
+        self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.ho_quote_id: str = f"{self.gateway_name}.{self.quote_id}"
 
     def is_active(self) -> bool:
         """
@@ -304,7 +303,7 @@ class QuoteData(BaseData):
         Create cancel request object from quote.
         """
         req: CancelRequest = CancelRequest(
-            orderid=self.quoteid, symbol=self.symbol, exchange=self.exchange
+            orderid=self.quote_id, symbol=self.symbol, exchange=self.exchange
         )
         return req
 
@@ -320,7 +319,7 @@ class SubscribeRequest:
 
     def __post_init__(self) -> None:
         """"""
-        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
 
 @dataclass
@@ -340,7 +339,7 @@ class OrderRequest:
 
     def __post_init__(self) -> None:
         """"""
-        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
     def create_order_data(self, orderid: str, gateway_name: str) -> OrderData:
         """
@@ -373,7 +372,7 @@ class CancelRequest:
 
     def __post_init__(self) -> None:
         """"""
-        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
 
 @dataclass
@@ -390,7 +389,7 @@ class HistoryRequest:
 
     def __post_init__(self) -> None:
         """"""
-        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
 
 @dataclass
@@ -411,16 +410,16 @@ class QuoteRequest:
 
     def __post_init__(self) -> None:
         """"""
-        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
-    def create_quote_data(self, quoteid: str, gateway_name: str) -> QuoteData:
+    def create_quote_data(self, quote_id: str, gateway_name: str) -> QuoteData:
         """
         Create quote data from request.
         """
         quote: QuoteData = QuoteData(
             symbol=self.symbol,
             exchange=self.exchange,
-            quoteid=quoteid,
+            quote_id=quote_id,
             bid_price=self.bid_price,
             bid_volume=self.bid_volume,
             ask_price=self.ask_price,

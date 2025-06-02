@@ -24,6 +24,7 @@ import talib
 from src.config.constants import Exchange, Interval
 from .i18n import _
 from src.core.object import BarData, TickData
+from ..config.params import Params
 
 
 def extract_vt_symbol(vt_symbol: str) -> tuple[str, Exchange]:
@@ -64,7 +65,7 @@ def _get_trader_dir(temp_name: str) -> tuple[Path, Path]:
     return home_path, temp_path
 
 
-TRADER_DIR, TEMP_DIR = _get_trader_dir(".nilotica")
+TRADER_DIR, TEMP_DIR = _get_trader_dir(f".{Params.project_name}")
 sys.path.append(str(TRADER_DIR))
 
 
