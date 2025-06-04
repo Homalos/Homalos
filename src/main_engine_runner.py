@@ -28,6 +28,7 @@ from src.strategies.example_strategy import ExampleStrategy
 from src.util.i18n import _
 from src.util.logger import log, setup_logging
 from src.util.runner_common import runner_args
+from src.messaging.zmq_event_engine import ZmqEventEngine
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
@@ -35,9 +36,9 @@ if project_root not in sys.path:
 
 
 class MainEngine:
-    def __init__(self, environment_name: Optional[str] = None):
-        setup_logging(service_name=f"{__class__.__name__}[{args.ctp_env}]")
-        self.event_engine: EventEngine = EventEngine()
+    def __init__(self, event_engine: EventEngine | ZmqEventEngine, environment_name: Optional[str] = None):
+        setup_logging(service_name=f"{self.__class__.__name__}[{args.ctp_env if 'args' in globals() and args.ctp_env else environment_name or 'default'}]")
+        self.event_engine: EventEngine | ZmqEventEngine = event_engine
         self.gateways: Dict[str, BaseGateway] = {}
         self.strategies: Dict[str, BaseStrategy] = {}
         self._running = True
@@ -336,7 +337,15 @@ class MainEngine:
         self.log("主引擎已停止。")
 
 async def run_main(environment: Optional[str] = None):
-    main_engine = MainEngine(environment_name=environment)
+    # Configuration for ZMQ addresses (should be moved to a config file later)
+    ZMQ_PUB_ADDRESS = "tcp://*:5555"  # Address for components to publish events
+    ZMQ_SUB_ADDRESS = "tcp://localhost:5555" # Address for this MainEngine instance to subscribe
+
+    # Instantiate the chosen event engine
+    zmq_event_engine = ZmqEventEngine(pub_addr=ZMQ_PUB_ADDRESS, sub_addr=ZMQ_SUB_ADDRESS, engine_id="MainEngineZMQ")
+    
+    # in_process_event_engine = EventEngine()
+    main_engine = MainEngine(event_engine=zmq_event_engine, environment_name=environment)
 
     if main_engine.current_broker_setting and main_engine.environment_name:
         main_engine.add_gateway(CtpGateway, "CTP")
