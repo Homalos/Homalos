@@ -401,20 +401,4 @@ async def run_main(environment: Optional[str] = None):
 
 if __name__ == "__main__":
     args = runner_args("Broker environment name (e.g., simnow, tts from broker_config.json)")
-    # import argparse
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("--ctp_env", type=str, help="Broker environment name (e.g., simnow, tts from broker_config.json)")
-    # args = parser.parse_args()
-
-    # Ensure src.config.setting.get_broker_setting() is correctly implemented
-    # to load your broker_config.json (or equivalent YAML)
-    # from src.config.path import GlobalPath
-    # from src.util.file_helper import load_json
-    # def _get_broker_config_manual(): # Example: if get_broker_setting isn't there
-    #     return load_json(str(GlobalPath.project_files_path.joinpath("broker_config.json")))
-    # if not hasattr(src.config.setting, 'get_broker_setting'):
-    #     print("Warning: src.config.setting.get_broker_setting not found, attempting manual load of broker_config.json for demo.")
-    #     import src.config.setting
-    #     src.config.setting.get_broker_setting = _get_broker_config_manual
-
     asyncio.run(run_main(environment=args.ctp_env))
