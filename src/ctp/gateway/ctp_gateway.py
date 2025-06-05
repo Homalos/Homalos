@@ -14,7 +14,7 @@ from src.config.path import GlobalPath
 from src.util.file_helper import write_json_file
 from src.util.i18n import _
 from src.util.utility import ZoneInfo, get_folder_path
-from .ctp_gateway_helper import del_num, ctp_build_contract
+from .ctp_gateway_helper import ctp_build_contract
 from .ctp_mapping import STATUS_CTP2VT, DIRECTION_VT2CTP, DIRECTION_CTP2VT, ORDERTYPE_VT2CTP, ORDERTYPE_CTP2VT, \
     OFFSET_VT2CTP, OFFSET_CTP2VT, EXCHANGE_CTP2VT
 from ..api import (
@@ -34,7 +34,8 @@ from ...core.event import (
 # Import EventEngine and specific event types
 from ...core.event_engine import EventEngine
 from ...core.object import ContractData, SubscribeRequest, OrderRequest, CancelRequest, TickData, PositionData, \
-    OrderData, AccountData, TradeData
+    OrderData, AccountData, TradeData, GatewayConnectionStatus
+from ...gateway_helper import del_num
 
 # 其他常量
 MAX_FLOAT = sys.float_info.max             # 浮点数极限值
@@ -154,6 +155,7 @@ class CtpGateway(BaseGateway):
         :param req:
         :return:
         """
+        """订阅行情"""
         if not self.md_api or not self.md_api.connect_status:
             self.write_log(_("无法订阅行情：行情接口未连接或未初始化。"))
             return
@@ -225,7 +227,16 @@ class CtpGateway(BaseGateway):
 
     def process_timer_event(self, event):
         """定时事件处理"""
-        pass  # 事件驱动已剥离，不再处理定时事件
+        self.count += 1
+        if self.count < 2:
+            return
+        self.count = 0
+
+        func = self.query_functions.pop(0)
+        func()
+        self.query_functions.append(func)
+
+        self.md_api.update_date()
 
     def init_query(self) -> None:
         """
@@ -235,6 +246,7 @@ class CtpGateway(BaseGateway):
         if not self.td_api:
             self.write_log("交易接口未初始化，跳过查询任务初始化。")
             return
+        self.count: int = 0
         self.query_functions: list = [self.query_account, self.query_position]
 
     # --- Override BaseGateway on_xxx methods to publish events ---
@@ -313,6 +325,7 @@ class CtpMdApi(MdApi):
         :return:
         """
         self.gateway.write_log(_("行情服务器连接成功"))
+        self.gateway.on_gateway_status(GatewayConnectionStatus.CONNECTED, "行情服务器前置已连接")
         self.login()
 
     def onFrontDisconnected(self, reason: int) -> None:
@@ -333,7 +346,9 @@ class CtpMdApi(MdApi):
         :return:
         """
         self.login_status = False
+        self.connect_status = False # Also update connect_status as CTP might not auto-reconnect if true
         self.gateway.write_log(_("行情服务器连接断开，原因：{}").format(reason))
+        self.gateway.on_gateway_status(GatewayConnectionStatus.DISCONNECTED, f"行情服务器连接已断开，原因: {reason}")
 
     def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
@@ -348,11 +363,13 @@ class CtpMdApi(MdApi):
             self.login_status = True
             global_var.md_login_success = True
             self.gateway.write_log(_("行情服务器登录成功"))
+            self.gateway.on_gateway_status(GatewayConnectionStatus.CONNECTED, "行情服务器登录成功")
 
             for symbol in self.subscribed:
                 self.subscribeMarketData(symbol)
         else:
             self.gateway.write_error(_("行情服务器登录失败"), error)
+            self.gateway.on_gateway_status(GatewayConnectionStatus.ERROR, f"行情服务器登录失败: {error.get('ErrorMsg', '未知错误')}")
 
     def onRspError(self, error: dict, reqid: int, last: bool) -> None:
         """
@@ -503,6 +520,7 @@ class CtpMdApi(MdApi):
 
         # 禁止重复发起连接，会导致异常崩溃
         if not self.connect_status:
+            self.gateway.on_gateway_status(GatewayConnectionStatus.CONNECTING, "行情接口尝试连接中...")
             path: Path = get_folder_path(self.gateway_name.lower())
             self.createFtdcMdApi((str(path) + "\\Md").encode("GBK").decode("utf-8"))  # 加上utf-8编码，否则中文路径会乱码
 
@@ -531,8 +549,24 @@ class CtpMdApi(MdApi):
         :param req:
         :return:
         """
+        self.gateway.write_log(f"收到订阅请求: {req.symbol} 交易所: {req.exchange.value if req.exchange else 'N/A'}")
+
+        symbol: str = req.symbol
+
+        # 过滤重复的订阅
+        if symbol in self.subscribed:
+            return
+
         if self.login_status:
-            self.subscribeMarketData(req.symbol)
+            self.gateway.write_log(f"行情网关已登录，立即订阅合约: {req.symbol}")
+            result = self.subscribeMarketData(req.symbol)
+            if result == 0:
+                self.gateway.write_log(f"合约 {req.symbol} 订阅请求已发送")
+            else:
+                self.gateway.write_log(f"合约 {req.symbol} 订阅请求发送失败，错误码: {result}", "WARNING")
+        else:
+            self.gateway.write_log(f"行情网关未登录，将合约 {req.symbol} 加入待订阅列表")
+        
         self.subscribed.add(req.symbol)
 
     def close(self) -> None:
@@ -541,7 +575,10 @@ class CtpMdApi(MdApi):
         :return:
         """
         if self.connect_status:
+            self.gateway.on_gateway_status(GatewayConnectionStatus.DISCONNECTED, "行情接口已关闭")
             self.exit()
+            self.connect_status = False
+            self.login_status = False
 
     def update_date(self) -> None:
         """
@@ -595,6 +632,7 @@ class CtpTdApi(TdApi):
         :return: 无
         """
         self.gateway.write_log(_("交易服务器连接成功"))
+        self.gateway.on_gateway_status(GatewayConnectionStatus.CONNECTED, "交易服务器前置已连接")
         if self.auth_code:
             self.authenticate()
         else:
@@ -616,7 +654,10 @@ class CtpTdApi(TdApi):
         :return: 无
         """
         self.login_status = False
+        self.auth_status = False # Reset auth status on disconnect
+        self.connect_status = False # Also update connect_status
         self.gateway.write_log(_("交易服务器连接断开，原因：{}").format(reason))
+        self.gateway.on_gateway_status(GatewayConnectionStatus.DISCONNECTED, f"交易服务器连接已断开，原因: {reason}")
 
     def onRspAuthenticate(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
@@ -630,11 +671,13 @@ class CtpTdApi(TdApi):
         if not error.get('ErrorID'):
             self.auth_status = True
             self.gateway.write_log(_("交易服务器授权验证成功"))
+            # Don't send CONNECTED here, login is next. If auth is part of "connected", this might change.
             self.login()
         else:
-            if error.get('ErrorID') == 63:
+            if error.get('ErrorID') == 63: # Specific error code for auth failure
                 self.auth_failed = True
             self.gateway.write_error(_("交易服务器授权验证失败"), error)
+            self.gateway.on_gateway_status(GatewayConnectionStatus.ERROR, f"交易服务器授权失败: {error.get('ErrorMsg', '未知错误')}")
 
     def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
@@ -651,12 +694,14 @@ class CtpTdApi(TdApi):
             self.login_status = True
             global_var.td_login_success = True
             self.gateway.write_log(_("交易服务器登录成功"))
+            self.gateway.on_gateway_status(GatewayConnectionStatus.CONNECTED, "交易服务器登录成功")
             ctp_req: dict = {"BrokerID": self.broker_id, "InvestorID": self.userid}
             self.req_id += 1
             self.reqSettlementInfoConfirm(ctp_req, self.req_id)
         else:
             self.login_failed = True
             self.gateway.write_error(_("交易服务器登录失败"), error)
+            self.gateway.on_gateway_status(GatewayConnectionStatus.ERROR, f"交易服务器登录失败: {error.get('ErrorMsg', '未知错误')}")
 
     def onRspQryProduct(self, data: dict, error: dict, reqid: int, last: bool):
         """
@@ -743,11 +788,23 @@ class CtpTdApi(TdApi):
             if last:
                 self.gateway.write_log(_("结算信息确认成功"))
                 # 当结算单确认成功后，将登录成功标志设置为True (这条语句之前用户添加过，但通常登录成功在onRspUserLogin中处理)
-                # global_var.td_login_success = True # 确认此标志的正确管理位置
+                global_var.td_login_success = True # 确认此标志的正确管理位置
                 
                 self.gateway.write_log(_("开始查询所有合约信息..."))
-                self.req_id += 1
-                self.reqQryInstrument({}, self.req_id)
+                # 由于流控，单次查询可能失败，通过while循环持续尝试，直到成功发出请求
+                retries = 0
+                max_retries = 5
+                while retries < max_retries:
+                    self.req_id += 1
+                    n: int = self.reqQryInstrument({}, self.req_id)
+                    if not n:
+                        break
+                    else:
+                        self.gateway.write_log(f"reqQryInstrument failed with {n}, retrying in 1s ({retries + 1}/{max_retries})")
+                        sleep(1)
+                        retries += 1
+                if retries == max_retries:
+                    self.gateway.write_log("reqQryInstrument failed after max retries.")
 
     def onRspQryInvestorPosition(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
@@ -759,63 +816,60 @@ class CtpTdApi(TdApi):
         :param last: 指示该次返回是否为针对 reqid 的最后一次返回。
         :return:
         """
-        if last or (error and 'ErrorID' in error and error['ErrorID']):
-            if not data:
-                return
+        if not data:
+            return
+
+        # 必须已经收到了合约信息后才能处理
+        symbol: str = data["InstrumentID"]
+        contract: ContractData = symbol_contract_map.get(symbol, None)
+
+        if contract:
+            # 获取之前缓存的持仓数据缓存
+            key: str = f"{data['InstrumentID'], data['PosiDirection']}"
+            position: PositionData = self.positions.get(key, None)
+            if not position:
+                position = PositionData(
+                    symbol=data["InstrumentID"],
+                    exchange=contract.exchange,
+                    direction=DIRECTION_CTP2VT[data["PosiDirection"]],
+                    gateway_name=self.gateway_name
+                )
+                self.positions[key] = position
+
+            # 对于上期所昨仓需要特殊处理
+            if position.exchange in {Exchange.SHFE, Exchange.INE}:
+                if data["YdPosition"] and not data["TodayPosition"]:
+                    position.yd_volume = data["Position"]
+            # 对于其他交易所昨仓的计算
             else:
-                self.gateway.write_log(_("查询持仓成功，所有查询已结束！"))
+                position.yd_volume = data["Position"] - data["TodayPosition"]
 
-            # 必须已经收到了合约信息后才能处理
-            symbol: str = data["InstrumentID"]
-            contract: ContractData = symbol_contract_map.get(symbol, None)
+            # 获取合约的乘数信息
+            size: float = contract.size
 
-            if contract:
-                # 获取之前缓存的持仓数据缓存
-                key: str = f"{data['InstrumentID'], data['PosiDirection']}"
-                position: PositionData = self.positions.get(key, None)
-                if not position:
-                    position = PositionData(
-                        symbol=data["InstrumentID"],
-                        exchange=contract.exchange,
-                        direction=DIRECTION_CTP2VT[data["PosiDirection"]],
-                        gateway_name=self.gateway_name
-                    )
-                    self.positions[key] = position
+            # 计算之前已有仓位的持仓总成本
+            cost: float = position.price * position.volume * size
 
-                # 对于上期所昨仓需要特殊处理
-                if position.exchange in {Exchange.SHFE, Exchange.INE}:
-                    if data["YdPosition"] and not data["TodayPosition"]:
-                        position.yd_volume = data["Position"]
-                # 对于其他交易所昨仓的计算
-                else:
-                    position.yd_volume = data["Position"] - data["TodayPosition"]
+            # 累加更新持仓数量和盈亏
+            position.volume += data["Position"]
+            position.pnl += data["PositionProfit"]
 
-                # 获取合约的乘数信息
-                size: float = contract.size
+            # 计算更新后的持仓总成本和均价
+            if position.volume and size:
+                cost += data["PositionCost"]
+                position.price = cost / (position.volume * size)
 
-                # 计算之前已有仓位的持仓总成本
-                cost: float = position.price * position.volume * size
+            # 更新仓位冻结数量
+            if position.direction == Direction.LONG:
+                position.frozen += data["ShortFrozen"]
+            else:
+                position.frozen += data["LongFrozen"]
 
-                # 累加更新持仓数量和盈亏
-                position.volume += data["Position"]
-                position.pnl += data["PositionProfit"]
+        if last:
+            for position in self.positions.values():
+                self.gateway.on_position(position)
 
-                # 计算更新后的持仓总成本和均价
-                if position.volume and size:
-                    cost += data["PositionCost"]
-                    position.price = cost / (position.volume * size)
-
-                # 更新仓位冻结数量
-                if position.direction == Direction.LONG:
-                    position.frozen += data["ShortFrozen"]
-                else:
-                    position.frozen += data["LongFrozen"]
-
-            if last:
-                for position in self.positions.values():
-                    self.gateway.on_position(position)
-
-                self.positions.clear()
+            self.positions.clear()
 
     def onRspQryInvestorPositionDetail(self, data: dict, error: dict, reqid: int, last: bool):
         """
@@ -866,7 +920,7 @@ class CtpTdApi(TdApi):
         try:
             if error.get("ErrorID"):
                 self.gateway.write_log(_("CtpTdApi：onRspQryInstrument 出错。最后：{}，错误 ID：{}").format(last, error.get('ErrorID', 'N/A')))
-             # 1. 合约对象构建
+            # 1. 合约对象构建
             contract = ctp_build_contract(data, self.gateway_name)
             if contract:
                 self.gateway.on_contract(contract)
@@ -892,6 +946,7 @@ class CtpTdApi(TdApi):
                 for data in self.trade_data:
                     self.onRtnTrade(data)
                 self.trade_data.clear()
+
         except Exception as e:
             self.gateway.write_error(_("onRspQryInstrument 异常：{}").format(e), error)
 
@@ -978,6 +1033,15 @@ class CtpTdApi(TdApi):
             gateway_name=self.gateway_name
         )
         self.gateway.on_trade(trade)
+
+    def onRspForQuoteInsert(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """询价请求回报"""
+        if not error["ErrorID"]:
+            symbol: str = data["InstrumentID"]
+            msg: str = f"{symbol}询价请求发送成功"
+            self.gateway.write_log(msg)
+        else:
+            self.gateway.write_error("询价请求发送失败", error)
 
     def onRspQryInstrumentCommissionRate(self, data: dict, error: dict, reqid: int, last: bool):
         """
@@ -1082,6 +1146,7 @@ class CtpTdApi(TdApi):
         self.appid = appid
 
         if not self.connect_status:
+            self.gateway.on_gateway_status(GatewayConnectionStatus.CONNECTING, "交易接口尝试连接中...")
             path: Path = get_folder_path(self.gateway_name.lower())
             api_path_str = str(path) + "\\Td"
             self.gateway.write_log(_("CtpTdApi：尝试创建路径为 {} 的 API").format(api_path_str))
@@ -1160,6 +1225,11 @@ class CtpTdApi(TdApi):
             self.gateway.write_log(_("当前接口不支持该类型的委托{}").format(req.type.value))
             return ""
 
+        exchange: Exchange = req.exchange
+        if not exchange:
+            self.gateway.write_log(f"不支持的交易所：{req.exchange}")
+            return ""
+
         self.order_ref += 1
 
         tp: tuple = ORDERTYPE_VT2CTP[req.type]
@@ -1204,6 +1274,11 @@ class CtpTdApi(TdApi):
         :param req:
         :return:
         """
+        exchange: Exchange = req.exchange
+        if not exchange:
+            self.gateway.write_log(f"不支持的交易所：{req.exchange}")
+            return
+
         front_id, session_id, order_ref = req.orderid.split("_")
 
         ctp_req: dict = {
@@ -1286,7 +1361,10 @@ class CtpTdApi(TdApi):
         :return:
         """
         if self.connect_status:
+            self.gateway.on_gateway_status(GatewayConnectionStatus.DISCONNECTED, "交易接口已关闭")
             self.exit()
+            self.connect_status = False
+            self.login_status = False
 
 
 def adjust_price(price: float) -> float:

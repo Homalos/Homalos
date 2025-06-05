@@ -10,8 +10,9 @@
 @Description: Basic data structure used for general trading function in the trading platform.
 """
 from dataclasses import dataclass, field
-
 from datetime import datetime as Datetime
+from enum import Enum
+from typing import Optional
 
 from src.config.constants import Direction, Exchange, Interval, Offset, OptionType, OrderType, Product, Status
 
@@ -264,6 +265,27 @@ class ContractData(BaseData):
     def __post_init__(self) -> None:
         """"""
         self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
+
+
+class GatewayConnectionStatus(Enum):
+    """
+    网关连接状态枚举。
+    """
+    CONNECTING = "CONNECTING"
+    CONNECTED = "CONNECTED"
+    DISCONNECTED = "DISCONNECTED"
+    ERROR = "ERROR"
+
+
+@dataclass
+class GatewayStatusData(BaseData):
+    """
+    网关状态数据。
+    """
+    status: GatewayConnectionStatus
+    message: Optional[str] = None
+
+    # gateway_name is inherited from BaseData
 
 
 @dataclass

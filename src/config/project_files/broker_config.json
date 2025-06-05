@@ -46,5 +46,6 @@
 			"auth_code":"0000000000000000"
 		}
 	},
-	"default_broker":"simnow"
+	"default_broker":"simnow",
+	"default_subscriptions": ["SA509", "cu2407", "IF2406", "m2407"]
 }

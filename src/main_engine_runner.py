@@ -18,9 +18,9 @@ from typing import Dict, Type, Optional
 from src.config.constants import Exchange
 from src.config.setting import get_broker_setting
 from src.core.base_gateway import BaseGateway
-from src.core.event import EventType, OrderRequestEvent, CancelOrderRequestEvent, LogEvent
+from src.core.event import EventType, OrderRequestEvent, CancelOrderRequestEvent, LogEvent, GatewayStatusEvent, SubscribeRequestEvent
 from src.core.event_engine import EventEngine
-from src.core.object import LogData, OrderRequest, CancelRequest, SubscribeRequest
+from src.core.object import LogData, OrderRequest, CancelRequest, SubscribeRequest, GatewayStatusData, GatewayConnectionStatus
 from src.ctp.gateway.ctp_gateway import CtpGateway
 from src.ctp.gateway.ctp_mapping import EXCHANGE_CTP2VT
 from src.strategies.base_strategy import BaseStrategy
@@ -44,10 +44,12 @@ class MainEngine:
         self._running = True
         self.environment_name: Optional[str] = environment_name
         self.current_broker_setting: Optional[dict] = None
+        self.using_external_md_service = True  # 标记是否使用外部行情服务
 
         self.event_engine.register(EventType.ORDER_REQUEST, self.process_order_request)
         self.event_engine.register(EventType.CANCEL_ORDER_REQUEST, self.process_cancel_order_request)
         self.event_engine.register(EventType.LOG, self.process_log_event)
+        self.event_engine.register(EventType.GATEWAY_STATUS, self.process_gateway_status_event)
 
         self._load_broker_config()
 
@@ -133,6 +135,21 @@ class MainEngine:
         log_data: LogData = event.data
         log(f"{log_data.msg}", log_data.level)
 
+    async def process_gateway_status_event(self, event: GatewayStatusEvent):
+        """处理网关状态事件。"""
+        status_data: GatewayStatusData = event.data
+        log_msg = f"网关状态更新 [{status_data.gateway_name}]: {status_data.status.value}"
+        if status_data.message:
+            log_msg += f" - {status_data.message}"
+        
+        log_level = "INFO"
+        if status_data.status == GatewayConnectionStatus.ERROR:
+            log_level = "ERROR"
+        elif status_data.status == GatewayConnectionStatus.DISCONNECTED:
+            log_level = "WARNING"
+            
+        self.log(log_msg, level=log_level)
+
     def get_default_gateway_name(self, exchange_filter: Optional[str] = None) -> str:
         """
         获取默认网关名称。如果提供了交易所过滤器，则尝试找到支持该交易所的网关。
@@ -144,7 +161,7 @@ class MainEngine:
         
         # Construct the expected name for a CTP gateway based on the current environment
         if self.environment_name:
-            ctp_gw_name = f"CTP_{self.environment_name}"
+            ctp_gw_name = f"CTP_TD_{self.environment_name}"  # 修改为只查找交易网关
             if ctp_gw_name in self.gateways:
                 if exchange_filter and exchange_filter in self.gateways[ctp_gw_name].exchanges:
                     return ctp_gw_name
@@ -158,11 +175,11 @@ class MainEngine:
         
         return list(self.gateways.keys())[0]
 
-    def add_gateway(self, gateway_class: Type[BaseGateway], gateway_name_prefix: str = "CTP"):
+    def add_gateway(self, gateway_class: Type[BaseGateway], gateway_name_prefix: str = "CTP_TD"):
         """
         添加并初始化一个网关。
         对于CTP网关，它将使用 self.current_broker_setting。
-        gateway_name 将基于 environment_name (broker name) 和 prefix 构建, e.g., CTP_simnow
+        gateway_name 将基于 environment_name (broker name) 和 prefix 构建, e.g., CTP_TD_simnow
         """
         actual_gateway_name = gateway_name_prefix # Default if not CTP or no environment
         gw_settings_to_use = None
@@ -191,7 +208,6 @@ class MainEngine:
                  return None
             else: # For other types, this might be acceptable if they don't require settings
                  self.log(f"网关 {actual_gateway_name} 的配置为空，但其类型非 CTP。", "WARNING")
-
 
         gateway = gateway_class(actual_gateway_name, self.event_engine)
         self.gateways[actual_gateway_name] = gateway
@@ -239,6 +255,18 @@ class MainEngine:
             # Fallback to print if event_engine is not available or not active
             log(f"{log_data.msg}", log_data.level)
 
+    async def send_subscribe_request(self, symbol: str, exchange: Exchange):
+        """
+        发送订阅请求到行情网关服务
+        """
+        if not self.event_engine or not self.event_engine.is_active():
+            self.log(f"无法发送订阅请求，事件引擎未激活", "ERROR")
+            return
+            
+        req = SubscribeRequest(symbol=symbol, exchange=exchange)
+        self.log(f"发送订阅请求: {symbol} 交易所: {exchange.value}")
+        await self.event_engine.put(SubscribeRequestEvent(data=req))
+
     async def start(self):
         """
         启动主引擎和所有组件。
@@ -247,58 +275,48 @@ class MainEngine:
         self.log("主引擎启动中...")
         self.event_engine.start()
 
-        gateways_to_connect = list(self.gateways.items())
-
-        for gw_name, gateway in gateways_to_connect:
-            settings_for_connect = None
-            if isinstance(gateway, CtpGateway):
-                # For CTP gateway, settings must come from the loaded current_broker_setting
-                if self.current_broker_setting and self.environment_name == gw_name.split('_', 1)[-1]: # Ensure settings match gateway
-                    settings_for_connect = self.current_broker_setting
-                else:
-                    self.log(f"CTP 网关 {gw_name} 的特定环境设置 ({self.environment_name}) 未找到或不匹配。无法连接。", "ERROR")
-                    continue # Skip connecting this gateway
-            # else:
-                # For other gateway types, load their specific global settings if needed
-                # settings_for_connect = get_global_setting(f"{gw_name.upper()}.") 
-                # if not settings_for_connect and hasattr(gateway, 'default_setting') and gateway.default_setting:
-                #    settings_for_connect = gateway.default_setting
-                pass # Placeholder
-
-            if not settings_for_connect and hasattr(gateway, 'default_setting') and gateway.default_setting and not isinstance(gateway, CtpGateway):
-                 settings_for_connect = gateway.default_setting
-                 self.log(f"网关 {gw_name} 使用其默认设置进行连接。", "INFO")
+        # 只连接交易网关，不再连接行情网关
+        if self.current_broker_setting and self.environment_name:
+            # 添加交易网关
+            td_gateway = self.add_gateway(CtpGateway, "CTP_TD")
             
-            if settings_for_connect:
-                self.log(f"正在连接网关 {gw_name} 使用设置: {settings_for_connect.get('userid', 'N/A')} @ {settings_for_connect.get('td_address', 'N/A')}")
+            if td_gateway:
+                self.log(f"正在连接交易网关，使用账户: {self.current_broker_setting.get('userid', 'N/A')} @ {self.current_broker_setting.get('td_address', 'N/A')}")
                 loop = asyncio.get_event_loop()
                 try:
-                    await loop.run_in_executor(None, gateway.connect, settings_for_connect)
-                    self.log(f"网关 {gw_name} 连接指令已发送。 (具体连接状态需查看后续日志)")
-
-                    # 假设连接成功后，为示例策略订阅行情
-                    if isinstance(gateway, CtpGateway): # 特别为CTP网关处理
-                        for strat_id, strat in self.strategies.items():
-                            if isinstance(strat, ExampleStrategy) and hasattr(strat, 'subscribed_symbol'):
-                                symbol_to_subscribe = strat.subscribed_symbol
-                                exchange_for_symbol: Optional[Exchange] = None
-
-                                # Try to get CTP exchange string from gateway's instrument_exchange_map
-                                ctp_exchange_str = gateway.instrument_exchange_map.get(symbol_to_subscribe)
-                                
-                                if ctp_exchange_str:
-                                    exchange_for_symbol = EXCHANGE_CTP2VT.get(ctp_exchange_str)
-                                
-                                if exchange_for_symbol:
-                                    sub_req = SubscribeRequest(symbol=symbol_to_subscribe, exchange=exchange_for_symbol)
-                                    self.log(f"为策略 {strat_id} 订阅行情: {symbol_to_subscribe} on {exchange_for_symbol.value}")
-                                    await loop.run_in_executor(None, gateway.subscribe, sub_req)
-                                else:
-                                    self.log(f"无法确定合约 {symbol_to_subscribe} (CTP Exchange: {ctp_exchange_str}) 的交易所枚举，无法为其订阅行情。", "WARNING")
+                    # 只连接交易接口
+                    await loop.run_in_executor(None, td_gateway.connect_td, self.current_broker_setting)
+                    self.log(f"交易网关连接指令已发送 (具体连接状态需查看后续日志)")
                 except Exception as e:
-                    self.log(f"连接网关 {gw_name} 失败: {e}", "ERROR")       
-            else:
-                self.log(f"网关 {gw_name} 的配置未找到，跳过连接。", "WARNING")
+                    self.log(f"连接交易网关失败: {e}", "ERROR")
+        else:
+            self.log("未添加CTP交易网关，因为经纪商设置加载失败、不完整或未指定有效环境。", "ERROR")
+
+        # 为策略订阅行情（现在通过ZMQ发送订阅请求）
+        for strat_id, strat in self.strategies.items():
+            if isinstance(strat, ExampleStrategy) and hasattr(strat, 'subscribed_symbol'):
+                symbol_to_subscribe = strat.subscribed_symbol
+                
+                # 尝试从本地映射获取交易所信息
+                exchange_for_symbol = None
+                
+                # 假设我们有某种方式获取合约的交易所信息
+                # 这里简化处理，可以从配置文件或其他地方获取
+                # 例如，对于CTP期货合约，可以硬编码为SHFE、DCE等
+                if symbol_to_subscribe.startswith("cu"):
+                    exchange_for_symbol = Exchange.SHFE
+                elif symbol_to_subscribe.startswith("m"):
+                    exchange_for_symbol = Exchange.DCE
+                elif symbol_to_subscribe.startswith("IF"):
+                    exchange_for_symbol = Exchange.CFFEX
+                elif symbol_to_subscribe.startswith("SA"):
+                    exchange_for_symbol = Exchange.CZCE
+                
+                if exchange_for_symbol:
+                    self.log(f"为策略 {strat_id} 发送订阅请求: {symbol_to_subscribe} on {exchange_for_symbol.value}")
+                    await self.send_subscribe_request(symbol_to_subscribe, exchange_for_symbol)
+                else:
+                    self.log(f"无法确定合约 {symbol_to_subscribe} 的交易所枚举，无法为其发送订阅请求。", "WARNING")
 
         # 初始化并启动策略
         for strategy_id, strategy in self.strategies.items():
@@ -338,19 +356,14 @@ class MainEngine:
 
 async def run_main(environment: Optional[str] = None):
     # Configuration for ZMQ addresses (should be moved to a config file later)
-    ZMQ_PUB_ADDRESS = "tcp://*:5555"  # Address for components to publish events
-    ZMQ_SUB_ADDRESS = "tcp://localhost:5555" # Address for this MainEngine instance to subscribe
+    ZMQ_PUB_ADDRESS = "tcp://*:5555"  # 主引擎发布地址
+    ZMQ_SUB_ADDRESS = "tcp://localhost:5556" # 订阅行情网关服务的地址
 
     # Instantiate the chosen event engine
     zmq_event_engine = ZmqEventEngine(pub_addr=ZMQ_PUB_ADDRESS, sub_addr=ZMQ_SUB_ADDRESS, engine_id="MainEngineZMQ")
     
     # in_process_event_engine = EventEngine()
     main_engine = MainEngine(event_engine=zmq_event_engine, environment_name=environment)
-
-    if main_engine.current_broker_setting and main_engine.environment_name:
-        main_engine.add_gateway(CtpGateway, "CTP")
-    else:
-        main_engine.log("未添加CTP网关，因为经纪商设置加载失败、不完整或未指定有效环境。", "ERROR")
 
     example_params = {"symbol": "SA509"}
     main_engine.add_strategy(ExampleStrategy, "ExampleStrategy01", example_params)
@@ -401,4 +414,20 @@ async def run_main(environment: Optional[str] = None):
 
 if __name__ == "__main__":
     args = runner_args("Broker environment name (e.g., simnow, tts from broker_config.json)")
+    # import argparse
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("--ctp_env", type=str, help="Broker environment name (e.g., simnow, tts from broker_config.json)")
+    # args = parser.parse_args()
+
+    # Ensure src.config.setting.get_broker_setting() is correctly implemented
+    # to load your broker_config.json (or equivalent YAML)
+    # from src.config.path import GlobalPath
+    # from src.util.file_helper import load_json
+    # def _get_broker_config_manual(): # Example: if get_broker_setting isn't there
+    #     return load_json(str(GlobalPath.project_files_path.joinpath("broker_config.json")))
+    # if not hasattr(src.config.setting, 'get_broker_setting'):
+    #     print("Warning: src.config.setting.get_broker_setting not found, attempting manual load of broker_config.json for demo.")
+    #     import src.config.setting
+    #     src.config.setting.get_broker_setting = _get_broker_config_manual
+
     asyncio.run(run_main(environment=args.ctp_env))

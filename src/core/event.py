@@ -22,7 +22,9 @@ from src.core.object import (
     ContractData,
     LogData,
     OrderRequest,
-    CancelRequest
+    CancelRequest,
+    GatewayStatusData,
+    SubscribeRequest
 )
 
 class EventType(Enum):
@@ -36,9 +38,11 @@ class EventType(Enum):
     ACCOUNT_UPDATE = "eAccountUpdate" # 账户资金更新
     CONTRACT_INFO = "eContractInfo"  # 合约信息
     LOG = "eLog"  # 日志事件
+    GATEWAY_STATUS = "eGatewayStatus"  # 网关状态事件
     
     # 由策略或订单管理系统（OMS）生成的事件
     ORDER_REQUEST = "eOrderRequest"       # 新订单请求
+    SUBSCRIBE_REQUEST = "eSubscribeRequest" # 行情订阅请求
     CANCEL_ORDER_REQUEST = "eCancelOrderRequest" # 撤单请求
     STRATEGY_SIGNAL = "eStrategySignal"   # 策略产生的通用信号
 
@@ -86,6 +90,11 @@ class LogEvent(Event): # 用于通过事件总线进行系统范围的日志记�
     type: EventType = field(default=EventType.LOG, init=False)
     data: LogData = None
 
+@dataclass
+class GatewayStatusEvent(Event):
+    type: EventType = field(default=EventType.GATEWAY_STATUS, init=False)
+    data: GatewayStatusData = None
+
 # 可能由策略生成的事件
 @dataclass
 class OrderRequestEvent(Event): # 与 object.OrderRequest (内容) 不同
@@ -96,6 +105,11 @@ class OrderRequestEvent(Event): # 与 object.OrderRequest (内容) 不同
 class CancelOrderRequestEvent(Event):
     type: EventType = field(default=EventType.CANCEL_ORDER_REQUEST, init=False)
     data: CancelRequest = None
+
+@dataclass
+class SubscribeRequestEvent(Event):
+    type: EventType = field(default=EventType.SUBSCRIBE_REQUEST, init=False)
+    data: SubscribeRequest = None
 
 @dataclass
 class StrategySignalEvent(Event): # 更通用的信号

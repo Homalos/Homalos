@@ -27,10 +27,12 @@ from .object import (
     CancelRequest, 
     QuoteRequest, 
     HistoryRequest, 
-    BarData
+    BarData,
+    GatewayStatusData,
+    GatewayConnectionStatus
 )
 from src.core.event_engine import EventEngine
-from src.core.event import LogEvent
+from src.core.event import LogEvent, GatewayStatusEvent
 
 
 class BaseGateway(ABC):
@@ -107,6 +109,30 @@ class BaseGateway(ABC):
         else: # 没有事件引擎
             timestamp_str = log.time.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] # Milliseconds
             print(f"{timestamp_str} [{log.level}] [{log.gateway_name or self.gateway_name}] {log.msg}")
+
+    def on_gateway_status(self, status: GatewayConnectionStatus, message: Optional[str] = None) -> None:
+        """
+        创建并发送一个 GatewayStatusEvent。
+        """
+        gateway_status_data = GatewayStatusData(
+            gateway_name=self.gateway_name,
+            status=status,
+            message=message
+        )
+        if self.event_engine and self.main_loop and self.main_loop.is_running():
+            try:
+                current_loop = asyncio.get_running_loop()
+                if current_loop is self.main_loop:
+                    asyncio.create_task(self.event_engine.put(GatewayStatusEvent(data=gateway_status_data)))
+                else:
+                    asyncio.run_coroutine_threadsafe(self.event_engine.put(GatewayStatusEvent(data=gateway_status_data)), self.main_loop)
+            except RuntimeError: # No running loop in current thread, so must be from another thread
+                 asyncio.run_coroutine_threadsafe(self.event_engine.put(GatewayStatusEvent(data=gateway_status_data)), self.main_loop)
+        elif self.event_engine:
+            # Fallback if loop not running or not set but engine exists
+            print(f"GatewayStatus: [{self.gateway_name}] {status.value} - {message or ''} (EventLoopIssue)")
+        else:
+            print(f"GatewayStatus: [{self.gateway_name}] {status.value} - {message or ''}")
 
     def write_log(self, msg: str, level: str = "INFO") -> None:
         log_data = LogData(msg=msg, level=level, gateway_name=self.gateway_name)

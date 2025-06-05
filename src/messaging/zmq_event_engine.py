@@ -3,9 +3,9 @@ import pickle
 import threading
 import asyncio
 from collections import defaultdict
-from typing import Callable, Any, Coroutine, TypeVar, Optional
+from typing import Callable, Any, Coroutine, TypeVar, Optional, Union
 
-from src.core.event import Event, EventType
+from src.core.event import Event, EventType, LogEvent, TickEvent, OrderUpdateEvent, TradeUpdateEvent, AccountUpdateEvent, PositionUpdateEvent, ContractInfoEvent, SubscribeRequestEvent, OrderRequestEvent, CancelOrderRequestEvent, StrategySignalEvent, GatewayStatusEvent
 from src.core.object import LogData # Assuming LogData might be used if LogEvents are passed
 from src.util.logger import log, setup_logging
 
@@ -184,18 +184,54 @@ class ZmqEventEngine:
         # else:
         #     self._log(f"No handlers registered for event type {event.type.value}.", "DEBUG")
 
-    async def put(self, event: Event):
+    async def put(self, event_or_type: Union[Event, EventType], data: Any = None):
         """
         Publishes an event to the ZeroMQ bus.
         The event is pickled before sending.
         The event's type (EventType.value) is used as the ZMQ topic.
 
         Args:
-            event: The Event object to publish.
+            event_or_type: Either an Event object to publish, or an EventType to create a new event.
+            data: If event_or_type is an EventType, this is the data to include in the new event.
         """
         if not self._active:
-            self._log(f"Attempted to put event {event.type.value} while engine is not active. Event ignored.", "WARNING")
+            self._log(f"Attempted to put event while engine is not active. Event ignored.", "WARNING")
             return
+
+        # 如果传入的是EventType，则根据类型创建相应的事件对象
+        if isinstance(event_or_type, EventType):
+            event_type = event_or_type
+            # 根据事件类型创建对应的事件对象
+            if event_type == EventType.TICK:
+                event = TickEvent(data=data)
+            elif event_type == EventType.ORDER_UPDATE:
+                event = OrderUpdateEvent(data=data)
+            elif event_type == EventType.TRADE_UPDATE:
+                event = TradeUpdateEvent(data=data)
+            elif event_type == EventType.POSITION_UPDATE:
+                event = PositionUpdateEvent(data=data)
+            elif event_type == EventType.ACCOUNT_UPDATE:
+                event = AccountUpdateEvent(data=data)
+            elif event_type == EventType.CONTRACT_INFO:
+                event = ContractInfoEvent(data=data)
+            elif event_type == EventType.LOG:
+                event = LogEvent(data=data)
+            elif event_type == EventType.GATEWAY_STATUS:
+                event = GatewayStatusEvent(data=data)
+            elif event_type == EventType.ORDER_REQUEST:
+                event = OrderRequestEvent(data=data)
+            elif event_type == EventType.CANCEL_ORDER_REQUEST:
+                event = CancelOrderRequestEvent(data=data)
+            elif event_type == EventType.SUBSCRIBE_REQUEST:
+                event = SubscribeRequestEvent(data=data)
+            elif event_type == EventType.STRATEGY_SIGNAL:
+                event = StrategySignalEvent(data=data)
+            else:
+                # 对于未知类型，创建一个通用Event
+                event = Event(type=event_type, data=data)
+        else:
+            # 如果传入的已经是Event对象，直接使用
+            event = event_or_type
 
         try:
             pickled_event = pickle.dumps(event)
@@ -251,145 +287,93 @@ class ZmqEventEngine:
                         self._log(f"ZMQ SUB socket unsubscribed from topic: {event_type.value}")
                     except zmq.error.ZMQError as e:
                         self._log(f"Error unsubscribing ZMQ SUB socket from topic {event_type.value}: {e}", "ERROR")
-                del self._subscribed_topics[topic_bytes] # Clean up if count is zero or less
-
+                del self._subscribed_topics[topic_bytes]
         except ValueError:
-            self._log(f"Attempt to unregister handler {getattr(handler, '__name__', 'unknown_handler')} failed: not found for event type {event_type.value}.", "WARNING")
+            self._log(f"Handler {getattr(handler, '__name__', 'unknown_handler')} not found in handlers for event type {event_type.value}.", "WARNING")
 
     async def stop(self):
         """
         Stops the ZeroMQ event engine.
-        Closes ZMQ sockets and stops the subscriber thread.
-        The ZMQ context itself is typically terminated when the process exits or if managed globally.
+        Closes the ZMQ sockets and terminates the subscriber thread.
         """
         if not self._active:
-            self._log("Engine is not active or already stopping.", "WARNING")
+            self._log("Engine is already stopped.", "WARNING")
             return
-        
-        self._log("Stopping...")
-        self._active = False # Signal subscriber thread to stop
 
-        # Wait for subscriber thread to finish
+        self._log("Stopping ZMQ Event Engine...")
+        self._active = False
+
+        # Wait for the subscriber thread to finish
         if self._sub_thread and self._sub_thread.is_alive():
-            self._log("Waiting for subscriber thread to terminate...")
-            self._sub_thread.join(timeout=5.0) # Wait for 5 seconds
+            self._log("Waiting for subscriber thread to finish...")
+            self._sub_thread.join(timeout=5.0)
             if self._sub_thread.is_alive():
-                self._log("Subscriber thread did not terminate in time.", "WARNING")
-        
-        # Close sockets
-        # Check if sockets exist and are not already closed
-        if hasattr(self, 'publisher') and self.publisher and not self.publisher.closed:
-            self._log("Closing publisher socket.")
-            self.publisher.close()
-        if hasattr(self, 'subscriber') and self.subscriber and not self.subscriber.closed:
-            self._log("Closing subscriber socket.")
-            self.subscriber.close()
-        
-        # Note: ZMQ context termination is usually handled globally (e.g., context.term())
-        # if zmq.Context.instance() was used. If a local context was created, term it here.
-        # Since we used .instance(), we don't terminate it here as it's shared.
-        
-        self.main_loop = None # Clear the loop reference
-        self._log("Successfully stopped.")
+                self._log("Subscriber thread did not finish in time.", "WARNING")
 
-# Example Usage (for testing purposes, typically this would be part of a larger application)
+        # Close ZMQ sockets
+        if not self.publisher.closed:
+            self.publisher.close(linger=500)  # Allow time for pending messages to be sent
+        if not self.subscriber.closed:
+            self.subscriber.close(linger=0)  # No need to wait for subscriber
+
+        self._log("ZMQ Event Engine stopped.")
+
+
+# Example usage
 async def example_async_handler(event: Event):
-    log(f"[{threading.get_ident()}-{asyncio.current_task().get_name()}] Example Async Handler received event: {event.type} - {event.data}", "DEBUG")
-    await asyncio.sleep(0.1) # Simulate some async work
+    print(f"Received event {event.type.value} with data: {event.data}")
 
 async def example_main():
-    pub_addr = "tcp://127.0.0.1:5555" # Use 127.0.0.1 for pub if sub is on same machine connecting to localhost
-    # For PUB, tcp://*:5555 binds to all interfaces.
-    # For SUB, tcp://localhost:5555 connects to localhost. Or tcp://<publisher_ip>:5555
-    
-    engine1 = ZmqEventEngine(pub_addr="tcp://*:5556", sub_addr="tcp://localhost:5555", engine_id="Engine1_Subscriber")
-    engine2 = ZmqEventEngine(pub_addr="tcp://*:5555", sub_addr="tcp://localhost:5556", engine_id="Engine2_PublisherAndSubscriber")
+    # Initialize two ZMQ event engines
+    engine1 = ZmqEventEngine(pub_addr="tcp://*:5555", sub_addr="tcp://localhost:5556", engine_id="Engine1")
+    engine2 = ZmqEventEngine(pub_addr="tcp://*:5556", sub_addr="tcp://localhost:5555", engine_id="Engine2")
 
+    # Register handlers
     engine1.register(EventType.TICK, example_async_handler)
-    engine1.register(EventType.LOG, example_async_handler)
-    
-    engine2.register(EventType.ORDER_UPDATE, example_async_handler)
+    engine2.register(EventType.TICK, example_async_handler)
 
+    # Start engines
     engine1.start()
     engine2.start()
 
-    # Give engines time to start and connect
-    await asyncio.sleep(1) 
+    # Wait for engines to start
+    await asyncio.sleep(1)
 
-    # Engine2 publishes a TICK event, Engine1 should receive it
-    tick_data = TickData(symbol="AAPL", exchange=None, name="Apple Inc.", last_price=150.0) # Fill with dummy data
-    tick_event = Event(type=EventType.TICK, data=tick_data)
-    log("Engine2 publishing TickEvent...")
-    await engine2.put(tick_event) # TickEvent is published on Engine2's PUB (5555)
+    # Create and publish events
+    from dataclasses import dataclass
+    from typing import Any
 
-    # Engine1 publishes an ORDER_UPDATE event, Engine2 should receive it
-    order_data = OrderData(symbol="MSFT", exchange=None, orderid="123", status="FILLED") # Dummy
-    order_event = Event(type=EventType.ORDER_UPDATE, data=order_data)
-    log("Engine1 publishing OrderUpdateEvent...")
-    await engine1.put(order_event) # OrderUpdateEvent is published on Engine1's PUB (5556)
-    
-    # Engine2 publishes a Log event, Engine1 should receive it
-    log_data_obj = LogData(msg="A log message from Engine2", level="INFO", gateway_name="TestGateway")
-    log_event_obj = Event(type=EventType.LOG, data=log_data_obj) # Use generic Event for now if LogEvent not defined in this scope
-    log("Engine2 publishing LogEvent...")
-    await engine2.put(log_event_obj)
+    @dataclass
+    class TickData:
+        symbol: str
+        exchange: Any
+        name: str
+        last_price: float
 
+    @dataclass
+    class OrderData:
+        symbol: str
+        exchange: Any
+        orderid: str
+        status: str
 
-    await asyncio.sleep(2) # Allow time for events to be processed
+    # Create a tick event
+    tick_data = TickData(symbol="BTCUSDT", exchange="BINANCE", name="Bitcoin", last_price=50000.0)
+    await engine1.put(EventType.TICK, tick_data)  # Using the new overload
 
-    log("Stopping engines...")
+    # Create an order event
+    order_data = OrderData(symbol="ETHUSDT", exchange="BINANCE", orderid="123456", status="FILLED")
+    await engine2.put(EventType.ORDER_UPDATE, order_data)  # Using the new overload
+
+    # Wait for events to be processed
+    await asyncio.sleep(2)
+
+    # Stop engines
     await engine1.stop()
     await engine2.stop()
-    log("Engines stopped.")
-
-    # Terminate the global ZMQ context if no other part of the application needs it.
-    # This is important for clean shutdown, especially in scripts.
-    # zmq.Context.instance().term()
-    # log("Global ZMQ context terminated.")
-
 
 if __name__ == "__main__":
-    # This example requires src.core.event.Event, EventType, and dummy data objects like TickData, OrderData, LogData
-    # Ensure these are accessible or provide minimal stubs for testing.
-    # For example:
-    from dataclasses import dataclass
-    if "TickData" not in globals():
-        @dataclass
-        class TickData:
-            symbol: str
-            exchange: Any
-            name: str
-            last_price: float
-    if "OrderData" not in globals():
-        @dataclass
-        class OrderData:
-            symbol: str
-            exchange: Any
-            orderid: str
-            status: str
-    # if "LogData" not in globals(): @dataclass class LogData: msg: str; level: str; gateway_name: str; # Defined in core.object
-
-    # Need to define EventType members used if not fully imported
-    # from enum import Enum
-    # class EventType(Enum):
-    #     TICK = "eTick"
-    #     ORDER_UPDATE = "eOrderUpdate"
-    #     LOG = "eLog"
-    # class Event:
-    #     def __init__(self, type, data=None): self.type = type; self.data = data
-
     try:
         asyncio.run(example_main())
     except KeyboardInterrupt:
-        log("Example run interrupted by user.", "INFO")
-    finally:
-        # Ensure ZMQ context is terminated on script exit
-        # This prevents hanging if sockets/context weren't cleaned up properly by stop() or errors.
-        # It's a bit of a heavy hammer but useful for scripts.
-        # In a larger app, context termination should be more carefully managed.
-        # If multiple ZmqEventEngine instances share the context via .instance(),
-        # term() should be called only once when the application is sure ZMQ is no longer needed.
-        zmq_ctx = zmq.Context.instance()
-        if not zmq_ctx.closed:
-             log("Terminating global ZMQ context on script exit.", "INFO")
-             zmq_ctx.term() 
+        print("Example interrupted by user.") 
