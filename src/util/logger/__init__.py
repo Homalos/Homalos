@@ -52,12 +52,12 @@ def setup_logging(
     为应用程序配置 loguru 记录器。
 
     参数：
-        level（字符串 | int）：输出的最低日志级别（例如，“DEBUG”、“INFO”或 logging.INFO）。
+        level（字符串 | int）：输出的最低日志级别（例如，"DEBUG"、"INFO"或 logging.INFO）。
         format_ft（字符串）：日志格式字符串（应包含 {extra[service]}）。
         service_name（字符串）：用于日志文件命名模式的名称。
-        config_env（可选[字符串]）：配置环境的名称（例如，“dev”、“prod”）。
-        rotation（字符串）：日志文件轮换条件（例如，“100 MB”、“1 天”）。
-        retention（字符串）：保留旧日志文件的时间（例如，“7 天”、“1 个月”）。
+        config_env（可选[字符串]）：配置环境的名称（例如，"dev"、"prod"）。
+        rotation（字符串）：日志文件轮换条件（例如，"100 MB"、"1 天"）。
+        retention（字符串）：保留旧日志文件的时间（例如，"7 天"、"1 个月"）。
         **kwargs：直接传递给 logger.add() 的附加关键字参数。
 
     Configures the loguru logger for the application.
@@ -113,6 +113,8 @@ def setup_logging(
                 format=format_ft,
                 colorize=True,
                 filter=filter_func,
+                enqueue=False,  # 强制同步输出到控制台
+                diagnose=True, # 增加诊断信息
                 **kwargs_cleaned
             )
         except Exception as e:
@@ -129,7 +131,7 @@ def setup_logging(
                 rotation=rotation,
                 retention=retention,
                 encoding="utf-8",
-                enqueue=True,
+                enqueue=False,
                 filter=filter_func,
                 **kwargs_cleaned
             )

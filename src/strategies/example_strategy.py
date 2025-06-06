@@ -61,6 +61,8 @@ class ExampleStrategy(BaseStrategy):
 
     async def on_tick(self, tick: TickData):
         """处理Tick行情事件。"""
+        # self.write_log(f"策略收到TICK事件: 合约={tick.symbol}, 最新价={tick.last_price}")
+
         if tick.symbol != self.subscribed_symbol or not self.active:
             return
 

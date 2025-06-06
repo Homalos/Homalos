@@ -66,8 +66,6 @@ class CtpGateway(BaseGateway):
 
     def __init__(self, gateway_name: str, event_engine: EventEngine) -> None:
         super().__init__(gateway_name, event_engine)
-        self.main_loop = asyncio.get_event_loop() # Store the main event loop
-        self.event_engine: EventEngine = event_engine # Ensure this line is present
         self.query_functions = None
         self.td_api: CtpTdApi | None = None
         self.md_api: CtpMdApi | None = None
@@ -390,10 +388,11 @@ class CtpMdApi(MdApi):
         :param last:
         :return:
         """
-        if not error or not error["ErrorID"]:
-            return
-
-        self.gateway.write_error(_("行情订阅失败"), error)
+        symbol = data.get("InstrumentID", "N/A")
+        if error and error.get("ErrorID"):
+            self.gateway.write_error(f"合约 {symbol} 行情订阅失败", error)
+        else:
+            self.gateway.write_log(f"合约 {symbol} 行情订阅成功。")
 
     def onRtnDepthMarketData(self, data: dict) -> None:
         """
@@ -401,6 +400,12 @@ class CtpMdApi(MdApi):
         :param data:
         :return:
         """
+        # 增加日志以确认收到原始CTP数据
+        instrument_id_log = data.get("InstrumentID", "UNKNOWN")
+        last_price_log = data.get("LastPrice", 0)
+        update_time_log = data.get("UpdateTime", "N/A")
+        self.gateway.write_log(f"CTP原始行情到达: 合约={instrument_id_log}, 最新价={last_price_log}, 时间={update_time_log}")
+
         # 过滤没有时间戳的异常行情数据
         if not data["UpdateTime"]:
             return

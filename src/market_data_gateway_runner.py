@@ -15,13 +15,15 @@ import signal
 import sys
 from typing import Optional, List, Dict
 
+from src.config.constants import Exchange
+
 # 确保项目根目录在路径中
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from src.config.setting import get_broker_setting
-from src.core.event import EventType, SubscribeRequestEvent
+from src.core.event import EventType, SubscribeRequestEvent, LogEvent
 from src.core.event_engine import EventEngine
 from src.core.object import LogData, SubscribeRequest, GatewayConnectionStatus
 from src.ctp.gateway.ctp_gateway import CtpGateway
@@ -30,6 +32,7 @@ from src.util.i18n import _
 from src.util.logger import log, setup_logging
 from src.util.runner_common import runner_args
 from src.messaging.zmq_event_engine import ZmqEventEngine
+from src.config import global_var
 
 
 class MarketDataGatewayService:
@@ -51,6 +54,7 @@ class MarketDataGatewayService:
         
         # 注册订阅请求处理器
         self.event_engine.register(EventType.SUBSCRIBE_REQUEST, self.process_subscribe_request)
+        self.event_engine.register(EventType.LOG, self.process_log_event)
         
         # 加载经纪商配置
         self._load_broker_config()
@@ -146,18 +150,48 @@ class MarketDataGatewayService:
             await loop.run_in_executor(None, self.gateway.connect_md, self.current_broker_setting)
             self.log("CTP行情网关连接指令已发送")
             
-            # 检查连接状态
-            if self.gateway.md_api and self.gateway.md_api.connect_status:
-                self.log("CTP行情网关前置已连接")
-            else:
-                self.log("CTP行情网关前置连接状态未知", "WARNING")
-            
+            # 增加延时等待，检查登录状态
+            self.log("等待行情服务器登录...")
+            login_success = await self.wait_for_login(timeout=15, login_type='md')
+            if not login_success:
+                self.log("行情服务器登录超时或失败。", "ERROR")
+                return False
+
+            self.log("行情服务器登录成功。")
             return True
         except Exception as e:
             self.log(f"连接CTP行情网关失败: {e}", "ERROR")
             import traceback
             self.log(traceback.format_exc(), "ERROR")
             return False
+    
+    @staticmethod
+    async def process_log_event(event: LogEvent):
+        """处理日志事件。"""
+        log_data: LogData = event.data
+        # This service should only process logs from its own gateways
+        if log_data.origin and not log_data.origin.startswith("CTP_MD"):
+            return
+        log(f"{log_data.msg}", log_data.level)
+    
+    async def wait_for_login(self, timeout: int, login_type: str) -> bool:
+        """
+        等待登录成功。
+        :param timeout: 超时时间（秒）
+        :param login_type: 'md' 或 'td'
+        :return: bool
+        """
+        start_time = asyncio.get_event_loop().time()
+        while True:
+            if login_type == 'md' and global_var.md_login_success:
+                return True
+            if login_type == 'td' and global_var.td_login_success:
+                return True
+            
+            if asyncio.get_event_loop().time() - start_time >= timeout:
+                return False
+            
+            await asyncio.sleep(0.5)
     
     async def subscribe_default_symbols(self):
         """
@@ -245,19 +279,20 @@ class MarketDataGatewayService:
         """
         记录日志
         """
-        log_data = LogData(msg=msg, level=level, gateway_name="MarketDataGatewayService")
-        
-        if self.event_engine and self.event_engine.is_active():
-            try:
+        log_data = LogData(msg=msg, level=level, gateway_name="MarketDataGatewayService", origin="MarketDataGatewayService")
+        try:
+            if self.event_engine and self.event_engine.is_active():
                 loop = asyncio.get_running_loop()
                 if loop.is_running():
-                    asyncio.create_task(self.event_engine.put(EventType.LOG, log_data))
+                    asyncio.run_coroutine_threadsafe(self.event_engine.put(LogEvent(data=log_data)), loop)
                 else:
-                    log(f"(LogEngineLoopInactive) {log_data.msg}", log_data.level)
-            except RuntimeError:
-                log(f"(LogEngineNoLoop) {log_data.msg}", log_data.level)
-        else:
-            log(f"{log_data.msg}", log_data.level)
+                    log(f"(MDS-LogEngineLoopInactive) {log_data.msg}", log_data.level)
+            else:
+                log(f"(MDS-LogEngineNotActive) {log_data.msg}", log_data.level)
+        except RuntimeError:
+            log(f"(MDS-NoLoop) {log_data.msg}", log_data.level)
+        except Exception as e:
+            log(f"记录MDS日志事件时出错: {e}", "ERROR")
     
     async def start(self):
         """
@@ -360,61 +395,57 @@ class MarketDataGatewayService:
 
 async def run_main(environment: Optional[str] = None):
     # ZMQ地址配置
-    ZMQ_PUB_ADDRESS = "tcp://*:5556"  # 行情网关发布地址
-    ZMQ_SUB_ADDRESS = "tcp://localhost:5555"  # 订阅主引擎命令的地址
+    ZMQ_PUB_ADDRESS = "tcp://*:5556"
+    ZMQ_SUB_ADDRESS = "tcp://localhost:5555"
     
     # 实例化ZMQ事件引擎
-    zmq_event_engine = ZmqEventEngine(pub_addr=ZMQ_PUB_ADDRESS, sub_addr=ZMQ_SUB_ADDRESS, engine_id="MarketDataGatewayZMQ")
+    zmq_event_engine = ZmqEventEngine(pub_addr=ZMQ_PUB_ADDRESS, 
+                                     sub_addr=ZMQ_SUB_ADDRESS, 
+                                     engine_id="MarketDataGatewayZMQ",
+                                     environment_name=environment)
     
-    # 创建行情网关服务
-    market_data_service = MarketDataGatewayService(event_engine=zmq_event_engine, environment_name=environment)
+    service = MarketDataGatewayService(event_engine=zmq_event_engine, environment_name=environment)
     
-    # 用于优雅退出的事件
     stop_event = asyncio.Event()
-    
-    # 信号处理
-    if sys.platform != "win32":  # 类POSIX系统可以使用add_signal_handler
-        loop = asyncio.get_event_loop()
-        def signal_handler_posix():
-            market_data_service.log("捕获到退出信号 (POSIX)，开始关闭...")
-            if not stop_event.is_set():
-                stop_event.set()
-        
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            try:
-                loop.add_signal_handler(sig, signal_handler_posix)
-            except NotImplementedError:
-                market_data_service.log(f"无法为信号 {sig} 添加处理器 (NotImplementedError)。依赖 KeyboardInterrupt。", "WARNING")
-    else:  # Windows平台主要依靠KeyboardInterrupt
-        market_data_service.log("Windows 平台：请使用 Ctrl+C 来触发关闭。", "INFO")
-    
-    try:
-        # 启动服务
-        start_success = await market_data_service.start()
-        if not start_success:
-            market_data_service.log("行情网关服务启动失败，程序退出", "ERROR")
-            return
-        
-        # 主循环
-        while not stop_event.is_set() and market_data_service._running:
-            await asyncio.sleep(1)
-        
-        market_data_service.log("主循环结束或收到停止信号，准备执行停止操作。")
-    
-    except KeyboardInterrupt:
-        market_data_service.log("捕获到 KeyboardInterrupt，开始关闭...")
+
+    # 为Windows和POSIX系统设置信号处理
+    def handle_signal():
+        service.log("捕获到退出信号，开始关闭...")
         if not stop_event.is_set():
             stop_event.set()
+    
+    if sys.platform == "win32":
+        # 在Windows上，add_signal_handler对SIGINT/SIGTERM支持不佳
+        # KeyboardInterrupt将是主要退出方式
+        service.log("Windows 平台：请使用 Ctrl+C 来触发关闭。", "INFO")
+    else:
+        loop = asyncio.get_event_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.add_signal_handler(sig, handle_signal)
+            except NotImplementedError:
+                service.log(f"无法为信号 {sig} 添加处理器。依赖 KeyboardInterrupt。", "WARNING")
+    
+    try:
+        await service.start()
+        service.log("行情网关服务启动完成，进入主循环等待。")
+        await stop_event.wait()
+    except KeyboardInterrupt:
+        service.log("捕获到 KeyboardInterrupt，触发关闭...")
     except Exception as e:
-        market_data_service.log(f"行情网关服务运行出错: {e}", "CRITICAL")
+        service.log(f"行情网关服务运行出错: {e}", "CRITICAL")
         import traceback
-        market_data_service.log(traceback.format_exc(), "ERROR")
+        service.log(traceback.format_exc(), "ERROR")
     finally:
-        market_data_service.log("执行最终清理...")
-        await market_data_service.stop()
-        market_data_service.log("所有组件已停止。程序退出。")
+        service.log("执行最终清理...")
+        await service.stop()
+        service.log("所有组件已停止。程序退出。")
 
 
 if __name__ == "__main__":
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        
     args = runner_args("Broker environment name (e.g., simnow, tts from broker_config.json)")
+    
     asyncio.run(run_main(environment=args.ctp_env)) 

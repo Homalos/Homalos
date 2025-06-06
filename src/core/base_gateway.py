@@ -135,7 +135,7 @@ class BaseGateway(ABC):
             print(f"GatewayStatus: [{self.gateway_name}] {status.value} - {message or ''}")
 
     def write_log(self, msg: str, level: str = "INFO") -> None:
-        log_data = LogData(msg=msg, level=level, gateway_name=self.gateway_name)
+        log_data = LogData(msg=msg, level=level, gateway_name=self.gateway_name, origin=self.gateway_name)
         self.on_log(log_data)
 
     @abstractmethod

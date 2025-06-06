@@ -19,11 +19,9 @@ logging:
 
 paths:
   # 相对于项目根目录 (Relative to project root)
-  data_recording_path: "zmq_services/recorded_data/"
+  data_recording_path: "data/recorded_data/"
   # 将由 config_manager 解析或默认为 data_recording_path
-  backtest_data_source_path: "zmq_services/recorded_data/"
-  # 如果全局需要，则指向产品信息的路径 (Path to product info, if needed globally)
-  product_info_ini: "config/project_files/product_info.ini"
+  backtest_data_source_path: "data/recorded_data/"
 
 zmq_addresses:
   market_data_pub: "tcp://*:5555"    # 行情发布地址 (Market data publisher)
@@ -48,7 +46,6 @@ risk_management:
   max_position_limits:
     SA509.CZCE: 5
     rb2510.SHFE: 10
-    MA509.CZCE: 5
   max_pending_orders_per_contract: 5
   global_max_pending_orders: 20
   margin_usage_limit: 0.8  # Example: 80%
@@ -75,7 +72,6 @@ engine_communication:
 default_subscribe_symbols:
   - "SA509.CZCE"
   - "rb2510.SHFE"
-  - "MA509.CZCE"
 
 # 更多全局的参数 (A more global parameter)
 order_submission:

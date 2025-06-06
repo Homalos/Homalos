@@ -229,6 +229,7 @@ class LogData(BaseData):
     """
     msg: str
     level: int | str = INFO
+    origin: Optional[str] = None
 
     def __post_init__(self) -> None:
         """"""

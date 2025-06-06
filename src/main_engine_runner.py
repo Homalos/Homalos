@@ -29,6 +29,7 @@ from src.util.i18n import _
 from src.util.logger import log, setup_logging
 from src.util.runner_common import runner_args
 from src.messaging.zmq_event_engine import ZmqEventEngine
+from src.config import global_var
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
@@ -133,6 +134,8 @@ class MainEngine:
     async def process_log_event(event: LogEvent):
         """处理日志事件。"""
         log_data: LogData = event.data
+        if log_data.origin and log_data.origin != "MainEngine":
+            return
         log(f"{log_data.msg}", log_data.level)
 
     async def process_gateway_status_event(self, event: GatewayStatusEvent):
@@ -149,6 +152,25 @@ class MainEngine:
             log_level = "WARNING"
             
         self.log(log_msg, level=log_level)
+
+    async def wait_for_login(self, timeout: int, login_type: str) -> bool:
+        """
+        等待登录成功。
+        :param timeout: 超时时间（秒）
+        :param login_type: 'md' 或 'td'
+        :return: bool
+        """
+        start_time = asyncio.get_event_loop().time()
+        while True:
+            if login_type == 'md' and global_var.md_login_success:
+                return True
+            if login_type == 'td' and global_var.td_login_success:
+                return True
+
+            if asyncio.get_event_loop().time() - start_time >= timeout:
+                return False
+
+            await asyncio.sleep(0.5)
 
     def get_default_gateway_name(self, exchange_filter: Optional[str] = None) -> str:
         """
@@ -238,19 +260,23 @@ class MainEngine:
         :param level:
         :return:
         """
-        log_data = LogData(msg=msg, level=level, gateway_name=self.gateway_name if hasattr(self, 'gateway_name') else "MainEngine")
+        log_data = LogData(msg=msg, level=level, gateway_name="MainEngine", origin="MainEngine")
 
-        if self.event_engine and self.event_engine.is_active(): # Changed to use is_active()
-            # Create a task to put the log event onto the queue
-            # This assumes log() is called from an async context or where create_task is appropriate
+        if self.event_engine and self.event_engine.is_active():
+            # 直接 await put 方法，而不是创建任务
+            # 这使得任何在 put 方法中发生的异常都能被捕获和记录
             try:
+                # 确保我们处于可以 await 的上下文中
+                # 注意：这假设 log() 是从协程中调用的。
                 loop = asyncio.get_running_loop()
-                if loop.is_running(): # Ensure loop is running for create_task
-                    asyncio.create_task(self.event_engine.put(LogEvent(data=log_data)))
-                else: # Fallback if loop isn't running (e.g. during early init or shutdown)
+                if loop.is_running():
+                     asyncio.run_coroutine_threadsafe(self.event_engine.put(LogEvent(data=log_data)), loop)
+                else:
                     log(f"(LogEngineLoopInactive) {log_data.msg}", log_data.level)
-            except RuntimeError: # No running loop, e.g. called from a non-async thread before engine start
+            except RuntimeError:
                  log(f"(LogEngineNoLoop) {log_data.msg}", log_data.level)
+            except Exception as e:
+                log(f"记录日志事件时出错: {e}", "ERROR")
         else:
             # Fallback to print if event_engine is not available or not active
             log(f"{log_data.msg}", log_data.level)
@@ -265,7 +291,11 @@ class MainEngine:
             
         req = SubscribeRequest(symbol=symbol, exchange=exchange)
         self.log(f"发送订阅请求: {symbol} 交易所: {exchange.value}")
-        await self.event_engine.put(SubscribeRequestEvent(data=req))
+        
+        # 创建订阅请求事件并发送
+        event = SubscribeRequestEvent(data=req)
+        await self.event_engine.put(event)
+        self.log(f"订阅请求已发送: {symbol}")
 
     async def start(self):
         """
@@ -286,38 +316,51 @@ class MainEngine:
                 try:
                     # 只连接交易接口
                     await loop.run_in_executor(None, td_gateway.connect_td, self.current_broker_setting)
-                    self.log(f"交易网关连接指令已发送 (具体连接状态需查看后续日志)")
+                    self.log(f"交易网关连接指令已发送")
+
+                    # 增加延时等待，检查登录状态
+                    self.log("等待交易服务器登录...")
+                    login_success = await self.wait_for_login(timeout=15, login_type='td')
+                    if not login_success:
+                        self.log("交易服务器登录超时或失败。", "ERROR")
+                    else:
+                        self.log("交易服务器登录成功。")
+
                 except Exception as e:
                     self.log(f"连接交易网关失败: {e}", "ERROR")
         else:
             self.log("未添加CTP交易网关，因为经纪商设置加载失败、不完整或未指定有效环境。", "ERROR")
 
-        # 为策略订阅行情（现在通过ZMQ发送订阅请求）
-        for strat_id, strat in self.strategies.items():
-            if isinstance(strat, ExampleStrategy) and hasattr(strat, 'subscribed_symbol'):
-                symbol_to_subscribe = strat.subscribed_symbol
-                
-                # 尝试从本地映射获取交易所信息
-                exchange_for_symbol = None
-                
-                # 假设我们有某种方式获取合约的交易所信息
-                # 这里简化处理，可以从配置文件或其他地方获取
-                # 例如，对于CTP期货合约，可以硬编码为SHFE、DCE等
-                if symbol_to_subscribe.startswith("cu"):
-                    exchange_for_symbol = Exchange.SHFE
-                elif symbol_to_subscribe.startswith("m"):
-                    exchange_for_symbol = Exchange.DCE
-                elif symbol_to_subscribe.startswith("IF"):
-                    exchange_for_symbol = Exchange.CFFEX
-                elif symbol_to_subscribe.startswith("SA"):
-                    exchange_for_symbol = Exchange.CZCE
-                
-                if exchange_for_symbol:
-                    self.log(f"为策略 {strat_id} 发送订阅请求: {symbol_to_subscribe} on {exchange_for_symbol.value}")
-                    await self.send_subscribe_request(symbol_to_subscribe, exchange_for_symbol)
-                else:
-                    self.log(f"无法确定合约 {symbol_to_subscribe} 的交易所枚举，无法为其发送订阅请求。", "WARNING")
+        # --- 统一处理合约订阅 ---
+        symbols_to_subscribe = set()
 
+        # 1. 从配置文件收集默认合约
+        if self.current_broker_setting:
+            default_subscriptions = self.current_broker_setting.get("default_subscriptions", [])
+            if not default_subscriptions:
+                all_brokers_config = get_broker_setting()
+                default_subscriptions = all_brokers_config.get("default_subscriptions", [])
+            
+            for symbol in default_subscriptions:
+                symbols_to_subscribe.add(symbol)
+        
+        # 2. 从策略实例收集合约
+        for strategy in self.strategies.values():
+            if hasattr(strategy, 'subscribed_symbol'):
+                symbols_to_subscribe.add(strategy.subscribed_symbol)
+
+        # 3. 遍历去重后的集合，发送订阅请求
+        if symbols_to_subscribe:
+            self.log(f"开始统一订阅合约列表: {list(symbols_to_subscribe)}")
+            for symbol in symbols_to_subscribe:
+                exchange_enum = self._guess_exchange_from_symbol(symbol)
+                if exchange_enum:
+                    await self.send_subscribe_request(symbol, exchange_enum)
+                else:
+                    self.log(f"无法确定合约 {symbol} 的交易所，跳过订阅", "WARNING")
+        else:
+            self.log("未找到需要订阅的合约。", "WARNING")
+        
         # 初始化并启动策略
         for strategy_id, strategy in self.strategies.items():
             self.log(f"正在初始化策略 {strategy_id}...")
@@ -326,6 +369,22 @@ class MainEngine:
             await strategy.on_start()
         
         self.log("主引擎已启动完成。所有组件运行中。")
+
+    def _guess_exchange_from_symbol(self, symbol: str) -> Optional[Exchange]:
+        """
+        根据合约代码特征猜测交易所。
+        :param symbol: 合约代码
+        :return: Exchange枚举或None
+        """
+        if symbol.startswith(("cu", "al", "zn", "pb", "ni", "sn", "au", "ag", "rb", "hc", "ss", "sc", "fu", "bu", "ru")):
+            return Exchange.SHFE
+        elif symbol.startswith(("IF", "IC", "IH", "TS", "TF", "T")):
+            return Exchange.CFFEX
+        elif symbol.startswith(("c", "cs", "a", "b", "m", "y", "p", "fb", "bb", "jd", "l", "v", "pp", "j", "jm", "i")):
+            return Exchange.DCE
+        elif symbol.startswith(("SR", "CF", "CY", "TA", "OI", "MA", "FG", "RM", "ZC", "JR", "LR", "PM", "RI", "RS", "SM", "WH", "AP", "CJ", "UR", "SA", "PF")):
+            return Exchange.CZCE
+        return None
 
     async def stop(self):
         """
@@ -360,7 +419,10 @@ async def run_main(environment: Optional[str] = None):
     ZMQ_SUB_ADDRESS = "tcp://localhost:5556" # 订阅行情网关服务的地址
 
     # Instantiate the chosen event engine
-    zmq_event_engine = ZmqEventEngine(pub_addr=ZMQ_PUB_ADDRESS, sub_addr=ZMQ_SUB_ADDRESS, engine_id="MainEngineZMQ")
+    zmq_event_engine = ZmqEventEngine(pub_addr=ZMQ_PUB_ADDRESS, 
+                                     sub_addr=ZMQ_SUB_ADDRESS, 
+                                     engine_id="MainEngineZMQ",
+                                     environment_name=environment)
     
     # in_process_event_engine = EventEngine()
     main_engine = MainEngine(event_engine=zmq_event_engine, environment_name=environment)
@@ -370,49 +432,44 @@ async def run_main(environment: Optional[str] = None):
 
     stop_event = asyncio.Event()
 
-    # Simplified signal handling for Windows compatibility
-    if sys.platform != "win32": # POSIX-like systems can use add_signal_handler
+    # 为Windows和POSIX系统设置信号处理
+    def handle_signal():
+        main_engine.log("捕获到退出信号，开始关闭...")
+        if not stop_event.is_set():
+            stop_event.set()
+
+    if sys.platform == "win32":
+        # 在Windows上，add_signal_handler对SIGINT/SIGTERM支持不佳
+        # KeyboardInterrupt将是主要退出方式
+        main_engine.log("Windows 平台：请使用 Ctrl+C 来触发关闭。", "INFO")
+    else:
         loop = asyncio.get_event_loop()
-        def signal_handler_posix():
-            main_engine.log("捕获到退出信号 (POSIX)，开始关闭...")
-            if not stop_event.is_set():
-                stop_event.set()
         for sig in (signal.SIGINT, signal.SIGTERM):
             try:
-                loop.add_signal_handler(sig, signal_handler_posix)
+                loop.add_signal_handler(sig, handle_signal)
             except NotImplementedError:
-                main_engine.log(f"无法为信号 {sig} 添加处理器 (NotImplementedError)。依赖 KeyboardInterrupt。", "WARNING")
-    else: # For Windows, rely primarily on KeyboardInterrupt
-        main_engine.log("Windows 平台：请使用 Ctrl+C 来触发关闭。", "INFO")
-        # On Windows, Ctrl+C raises KeyboardInterrupt in the main thread
-        # which will be caught by the try...except block below.
+                main_engine.log(f"无法为信号 {sig} 添加处理器。依赖 KeyboardInterrupt。", "WARNING")
 
     try:
         await main_engine.start()
-        while not stop_event.is_set() and main_engine._running:
-            await asyncio.sleep(1)
-        main_engine.log("主循环结束或收到停止信号，准备执行停止操作。")
-
+        main_engine.log("主引擎启动完成，进入主循环等待。")
+        await stop_event.wait()  # 等待停止信号
     except KeyboardInterrupt:
-        main_engine.log("捕获到 KeyboardInterrupt，开始关闭...")
-        if not stop_event.is_set(): # Ensure stop_event is set if KeyboardInterrupt is the trigger
-            stop_event.set()
+        main_engine.log("捕获到 KeyboardInterrupt，触发关闭...")
     except Exception as e:
         main_engine.log(f"主引擎运行出错: {e}", "CRITICAL")
         import traceback
         main_engine.log(traceback.format_exc(), "ERROR")
     finally:
         main_engine.log("执行最终清理...")
-        # Ensure stop is called, especially if loop was exited due to stop_event
-        if not main_engine._running and stop_event.is_set(): # If already being stopped by an internal mechanism that also set stop_event
-             pass # main_engine.stop() will be called if _running became false.
-        elif main_engine._running: # If loop exited due to stop_event but engine thinks it's still running
-            main_engine._running = False # Mark as not running before calling stop if not already
-        
-        await main_engine.stop() # This will now handle the actual stopping sequence
+        await main_engine.stop()
         main_engine.log("所有组件已停止。程序退出。")
 
+
 if __name__ == "__main__":
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        
     args = runner_args("Broker environment name (e.g., simnow, tts from broker_config.json)")
     # import argparse
     # parser = argparse.ArgumentParser()
