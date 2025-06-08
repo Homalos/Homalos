@@ -10,23 +10,22 @@
 @Description: 专门负责行情数据处理和分发的服务。
 """
 import asyncio
+import logging
 import os
 import signal
 import sys
 import time
-import logging
 from typing import Dict, Type, Optional
 
+from src.config import global_var
 from src.config.setting import get_broker_setting
 from src.core.base_gateway import BaseGateway
 from src.core.event import EventType, SubscribeRequestEvent, LogEvent, GatewayStatusEvent, TickEvent
 from src.core.object import SubscribeRequest, LogData, GatewayStatusData, GatewayConnectionStatus, TickData
 from src.ctp.gateway.ctp_gateway import CtpGateway
 from src.messaging.zmq_event_engine import ZmqEventEngine
-from src.util.i18n import _
 from src.util.logger import log, setup_logging
 from src.util.runner_common import runner_args
-from src.config import global_var
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:

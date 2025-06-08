@@ -9,12 +9,8 @@
 @Software   : PyCharm
 @Description: ctp_gateway helper
 """
-import re
-from configparser import ConfigParser
 from datetime import datetime
 
-from src.util.i18n import _
-from src.util.logger import logger
 from src.config.constants import Product, Exchange
 from src.core.object import ContractData
 from .ctp_mapping import PRODUCT_CTP2VT, EXCHANGE_CTP2VT, OPTIONTYPE_CTP2VT

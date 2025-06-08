@@ -17,7 +17,7 @@ from src.util.i18n import _
 from src.util.utility import ZoneInfo, get_folder_path
 from .ctp_gateway_helper import ctp_build_contract
 from .ctp_mapping import STATUS_CTP2VT, DIRECTION_VT2CTP, DIRECTION_CTP2VT, ORDERTYPE_VT2CTP, ORDERTYPE_CTP2VT, \
-    OFFSET_VT2CTP, OFFSET_CTP2VT, EXCHANGE_CTP2VT, PRODUCT_CTP2VT
+    OFFSET_VT2CTP, OFFSET_CTP2VT, EXCHANGE_CTP2VT
 from ..api import (
     MdApi,
     TdApi,

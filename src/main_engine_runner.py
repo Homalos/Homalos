@@ -10,13 +10,13 @@
 @Description: 提供了启动、协调和停止整个系统的框架。
 """
 import asyncio
+import logging
 import os
 import signal
 import sys
-import logging
 from typing import Dict, Type, Optional
 
-from src.config.constants import Exchange
+from src.config import global_var
 from src.config.setting import get_broker_setting
 from src.core.base_gateway import BaseGateway
 from src.core.event import (
@@ -24,21 +24,16 @@ from src.core.event import (
     TickEvent, OrderUpdateEvent, TradeUpdateEvent, OrderRequestEvent, CancelOrderRequestEvent,
     PositionUpdateEvent, AccountUpdateEvent, ContractInfoEvent
 )
-from src.core.event_engine import EventEngine
 from src.core.object import (
     OrderRequest, CancelRequest, LogData, GatewayStatusData,
-    GatewayConnectionStatus, SubscribeRequest, Exchange, OrderData,
-    TradeData, PositionData, AccountData, ContractData
+    GatewayConnectionStatus, SubscribeRequest, PositionData, AccountData, ContractData
 )
-from src.ctp.gateway.ctp_gateway import CtpGateway, symbol_contract_map
-from src.ctp.gateway.ctp_mapping import EXCHANGE_CTP2VT
+from src.ctp.gateway.ctp_gateway import CtpGateway
+from src.messaging.zmq_event_engine import ZmqEventEngine
 from src.strategies.base_strategy import BaseStrategy
 from src.strategies.example_strategy import ExampleStrategy
-from src.util.i18n import _
 from src.util.logger import log, setup_logging
 from src.util.runner_common import runner_args
-from src.messaging.zmq_event_engine import ZmqEventEngine
-from src.config import global_var
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
