@@ -9,11 +9,13 @@
 @Software   : PyCharm
 @Description: 网关基类
 """
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 import asyncio
 
 # Import data objects used in type hints
+
 from .object import (
     TickData,
     TradeData,
@@ -89,26 +91,28 @@ class BaseGateway(ABC):
         log_data = LogData(msg=f"收到合约信息: {contract.symbol}", level="INFO", gateway_name=self.gateway_name)
         self.on_log(log_data)
 
-    def on_log(self, log: LogData) -> None:
+    def on_log(self, log_data: LogData) -> None:
+        """
+        处理日志数据。如果事件引擎存在，则将日志作为事件发送，否则直接打印。
+        这确保了从不同线程（如CTP回调）进行的日志记录是线程安全的。
+        """
         if self.event_engine and self.main_loop and self.main_loop.is_running():
-            # 检查是否从循环线程调用
             try:
-                current_loop = asyncio.get_running_loop()
-                if current_loop is self.main_loop:
-                    # 已经在主循环的线程中，可以使用create_task
-                    asyncio.create_task(self.event_engine.put(LogEvent(data=log)))
-                else:
-                    # 从另一个线程调用（例如，CTP 线程）
-                    asyncio.run_coroutine_threadsafe(self.event_engine.put(LogEvent(data=log)), self.main_loop)
-            except RuntimeError: # 当前线程中没有正在运行的循环，因此必须来自另一个线程
-                 asyncio.run_coroutine_threadsafe(self.event_engine.put(LogEvent(data=log)), self.main_loop)
-        elif self.event_engine: # 主循环未运行或未设置，但引擎存在
-            # 这是一个后备或错误情况，直接打印可能是最好的
-            timestamp_str = log.time.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] # Milliseconds
-            print(f"{timestamp_str} [{log.level}] [{log.gateway_name or self.gateway_name}] (LogLoopIssue) {log.msg}")
-        else: # 没有事件引擎
-            timestamp_str = log.time.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] # Milliseconds
-            print(f"{timestamp_str} [{log.level}] [{log.gateway_name or self.gateway_name}] {log.msg}")
+                # 从非asyncio管理的线程与事件循环交互必须使用此方法。
+                log_event = LogEvent(data=log_data)
+                asyncio.run_coroutine_threadsafe(
+                    self.event_engine.put(log_event),
+                    self.main_loop
+                )
+            except (RuntimeError, AttributeError):
+                # 在某些关闭场景下，循环可能已停止或不存在
+                print(f"Log (loop stopped): [{log_data.gateway_name or self.gateway_name}] {log_data.msg}")
+        else:
+            # 如果没有事件引擎或循环，则回退到直接记录日志
+            logger = logging.getLogger()
+            level_name = log_data.level if isinstance(log_data.level, str) else logging.getLevelName(log_data.level)
+            level_to_log = getattr(logging, level_name.upper(), logging.INFO)
+            logger.log(level_to_log, f"[{log_data.gateway_name or self.gateway_name}] {log_data.msg}")
 
     def on_gateway_status(self, status: GatewayConnectionStatus, message: Optional[str] = None) -> None:
         """

@@ -184,12 +184,9 @@ class ZmqEventEngine:
 
     async def put(self, event_or_type: Union[Event, EventType], data: Any = None):
         """
-        将事件发布到 ZeroMQ 总线。
+        将事件发布到 ZeroMQ 总线，并同时分派给本地处理程序。
         """
-        if not self._active:
-            self._log(f"尝试在引擎未激活时放置事件。事件已被忽略。", "WARNING")
-            return
-
+        # 1. 如果需要，从类型和数据创建事件对象
         if isinstance(event_or_type, EventType):
             event_type = event_or_type
             event_class_map = {
@@ -211,8 +208,16 @@ class ZmqEventEngine:
         else:
             event = event_or_type
 
+        # 2. 将事件分派给本地处理程序，用于服务内部通信。
+        await self._dispatch_event(event)
+        
+        # 3. 将事件发布到ZMQ，供其他服务使用
+        if not self._active:
+            self._log(f"引擎未激活，跳过向 ZMQ 发布事件 {event.type.value}。", "WARNING")
+            return
+
         if not self.main_loop:
-            self._log("无法发布事件: main_loop 不可用。", "ERROR")
+            self._log("无法向 ZMQ 发布事件: main_loop 不可用。", "ERROR")
             return
 
         try:
@@ -220,7 +225,7 @@ class ZmqEventEngine:
             topic = event.type.value.encode('utf-8')
             await self.publisher.send_multipart([topic, pickled_event])
         except Exception as e:
-            self._log(f"发布事件 {event.type.value} 时出错: {e}", "ERROR")
+            self._log(f"发布事件 {event.type.value} 到 ZMQ 时出错: {e}", "ERROR")
 
     def register(self, event_type: EventType, handler: Callable[[SpecificEvent], Coroutine[Any, Any, None]]):
         """

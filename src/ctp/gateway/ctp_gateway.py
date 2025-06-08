@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import sys
+import time
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +17,7 @@ from src.util.i18n import _
 from src.util.utility import ZoneInfo, get_folder_path
 from .ctp_gateway_helper import ctp_build_contract
 from .ctp_mapping import STATUS_CTP2VT, DIRECTION_VT2CTP, DIRECTION_CTP2VT, ORDERTYPE_VT2CTP, ORDERTYPE_CTP2VT, \
-    OFFSET_VT2CTP, OFFSET_CTP2VT, EXCHANGE_CTP2VT
+    OFFSET_VT2CTP, OFFSET_CTP2VT, EXCHANGE_CTP2VT, PRODUCT_CTP2VT
 from ..api import (
     MdApi,
     TdApi,
@@ -153,10 +154,19 @@ class CtpGateway(BaseGateway):
         :param req:
         :return:
         """
-        """订阅行情"""
-        if not self.md_api or not self.md_api.connect_status:
-            self.write_log(_("无法订阅行情：行情接口未连接或未初始化。"))
+        self.write_log(f"GATEWAY-DEBUG: CtpGateway.subscribe called for {req.symbol}.")
+
+        if not self.md_api:
+            self.write_log("GATEWAY-DEBUG: self.md_api is None. Cannot subscribe.", "ERROR")
             return
+
+        self.write_log(f"GATEWAY-DEBUG: md_api.connect_status is {self.md_api.connect_status}.")
+
+        if not self.md_api.connect_status:
+            self.write_log("GATEWAY-DEBUG: md_api is not connected. Cannot subscribe.", "ERROR")
+            return
+
+        self.write_log("GATEWAY-DEBUG: Forwarding subscribe request to CtpMdApi.")
         self.md_api.subscribe(req)
 
     def send_order(self, req: OrderRequest) -> str:
@@ -345,8 +355,26 @@ class CtpMdApi(MdApi):
         """
         self.login_status = False
         self.connect_status = False # Also update connect_status as CTP might not auto-reconnect if true
-        self.gateway.write_log(_("行情服务器连接断开，原因：{}").format(reason))
+        
+        # 转换原因代码为16进制并给出对应解释
+        reason_hex = hex(reason)
+        reason_text = ""
+        if reason == 0x1001:
+            reason_text = "网络读失败"
+        elif reason == 0x1002:
+            reason_text = "网络写失败"  
+        elif reason == 0x2001:
+            reason_text = "接收心跳超时"
+        elif reason == 0x2002:
+            reason_text = "发送心跳失败"
+        elif reason == 0x2003:
+            reason_text = "收到错误报文"
+            
+        self.gateway.write_log(_("行情服务器连接断开，原因：{} ({}:{})").format(reason, reason_hex, reason_text))
         self.gateway.on_gateway_status(GatewayConnectionStatus.DISCONNECTED, f"行情服务器连接已断开，原因: {reason}")
+        
+        # 记录当前断开时间，用于判断是否需要防止过于频繁重连
+        self.last_disconnect_time = time.time()
 
     def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
@@ -363,8 +391,21 @@ class CtpMdApi(MdApi):
             self.gateway.write_log(_("行情服务器登录成功"))
             self.gateway.on_gateway_status(GatewayConnectionStatus.CONNECTED, "行情服务器登录成功")
 
-            for symbol in self.subscribed:
-                self.subscribeMarketData(symbol)
+            # 登录成功后尝试订阅已记录的合约
+            if self.subscribed:
+                self.gateway.write_log(f"登录成功，开始订阅之前记录的 {len(self.subscribed)} 个合约")
+                for symbol in self.subscribed:
+                    self.gateway.write_log(f"尝试订阅之前记录的合约: {symbol}")
+                    try:
+                        result = self.subscribeMarketData(symbol)
+                        if result == 0:
+                            self.gateway.write_log(f"合约 {symbol} 订阅请求已发送")
+                        else:
+                            self.gateway.write_log(f"合约 {symbol} 订阅请求发送失败，错误码: {result}", "ERROR")
+                    except Exception as e:
+                        self.gateway.write_log(f"订阅合约 {symbol} 时发生异常: {e}", "ERROR")
+            else:
+                self.gateway.write_log("登录成功，但没有需要订阅的合约")
         else:
             self.gateway.write_error(_("行情服务器登录失败"), error)
             self.gateway.on_gateway_status(GatewayConnectionStatus.ERROR, f"行情服务器登录失败: {error.get('ErrorMsg', '未知错误')}")
@@ -389,10 +430,23 @@ class CtpMdApi(MdApi):
         :return:
         """
         symbol = data.get("InstrumentID", "N/A")
-        if error and error.get("ErrorID"):
-            self.gateway.write_error(f"合约 {symbol} 行情订阅失败", error)
+        error_id = error.get("ErrorID", 0) if error else 0
+        error_msg = error.get("ErrorMsg", "") if error else ""
+        
+        # 无论成功失败都用明显格式记录
+        self.gateway.write_log(f"===== 收到订阅回报: 合约={symbol}, 错误ID={error_id}, 消息='{error_msg}' =====", "INFO")
+        
+        # 详细记录原始数据，帮助诊断
+        self.gateway.write_log(f"订阅回报原始数据: data={data}, error={error}, reqid={reqid}, last={last}", "INFO")
+
+        if error_id != 0:
+            self.gateway.write_log(f"合约 {symbol} 行情订阅失败: {error_msg}", "ERROR")
         else:
             self.gateway.write_log(f"合约 {symbol} 行情订阅成功。")
+            # 尝试手动触发一个测试请求，可能帮助激活行情
+            self.req_id += 1
+            self.gateway.write_log(f"发送测试请求 ID: {self.req_id}", "INFO")
+            # 此处故意留空，只发送请求ID
 
     def onRtnDepthMarketData(self, data: dict) -> None:
         """
@@ -400,14 +454,28 @@ class CtpMdApi(MdApi):
         :param data:
         :return:
         """
-        # 增加日志以确认收到原始CTP数据
+        # 使用非常明显的格式记录行情接收
+        self.gateway.write_log(f"******************************************", "INFO")
+        self.gateway.write_log(f"******** 收到行情数据推送回调 ********", "INFO")
+        self.gateway.write_log(f"******************************************", "INFO")
+        
+        # 详细记录原始数据
+        self.gateway.write_log(f"收到原始行情数据回调，原始数据: {data}", "INFO")
+        
+        # 增加更明显的行情数据接收日志
         instrument_id_log = data.get("InstrumentID", "UNKNOWN")
         last_price_log = data.get("LastPrice", 0)
         update_time_log = data.get("UpdateTime", "N/A")
-        self.gateway.write_log(f"CTP原始行情到达: 合约={instrument_id_log}, 最新价={last_price_log}, 时间={update_time_log}")
+        
+        # 使用INFO级别记录行情数据，确保在日志中可见
+        self.gateway.write_log(f"==== 收到行情数据: 合约={instrument_id_log}, 价格={last_price_log}, 时间={update_time_log} ====", "INFO")
+        
+        # 保留原来的调试日志，但降低级别
+        self.gateway.write_log(f"CTP原始行情到达: 合约={instrument_id_log}, 最新价={last_price_log}, 时间={update_time_log}", "DEBUG")
 
         # 过滤没有时间戳的异常行情数据
-        if not data["UpdateTime"]:
+        if not data.get("UpdateTime"):
+            self.gateway.write_log(f"过滤掉没有时间戳的异常行情数据: {instrument_id_log}", "WARNING")
             return
 
         instrument_id: str = data["InstrumentID"]
@@ -438,7 +506,7 @@ class CtpMdApi(MdApi):
                     self.gateway.write_log(f"CtpMdApi: Unknown CTP ExchangeID '{exchange_str_from_ctp}' for {instrument_id}. Available CTP_IDs: {list(EXCHANGE_CTP2VT.keys())}", "WARNING")
             else:
                 self.gateway.write_log(f"CtpMdApi: CTP ExchangeID is empty or not provided for {instrument_id}.", "DEBUG")
-        
+
         # 最后检查：如果在所有回退之后仍无法确定交换，则删除勾选。
         if not exchange_enum:
             self.gateway.write_log(f"CtpMdApi: CRITICAL: Unable to determine exchange for {instrument_id} after all fallbacks. Dropping tick. JSON_Map_Exchange: '{json_exchange_str}', CTP_ID_was: '{data.get('ExchangeID')}'")
@@ -554,24 +622,40 @@ class CtpMdApi(MdApi):
         :param req:
         :return:
         """
-        self.gateway.write_log(f"收到订阅请求: {req.symbol} 交易所: {req.exchange.value if req.exchange else 'N/A'}")
-
+        self.gateway.write_log(f"MD-API-DEBUG: CtpMdApi.subscribe called for {req.symbol}.")
         symbol: str = req.symbol
 
         # 过滤重复的订阅
         if symbol in self.subscribed:
+            self.gateway.write_log(f"合约 {symbol} 已在订阅列表中，跳过重复订阅")
             return
 
         if self.login_status:
             self.gateway.write_log(f"行情网关已登录，立即订阅合约: {req.symbol}")
-            result = self.subscribeMarketData(req.symbol)
-            if result == 0:
-                self.gateway.write_log(f"合约 {req.symbol} 订阅请求已发送")
-            else:
-                self.gateway.write_log(f"合约 {req.symbol} 订阅请求发送失败，错误码: {result}", "WARNING")
+            try:
+                # CTP API需要接收单个字符串，而不是字符串列表
+                result = self.subscribeMarketData(req.symbol)
+                if result == 0:
+                    self.gateway.write_log(f"合约 {req.symbol} 订阅请求已发送，返回值: {result}")
+                else:
+                    self.gateway.write_log(f"合约 {req.symbol} 订阅请求发送失败，错误码: {result}", "ERROR")
+                    # 添加更具体的错误代码解释
+                    error_explanations = {
+                        -1: "网络连接失败",
+                        -2: "未处于登录状态",
+                        -3: "流控限制"
+                    }
+                    if result in error_explanations:
+                        self.gateway.write_log(f"错误原因: {error_explanations[result]}", "ERROR")
+            except Exception as e:
+                self.gateway.write_log(f"订阅时发生异常: {e}", "ERROR")
+                import traceback
+                self.gateway.write_log(traceback.format_exc(), "ERROR")
         else:
             self.gateway.write_log(f"行情网关未登录，将合约 {req.symbol} 加入待订阅列表")
         
+        # 无论是否成功发送，都将合约加入到订阅列表中
+        # 如果当前未登录，将在登录成功后尝试订阅
         self.subscribed.add(req.symbol)
 
     def close(self) -> None:
@@ -821,60 +905,62 @@ class CtpTdApi(TdApi):
         :param last: 指示该次返回是否为针对 reqid 的最后一次返回。
         :return:
         """
-        if not data:
-            return
+        # 仅当有数据时才处理，但要继续检查 'last' 标志
+        if data:
+            # 必须已经收到了合约信息后才能处理
+            symbol: str = data["InstrumentID"]
+            contract: ContractData = symbol_contract_map.get(symbol, None)
 
-        # 必须已经收到了合约信息后才能处理
-        symbol: str = data["InstrumentID"]
-        contract: ContractData = symbol_contract_map.get(symbol, None)
+            if contract:
+                # 获取之前缓存的持仓数据缓存
+                key: str = f"{data['InstrumentID'], data['PosiDirection']}"
+                position: PositionData = self.positions.get(key, None)
+                if not position:
+                    position = PositionData(
+                        symbol=data["InstrumentID"],
+                        exchange=contract.exchange,
+                        direction=DIRECTION_CTP2VT[data["PosiDirection"]],
+                        gateway_name=self.gateway_name
+                    )
+                    self.positions[key] = position
 
-        if contract:
-            # 获取之前缓存的持仓数据缓存
-            key: str = f"{data['InstrumentID'], data['PosiDirection']}"
-            position: PositionData = self.positions.get(key, None)
-            if not position:
-                position = PositionData(
-                    symbol=data["InstrumentID"],
-                    exchange=contract.exchange,
-                    direction=DIRECTION_CTP2VT[data["PosiDirection"]],
-                    gateway_name=self.gateway_name
-                )
-                self.positions[key] = position
+                # 对于上期所昨仓需要特殊处理
+                if position.exchange in {Exchange.SHFE, Exchange.INE}:
+                    if data["YdPosition"] and not data["TodayPosition"]:
+                        position.yd_volume = data["Position"]
+                # 对于其他交易所昨仓的计算
+                else:
+                    position.yd_volume = data["Position"] - data["TodayPosition"]
 
-            # 对于上期所昨仓需要特殊处理
-            if position.exchange in {Exchange.SHFE, Exchange.INE}:
-                if data["YdPosition"] and not data["TodayPosition"]:
-                    position.yd_volume = data["Position"]
-            # 对于其他交易所昨仓的计算
-            else:
-                position.yd_volume = data["Position"] - data["TodayPosition"]
+                # 获取合约的乘数信息
+                size: float = contract.size
 
-            # 获取合约的乘数信息
-            size: float = contract.size
+                # 计算之前已有仓位的持仓总成本
+                cost: float = position.price * position.volume * size
 
-            # 计算之前已有仓位的持仓总成本
-            cost: float = position.price * position.volume * size
+                # 累加更新持仓数量和盈亏
+                position.volume += data["Position"]
+                position.pnl += data["PositionProfit"]
 
-            # 累加更新持仓数量和盈亏
-            position.volume += data["Position"]
-            position.pnl += data["PositionProfit"]
+                # 计算更新后的持仓总成本和均价
+                if position.volume and size:
+                    cost += data["PositionCost"]
+                    position.price = cost / (position.volume * size)
 
-            # 计算更新后的持仓总成本和均价
-            if position.volume and size:
-                cost += data["PositionCost"]
-                position.price = cost / (position.volume * size)
+                # 更新仓位冻结数量
+                if position.direction == Direction.LONG:
+                    position.frozen += data["ShortFrozen"]
+                else:
+                    position.frozen += data["LongFrozen"]
 
-            # 更新仓位冻结数量
-            if position.direction == Direction.LONG:
-                position.frozen += data["ShortFrozen"]
-            else:
-                position.frozen += data["LongFrozen"]
-
+        # 'last' 标志表示查询响应流的结束。
+        # 即使最后一个数据包是空的，也应始终检查此块。
         if last:
             for position in self.positions.values():
                 self.gateway.on_position(position)
 
             self.positions.clear()
+            self.gateway.write_log("持仓查询回报处理完毕。")
 
     def onRspQryInvestorPositionDetail(self, data: dict, error: dict, reqid: int, last: bool):
         """
@@ -915,45 +1001,64 @@ class CtpTdApi(TdApi):
 
     def onRspQryInstrument(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
-        合约查询回报，当执行 ReqQryInstrument 后，该方法被调用
-        :param data: 合约
-        :param error: 响应信息
-        :param reqid: 返回用户操作请求的 ID，该 ID 由用户在操作请求时指定。
-        :param last: 指示该次返回是否为针对 reqid 的最后一次返回。
-        :return:
+        合约查询回报
         """
+        self.gateway.write_log(f"GATEWAY-DEBUG: 收到合约查询回报 - reqid: {reqid}, last: {last}")
+        self.gateway.write_log(f"GATEWAY-DEBUG: 错误信息: {error}")
+        
+        if error and error.get("ErrorID", 0) != 0:
+            self.gateway.write_log(f"GATEWAY-DEBUG: 合约查询失败: {error.get('ErrorMsg', '未知错误')}", "ERROR")
+            return
+
         try:
-            if error.get("ErrorID"):
-                self.gateway.write_log(_("CtpTdApi：onRspQryInstrument 出错。最后：{}，错误 ID：{}").format(last, error.get('ErrorID', 'N/A')))
-            # 1. 合约对象构建
-            contract = ctp_build_contract(data, self.gateway_name)
-            if contract:
-                self.gateway.on_contract(contract)
-                symbol_contract_map[contract.symbol] = contract
+            if data:
+                self.gateway.write_log(f"GATEWAY-DEBUG: 收到合约数据: {data}")
+                
+                # 使用ctp_build_contract创建合约对象
+                contract = ctp_build_contract(data, self.gateway_name)
+                if contract:
+                    self.gateway.write_log(f"GATEWAY-DEBUG: 创建合约对象: {contract}")
+                    self.gateway.on_contract(contract)
+                    symbol_contract_map[contract.symbol] = contract
+                
+                # 更新exchange_id_map
+                if not data.get("InstrumentID", "").isdigit() and len(data.get("InstrumentID", "")) <= 6:
+                    self.instrument_exchange_id_map[data.get("InstrumentID", "")] = data.get("ExchangeID", "")
 
-            # 2. 更新exchange_id_map，只取非纯数字的合约和6位以内的合约，即只取期货合约
-            if not data.get("InstrumentID", "").isdigit() and len(data.get("InstrumentID", "")) <= 6:
-                self.instrument_exchange_id_map[data.get("InstrumentID", "")] = data.get("ExchangeID", "")
-
-            # 3. 最后一次回报时写文件、处理缓存
             if last:
                 self.contract_inited = True
-                self.gateway.write_log(_("CtpTdApi：onRspQryInstrument 已完成，合约信息查询成功"))
-                try:
-                    write_json_file(GlobalPath.instrument_exchange_id_filepath, self.instrument_exchange_id_map)
-                except Exception as e:
-                    self.gateway.write_error(_("写入 instrument_exchange_id.json 失败：{}").format(e), error)
-
-                for data in self.order_data:
-                    self.onRtnOrder(data)
+                self.gateway.write_log("GATEWAY-DEBUG: 合约查询完成")
+                
+                # 处理缓存的订单和成交数据
+                for order_data in self.order_data:
+                    self.onRtnOrder(order_data)
                 self.order_data.clear()
 
-                for data in self.trade_data:
-                    self.onRtnTrade(data)
+                for trade_data in self.trade_data:
+                    self.onRtnTrade(trade_data)
                 self.trade_data.clear()
-
+                
+                # 保存合约映射文件
+                try:
+                    write_json_file(GlobalPath.instrument_exchange_id_filepath, self.instrument_exchange_id_map)
+                    self.gateway.write_log("GATEWAY-DEBUG: 合约交易所映射已保存到文件")
+                except Exception as e:
+                    self.gateway.write_log(f"GATEWAY-DEBUG: 保存合约交易所映射失败: {e}", "ERROR")
+                
+                self.gateway.write_log("GATEWAY-DEBUG: 开始查询账户资金")
+                self.query_account()
         except Exception as e:
-            self.gateway.write_error(_("onRspQryInstrument 异常：{}").format(e), error)
+            self.gateway.write_log(f"GATEWAY-DEBUG: 处理合约数据时出错: {e}", "ERROR")
+            import traceback
+            self.gateway.write_log(traceback.format_exc(), "ERROR")
+
+    def query_instrument(self) -> None:
+        """
+        查询合约信息
+        """
+        self.gateway.write_log("GATEWAY-DEBUG: 开始查询合约信息")
+        self.reqid += 1
+        self.reqQryInstrument({}, self.reqid)
 
     def onRtnOrder(self, data: dict) -> None:
         """
