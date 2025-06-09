@@ -18,7 +18,7 @@ from .ctp_mapping import PRODUCT_CTP2VT, EXCHANGE_CTP2VT, OPTIONTYPE_CTP2VT
 
 def ctp_build_contract(data: dict, gateway_name: str) -> ContractData | None:
     """合约对象构建及期权特殊处理"""
-    product = PRODUCT_CTP2VT.get(data.get("ProductClass"))
+    product = PRODUCT_CTP2VT.get(data.get("ProductClass"), None)
     if not product:
         return None
     contract: ContractData = ContractData(

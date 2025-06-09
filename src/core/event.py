@@ -45,6 +45,7 @@ class EventType(Enum):
     SUBSCRIBE_REQUEST = "eSubscribeRequest" # 行情订阅请求
     CANCEL_ORDER_REQUEST = "eCancelOrderRequest" # 撤单请求
     STRATEGY_SIGNAL = "eStrategySignal"   # 策略产生的通用信号
+    BULK_CONTRACTS = "eBulkContracts"     # 批量合约信息事件
 
 @dataclass
 class Event:
@@ -115,3 +116,8 @@ class SubscribeRequestEvent(Event):
 class StrategySignalEvent(Event): # 更通用的信号
     type: EventType = field(default=EventType.STRATEGY_SIGNAL, init=False)
     data: dict = None # 信号数据可以是字典，以保持灵活性
+
+@dataclass
+class BulkContractsEvent(Event): # 批量合约信息事件
+    type: EventType = field(default=EventType.BULK_CONTRACTS, init=False)
+    data: list[ContractData] = None # 合约数据列表

@@ -10,30 +10,36 @@
 @Description: 提供了启动、协调和停止整个系统的框架。
 """
 import asyncio
-import logging
 import os
 import signal
 import sys
+import logging
 from typing import Dict, Type, Optional
 
-from src.config import global_var
+from src.config.constants import Exchange
 from src.config.setting import get_broker_setting
 from src.core.base_gateway import BaseGateway
 from src.core.event import (
     EventType, LogEvent, GatewayStatusEvent, SubscribeRequestEvent,
     TickEvent, OrderUpdateEvent, TradeUpdateEvent, OrderRequestEvent, CancelOrderRequestEvent,
-    PositionUpdateEvent, AccountUpdateEvent, ContractInfoEvent
+    PositionUpdateEvent, AccountUpdateEvent, ContractInfoEvent, BulkContractsEvent,
+    StrategySignalEvent
 )
+from src.core.event_engine import EventEngine
 from src.core.object import (
     OrderRequest, CancelRequest, LogData, GatewayStatusData,
-    GatewayConnectionStatus, SubscribeRequest, PositionData, AccountData, ContractData
+    GatewayConnectionStatus, SubscribeRequest, Exchange, OrderData,
+    TradeData, PositionData, AccountData, ContractData
 )
-from src.ctp.gateway.ctp_gateway import CtpGateway
-from src.messaging.zmq_event_engine import ZmqEventEngine
+from src.ctp.gateway.ctp_gateway import CtpGateway, symbol_contract_map
+from src.ctp.gateway.ctp_mapping import EXCHANGE_CTP2VT
 from src.strategies.base_strategy import BaseStrategy
 from src.strategies.example_strategy import ExampleStrategy
+from src.util.i18n import _
 from src.util.logger import log, setup_logging
 from src.util.runner_common import runner_args
+from src.messaging.zmq_event_engine import ZmqEventEngine
+from src.config import global_var
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
@@ -49,27 +55,43 @@ class MainEngine:
     """
 
     def __init__(self, event_engine: ZmqEventEngine, environment_name: Optional[str] = None):
+        """构造函数"""
         env_for_logging = environment_name or 'default'
         setup_logging(service_name=f"{self.__class__.__name__}[{env_for_logging}]")
 
         self.event_engine: ZmqEventEngine = event_engine
-        self.gateways: Dict[str, BaseGateway] = {}
-        self.strategies: Dict[str, BaseStrategy] = {}
+        self.gateways: dict[str, BaseGateway] = {}
+        self.strategies: dict[str, BaseStrategy] = {}
+        self.contracts: dict[str, ContractData] = {}
+        self.accounts: dict[str, AccountData] = {}
+        self.orders: dict[str, OrderData] = {}
+        self.trades: dict[str, TradeData] = {}
+        self.positions: dict[str, PositionData] = {}
+        self.logger = logging.getLogger("MainEngine")
+        self.environment_name = environment_name
         self._running = True
-        self.environment_name: Optional[str] = environment_name
         self.current_broker_setting: Optional[dict] = None
 
-        # 事件注册
-        self.event_engine.register(EventType.GATEWAY_STATUS, self.process_gateway_status_event)
-        self.event_engine.register(EventType.TICK, self.process_tick_event)
-        self.event_engine.register(EventType.ORDER_UPDATE, self.process_order_update)
-        self.event_engine.register(EventType.TRADE_UPDATE, self.process_trade_update)
-        self.event_engine.register(EventType.POSITION_UPDATE, self.process_position_update)
-        self.event_engine.register(EventType.ACCOUNT_UPDATE, self.process_account_update)
-        self.event_engine.register(EventType.LOG, self.process_log_event)
-        self.event_engine.register(EventType.CONTRACT_INFO, self.process_contract_event)
+        self.register_event()
 
         self._load_broker_config()
+
+    def register_event(self):
+        """注册事件监听"""
+        self.event_engine.register(EventType.TICK, self.process_tick_event)
+        self.event_engine.register(EventType.ORDER_UPDATE, self.process_order_event)
+        self.event_engine.register(EventType.TRADE_UPDATE, self.process_trade_event)
+        self.event_engine.register(EventType.POSITION_UPDATE, self.process_position_event)
+        self.event_engine.register(EventType.ACCOUNT_UPDATE, self.process_account_event)
+        self.event_engine.register(EventType.CONTRACT_INFO, self.process_contract_event)
+        self.event_engine.register(EventType.LOG, self.process_log_event)
+        self.event_engine.register(EventType.GATEWAY_STATUS, self.process_gateway_status_event)
+        self.event_engine.register(EventType.BULK_CONTRACTS, self.process_bulk_contracts_event)
+        # 暂时注释掉未实现的事件处理
+        # self.event_engine.register(EventType.ORDER_REQUEST, self.process_order_request_event)
+        # self.event_engine.register(EventType.CANCEL_ORDER_REQUEST, self.process_cancel_order_request_event)
+        # self.event_engine.register(EventType.SUBSCRIBE_REQUEST, self.process_subscribe_request_event)
+        # self.event_engine.register(EventType.STRATEGY_SIGNAL, self.process_strategy_signal_event)
 
     async def process_gateway_status_event(self, event: GatewayStatusEvent):
         """处理网关状态事件。"""
@@ -92,19 +114,19 @@ class MainEngine:
             if strategy.active:
                 await strategy.on_tick(event.data)
 
-    async def process_order_update(self, event: OrderUpdateEvent):
+    async def process_order_event(self, event: OrderUpdateEvent):
         """处理订单更新"""
         for strategy in self.strategies.values():
             if strategy.active:
                 await strategy.on_order_update(event.data)
 
-    async def process_trade_update(self, event: TradeUpdateEvent):
+    async def process_trade_event(self, event: TradeUpdateEvent):
         """处理成交更新"""
         for strategy in self.strategies.values():
             if strategy.active:
                 await strategy.on_trade_update(event.data)
 
-    async def process_position_update(self, event: PositionUpdateEvent):
+    async def process_position_event(self, event: PositionUpdateEvent):
         """处理持仓更新"""
         position: PositionData = event.data
         self.log(f"账户持仓更新: {position.symbol}, 方向: {position.direction.value}, "
@@ -115,7 +137,7 @@ class MainEngine:
             if strategy.active:
                 await strategy.on_position_update(position)
 
-    async def process_account_update(self, event: AccountUpdateEvent):
+    async def process_account_event(self, event: AccountUpdateEvent):
         """处理账户资金更新"""
         account: AccountData = event.data
         self.log(f"账户资金更新: {account.account_id}, "
@@ -133,9 +155,37 @@ class MainEngine:
             self.log(f"[{log_data.gateway_name}] {log_data.msg}", level=level_str)
 
     async def process_contract_event(self, event: ContractInfoEvent):
-        """处理合约信息事件。"""
+        """处理合约信息事件"""
         contract: ContractData = event.data
-        self.log(f"接收到合约信息: {contract.symbol} - {contract.name} @ {contract.exchange.value}", "DEBUG")
+        self.contracts[contract.ho_symbol] = contract
+        self.log(f"合约信息已更新: {contract.ho_symbol}")
+
+    async def process_bulk_contracts_event(self, event: BulkContractsEvent):
+        """处理批量合约信息事件"""
+        contracts: list[ContractData] = event.data
+        for contract in contracts:
+            self.contracts[contract.ho_symbol] = contract
+        self.log(f"批量合约信息已更新，共 {len(contracts)} 个合约")
+
+    async def process_order_request_event(self, event: OrderRequestEvent):
+        """处理订单请求事件"""
+        # TODO: 实现订单请求处理逻辑
+        self.log(f"收到订单请求: {event.data}")
+
+    async def process_cancel_order_request_event(self, event: CancelOrderRequestEvent):
+        """处理撤单请求事件"""
+        # TODO: 实现撤单请求处理逻辑
+        self.log(f"收到撤单请求: {event.data}")
+
+    async def process_subscribe_request_event(self, event: SubscribeRequestEvent):
+        """处理订阅请求事件"""
+        # TODO: 实现订阅请求处理逻辑
+        self.log(f"收到订阅请求: {event.data}")
+
+    async def process_strategy_signal_event(self, event: StrategySignalEvent):
+        """处理策略信号事件"""
+        # TODO: 实现策略信号处理逻辑
+        self.log(f"收到策略信号: {event.data}")
 
     def log(self, msg: str, level: str = "INFO"):
         """

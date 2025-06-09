@@ -30,7 +30,7 @@ from ...config import global_var
 from ...core.base_gateway import BaseGateway
 from ...core.event import (
     TickEvent, OrderUpdateEvent, TradeUpdateEvent,
-    AccountUpdateEvent, PositionUpdateEvent, ContractInfoEvent
+    AccountUpdateEvent, PositionUpdateEvent, ContractInfoEvent, EventType
 )
 # Import EventEngine and specific event types
 from ...core.event_engine import EventEngine
@@ -454,31 +454,26 @@ class CtpMdApi(MdApi):
         :param data:
         :return:
         """
-        # 使用非常明显的格式记录行情接收
-        self.gateway.write_log(f"******************************************", "INFO")
-        self.gateway.write_log(f"******** 收到行情数据推送回调 ********", "INFO")
-        self.gateway.write_log(f"******************************************", "INFO")
-        
+        # 过滤没有时间戳的异常行情数据
+        if not data.get("UpdateTime"):
+            self.gateway.write_log("过滤掉没有时间戳的异常行情数据", "WARNING")
+            return
+
         # 详细记录原始数据
         self.gateway.write_log(f"收到原始行情数据回调，原始数据: {data}", "INFO")
         
         # 增加更明显的行情数据接收日志
-        instrument_id_log = data.get("InstrumentID", "UNKNOWN")
-        last_price_log = data.get("LastPrice", 0)
-        update_time_log = data.get("UpdateTime", "N/A")
+        instrument_id = data.get("InstrumentID", "")
+        last_price = data.get("LastPrice", 0)
+        update_time = data.get("UpdateTime", "")
+        contract_from_map: ContractData | None = symbol_contract_map.get(instrument_id, None)
         
         # 使用INFO级别记录行情数据，确保在日志中可见
-        self.gateway.write_log(f"==== 收到行情数据: 合约={instrument_id_log}, 价格={last_price_log}, 时间={update_time_log} ====", "INFO")
+        self.gateway.write_log(f"==== 收到行情数据: 合约={instrument_id}, 价格={last_price}, 时间={update_time} ====", "INFO")
         
         # 保留原来的调试日志，但降低级别
-        self.gateway.write_log(f"CTP原始行情到达: 合约={instrument_id_log}, 最新价={last_price_log}, 时间={update_time_log}", "DEBUG")
+        self.gateway.write_log(f"CTP原始行情到达: 合约={instrument_id}, 最新价={last_price}, 时间={update_time}", "DEBUG")
 
-        # 过滤没有时间戳的异常行情数据
-        if not data.get("UpdateTime"):
-            self.gateway.write_log(f"过滤掉没有时间戳的异常行情数据: {instrument_id_log}", "WARNING")
-            return
-
-        instrument_id: str = data["InstrumentID"]
         exchange_enum: Exchange | None = None
         # TickData.name 将默认为 instrument_id。完整的合约名称通过 ContractInfoEvent 提供。
         contract_name: str = instrument_id
@@ -683,12 +678,13 @@ class CtpTdApi(TdApi):
     """
 
     def __init__(self, gateway: CtpGateway) -> None:
+        """构造函数"""
         super().__init__()
 
         self.gateway: CtpGateway = gateway
         self.gateway_name: str = gateway.gateway_name
 
-        self.req_id: int = 0
+        self.reqid: int = 0
         self.order_ref: int = 0
 
         self.connect_status: bool = False
@@ -703,13 +699,23 @@ class CtpTdApi(TdApi):
         self.broker_id: str = ""
         self.auth_code: str = ""
         self.appid: str = ""
+        self.product_name: str = ""
 
         self.front_id: int = 0
         self.session_id: int = 0
+
         self.order_data: list[dict] = []
         self.trade_data: list[dict] = []
         self.positions: dict[str, PositionData] = {}
+        self.accounts: dict[str, AccountData] = {}
+        self.contracts: dict[str, ContractData] = {}
+        self.orders: dict[str, OrderData] = {}
+        self.trades: dict[str, TradeData] = {}
+        self.positions: dict[str, PositionData] = {}
         self.sysid_orderid_map: dict[str, str] = {}
+        self.accounts: dict[str, AccountData] = {}
+        self.contracts: dict[str, ContractData] = {}
+        self.contracts_cache: list[ContractData] = [] # 新增：用于缓存合约数据
         self.parser = product_info
         self.instrument_exchange_id_map = instrument_exchange_id_map
 
@@ -785,8 +791,8 @@ class CtpTdApi(TdApi):
             self.gateway.write_log(_("交易服务器登录成功"))
             self.gateway.on_gateway_status(GatewayConnectionStatus.CONNECTED, "交易服务器登录成功")
             ctp_req: dict = {"BrokerID": self.broker_id, "InvestorID": self.userid}
-            self.req_id += 1
-            self.reqSettlementInfoConfirm(ctp_req, self.req_id)
+            self.reqid += 1
+            self.reqSettlementInfoConfirm(ctp_req, self.reqid)
         else:
             self.login_failed = True
             self.gateway.write_error(_("交易服务器登录失败"), error)
@@ -884,14 +890,18 @@ class CtpTdApi(TdApi):
                 retries = 0
                 max_retries = 5
                 while retries < max_retries:
-                    self.req_id += 1
-                    n: int = self.reqQryInstrument({}, self.req_id)
+                    # 每次重试前增加请求ID，用于标识不同请求
+                    self.reqid += 1
+                    # 调用查询方法，传入空字典作为参数，返回状态码n
+                    n: int = self.reqQryInstrument({}, self.reqid)
+                    # 根据返回值判断是否成功（返回0表示成功）
                     if not n:
                         break
                     else:
+                        # 记录失败信息，包括状态码、重试次数
                         self.gateway.write_log(f"reqQryInstrument failed with {n}, retrying in 1s ({retries + 1}/{max_retries})")
-                        sleep(1)
-                        retries += 1
+                        sleep(1)  # 等待1秒后重试
+                        retries += 1  # 重试计数加1
                 if retries == max_retries:
                     self.gateway.write_log("reqQryInstrument failed after max retries.")
 
@@ -1000,57 +1010,43 @@ class CtpTdApi(TdApi):
         self.gateway.on_account(account)
 
     def onRspQryInstrument(self, data: dict, error: dict, reqid: int, last: bool) -> None:
-        """
-        合约查询回报
-        """
-        self.gateway.write_log(f"GATEWAY-DEBUG: 收到合约查询回报 - reqid: {reqid}, last: {last}")
-        self.gateway.write_log(f"GATEWAY-DEBUG: 错误信息: {error}")
-        
-        if error and error.get("ErrorID", 0) != 0:
-            self.gateway.write_log(f"GATEWAY-DEBUG: 合约查询失败: {error.get('ErrorMsg', '未知错误')}", "ERROR")
-            return
+        """合约查询回报"""
+        if not error:
+            # 1. 合约对象构建
+            contract = ctp_build_contract(data, self.gateway_name)
+            if contract:
+                self.gateway.on_contract(contract)
+                symbol_contract_map[contract.symbol] = contract
+                self.gateway.write_log(f"CtpTdApi: 合约 {contract.symbol} 已成功加载到 symbol_contract_map.", "DEBUG")
 
-        try:
-            if data:
-                self.gateway.write_log(f"GATEWAY-DEBUG: 收到合约数据: {data}")
-                
-                # 使用ctp_build_contract创建合约对象
-                contract = ctp_build_contract(data, self.gateway_name)
-                if contract:
-                    self.gateway.write_log(f"GATEWAY-DEBUG: 创建合约对象: {contract}")
-                    self.gateway.on_contract(contract)
-                    symbol_contract_map[contract.symbol] = contract
-                
-                # 更新exchange_id_map
-                if not data.get("InstrumentID", "").isdigit() and len(data.get("InstrumentID", "")) <= 6:
-                    self.instrument_exchange_id_map[data.get("InstrumentID", "")] = data.get("ExchangeID", "")
+                self.contracts[contract.ho_symbol] = contract
+                self.contracts_cache.append(contract) # 新增：将合约数据添加到缓存
 
-            if last:
+            # 2. 更新exchange_id_map，只取非纯数字的合约和6位以内的合约，即只取期货合约
+            if not data.get("InstrumentID", "").isdigit() and len(data.get("InstrumentID", "")) <= 6:
+                self.instrument_exchange_id_map[data.get("InstrumentID", "")] = data.get("ExchangeID", "")
+
+            if last: # 新增：如果是最后一条数据，则发送批量事件
                 self.contract_inited = True
-                self.gateway.write_log("GATEWAY-DEBUG: 合约查询完成")
-                
-                # 处理缓存的订单和成交数据
-                for order_data in self.order_data:
-                    self.onRtnOrder(order_data)
-                self.order_data.clear()
-
-                for trade_data in self.trade_data:
-                    self.onRtnTrade(trade_data)
-                self.trade_data.clear()
-                
-                # 保存合约映射文件
+                self.gateway.write_log(_("合约信息查询成功"))
                 try:
                     write_json_file(GlobalPath.instrument_exchange_id_filepath, self.instrument_exchange_id_map)
-                    self.gateway.write_log("GATEWAY-DEBUG: 合约交易所映射已保存到文件")
+                    self.gateway.write_log(_("合约信息写入 instrument_exchange_id.json 成功"))
                 except Exception as e:
-                    self.gateway.write_log(f"GATEWAY-DEBUG: 保存合约交易所映射失败: {e}", "ERROR")
-                
-                self.gateway.write_log("GATEWAY-DEBUG: 开始查询账户资金")
-                self.query_account()
-        except Exception as e:
-            self.gateway.write_log(f"GATEWAY-DEBUG: 处理合约数据时出错: {e}", "ERROR")
-            import traceback
-            self.gateway.write_log(traceback.format_exc(), "ERROR")
+                    self.gateway.write_error(_("写入 instrument_exchange_id.json 失败：{}".format(e)), error)
+                self.gateway.on_event(EventType.BULK_CONTRACTS.value, self.contracts_cache)
+                self.contracts_cache.clear() # 新增：清空缓存
+
+                for data in self.order_data:
+                    self.onRtnOrder(data)
+                self.order_data.clear()
+
+                for data in self.trade_data:
+                    self.onRtnTrade(data)
+                self.trade_data.clear()
+        else:
+            self.gateway.write_error("合约查询回报", error)
+
 
     def query_instrument(self) -> None:
         """
@@ -1301,8 +1297,8 @@ class CtpTdApi(TdApi):
             "AppID": self.appid
         }
 
-        self.req_id += 1
-        self.reqAuthenticate(ctp_req, self.req_id)
+        self.reqid += 1
+        self.reqAuthenticate(ctp_req, self.reqid)
 
     def login(self) -> None:
         """
@@ -1318,8 +1314,8 @@ class CtpTdApi(TdApi):
             "BrokerID": self.broker_id
         }
 
-        self.req_id += 1
-        self.reqUserLogin(ctp_req, self.req_id)
+        self.reqid += 1
+        self.reqUserLogin(ctp_req, self.reqid)
 
     def send_order(self, req: OrderRequest) -> str:
         """
@@ -1366,8 +1362,8 @@ class CtpTdApi(TdApi):
             "MinVolume": 1
         }
 
-        self.req_id += 1
-        n: int = self.reqOrderInsert(ctp_req, self.req_id)
+        self.reqid += 1
+        n: int = self.reqOrderInsert(ctp_req, self.reqid)
         if n:
             self.gateway.write_log(_("委托请求发送失败，错误代码：{}").format(n))
             return ""
@@ -1402,16 +1398,16 @@ class CtpTdApi(TdApi):
             "InvestorID": self.userid
         }
 
-        self.req_id += 1
-        self.reqOrderAction(ctp_req, self.req_id)
+        self.reqid += 1
+        self.reqOrderAction(ctp_req, self.reqid)
 
     def query_account(self) -> None:
         """
         查询资金
         :return:
         """
-        self.req_id += 1
-        self.reqQryTradingAccount({}, self.req_id)
+        self.reqid += 1
+        self.reqQryTradingAccount({}, self.reqid)
 
     def query_position(self) -> None:
         """
@@ -1426,8 +1422,8 @@ class CtpTdApi(TdApi):
             "InvestorID": self.userid
         }
 
-        self.req_id += 1
-        self.reqQryInvestorPosition(ctp_req, self.req_id)
+        self.reqid += 1
+        self.reqQryInvestorPosition(ctp_req, self.reqid)
 
     def update_commission_rate(self):
         """
@@ -1456,8 +1452,8 @@ class CtpTdApi(TdApi):
             }
             self.gateway.write_log(_('开始查询手续费...'))
             while True:
-                self.req_id += 1
-                n: int = self.reqQryInstrumentCommissionRate(ctp_req, self.req_id)
+                self.reqid += 1
+                n: int = self.reqQryInstrumentCommissionRate(ctp_req, self.reqid)
                 if not n:  # n是0时，表示请求成功
                     break
                 else:
