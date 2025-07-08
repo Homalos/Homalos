@@ -5,7 +5,7 @@ description = "基于Python的期货量化交易系统"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "Donny", email = "donnymoving@gmail.com" }]
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Operating System :: Microsoft :: Windows",
@@ -21,11 +21,10 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "aiosqlite>=0.21.0",
     "hatch>=1.14.1",
     "hatchling>=1.27.0",
-    "lightgbm>=4.6.0",
     "loguru>=0.7.3",
-    "matplotlib>=3.10.3",
     "meson>=1.8.1",
     "meson-python>=0.18.0",
     "numpy>=2.2.6",
