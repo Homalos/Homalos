@@ -1,0 +1,45 @@
+# 全局系统配置
+# 版本：1.0 # 配置文件的可选版本控制
+
+# 注意事项：
+# - 像“data”这样的路径是相对于项目根目录的。
+# - 特定于策略的参数通常在单独的文件中管理（例如，strategies_setting.json 或 Strategies.yaml）。
+
+log:
+  # 如果未被命令行参数覆盖，则服务的默认日志级别。
+  # 服务仍然可以使用自己的 --log-level 参数来指定。
+  active: true
+  level: "INFO"
+  console: true
+  file: true
+  log_rotation: "100 MB"  # 当文件超过 100MB 时(Rotate when file exceeds 100MB)
+  log_retention: "7 days"  # 保留日志的天数(Retain logs for 10 days)
+
+trading_settings:
+  trading_time_slots:
+    - ["09:00", "11:00"] # Morning session 1
+    - ["10:15", "11:30"] # Morning session 2
+    - ["13:30", "15:00"] # Afternoon session
+    - ["21:00", "23:00"] # Evening session
+
+email:
+  server: "smtp.qq.com"
+  port: 465
+  username: "xxxxxx@qq.com"
+  password: "1234567890"
+  sender: "xxxxxx@qq.com"
+  receiver: "xxxxxx@qq.com"
+
+datafeed:
+  name: "tushare"
+  username: "abcdefg"
+  password: "123456"
+
+database:
+  timezone: "UTC"
+  name: "sqlite"
+  database: "data/database.db"
+  host: "localhost"
+  port: 3306
+  user: "root"
+  password: "123456"

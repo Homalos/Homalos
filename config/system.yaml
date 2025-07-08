@@ -1,0 +1,196 @@
+# Homalos量化交易系统配置文件 v2.0
+# MVP架构配置 - 模块化单体部署
+
+system:
+  name: "Homalos Trading System"
+  version: "2.0.0"
+  log_level: "INFO"
+  data_path: "data/"
+  timezone: "Asia/Shanghai"
+
+# 事件总线配置
+event_bus:
+  name: "trading_system"
+  max_async_queue_size: 10000
+  max_sync_queue_size: 1000
+  timer_interval: 1.0
+  enable_monitoring: true
+  enable_priority: true
+
+# 数据库配置（SQLite简化部署）
+database:
+  type: "sqlite"
+  path: "data/trading.db" 
+  batch_size: 100
+  flush_interval: 5
+  connection_pool_size: 10
+  enable_wal: true  # 启用WAL模式提高并发性能
+
+# 交易网关配置
+gateway:
+  # CTP配置
+  ctp:
+    broker_id: "9999"
+    md_address: "tcp://180.168.146.187:10131"
+    td_address: "tcp://180.168.146.187:10130"
+    app_id: "simnow_client_test"
+    auth_code: "0000000000000000"
+    user_id: ""  # 在实际使用时填写
+    password: ""  # 在实际使用时填写
+    product_info: ""
+    md_timeout: 30
+    td_timeout: 30
+    reconnect_interval: 5
+    max_reconnect_attempts: 10
+  
+  # TTS配置（备用）
+  tts:
+    enabled: false
+    broker_id: ""
+    md_address: ""
+    td_address: ""
+
+# 风控配置
+risk:
+  enabled: true
+  max_position_size: 1000000     # 最大持仓金额（元）
+  max_daily_loss: 50000          # 单日最大亏损（元）
+  max_order_size: 100            # 单笔最大手数
+  order_frequency_limit: 10      # 每秒最大订单数
+  position_concentration: 0.3    # 单品种最大仓位比例
+  enable_self_trade_check: true  # 启用自成交检查
+  enable_price_check: true       # 启用价格合理性检查
+  price_deviation_threshold: 0.05 # 价格偏离阈值（5%）
+
+# 策略管理配置
+strategy:
+  base_path: "strategies/"
+  auto_start: false
+  max_concurrent_strategies: 10
+  enable_hot_reload: true
+  default_params:
+    initial_capital: 100000
+    max_drawdown: 0.1
+    
+# 数据服务配置
+data:
+  # 行情数据
+  market:
+    buffer_size: 1000
+    enable_persistence: true
+    tick_storage_days: 30
+    bar_storage_days: 365
+    
+  # 历史数据
+  history:
+    provider: "local"  # local, tushare, akshare
+    cache_size: 1000
+    
+# Web管理界面配置
+web:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+  cors_origins: ["*"]
+  cors_methods: ["GET", "POST", "PUT", "DELETE"]
+  cors_headers: ["*"]
+  static_files: "web/static"
+  templates: "web/templates"
+  
+  # WebSocket配置
+  websocket:
+    heartbeat_interval: 30
+    max_connections: 100
+    
+  # API配置
+  api:
+    rate_limit: 100  # 每分钟最大请求数
+    enable_swagger: true
+    api_prefix: "/api/v1"
+
+# 日志配置
+logging:
+  level: "INFO"
+  console:
+    enabled: true
+    format: "{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} | {message}"
+  file:
+    enabled: true
+    path: "logs/homalos_{time:YYYY-MM-DD}.log"
+    rotation: "1 day"
+    retention: "30 days"
+    compression: "zip"
+  
+  # 特定模块日志级别
+  modules:
+    event_bus: "INFO"
+    trading_engine: "INFO"
+    strategy_manager: "INFO"
+    risk_manager: "WARNING"
+    order_manager: "INFO"
+    data_service: "INFO"
+    ctp_gateway: "INFO"
+
+# 性能监控配置
+monitoring:
+  enabled: true
+  metrics_interval: 10  # 统计间隔（秒）
+  enable_alerts: true
+  
+  # 性能阈值
+  thresholds:
+    order_latency_ms: 10
+    tick_processing_rate: 1000
+    memory_usage_mb: 500
+    cpu_usage_percent: 80
+    
+  # 告警配置
+  alerts:
+    high_latency_threshold: 50  # 毫秒
+    memory_threshold: 500       # MB
+    error_rate_threshold: 0.01  # 1%
+
+# 交易时段配置
+trading_hours:
+  enable_check: true
+  sessions:
+    # 期货交易时段
+    futures:
+      - ["09:00", "10:15"]   # 早盘
+      - ["10:30", "11:30"]   # 早盘
+      - ["13:30", "15:00"]   # 午盘
+      - ["21:00", "02:30"]   # 夜盘
+    
+    # 股票交易时段
+    stocks:
+      - ["09:30", "11:30"]   # 早盘
+      - ["13:00", "15:00"]   # 午盘
+
+# 邮件通知配置（可选）
+email:
+  enabled: false
+  smtp_server: "smtp.qq.com"
+  smtp_port: 465
+  username: ""
+  password: ""
+  sender: ""
+  receivers: []
+  
+  # 邮件触发条件
+  triggers:
+    system_error: true
+    high_loss: true
+    strategy_stopped: false
+
+# 外部数据源配置（可选）
+external_data:
+  tushare:
+    enabled: false
+    token: ""
+    
+  akshare:
+    enabled: false
+    
+  wind:
+    enabled: false 
