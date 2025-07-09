@@ -21,11 +21,11 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from src.config.config_manager import ConfigManager
 from src.core.event_bus import EventBus
 from src.core.event import Event, create_trading_event
-from src.core.trading_engine import TradingEngine
-from src.core.config_manager import ConfigManager
 from src.core.logger import get_logger
+from src.services.trading_engine import TradingEngine
 
 logger = get_logger("WebServer")
 

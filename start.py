@@ -16,12 +16,13 @@ import time
 from pathlib import Path
 from typing import Optional
 
+from src.config.config_manager import ConfigManager
+from src.services.trading_engine import TradingEngine
+
 # 添加项目根目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.core.event_bus import EventBus
-from src.core.config_manager import ConfigManager
-from src.core.trading_engine import TradingEngine
 from src.core.service_registry import ServiceRegistry
 from src.services.data_service import DataService
 from src.web.web_server import WebServer

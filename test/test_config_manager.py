@@ -14,7 +14,7 @@ import yaml
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from src.core.config_manager import ConfigManager, get_config_manager, get_config, set_config, watch_config
+from src.config.config_manager import ConfigManager, get_config_manager, get_config, set_config, watch_config
 
 def create_test_config():
     """创建测试配置文件"""

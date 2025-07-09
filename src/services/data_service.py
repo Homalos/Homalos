@@ -20,10 +20,10 @@ from pathlib import Path
 import threading
 from queue import Queue, Empty
 
+from src.config.config_manager import ConfigManager
 from src.core.event_bus import EventBus
 from src.core.event import Event, EventType, create_market_event, create_log_event
 from src.core.object import TickData, BarData, SubscribeRequest
-from src.core.config_manager import ConfigManager
 from src.core.logger import get_logger
 
 logger = get_logger("DataService")

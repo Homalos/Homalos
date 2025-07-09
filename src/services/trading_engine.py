@@ -16,7 +16,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Any
 
-from src.core.config_manager import ConfigManager
+from src.config.config_manager import ConfigManager
 from src.core.event import Event, EventType, create_trading_event, create_critical_event
 from src.core.event_bus import EventBus
 from src.core.logger import get_logger
