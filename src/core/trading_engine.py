@@ -12,15 +12,15 @@
 import asyncio
 import time
 import uuid
-from typing import Dict, List, Optional, Any
 from collections import defaultdict, deque
 from dataclasses import dataclass
+from typing import Dict, List, Optional, Any
 
-from src.core.event_bus import EventBus
-from src.core.event import Event, EventTypes, EventPriority, create_trading_event, create_critical_event
-from src.core.object import OrderRequest, CancelRequest, OrderData, TradeData, TickData, PositionData, AccountData
 from src.core.config_manager import ConfigManager
+from src.core.event import Event, EventType, create_trading_event, create_critical_event
+from src.core.event_bus import EventBus
 from src.core.logger import get_logger
+from src.core.object import OrderRequest, OrderData, TradeData, TickData, PositionData, AccountData
 
 logger = get_logger("TradingEngine")
 
@@ -105,7 +105,7 @@ class StrategyManager:
             
             # 发布策略加载事件
             self.event_bus.publish(create_trading_event(
-                EventTypes.STRATEGY_SIGNAL,
+                EventType.STRATEGY_SIGNAL,
                 {
                     "action": "loaded",
                     "strategy_id": strategy_id,
@@ -311,13 +311,13 @@ class RiskManager:
             # 发布风控结果事件
             if passed:
                 self.event_bus.publish(create_trading_event(
-                    EventTypes.RISK_APPROVED,
+                    EventType.RISK_APPROVED,
                     {"order_request": order_request, "strategy_id": strategy_id, "order_id": order_id},
                     "RiskManager"
                 ))
             else:
                 self.event_bus.publish(create_critical_event(
-                    EventTypes.RISK_REJECTED,
+                    EventType.RISK_REJECTED,
                     {
                         "order_request": order_request,
                         "strategy_id": strategy_id,
@@ -394,9 +394,9 @@ class OrderManager:
         self.strategy_orders: Dict[str, set] = defaultdict(set)  # strategy_id -> order_ids
         
         # 注册事件处理器
-        self.event_bus.subscribe(EventTypes.RISK_APPROVED, self._handle_risk_approved)
-        self.event_bus.subscribe(EventTypes.ORDER_FILLED, self._handle_order_filled)
-        self.event_bus.subscribe(EventTypes.ORDER_CANCELLED, self._handle_order_cancelled)
+        self.event_bus.subscribe(EventType.RISK_APPROVED, self._handle_risk_approved)
+        self.event_bus.subscribe(EventType.ORDER_FILLED, self._handle_order_filled)
+        self.event_bus.subscribe(EventType.ORDER_CANCELLED, self._handle_order_cancelled)
         self.event_bus.subscribe("order.place", self._handle_place_order)
         self.event_bus.subscribe("order.cancel", self._handle_cancel_order)
     
@@ -510,9 +510,9 @@ class AccountManager:
         self.strategy_pnl: Dict[str, float] = defaultdict(float)
         
         # 注册事件处理器
-        self.event_bus.subscribe(EventTypes.ACCOUNT_UPDATE, self._handle_account_update)
-        self.event_bus.subscribe(EventTypes.POSITION_UPDATE, self._handle_position_update)
-        self.event_bus.subscribe(EventTypes.ORDER_FILLED, self._handle_trade_update)
+        self.event_bus.subscribe(EventType.ACCOUNT_UPDATE, self._handle_account_update)
+        self.event_bus.subscribe(EventType.POSITION_UPDATE, self._handle_position_update)
+        self.event_bus.subscribe(EventType.ORDER_FILLED, self._handle_trade_update)
     
     def _handle_account_update(self, event: Event):
         """处理账户更新"""
@@ -577,7 +577,7 @@ class TradingEngine:
     def _setup_event_handlers(self):
         """设置事件处理器链"""
         # 策略信号 -> 风控检查 -> 订单执行
-        self.event_bus.subscribe(EventTypes.STRATEGY_SIGNAL, self._handle_strategy_signal)
+        self.event_bus.subscribe(EventType.STRATEGY_SIGNAL, self._handle_strategy_signal)
         
         # 系统控制事件
         self.event_bus.subscribe("engine.start", self._handle_engine_start)

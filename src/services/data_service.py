@@ -21,7 +21,7 @@ import threading
 from queue import Queue, Empty
 
 from src.core.event_bus import EventBus
-from src.core.event import Event, EventTypes, create_market_event, create_log_event
+from src.core.event import Event, EventType, create_market_event, create_log_event
 from src.core.object import TickData, BarData, SubscribeRequest
 from src.core.config_manager import ConfigManager
 from src.core.logger import get_logger
@@ -536,7 +536,7 @@ class DataService:
             # 分发给订阅的策略
             for strategy_id in self.subscribers.get(symbol, set()):
                 self.event_bus.publish(create_market_event(
-                    EventTypes.MARKET_TICK,
+                    EventType.MARKET_TICK,
                     tick_data,
                     "DataService"
                 ))
@@ -566,7 +566,7 @@ class DataService:
             # 分发给订阅的策略
             for strategy_id in self.subscribers.get(symbol, set()):
                 self.event_bus.publish(create_market_event(
-                    EventTypes.MARKET_BAR,
+                    EventType.MARKET_BAR,
                     bar_data,
                     "DataService"
                 ))

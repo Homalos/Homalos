@@ -81,6 +81,10 @@ class EventType:
     MODULE_UNLOAD = "module.unload"
     TIMER = "timer"
     SHUTDOWN = "shutdown"
+    SERVICE_REGISTER = "service.register"
+    SERVICE_UNREGISTER = "service.unregister"
+    SERVICE_HEART_BEAT = "service.heartbeat"
+    SERVICE_DISCOVERY = "service.discovery"
     
     # 低优先级事件
     LOG_MESSAGE = "log.message"

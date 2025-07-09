@@ -13,8 +13,8 @@ from threading import Thread
 from time import time_ns, sleep
 from typing import Dict, Optional
 
+from src.core.event import EventType
 from src.core.event_bus import EventBus, Event
-from src.core.event_type import EventType
 from src.core.logger import get_logger
 
 logger = get_logger("ServiceRegistry")
@@ -35,10 +35,10 @@ class ServiceRegistry:
         self.running = False
 
         # 注册事件处理器
-        self.event_bus.subscribe(EventType.SERVICE_REGISTER.value, self.handle_register)
-        self.event_bus.subscribe(EventType.SERVICE_UNREGISTER.value, self.handle_unregister)
-        self.event_bus.subscribe(EventType.SERVICE_HEART_BEAT.value, self.handle_heartbeat)
-        self.event_bus.subscribe(EventType.SERVICE_DISCOVERY.value, self.handle_discovery_request)
+        self.event_bus.subscribe(EventType.SERVICE_REGISTER, self.handle_register)
+        self.event_bus.subscribe(EventType.SERVICE_UNREGISTER, self.handle_unregister)
+        self.event_bus.subscribe(EventType.SERVICE_HEART_BEAT, self.handle_heartbeat)
+        self.event_bus.subscribe(EventType.SERVICE_DISCOVERY, self.handle_discovery_request)
 
     def start(self):
         """启动服务注册中心"""

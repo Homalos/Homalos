@@ -683,7 +683,7 @@ async def websocket_endpoint(websocket: WebSocket):
 ## 8. 系统启动流程（简化版）
 
 ```python
-# main.py - 简化的启动流程
+# start.py - 简化的启动流程
 async def main():
     """主程序入口"""
     # 1. 初始化基础设施
@@ -917,7 +917,7 @@ cp config/system.yaml.example config/system.yaml
 # 编辑配置文件...
 
 # 5. 启动系统
-python main.py
+python start.py
 ```
 
 ### 12.2 Docker部署（可选）
