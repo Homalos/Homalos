@@ -10,10 +10,10 @@ Homalos_v2/
 │   ├── 📁 ctp/               # CTP接口模块
 │   ├── 📁 services/          # 服务模块
 │   ├── 📁 strategies/        # 策略实例模块
-│   ├── 📁 tts/               # TTS接口模块  
-│   └── 📁 util/              # 工具函数
+│   ├── 📁 tts/               # TTS接口模块
+│   ├── 📁 util/              # TTS接口模块
+│   └── 📁 web/               # Web界面
 ├── 📁 config/                # 配置文件
-├── 📁 build/                 # 构建输出目录
 ├── 📁 data/                  # 数据存储
 └── 📁 log/                   # 日志文件
 ```

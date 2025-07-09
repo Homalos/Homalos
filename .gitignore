@@ -12,5 +12,3 @@ wheels/
 .idea
 # Cursor
 .cursor
-log/
-data/
