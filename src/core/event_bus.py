@@ -162,9 +162,14 @@ class EventBus:
                 # 超时是正常的，不需要记录
                 continue
             except Exception as e:
-                logger.error(f"Sync event processing error in {self._name}: "
-                           f"Event type: {getattr(event, 'type', 'Unknown')}, "
-                           f"Error: {e}", exc_info=True)
+                logger.error(
+                    "Sync loop error",
+                    extra={
+                        "component": self._name,
+                        "error": str(e)
+                    },
+                    exc_info=True
+                )
         logger.debug(f"Sync event loop stopped for {self._name}")
 
     def _start_async(self) -> None:
@@ -224,7 +229,7 @@ class EventBus:
 
     def _run_async_loop(self) -> None:
         """异步事件处理循环"""
-        logger.debug(f"Async event loop started for {self._name}")
+        logger.debug("Async event loop started", extra={"component": self._name})
         while self._async_active:
             try:
                 event = self._async_queue.get(timeout=0.5)
@@ -235,17 +240,22 @@ class EventBus:
                     break
 
                 # 记录事件处理开始
-                logger.debug(f"Processing async event: {event.type}")
+                logger.debug("Processing async event", extra={"component": self._name, "event_type": event.type})
                 self._process_async_event(event)
                 
             except Empty:
                 # 超时是正常的，不需要记录
                 continue
             except Exception as e:
-                logger.error(f"Async event processing error in {self._name}: "
-                           f"Event type: {getattr(event, 'type', 'Unknown')}, "
-                           f"Error: {e}", exc_info=True)
-        logger.debug(f"Async event loop stopped for {self._name}")
+                logger.error(
+                    "Async loop error",
+                    extra={
+                        "component": self._name,
+                        "error": str(e)
+                    },
+                    exc_info=True
+                )
+        logger.debug("Async event loop stopped", extra={"component": self._name})
 
     def _run_timer(self, queue: Queue, interval: int) -> None:
         """定时事件生成器"""
@@ -462,20 +472,14 @@ if __name__ == '__main__':
     def timer_handler(event):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f'[{timestamp}] 处理TIMER事件')
-        sys.stdout.flush()  # 强制刷新输出缓冲
-    
+
     def shutdown_handler(event):
         print(f'收到关闭事件：{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
-        sys.stdout.flush()  # 强制刷新输出缓冲
 
     print("=" * 50)
     print("启动事件总线测试...")
-    sys.stdout.flush()  # 强制刷新输出缓冲
-    
+
     eb = EventBus(name="Test Engine")
-    
-    # 等待一小段时间让日志输出完成
-    time.sleep(0.1)
     
     # 正确订阅TIMER事件类型
     eb.subscribe(EventType.TIMER, timer_handler)
@@ -483,14 +487,12 @@ if __name__ == '__main__':
     
     print("\n事件总线已启动，按 Ctrl+C 退出...")
     print("=" * 50)
-    sys.stdout.flush()  # 强制刷新输出缓冲
-    
+
     try:
         # 保持程序运行
         input("按 Enter 键停止测试...\n")
     except KeyboardInterrupt:
         print("\n收到中断信号，正在停止...")
-        sys.stdout.flush()  # 强制刷新输出缓冲
     finally:
         eb.stop()
         # 等待停止日志输出完成
@@ -498,4 +500,3 @@ if __name__ == '__main__':
         print("\n" + "=" * 50)
         print("测试完成！")
         print("=" * 50)
-        sys.stdout.flush()  # 强制刷新输出缓冲
