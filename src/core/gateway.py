@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 
-from src.core.event import Event
+from src.core.event import Event, EventType
 from .event_bus import EventBus
-from .event_type import EventType
 
 from .object import (
     AccountData,
@@ -58,7 +57,7 @@ class BaseGateway(ABC):
     """
 
     # Default name for the gateway.
-    default_name: str = ""
+    default_name: str = "gateway"
 
     # Fields required in setting dict for connect function.
     default_setting: dict[str, str | int | float | bool] = {}
@@ -69,7 +68,7 @@ class BaseGateway(ABC):
     def __init__(self, event_bus: EventBus, name: str) -> None:
         """"""
         self.event_bus: EventBus = event_bus
-        self.name: str = name
+        self.name: str = name if name else self.default_name
 
     def on_event(self, event_type: str, data: object = None) -> None:
         """
@@ -83,60 +82,60 @@ class BaseGateway(ABC):
         Tick event push.
         Tick event of a specific ho_symbol is also pushed.
         """
-        self.on_event(EventType.TICK.value, tick)
-        self.on_event(EventType.TICK.value + tick.ho_symbol, tick)
+        self.on_event(EventType.MARKET_TICK, tick)
+        self.on_event(EventType.MARKET_TICK + tick.ho_symbol, tick)
 
     def on_trade(self, trade: TradeData) -> None:
         """
         Trade event push.
         Trade event of a specific ho_symbol is also pushed.
         """
-        self.on_event(EventType.TRADE.value, trade)
-        self.on_event(EventType.TRADE.value + trade.ho_symbol, trade)
+        self.on_event(EventType.TRADE, trade)
+        self.on_event(EventType.TRADE + trade.ho_symbol, trade)
 
     def on_order(self, order: OrderData) -> None:
         """
         Order event push.
         Order event of a specific ho_orderid is also pushed.
         """
-        self.on_event(EventType.ORDER.value, order)
-        self.on_event(EventType.ORDER.value + order.ho_orderid, order)
+        self.on_event(EventType.ORDER, order)
+        self.on_event(EventType.ORDER + order.ho_orderid, order)
 
     def on_position(self, position: PositionData) -> None:
         """
         Position event push.
         Position event of a specific ho_symbol is also pushed.
         """
-        self.on_event(EventType.POSITION.value, position)
-        self.on_event(EventType.POSITION.value + position.ho_symbol, position)
+        self.on_event(EventType.POSITION_UPDATE, position)
+        self.on_event(EventType.POSITION_UPDATE + position.ho_symbol, position)
 
     def on_account(self, account: AccountData) -> None:
         """
         Account event push.
         Account event of a specific ho_account_id is also pushed.
         """
-        self.on_event(EventType.ACCOUNT.value, account)
-        self.on_event(EventType.ACCOUNT.value + account.ho_account_id, account)
+        self.on_event(EventType.ACCOUNT_UPDATE, account)
+        self.on_event(EventType.ACCOUNT_UPDATE + account.ho_account_id, account)
 
     def on_quote(self, quote: QuoteData) -> None:
         """
         Quote event push.
         Quote event of a specific ho_symbol is also pushed.
         """
-        self.on_event(EventType.QUOTE.value, quote)
-        self.on_event(EventType.QUOTE.value + quote.ho_symbol, quote)
+        self.on_event(EventType.QUOTE, quote)
+        self.on_event(EventType.QUOTE + quote.ho_symbol, quote)
 
     def on_log(self, log: LogData) -> None:
         """
         Log event push.
         """
-        self.on_event(EventType.LOG.value, log)
+        self.on_event(EventType.LOG_MESSAGE, log)
 
     def on_contract(self, contract: ContractData) -> None:
         """
         Contract event push.
         """
-        self.on_event(EventType.CONTRACT.value, contract)
+        self.on_event(EventType.CONTRACT, contract)
 
     def write_log(self, msg: str) -> None:
         """

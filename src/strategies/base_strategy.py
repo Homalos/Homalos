@@ -12,15 +12,15 @@
 import asyncio
 import time
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, List, Any, Set
 from collections import defaultdict
+from typing import Optional, Dict, List, Any, Set
 
+from src.core.event import Event, EventType, create_trading_event, create_market_event
 from src.core.event_bus import EventBus
-from src.core.event import Event, EventTypes, create_trading_event, create_market_event
-from src.core.object import OrderRequest, CancelRequest, TickData, OrderData, TradeData, BarData
 from src.core.logger import get_logger
+from src.core.object import OrderRequest, TickData, OrderData, TradeData, BarData
 
-logger = get_logger(__name__)
+logger = get_logger("BaseStrategy")
 
 
 class BaseStrategy(ABC):
@@ -79,9 +79,9 @@ class BaseStrategy(ABC):
         # 订阅与策略相关的事件
         self.event_bus.subscribe(f"market.tick.{self.strategy_id}", self._handle_tick_event)
         self.event_bus.subscribe(f"market.bar.{self.strategy_id}", self._handle_bar_event)
-        self.event_bus.subscribe(EventTypes.ORDER_FILLED, self._handle_trade_event)
-        self.event_bus.subscribe(EventTypes.ORDER_CANCELLED, self._handle_order_event)
-        self.event_bus.subscribe(EventTypes.RISK_REJECTED, self._handle_risk_rejected)
+        self.event_bus.subscribe(EventType.ORDER_FILLED, self._handle_trade_event)
+        self.event_bus.subscribe(EventType.ORDER_CANCELLED, self._handle_order_event)
+        self.event_bus.subscribe(EventType.RISK_REJECTED, self._handle_risk_rejected)
     
     def _handle_tick_event(self, event: Event):
         """处理Tick事件"""
@@ -231,7 +231,7 @@ class BaseStrategy(ABC):
         try:
             # 发布下单信号给交易引擎
             self.event_bus.publish(create_trading_event(
-                EventTypes.STRATEGY_SIGNAL,
+                EventType.STRATEGY_SIGNAL,
                 {
                     "action": "place_order",
                     "order_request": order_request,
@@ -257,7 +257,7 @@ class BaseStrategy(ABC):
         try:
             # 发布撤单信号给交易引擎
             self.event_bus.publish(create_trading_event(
-                EventTypes.STRATEGY_SIGNAL,
+                EventType.STRATEGY_SIGNAL,
                 {
                     "action": "cancel_order",
                     "order_id": order_id,

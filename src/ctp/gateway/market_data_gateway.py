@@ -56,7 +56,7 @@ class MarketDataGateway(BaseGateway):
             event_bus: 事件引擎实例
             name: 名称
         """
-        super().__init__(EventBus, name)
+        super().__init__(event_bus, name)
         self.event_bus: EventBus = event_bus  # Ensure this line is present
         self.query_functions = None
         # 行情API实例
@@ -148,7 +148,7 @@ class CtpMdApi(MdApi):
         super().__init__()
 
         self.gateway: MarketDataGateway = gateway
-        self.gateway_name: str = gateway.gateway_name
+        self.gateway_name: str = gateway.name
 
         self.req_id: int = 0
 

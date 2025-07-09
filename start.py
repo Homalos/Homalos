@@ -29,14 +29,14 @@ from src.core.logger import get_logger
 
 # 尝试导入CTP网关（如果可用）
 try:
-    from src.ctp.gateway.market_data_gateway import CtpMarketDataGateway
-    from src.ctp.gateway.order_trading_gateway import CtpTradingGateway
+    from src.ctp.gateway.market_data_gateway import MarketDataGateway
+    from src.ctp.gateway.order_trading_gateway import OrderTradingGateway
     CTP_AVAILABLE = True
 except ImportError:
     CTP_AVAILABLE = False
     # 定义占位符类型
-    class CtpMarketDataGateway: pass
-    class CtpTradingGateway: pass
+    class MarketDataGateway: pass
+    class OrderTradingGateway: pass
 
 logger = get_logger("Main")
 
@@ -88,9 +88,7 @@ class HomalosSystem:
             logger.info("🔄 初始化事件总线...")
             event_bus_config = {
                 "name": self.config.get("event_bus.name", "trading_system"),
-                "max_async_queue_size": self.config.get("event_bus.max_async_queue_size", 10000),
-                "max_sync_queue_size": self.config.get("event_bus.max_sync_queue_size", 1000),
-                "timer_interval": self.config.get("event_bus.timer_interval", 1.0)
+                "interval": self.config.get("event_bus.timer_interval", 1.0)
             }
             self.event_bus = EventBus(**event_bus_config)
             
@@ -140,15 +138,15 @@ class HomalosSystem:
                 # 初始化行情网关
                 logger.info("📊 初始化CTP行情网关...")
                 if self.event_bus and CTP_AVAILABLE:
-                    self.market_gateway = CtpMarketDataGateway(self.event_bus, "CTP_MD")
+                    self.market_gateway = MarketDataGateway(self.event_bus, "CTP_MD")
                 
                 # 初始化交易网关
                 logger.info("💰 初始化CTP交易网关...")
                 if self.event_bus and CTP_AVAILABLE:
-                    self.trading_gateway = CtpTradingGateway(self.event_bus, "CTP_TD")
+                    self.trading_gateway = OrderTradingGateway(self.event_bus, "CTP_TD")
             
-            # 连接网关
-            await self._connect_gateways(ctp_config)
+                # 连接网关
+                await self._connect_gateways(ctp_config)
             
         except Exception as e:
             logger.error(f"❌ 网关初始化失败: {e}")
@@ -380,9 +378,9 @@ if __name__ == "__main__":
         sys.exit(1)
     
     # 检查配置文件
-    config_file = "config/system.yaml"
-    if not Path(config_file).exists():
-        print(f"❌ 配置文件不存在: {config_file}")
+    system_config_file = "config/system.yaml"
+    if not Path(system_config_file).exists():
+        print(f"❌ 配置文件不存在: {system_config_file}")
         print("请复制config/system.yaml.example为config/system.yaml并进行配置")
         sys.exit(1)
     
@@ -391,7 +389,7 @@ if __name__ == "__main__":
 ║                                                              ║
 ║    🚀 Homalos 量化交易系统 v2.0                              ║
 ║                                                              ║
-║    基于Python的期货量化交易系统                               ║
+║    基于Python的期货量化交易系统                              ║
 ║    MVP架构 - 模块化单体部署                                  ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝

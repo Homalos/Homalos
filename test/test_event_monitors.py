@@ -7,13 +7,7 @@
 @Author     : Donny
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: description
-"""
-# !/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-事件总线监控器测试实例
-演示监控器的作用和应用场景
+@Description: 事件总线监控器测试实例 - 演示监控器的作用和应用场景
 """
 import time
 import json

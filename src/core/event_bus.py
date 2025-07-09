@@ -32,13 +32,12 @@ class EventBus:
     """
 
     # 默认配置参数
-    DEFAULT_SYNC_QUEUE_SIZE = 1000
+    DEFAULT_SYNC_QUEUE_SIZE = 10000
     DEFAULT_ASYNC_QUEUE_SIZE = 10000
     DEFAULT_TIMER_INTERVAL = 1
 
     def __init__(self,
                  name: str = "EventBus",
-                 max_async_queue_size: int = DEFAULT_ASYNC_QUEUE_SIZE,
                  interval: int = DEFAULT_TIMER_INTERVAL):
         # 系统标识
         self._name = name
@@ -46,7 +45,7 @@ class EventBus:
 
         # 事件队列
         self._sync_queue = Queue(maxsize=self.DEFAULT_SYNC_QUEUE_SIZE)  # 同步处理队列
-        self._async_queue = Queue(maxsize=max_async_queue_size)  # 异步处理队列
+        self._async_queue = Queue(maxsize=self.DEFAULT_ASYNC_QUEUE_SIZE)  # 异步处理队列
 
         # 事件处理器注册表
         self._sync_handlers: Dict[str, List[Callable]] = defaultdict(list)  # 同步处理器
@@ -421,6 +420,11 @@ class EventBus:
         """卸载模块"""
         logger.info(f"Unloading module: {module_path}")
         self.publish(Event(EventType.MODULE_UNLOAD, {"path": module_path}))
+
+    @property
+    def name(self) -> str:
+        """获取事件总线名称"""
+        return self._name
 
     def get_stats(self) -> Dict[str, Any]:
         """获取总线统计信息"""

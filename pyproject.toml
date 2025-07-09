@@ -22,6 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "aiosqlite>=0.21.0",
+    "fastapi>=0.116.0",
     "hatch>=1.14.1",
     "hatchling>=1.27.0",
     "loguru>=0.7.3",
@@ -38,6 +39,7 @@ dependencies = [
     "ta-lib>=0.6.3",
     "torch>=2.7.0",
     "tzlocal>=5.3.1",
+    "uvicorn[standard]>=0.32.0",
 ]
 
 keywords = ["quant", "quantitative", "trading", "homalos", "investment"]

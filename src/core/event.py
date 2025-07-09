@@ -65,7 +65,10 @@ class EventType:
     ORDER_FAILED = "order.failed"
     GATEWAY_DISCONNECTED = "gateway.disconnected"
     
-    # 高优先级事件  
+    # 高优先级事件
+    ORDER = "order"
+    TRADE = "trade"
+    QUOTE = "quote"
     ORDER_FILLED = "order.filled"
     ORDER_SUBMITTED = "order.submitted"
     ORDER_CANCELLED = "order.cancelled"
@@ -77,6 +80,7 @@ class EventType:
     MARKET_BAR = "market.bar"
     POSITION_UPDATE = "position.update"
     ACCOUNT_UPDATE = "account.update"
+    CONTRACT = "contract"
     MODULE_LOADED = "module.loaded"
     MODULE_UNLOAD = "module.unload"
     TIMER = "timer"

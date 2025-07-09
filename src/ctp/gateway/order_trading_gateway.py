@@ -9,7 +9,6 @@
 @Software   : PyCharm
 @Description: CTP订单交易网关
 """
-import asyncio
 import json
 import os
 import sys
@@ -26,10 +25,10 @@ from src.core.gateway import BaseGateway
 from src.core.object import ContractData, PositionData, OrderData, AccountData, TradeData, OrderRequest, CancelRequest
 from src.ctp.api import TdApi, THOST_FTDC_HF_Speculation, THOST_FTDC_CC_Immediately, THOST_FTDC_FCC_NotForceClose, \
     THOST_FTDC_AF_Delete
+from src.util.utility import ZoneInfo, get_folder_path, del_num
 from .ctp_gateway_helper import ctp_build_contract
 from .ctp_mapping import STATUS_CTP2VT, DIRECTION_VT2CTP, DIRECTION_CTP2VT, ORDERTYPE_VT2CTP, ORDERTYPE_CTP2VT, \
     OFFSET_VT2CTP, OFFSET_CTP2VT, EXCHANGE_CTP2VT
-from src.util.utility import ZoneInfo, get_folder_path, del_num
 from ...core.event_bus import EventBus
 from ...util.file_helper import write_json_file
 
@@ -59,9 +58,8 @@ class OrderTradingGateway(BaseGateway):
 
     exchanges: list[str] = list(EXCHANGE_CTP2VT.values())
 
-    def __init__(self,  event_bus: EventBus, gateway_name: str) -> None:
-        super().__init__(event_bus, gateway_name)
-        self.main_loop = asyncio.get_event_loop()  # Store the main event loop
+    def __init__(self,  event_bus: EventBus, name: str) -> None:
+        super().__init__(event_bus, name)
         self.event_bus: EventBus = event_bus  # Ensure this line is present
         self.query_functions = None
         self.td_api: CtpTdApi | None = None
@@ -218,7 +216,7 @@ class CtpTdApi(TdApi):
         super().__init__()
 
         self.gateway: OrderTradingGateway = gateway
-        self.gateway_name: str = gateway.gateway_name
+        self.gateway_name: str = gateway.name
 
         self.req_id: int = 0
         self.order_ref: int = 0

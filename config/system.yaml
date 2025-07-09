@@ -1,9 +1,9 @@
-# Homalos量化交易系统配置文件 v2.0
+# Homalos量化交易系统配置文件 v0.0.1
 # MVP架构配置 - 模块化单体部署
 
 system:
   name: "Homalos Trading System"
-  version: "2.0.0"
+  version: "0.0.1"
   log_level: "INFO"
   data_path: "data/"
   timezone: "Asia/Shanghai"
@@ -31,12 +31,12 @@ gateway:
   # CTP配置
   ctp:
     broker_id: "9999"
-    md_address: "tcp://180.168.146.187:10131"
-    td_address: "tcp://180.168.146.187:10130"
+    md_address: "tcp://182.254.243.31:30011"
+    td_address: "tcp://182.254.243.31:30001"
     app_id: "simnow_client_test"
     auth_code: "0000000000000000"
-    user_id: ""  # 在实际使用时填写
-    password: ""  # 在实际使用时填写
+    user_id: "160219"  # 在实际使用时填写
+    password: "donny@103010"  # 在实际使用时填写
     product_info: ""
     md_timeout: 30
     td_timeout: 30
@@ -46,9 +46,18 @@ gateway:
   # TTS配置（备用）
   tts:
     enabled: false
-    broker_id: ""
-    md_address: ""
-    td_address: ""
+    broker_id: "9999"
+    md_address: "tcp://180.166.37.178:41215"
+    td_address: "tcp://121.37.90.193:20002"
+    app_id: ""
+    auth_code: "0000000000000000"
+    user_id: "12396"  # 在实际使用时填写
+    password: "123456"  # 在实际使用时填写
+    product_info: ""
+    md_timeout: 30
+    td_timeout: 30
+    reconnect_interval: 5
+    max_reconnect_attempts: 10
 
 # 风控配置
 risk:
@@ -64,7 +73,7 @@ risk:
 
 # 策略管理配置
 strategy:
-  base_path: "strategies/"
+  base_path: "src/strategies/"
   auto_start: false
   max_concurrent_strategies: 10
   enable_hot_reload: true
@@ -89,7 +98,7 @@ data:
 # Web管理界面配置
 web:
   enabled: true
-  host: "0.0.0.0"
+  host: "127.0.0.1"
   port: 8000
   debug: false
   cors_origins: ["*"]
