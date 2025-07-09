@@ -1,4 +1,4 @@
-# Homalos v2 ——基于Python的期货量化交易系统
+# Homalos——基于Python的期货量化交易系统
 
 ## 项目整体架构
 
