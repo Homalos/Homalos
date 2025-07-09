@@ -26,7 +26,7 @@ class GlobalPath(object):
     data_dir_path = project_root_path / Params.data_dir_name
 
     # 配置目录完整路径(用于保存配置文件: instrument_exchange_id.json、product_info.ini、2025_holidays.json等)
-    project_files_path = project_root_path / "config_files"
+    project_files_path = project_root_path / "config"
 
     # config_files，holiday文件存放目录完整路径
     holiday_dir_path = project_files_path
