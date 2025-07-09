@@ -1673,3 +1673,21 @@
 2025-07-09 22:47:37.604 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for CTPBarTest
 2025-07-09 22:47:38.605 | INFO | EventBus | _stop_async:226 | Async engine stopped for CTPBarTest
 2025-07-09 22:47:38.605 | INFO | EventBus | stop:88 | EventBus 'CTPBarTest' engines stopped
+2025-07-09 23:23:51.788 | INFO | EventBus | start:82 | EventBus 'TradingEngineTest' engines started
+2025-07-09 23:23:51.790 | INFO | DataService | _init_database:169 | 数据库初始化成功: :memory:
+2025-07-09 23:23:51.790 | INFO | DataService | __init__:522 | 数据服务初始化完成
+2025-07-09 23:23:51.791 | INFO | TradingEngine | __init__:621 | 交易引擎核心初始化完成
+2025-07-09 23:23:54.302 | INFO | BaseStrategy | write_log:339 | [test_minimal] 最小策略初始化
+2025-07-09 23:23:54.302 | INFO | BaseStrategy | write_log:339 | [test_minimal] 策略参数: FG509.CZCE, 手数=1, 间隔=5秒
+2025-07-09 23:23:54.302 | INFO | BaseStrategy | write_log:339 | [test_minimal] 策略 test_minimal 初始化完成
+2025-07-09 23:23:54.303 | INFO | BaseStrategy | write_log:339 | [test_minimal] 最小策略启动
+2025-07-09 23:23:54.303 | INFO | BaseStrategy | write_log:339 | [test_minimal] 订阅行情: ['FG509']
+2025-07-09 23:23:54.303 | INFO | BaseStrategy | write_log:339 | [test_minimal] 策略 test_minimal 启动成功
+2025-07-09 23:23:54.305 | INFO | DataService | subscribe_market_data:576 | 策略 test_minimal 订阅行情: ['FG509']
+2025-07-09 23:24:12.926 | INFO | BaseStrategy | write_log:339 | [test_minimal] 最小策略停止
+2025-07-09 23:24:12.927 | INFO | BaseStrategy | write_log:339 | [test_minimal] 取消订阅行情: ['FG509']
+2025-07-09 23:24:12.928 | INFO | BaseStrategy | write_log:339 | [test_minimal] 策略 test_minimal 停止成功
+2025-07-09 23:24:13.797 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for TradingEngineTest
+2025-07-09 23:24:13.798 | INFO | EventBus | _stop_async:226 | Async engine stopped for TradingEngineTest
+2025-07-09 23:24:13.798 | INFO | EventBus | stop:88 | EventBus 'TradingEngineTest' engines stopped
+2025-07-09 23:24:13.801 | INFO | DataService | unsubscribe_market_data:591 | 策略 test_minimal 取消订阅行情: ['FG509']
