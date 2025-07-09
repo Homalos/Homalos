@@ -192,3 +192,186 @@
 2025-07-09 15:56:06.908 | INFO | ConfigManager | set:79 | 配置已更新: system.version = 5.0.0
 2025-07-09 15:56:06.909 | INFO | ConfigManager | set:79 | 配置已更新: new.section = {'key': 'value'}
 2025-07-09 15:56:06.910 | INFO | ConfigManager | save:120 | 配置已保存: C:\Users\donny\AppData\Local\Temp\tmpg9kxyt88.yaml
+2025-07-09 20:44:19.335 | INFO | EventBus | start:82 | EventBus 'TestBus' engines started
+2025-07-09 20:44:19.335 | INFO | ServiceRegistry | start:47 | ServiceRegistry started
+2025-07-09 20:44:19.335 | INFO | ServiceRegistry | handle_register:65 | Service registered: TestService
+2025-07-09 20:44:19.549 | INFO | ServiceRegistry | handle_unregister:79 | Service unregistered: TestService
+2025-07-09 20:44:19.751 | INFO | ServiceRegistry | handle_register:65 | Service registered: HeartBeatService
+2025-07-09 20:44:20.256 | INFO | ServiceRegistry | handle_register:65 | Service registered: S0
+2025-07-09 20:44:20.256 | INFO | ServiceRegistry | handle_register:65 | Service registered: S1
+2025-07-09 20:44:20.256 | INFO | ServiceRegistry | handle_register:65 | Service registered: S2
+2025-07-09 20:44:20.763 | INFO | ServiceRegistry | handle_register:65 | Service registered: TimeoutService
+2025-07-09 20:44:23.766 | INFO | ServiceRegistry | handle_register:65 | Service registered: C0
+2025-07-09 20:44:23.766 | INFO | ServiceRegistry | handle_register:65 | Service registered: C1
+2025-07-09 20:44:23.766 | INFO | ServiceRegistry | handle_register:65 | Service registered: C2
+2025-07-09 20:44:23.766 | INFO | ServiceRegistry | handle_register:65 | Service registered: C3
+2025-07-09 20:44:23.766 | INFO | ServiceRegistry | handle_register:65 | Service registered: C4
+2025-07-09 20:44:23.770 | INFO | ServiceRegistry | handle_register:65 | Service registered: C5
+2025-07-09 20:44:23.770 | INFO | ServiceRegistry | handle_register:65 | Service registered: C6
+2025-07-09 20:44:23.770 | INFO | ServiceRegistry | handle_register:65 | Service registered: C7
+2025-07-09 20:44:23.770 | INFO | ServiceRegistry | handle_register:65 | Service registered: C8
+2025-07-09 20:44:23.770 | INFO | ServiceRegistry | handle_register:65 | Service registered: C9
+2025-07-09 20:44:24.273 | ERROR | EventBus | _invoke_handlers:342 | Handler error for service.register: 'name'
+2025-07-09 20:44:24.273 | INFO | ServiceRegistry | handle_register:65 | Service registered: DupService
+2025-07-09 20:44:24.273 | INFO | ServiceRegistry | handle_register:65 | Service registered: DupService
+2025-07-09 20:44:24.767 | INFO | ServiceRegistry | stop:53 | ServiceRegistry stopped
+2025-07-09 20:44:25.350 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for TestBus
+2025-07-09 20:44:26.351 | INFO | EventBus | _stop_async:226 | Async engine stopped for TestBus
+2025-07-09 20:44:26.351 | INFO | EventBus | stop:88 | EventBus 'TestBus' engines stopped
+2025-07-09 20:50:12.777 | INFO | EventBus | start:82 | EventBus 'TestBus' engines started
+2025-07-09 20:50:12.777 | INFO | ServiceRegistry | start:47 | ServiceRegistry started
+2025-07-09 20:50:12.777 | INFO | ServiceRegistry | handle_register:65 | Service registered: TestService
+2025-07-09 20:50:12.982 | INFO | ServiceRegistry | handle_unregister:79 | Service unregistered: TestService
+2025-07-09 20:50:13.183 | INFO | ServiceRegistry | handle_register:65 | Service registered: HeartBeatService
+2025-07-09 20:50:13.689 | INFO | ServiceRegistry | handle_register:65 | Service registered: S0
+2025-07-09 20:50:13.690 | INFO | ServiceRegistry | handle_register:65 | Service registered: S1
+2025-07-09 20:50:13.691 | INFO | ServiceRegistry | handle_register:65 | Service registered: S2
+2025-07-09 20:50:14.195 | INFO | ServiceRegistry | handle_register:65 | Service registered: TimeoutService
+2025-07-09 20:50:17.198 | INFO | ServiceRegistry | handle_register:65 | Service registered: C0
+2025-07-09 20:50:17.198 | INFO | ServiceRegistry | handle_register:65 | Service registered: C1
+2025-07-09 20:50:17.198 | INFO | ServiceRegistry | handle_register:65 | Service registered: C2
+2025-07-09 20:50:17.198 | INFO | ServiceRegistry | handle_register:65 | Service registered: C3
+2025-07-09 20:50:17.205 | INFO | ServiceRegistry | handle_register:65 | Service registered: C4
+2025-07-09 20:50:17.206 | INFO | ServiceRegistry | handle_register:65 | Service registered: C5
+2025-07-09 20:50:17.207 | INFO | ServiceRegistry | handle_register:65 | Service registered: C6
+2025-07-09 20:50:17.209 | INFO | ServiceRegistry | handle_register:65 | Service registered: C7
+2025-07-09 20:50:17.210 | INFO | ServiceRegistry | handle_register:65 | Service registered: C8
+2025-07-09 20:50:17.211 | INFO | ServiceRegistry | handle_register:65 | Service registered: C9
+2025-07-09 20:50:17.719 | ERROR | EventBus | _invoke_handlers:342 | Handler error for service.register: 'name'
+2025-07-09 20:50:17.722 | INFO | ServiceRegistry | handle_register:65 | Service registered: DupService
+2025-07-09 20:50:17.722 | INFO | ServiceRegistry | handle_register:65 | Service registered: DupService
+2025-07-09 20:50:18.199 | INFO | ServiceRegistry | stop:53 | ServiceRegistry stopped
+2025-07-09 20:50:18.785 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for TestBus
+2025-07-09 20:50:19.785 | INFO | EventBus | _stop_async:226 | Async engine stopped for TestBus
+2025-07-09 20:50:19.785 | INFO | EventBus | stop:88 | EventBus 'TestBus' engines stopped
+2025-07-09 20:53:05.530 | INFO | EventBus | start:82 | EventBus 'TestBus' engines started
+2025-07-09 20:53:05.530 | INFO | ServiceRegistry | start:47 | ServiceRegistry started
+2025-07-09 20:53:05.530 | INFO | ServiceRegistry | handle_register:65 | Service registered: TestService
+2025-07-09 20:53:05.743 | INFO | ServiceRegistry | handle_unregister:79 | Service unregistered: TestService
+2025-07-09 20:53:05.946 | INFO | ServiceRegistry | handle_register:65 | Service registered: HeartBeatService
+2025-07-09 20:53:06.455 | INFO | ServiceRegistry | handle_register:65 | Service registered: S0
+2025-07-09 20:53:06.459 | INFO | ServiceRegistry | handle_register:65 | Service registered: S1
+2025-07-09 20:53:06.460 | INFO | ServiceRegistry | handle_register:65 | Service registered: S2
+2025-07-09 20:53:06.966 | INFO | ServiceRegistry | handle_register:65 | Service registered: TimeoutService
+2025-07-09 20:53:09.970 | INFO | ServiceRegistry | handle_register:65 | Service registered: C0
+2025-07-09 20:53:09.970 | INFO | ServiceRegistry | handle_register:65 | Service registered: C1
+2025-07-09 20:53:09.970 | INFO | ServiceRegistry | handle_register:65 | Service registered: C2
+2025-07-09 20:53:09.976 | INFO | ServiceRegistry | handle_register:65 | Service registered: C3
+2025-07-09 20:53:09.978 | INFO | ServiceRegistry | handle_register:65 | Service registered: C4
+2025-07-09 20:53:09.979 | INFO | ServiceRegistry | handle_register:65 | Service registered: C5
+2025-07-09 20:53:09.980 | INFO | ServiceRegistry | handle_register:65 | Service registered: C6
+2025-07-09 20:53:09.982 | INFO | ServiceRegistry | handle_register:65 | Service registered: C7
+2025-07-09 20:53:09.982 | INFO | ServiceRegistry | handle_register:65 | Service registered: C8
+2025-07-09 20:53:09.985 | INFO | ServiceRegistry | handle_register:65 | Service registered: C9
+2025-07-09 20:53:10.488 | ERROR | EventBus | _invoke_handlers:342 | Handler error for service.register: 'name'
+2025-07-09 20:53:10.488 | INFO | ServiceRegistry | handle_register:65 | Service registered: DupService
+2025-07-09 20:53:10.495 | INFO | ServiceRegistry | handle_register:65 | Service registered: DupService
+2025-07-09 20:53:10.972 | INFO | ServiceRegistry | stop:53 | ServiceRegistry stopped
+2025-07-09 20:53:11.545 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for TestBus
+2025-07-09 20:53:12.546 | INFO | EventBus | _stop_async:226 | Async engine stopped for TestBus
+2025-07-09 20:53:12.546 | INFO | EventBus | stop:88 | EventBus 'TestBus' engines stopped
+2025-07-09 20:53:31.673 | INFO | EventBus | start:82 | EventBus 'TestBus' engines started
+2025-07-09 20:53:31.673 | INFO | ServiceRegistry | start:47 | ServiceRegistry started
+2025-07-09 20:53:31.673 | INFO | ServiceRegistry | handle_register:65 | Service registered: TestService
+2025-07-09 20:53:31.877 | INFO | ServiceRegistry | handle_unregister:79 | Service unregistered: TestService
+2025-07-09 20:53:32.079 | INFO | ServiceRegistry | handle_register:65 | Service registered: HeartBeatService
+2025-07-09 20:53:32.585 | INFO | ServiceRegistry | handle_register:65 | Service registered: S0
+2025-07-09 20:53:32.585 | INFO | ServiceRegistry | handle_register:65 | Service registered: S1
+2025-07-09 20:53:32.585 | INFO | ServiceRegistry | handle_register:65 | Service registered: S2
+2025-07-09 20:53:33.096 | INFO | ServiceRegistry | handle_register:65 | Service registered: TimeoutService
+2025-07-09 20:53:36.103 | INFO | ServiceRegistry | handle_register:65 | Service registered: C0
+2025-07-09 20:53:36.104 | INFO | ServiceRegistry | handle_register:65 | Service registered: C1
+2025-07-09 20:53:36.105 | INFO | ServiceRegistry | handle_register:65 | Service registered: C2
+2025-07-09 20:53:36.106 | INFO | ServiceRegistry | handle_register:65 | Service registered: C3
+2025-07-09 20:53:36.108 | INFO | ServiceRegistry | handle_register:65 | Service registered: C4
+2025-07-09 20:53:36.110 | INFO | ServiceRegistry | handle_register:65 | Service registered: C5
+2025-07-09 20:53:36.111 | INFO | ServiceRegistry | handle_register:65 | Service registered: C6
+2025-07-09 20:53:36.112 | INFO | ServiceRegistry | handle_register:65 | Service registered: C7
+2025-07-09 20:53:36.112 | INFO | ServiceRegistry | handle_register:65 | Service registered: C8
+2025-07-09 20:53:36.114 | INFO | ServiceRegistry | handle_register:65 | Service registered: C9
+2025-07-09 20:53:36.630 | ERROR | EventBus | _invoke_handlers:342 | Handler error for service.register: 'name'
+2025-07-09 20:53:36.631 | INFO | ServiceRegistry | handle_register:65 | Service registered: DupService
+2025-07-09 20:53:36.631 | INFO | ServiceRegistry | handle_register:65 | Service registered: DupService
+2025-07-09 20:53:37.103 | INFO | ServiceRegistry | stop:53 | ServiceRegistry stopped
+2025-07-09 20:53:37.678 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for TestBus
+2025-07-09 20:53:38.680 | INFO | EventBus | _stop_async:226 | Async engine stopped for TestBus
+2025-07-09 20:53:38.680 | INFO | EventBus | stop:88 | EventBus 'TestBus' engines stopped
+2025-07-09 21:03:22.888 | INFO | EventBus | start:82 | EventBus 'TestBus' engines started
+2025-07-09 21:03:22.903 | INFO | DataService | _init_database:167 | 数据库初始化成功: C:\Users\donny\AppData\Local\Temp\pytest-of-donny\pytest-0\db0\test.db
+2025-07-09 21:03:22.904 | INFO | DataService | __init__:450 | 数据服务初始化完成
+2025-07-09 21:03:22.905 | INFO | DataService | start:181 | 数据库写入线程已启动
+2025-07-09 21:03:22.905 | INFO | DataService | initialize:475 | 数据服务初始化成功
+2025-07-09 21:03:24.921 | INFO | DataService | subscribe_market_data:504 | 策略 strat1 订阅行情: ['rb999']
+2025-07-09 21:03:24.921 | INFO | DataService | unsubscribe_market_data:519 | 策略 strat1 取消订阅行情: ['rb999']
+2025-07-09 21:03:24.937 | INFO | DataService | subscribe_market_data:504 | 策略 strat2 订阅行情: ['rb888']
+2025-07-09 21:03:29.893 | ERROR | DataService | _background_writer:219 | 后台写入线程异常: db error
+2025-07-09 21:03:32.919 | INFO | DataService | stop:197 | 数据库写入线程已停止
+2025-07-09 21:03:32.919 | INFO | DataService | shutdown:487 | 数据服务已关闭
+2025-07-09 21:03:33.894 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for TestBus
+2025-07-09 21:03:34.895 | INFO | EventBus | _stop_async:226 | Async engine stopped for TestBus
+2025-07-09 21:03:34.895 | INFO | EventBus | stop:88 | EventBus 'TestBus' engines stopped
+2025-07-09 21:06:58.484 | INFO | EventBus | start:82 | EventBus 'TestBus' engines started
+2025-07-09 21:06:58.495 | INFO | DataService | _init_database:167 | 数据库初始化成功: C:\Users\donny\AppData\Local\Temp\pytest-of-donny\pytest-1\db0\test.db
+2025-07-09 21:06:58.496 | INFO | DataService | __init__:450 | 数据服务初始化完成
+2025-07-09 21:06:58.496 | INFO | DataService | start:181 | 数据库写入线程已启动
+2025-07-09 21:06:58.496 | INFO | DataService | initialize:475 | 数据服务初始化成功
+2025-07-09 21:07:00.511 | INFO | DataService | subscribe_market_data:504 | 策略 strat1 订阅行情: ['rb999']
+2025-07-09 21:07:00.511 | INFO | DataService | unsubscribe_market_data:519 | 策略 strat1 取消订阅行情: ['rb999']
+2025-07-09 21:07:00.527 | INFO | DataService | subscribe_market_data:504 | 策略 strat2 订阅行情: ['rb888']
+2025-07-09 21:07:05.125 | ERROR | DataService | _background_writer:219 | 后台写入线程异常: db error
+2025-07-09 21:07:08.162 | INFO | DataService | stop:197 | 数据库写入线程已停止
+2025-07-09 21:07:08.162 | INFO | DataService | shutdown:487 | 数据服务已关闭
+2025-07-09 21:07:08.493 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for TestBus
+2025-07-09 21:07:09.495 | INFO | EventBus | _stop_async:226 | Async engine stopped for TestBus
+2025-07-09 21:07:09.496 | INFO | EventBus | stop:88 | EventBus 'TestBus' engines stopped
+2025-07-09 21:13:20.617 | INFO | EventBus | start:82 | EventBus 'TestBus' engines started
+2025-07-09 21:13:20.627 | INFO | DataService | _init_database:167 | 数据库初始化成功: C:\Users\donny\AppData\Local\Temp\pytest-of-donny\pytest-2\db0\test.db
+2025-07-09 21:13:20.627 | INFO | DataService | __init__:450 | 数据服务初始化完成
+2025-07-09 21:13:20.633 | INFO | DataService | start:181 | 数据库写入线程已启动
+2025-07-09 21:13:20.633 | INFO | DataService | initialize:475 | 数据服务初始化成功
+2025-07-09 21:13:22.658 | INFO | DataService | subscribe_market_data:504 | 策略 strat1 订阅行情: ['FG509']
+2025-07-09 21:13:22.658 | INFO | DataService | unsubscribe_market_data:519 | 策略 strat1 取消订阅行情: ['FG509']
+2025-07-09 21:13:22.658 | INFO | DataService | subscribe_market_data:504 | 策略 strat2 订阅行情: ['FG509']
+2025-07-09 21:13:28.530 | ERROR | DataService | _background_writer:219 | 后台写入线程异常: db error
+2025-07-09 21:13:31.540 | INFO | DataService | stop:197 | 数据库写入线程已停止
+2025-07-09 21:13:31.540 | INFO | DataService | shutdown:487 | 数据服务已关闭
+2025-07-09 21:13:31.624 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for TestBus
+2025-07-09 21:13:32.624 | INFO | EventBus | _stop_async:226 | Async engine stopped for TestBus
+2025-07-09 21:13:32.625 | INFO | EventBus | stop:88 | EventBus 'TestBus' engines stopped
+2025-07-09 21:24:02.692 | INFO | EventBus | start:82 | EventBus 'CTPSimpleTest' engines started
+2025-07-09 21:24:07.708 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for CTPSimpleTest
+2025-07-09 21:24:08.711 | INFO | EventBus | _stop_async:226 | Async engine stopped for CTPSimpleTest
+2025-07-09 21:24:08.711 | INFO | EventBus | stop:88 | EventBus 'CTPSimpleTest' engines stopped
+2025-07-09 21:50:03.493 | INFO | EventBus | start:82 | EventBus 'TestBus' engines started
+2025-07-09 21:50:03.506 | INFO | DataService | _init_database:167 | 数据库初始化成功: C:\Users\donny\AppData\Local\Temp\pytest-of-donny\pytest-3\db0\test.db
+2025-07-09 21:50:03.507 | INFO | DataService | __init__:450 | 数据服务初始化完成
+2025-07-09 21:50:03.509 | INFO | DataService | start:181 | 数据库写入线程已启动
+2025-07-09 21:50:03.510 | INFO | DataService | initialize:475 | 数据服务初始化成功
+2025-07-09 21:50:05.523 | INFO | DataService | subscribe_market_data:504 | 策略 strat1 订阅行情: ['FG509']
+2025-07-09 21:50:05.523 | INFO | DataService | unsubscribe_market_data:519 | 策略 strat1 取消订阅行情: ['FG509']
+2025-07-09 21:50:05.539 | INFO | DataService | subscribe_market_data:504 | 策略 strat2 订阅行情: ['FG509']
+2025-07-09 21:50:09.488 | ERROR | DataService | _background_writer:219 | 后台写入线程异常: db error
+2025-07-09 21:50:12.501 | INFO | DataService | stop:197 | 数据库写入线程已停止
+2025-07-09 21:50:12.501 | INFO | DataService | shutdown:487 | 数据服务已关闭
+2025-07-09 21:50:13.498 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for TestBus
+2025-07-09 21:50:13.498 | INFO | EventBus | _stop_async:226 | Async engine stopped for TestBus
+2025-07-09 21:50:13.498 | INFO | EventBus | stop:88 | EventBus 'TestBus' engines stopped
+2025-07-09 21:51:35.339 | INFO | EventBus | start:82 | EventBus 'CTPSimpleTest' engines started
+2025-07-09 21:51:38.348 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for CTPSimpleTest
+2025-07-09 21:51:39.349 | INFO | EventBus | _stop_async:226 | Async engine stopped for CTPSimpleTest
+2025-07-09 21:51:39.349 | INFO | EventBus | stop:88 | EventBus 'CTPSimpleTest' engines stopped
+2025-07-09 21:51:43.948 | INFO | EventBus | start:82 | EventBus 'TestBus' engines started
+2025-07-09 21:51:43.958 | INFO | DataService | _init_database:167 | 数据库初始化成功: C:\Users\donny\AppData\Local\Temp\pytest-of-donny\pytest-4\db0\test.db
+2025-07-09 21:51:43.958 | INFO | DataService | __init__:450 | 数据服务初始化完成
+2025-07-09 21:51:43.961 | INFO | DataService | start:181 | 数据库写入线程已启动
+2025-07-09 21:51:43.961 | INFO | DataService | initialize:475 | 数据服务初始化成功
+2025-07-09 21:51:45.978 | INFO | DataService | subscribe_market_data:504 | 策略 strat1 订阅行情: ['FG509']
+2025-07-09 21:51:45.978 | INFO | DataService | unsubscribe_market_data:519 | 策略 strat1 取消订阅行情: ['FG509']
+2025-07-09 21:51:45.993 | INFO | DataService | subscribe_market_data:504 | 策略 strat2 订阅行情: ['FG509']
+2025-07-09 21:51:49.939 | ERROR | DataService | _background_writer:219 | 后台写入线程异常: db error
+2025-07-09 21:51:50.940 | ERROR | DataService | _background_writer:219 | 后台写入线程异常: db error
+2025-07-09 21:51:52.980 | INFO | DataService | stop:197 | 数据库写入线程已停止
+2025-07-09 21:51:52.980 | INFO | DataService | shutdown:487 | 数据服务已关闭
+2025-07-09 21:51:53.954 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for TestBus
+2025-07-09 21:51:54.955 | INFO | EventBus | _stop_async:226 | Async engine stopped for TestBus
+2025-07-09 21:51:54.955 | INFO | EventBus | stop:88 | EventBus 'TestBus' engines stopped
