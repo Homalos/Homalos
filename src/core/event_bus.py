@@ -9,13 +9,12 @@
 @Software   : PyCharm
 @Description: 高性能事件总线
 """
-import sys
 import time
 from collections import defaultdict
 from datetime import datetime
 from queue import Queue, Empty, Full
 from threading import Thread
-from typing import Any, Dict, List, Callable, Optional, Union
+from typing import Any, Dict, List, Callable, Optional
 
 from src.core.event import Event, EventType
 from src.core.logger import get_logger
@@ -343,10 +342,10 @@ class EventBus:
             except Exception as e:
                 logger.error(f"Handler error for {event.type}: {e}", exc_info=True)
 
-    def subscribe(self, event_type: Union[str, EventType], handler: Callable, is_async: bool = False) -> None:
+    def subscribe(self, event_type: str, handler: Callable, is_async: bool = False) -> None:
         """
         订阅事件
-        :param event_type: 事件类型，可以是字符串或EventType枚举
+        :param event_type: 事件类型，字符串
         :param handler: 处理函数
         :param is_async: 是否异步处理，默认为False
         """
@@ -354,7 +353,7 @@ class EventBus:
         if isinstance(event_type, str):
             event_type_str = event_type
         else:
-            raise TypeError(f"event_type must be str or EventType, got {type(event_type)}")
+            raise TypeError(f"event_type must be str, got {type(event_type)}")
         
         # 验证处理函数
         if not callable(handler):
@@ -368,10 +367,10 @@ class EventBus:
         else:
             logger.warning(f"Handler already subscribed for {event_type_str} (async={is_async})")
 
-    def unsubscribe(self, event_type: Union[str, EventType], handler: Callable, is_async: bool = False) -> None:
+    def unsubscribe(self, event_type: str, handler: Callable, is_async: bool = False) -> None:
         """
         取消订阅事件
-        :param event_type: 事件类型，可以是字符串或EventType枚举
+        :param event_type: 事件类型，字符串
         :param handler: 处理函数
         :param is_async: 是否异步处理，默认为False
         """
@@ -379,7 +378,7 @@ class EventBus:
         if isinstance(event_type, str):
             event_type_str = event_type
         else:
-            raise TypeError(f"event_type must be str or EventType, got {type(event_type)}")
+            raise TypeError(f"event_type must be str, got {type(event_type)}")
         
         handler_list = self._async_handlers[event_type_str] if is_async else self._sync_handlers[event_type_str]
 
@@ -469,11 +468,11 @@ class EventBus:
 
 
 if __name__ == '__main__':
-    def timer_handler(event):
+    def timer_handler():
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f'[{timestamp}] 处理TIMER事件')
 
-    def shutdown_handler(event):
+    def shutdown_handler():
         print(f'收到关闭事件：{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
 
     print("=" * 50)
