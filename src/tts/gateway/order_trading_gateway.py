@@ -9,7 +9,6 @@
 @Software   : PyCharm
 @Description: TTS订单交易网关
 """
-import asyncio
 import json
 import os
 import sys
@@ -22,7 +21,7 @@ from src.config import global_var
 from src.config.constant import Offset, Status, Exchange, Direction, OrderType
 from src.config.global_var import product_info, instrument_exchange_id_map
 from src.config.path import GlobalPath
-from src.core.event import EventEngine
+from src.core.event_bus import EventBus
 from src.core.gateway import BaseGateway
 from src.core.object import ContractData, PositionData, OrderData, AccountData, TradeData, OrderRequest, CancelRequest
 from src.tts.api import TdApi, THOST_FTDC_HF_Speculation, THOST_FTDC_CC_Immediately, THOST_FTDC_FCC_NotForceClose, \
@@ -60,12 +59,11 @@ class OrderTradingGateway(BaseGateway):
 
     exchanges: list[str] = list(EXCHANGE_TTS2VT.values())
 
-    def __init__(self, event_engine: EventEngine, gateway_name: str) -> None:
+    def __init__(self, event_bus: EventBus, name: str) -> None:
         """构造函数"""
-        super().__init__(event_engine, gateway_name)
+        super().__init__(event_bus, name)
 
-        self.main_loop = asyncio.get_event_loop()  # Store the main event loop
-        self.event_engine: EventEngine = event_engine  # Ensure this line is present
+        self.event_bus: EventBus = event_bus  # Ensure this line is present
         self.query_functions = None
         self.td_api: TtsTdApi | None = None  # Will be initialized on demand
         self.count: int = 0
@@ -105,7 +103,7 @@ class TtsTdApi(TdApi):
         super().__init__()
 
         self.gateway: OrderTradingGateway = gateway
-        self.gateway_name: str = gateway.gateway_name
+        self.gateway_name: str = gateway.name
 
         self.req_id: int = 0
         self.order_ref: int = 0

@@ -906,7 +906,7 @@ class CtpTdApi(TdApi):
         询价请求
         """
         # TODO: 这里类型后期需要处理一下
-        exchange: Exchange = EXCHANGE_CTP2VT.get(req.exchange, None)
+        exchange: Exchange = EXCHANGE_CTP2VT.get(req.exchange.value, None)
         if not exchange:
             self.gateway.write_log(f"不支持的交易所：{req.exchange}")
             return ""

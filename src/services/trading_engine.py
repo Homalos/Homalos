@@ -15,12 +15,13 @@ import uuid
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Any
+from datetime import datetime
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, EventType, create_trading_event, create_critical_event
 from src.core.event_bus import EventBus
 from src.core.logger import get_logger
-from src.core.object import OrderRequest, OrderData, TradeData, TickData, PositionData, AccountData
+from src.core.object import OrderRequest, OrderData, TradeData, TickData, PositionData, AccountData, Status
 
 logger = get_logger("TradingEngine")
 
@@ -397,7 +398,7 @@ class OrderManager:
         self.event_bus.subscribe(EventType.RISK_APPROVED, self._handle_risk_approved)
         self.event_bus.subscribe(EventType.ORDER_FILLED, self._handle_order_filled)
         self.event_bus.subscribe(EventType.ORDER_CANCELLED, self._handle_order_cancelled)
-        self.event_bus.subscribe("order.place", self._handle_place_order)
+        self.event_bus.subscribe("order.place", self._handle_order_request)
         self.event_bus.subscribe("order.cancel", self._handle_cancel_order)
     
     async def place_order(self, order_request: OrderRequest, strategy_id: str) -> str:
@@ -471,13 +472,58 @@ class OrderManager:
         if isinstance(order_data, OrderData):
             logger.info(f"订单已撤销: {order_data.orderid}")
     
-    def _handle_place_order(self, event: Event):
+    def _handle_order_request(self, event: Event):
         """处理下单请求"""
         data = event.data
-        asyncio.create_task(self.place_order(
-            data["order_request"],
-            data["strategy_id"]
-        ))
+        order_request = data.get("order_request")
+        strategy_id = data.get("strategy_id")
+        
+        if not order_request or not strategy_id:
+            logger.error("下单请求数据不完整")
+            return
+        
+        # 生成订单ID
+        order_id = f"{strategy_id}_{int(time.time() * 1000)}"
+        
+        # 创建订单数据
+        order_data = order_request.create_order_data(order_id, "CTP_TD")
+        order_data.datetime = datetime.now()
+        
+        # 发布订单事件
+        self.event_bus.publish(Event("order.submitted", order_data))
+        
+        # 自动mock成交回报（1秒后）
+        asyncio.create_task(self._mock_trade_fill(order_data, 1.0))
+        
+        logger.info(f"处理下单请求: {order_id} {order_request.symbol} {order_request.direction.value if order_request.direction else 'UNKNOWN'} {order_request.volume}@{order_request.price}")
+    
+    async def _mock_trade_fill(self, order_data: OrderData, delay: float):
+        """模拟订单成交"""
+        await asyncio.sleep(delay)
+        
+        # 创建成交数据
+        trade_data = TradeData(
+            symbol=order_data.symbol,
+            exchange=order_data.exchange,
+            orderid=order_data.orderid,
+            trade_id=f"mock_{order_data.orderid}",
+            direction=order_data.direction,
+            offset=order_data.offset,
+            price=order_data.price,
+            volume=order_data.volume,
+            datetime=datetime.now(),
+            gateway_name="CTP_TD"
+        )
+        
+        # 更新订单状态为已成交
+        order_data.status = Status.ALL_TRADED
+        order_data.traded = order_data.volume
+        
+        # 发布成交事件
+        self.event_bus.publish(Event("order.filled", trade_data))
+        self.event_bus.publish(Event("order.updated", order_data))
+        
+        logger.info(f"模拟成交: {trade_data.trade_id} {trade_data.symbol} {trade_data.direction.value if trade_data.direction else 'UNKNOWN'} {trade_data.volume}@{trade_data.price}")
     
     def _handle_cancel_order(self, event: Event):
         """处理撤单请求"""

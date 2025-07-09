@@ -1673,3 +1673,84 @@
 2025-07-09 22:47:37.604 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for CTPBarTest
 2025-07-09 22:47:38.605 | INFO | EventBus | _stop_async:226 | Async engine stopped for CTPBarTest
 2025-07-09 22:47:38.605 | INFO | EventBus | stop:88 | EventBus 'CTPBarTest' engines stopped
+2025-07-09 23:23:51.788 | INFO | EventBus | start:82 | EventBus 'TradingEngineTest' engines started
+2025-07-09 23:23:51.790 | INFO | DataService | _init_database:169 | 数据库初始化成功: :memory:
+2025-07-09 23:23:51.790 | INFO | DataService | __init__:522 | 数据服务初始化完成
+2025-07-09 23:23:51.791 | INFO | TradingEngine | __init__:621 | 交易引擎核心初始化完成
+2025-07-09 23:23:54.302 | INFO | BaseStrategy | write_log:339 | [test_minimal] 最小策略初始化
+2025-07-09 23:23:54.302 | INFO | BaseStrategy | write_log:339 | [test_minimal] 策略参数: FG509.CZCE, 手数=1, 间隔=5秒
+2025-07-09 23:23:54.302 | INFO | BaseStrategy | write_log:339 | [test_minimal] 策略 test_minimal 初始化完成
+2025-07-09 23:23:54.303 | INFO | BaseStrategy | write_log:339 | [test_minimal] 最小策略启动
+2025-07-09 23:23:54.303 | INFO | BaseStrategy | write_log:339 | [test_minimal] 订阅行情: ['FG509']
+2025-07-09 23:23:54.303 | INFO | BaseStrategy | write_log:339 | [test_minimal] 策略 test_minimal 启动成功
+2025-07-09 23:23:54.305 | INFO | DataService | subscribe_market_data:576 | 策略 test_minimal 订阅行情: ['FG509']
+2025-07-09 23:24:12.926 | INFO | BaseStrategy | write_log:339 | [test_minimal] 最小策略停止
+2025-07-09 23:24:12.927 | INFO | BaseStrategy | write_log:339 | [test_minimal] 取消订阅行情: ['FG509']
+2025-07-09 23:24:12.928 | INFO | BaseStrategy | write_log:339 | [test_minimal] 策略 test_minimal 停止成功
+2025-07-09 23:24:13.797 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for TradingEngineTest
+2025-07-09 23:24:13.798 | INFO | EventBus | _stop_async:226 | Async engine stopped for TradingEngineTest
+2025-07-09 23:24:13.798 | INFO | EventBus | stop:88 | EventBus 'TradingEngineTest' engines stopped
+2025-07-09 23:24:13.801 | INFO | DataService | unsubscribe_market_data:591 | 策略 test_minimal 取消订阅行情: ['FG509']
+2025-07-09 23:42:41.878 | INFO | Main | initialize:82 | 🚀 Homalos量化交易系统启动中...
+2025-07-09 23:42:41.879 | INFO | Main | initialize:85 | 📋 初始化配置管理器...
+2025-07-09 23:42:41.885 | INFO | ConfigManager | load_config:41 | 配置文件已加载: config\system.yaml
+2025-07-09 23:42:41.885 | INFO | Main | initialize:89 | 🔄 初始化事件总线...
+2025-07-09 23:42:41.886 | INFO | EventBus | start:82 | EventBus 'trading_system' engines started
+2025-07-09 23:42:41.886 | INFO | Main | initialize:97 | 📝 初始化服务注册中心...
+2025-07-09 23:42:41.886 | INFO | Main | initialize:101 | 💾 初始化数据服务...
+2025-07-09 23:42:41.887 | INFO | DataService | _init_database:169 | 数据库初始化成功: data\trading.db
+2025-07-09 23:42:41.888 | INFO | DataService | __init__:522 | 数据服务初始化完成
+2025-07-09 23:42:41.889 | INFO | DataService | start:183 | 数据库写入线程已启动
+2025-07-09 23:42:41.889 | INFO | DataService | initialize:547 | 数据服务初始化成功
+2025-07-09 23:42:41.889 | INFO | Main | initialize:106 | ⚙️ 初始化交易引擎核心...
+2025-07-09 23:42:41.889 | INFO | TradingEngine | __init__:621 | 交易引擎核心初始化完成
+2025-07-09 23:42:41.889 | INFO | TradingEngine | initialize:635 | 正在初始化交易引擎...
+2025-07-09 23:42:41.890 | INFO | TradingEngine | initialize:640 | 交易引擎初始化完成
+2025-07-09 23:42:41.890 | INFO | Main | _initialize_gateways:140 | 📊 初始化CTP行情网关...
+2025-07-09 23:42:41.890 | INFO | Main | _initialize_gateways:145 | 💰 初始化CTP交易网关...
+2025-07-09 23:42:41.890 | INFO | Main | _connect_gateways:160 | 🔗 连接行情网关...
+2025-07-09 23:42:41.890 | INFO | Main | _connect_gateways:165 | 🔗 连接交易网关...
+2025-07-09 23:42:41.890 | INFO | Main | _connect_gateways:168 | ✅ 网关连接完成
+2025-07-09 23:42:41.890 | INFO | Main | initialize:115 | 🌐 初始化Web管理界面...
+2025-07-09 23:42:41.894 | INFO | WebServer | __init__:137 | Web服务器初始化完成
+2025-07-09 23:42:41.894 | INFO | Main | initialize:118 | ✅ 系统组件初始化完成
+2025-07-09 23:42:41.894 | INFO | Main | start:186 | 🚀 启动事件总线...
+2025-07-09 23:42:41.894 | INFO | EventBus | start:82 | EventBus 'trading_system' engines started
+2025-07-09 23:42:41.894 | INFO | Main | start:190 | 🚀 启动服务注册中心...
+2025-07-09 23:42:41.895 | INFO | ServiceRegistry | start:47 | ServiceRegistry started
+2025-07-09 23:42:41.895 | INFO | Main | start:194 | 🚀 启动交易引擎...
+2025-07-09 23:42:41.895 | INFO | TradingEngine | start:655 | 交易引擎已启动
+2025-07-09 23:42:41.895 | INFO | Main | start:201 | 🎉 Homalos量化交易系统启动成功!
+2025-07-09 23:42:41.895 | INFO | Main | start:202 | ⏰ 启动时间: 2025-07-09 23:42:41
+2025-07-09 23:42:41.895 | INFO | Main | _print_system_info:326 | 
+============================================================
+🎯 Homalos量化交易系统 v2.0
+📁 配置文件: config/system.yaml
+🌐 Web界面: 启用
+🔌 CTP网关: 可用
+⚙️ 事件总线: trading_system
+💾 数据库: data/trading.db
+🎛️ 风控系统: 启用
+🌐 Web地址: http://127.0.0.1:8000
+============================================================
+2025-07-09 23:42:41.895 | INFO | Main | start:209 | 🌐 启动Web管理界面...
+2025-07-09 23:42:41.925 | INFO | WebServer | start:775 | Web服务器启动: http://127.0.0.1:8000
+2025-07-09 23:43:06.742 | INFO | WebServer | connect:83 | WebSocket连接建立，当前连接数: 1
+2025-07-09 23:45:01.131 | INFO | WebServer | disconnect:90 | WebSocket连接断开，当前连接数: 0
+2025-07-09 23:45:01.239 | INFO | Main | signal_handler:73 | 接收到退出信号 2，正在关闭系统...
+2025-07-09 23:45:01.240 | INFO | Main | shutdown:263 | 🛑 正在关闭Homalos量化交易系统...
+2025-07-09 23:45:01.240 | INFO | Main | shutdown:268 | 🛑 停止交易引擎...
+2025-07-09 23:45:01.241 | INFO | TradingEngine | stop:676 | 交易引擎已停止
+2025-07-09 23:45:01.241 | INFO | Main | shutdown:273 | 🛑 关闭数据服务...
+2025-07-09 23:45:01.241 | INFO | DataService | stop:199 | 数据库写入线程已停止
+2025-07-09 23:45:01.241 | INFO | DataService | shutdown:559 | 数据服务已关闭
+2025-07-09 23:45:01.242 | INFO | Main | shutdown:278 | 🛑 断开行情网关...
+2025-07-09 23:45:01.242 | INFO | Main | shutdown:282 | 🛑 断开交易网关...
+2025-07-09 23:45:01.242 | INFO | Main | shutdown:287 | 🛑 停止服务注册中心...
+2025-07-09 23:45:01.907 | INFO | ServiceRegistry | stop:53 | ServiceRegistry stopped
+2025-07-09 23:45:01.907 | INFO | Main | shutdown:292 | 🛑 停止事件总线...
+2025-07-09 23:45:01.960 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for trading_system
+2025-07-09 23:45:02.960 | INFO | EventBus | _stop_async:226 | Async engine stopped for trading_system
+2025-07-09 23:45:02.960 | INFO | EventBus | stop:88 | EventBus 'trading_system' engines stopped
+2025-07-09 23:45:02.960 | INFO | Main | shutdown:300 | ⏱️ 系统运行时长: 141.07 秒
+2025-07-09 23:45:02.960 | INFO | Main | shutdown:302 | ✅ Homalos量化交易系统已安全关闭

@@ -17,7 +17,7 @@ from typing import Optional
 
 from src.config import global_var
 from src.config.constant import Exchange
-from src.core.event import EventEngine
+from src.core.event_bus import EventBus
 from src.core.gateway import BaseGateway
 from src.core.object import ContractData, TickData, SubscribeRequest
 from src.tts.api import MdApi
@@ -49,12 +49,11 @@ class MarketDataGateway(BaseGateway):
 
     exchanges: list[str] = list(EXCHANGE_TTS2VT.values())
 
-    def __init__(self, event_engine: EventEngine, gateway_name: str) -> None:
+    def __init__(self, event_bus: EventBus, name: str) -> None:
         """构造函数"""
-        super().__init__(event_engine, gateway_name)
+        super().__init__(event_bus, name)
 
-        self.main_loop = asyncio.get_event_loop()  # Store the main event loop
-        self.event_engine: EventEngine = event_engine  # Ensure this line is present
+        self.event_bus: EventBus = event_bus  # Ensure this line is present
         self.query_functions = None
         # 行情API实例
         self.md_api: TtsMdApi | None = None
@@ -137,7 +136,7 @@ class TtsMdApi(MdApi):
         super().__init__()
 
         self.gateway: MarketDataGateway = gateway
-        self.gateway_name: str = gateway.gateway_name
+        self.gateway_name: str = gateway.name
 
         self.reqid: int = 0
 
