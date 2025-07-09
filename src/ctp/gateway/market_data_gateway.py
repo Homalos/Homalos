@@ -23,6 +23,9 @@ from src.core.object import TickData, SubscribeRequest, ContractData
 from src.ctp.api import MdApi
 from src.ctp.gateway.ctp_mapping import EXCHANGE_CTP2VT
 from src.util.utility import ZoneInfo, get_folder_path
+from src.core.logger import get_logger
+from src.core.event import Event
+logger = get_logger("MarketDataGateway")
 
 # 其他常量
 MAX_FLOAT = sys.float_info.max             # 浮点数极限值
@@ -137,6 +140,12 @@ class MarketDataGateway(BaseGateway):
         """
         if self.md_api:  # MdApi might not be initialized if only TD is connected
             self.md_api.update_date()
+
+    def on_tick(self, tick: TickData) -> None:
+        logger.debug(f"MarketDataGateway.on_tick: 收到tick {tick.symbol} {tick.datetime} {tick.last_price}")
+        # 补充：将tick事件发布到事件总线，供DataService消费
+        self.event_bus.publish(Event("market.tick.raw", tick))
+        super().on_tick(tick)
 
 
 class CtpMdApi(MdApi):
@@ -305,6 +314,7 @@ class CtpMdApi(MdApi):
             tick.ask_volume_5 = data["AskVolume5"]
 
         self.gateway.on_tick(tick)
+        logger.debug(f"CtpMdApi.onRtnDepthMarketData: 推送tick {tick.symbol} {tick.datetime} {tick.last_price}")
 
     def onRspUserLogout(self, data: dict, error: dict, reqid: int, last: bool):
         """

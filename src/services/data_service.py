@@ -24,6 +24,8 @@ from src.config.config_manager import ConfigManager
 from src.core.event_bus import EventBus
 from src.core.event import Event, EventType, create_market_event, create_log_event
 from src.core.object import TickData, BarData, SubscribeRequest
+from src.config.constant import Interval
+from typing import DefaultDict
 from src.core.logger import get_logger
 
 logger = get_logger("DataService")
@@ -414,6 +416,73 @@ class DatabaseManager:
             return []
 
 
+class BarGenerator:
+    """单symbol单周期K线合成器"""
+    def __init__(self, symbol: str, exchange, interval_minutes: int):
+        self.symbol = symbol
+        self.exchange = exchange
+        self.interval_minutes = interval_minutes
+        self.current_bar: BarData | None = None
+        self.last_bar_end: datetime | None = None
+
+    def on_tick(self, tick: TickData) -> BarData | None:
+        dt = tick.datetime.replace(second=0, microsecond=0)
+        # 计算当前tick属于哪个bar周期
+        minute = (dt.minute // self.interval_minutes) * self.interval_minutes
+        bar_start = dt.replace(minute=minute)
+        if self.last_bar_end is None or bar_start > self.last_bar_end:
+            # 新K线周期，输出上一根K线
+            finished_bar = self.current_bar
+            interval_type = Interval.MINUTE if self.interval_minutes == 1 else Interval.MINUTE  # 先全部用MINUTE
+            self.current_bar = BarData(
+                symbol=self.symbol,
+                exchange=self.exchange,
+                datetime=bar_start,
+                gateway_name=tick.gateway_name,
+                interval=interval_type,
+                open_price=tick.last_price,
+                high_price=tick.last_price,
+                low_price=tick.last_price,
+                close_price=tick.last_price,
+                volume=tick.volume,
+                turnover=tick.turnover,
+                open_interest=tick.open_interest
+            )
+            self.last_bar_end = bar_start
+            return finished_bar
+        else:
+            # 更新当前K线
+            bar = self.current_bar
+            if bar:
+                bar.close_price = tick.last_price
+                bar.high_price = max(bar.high_price, tick.last_price)
+                bar.low_price = min(bar.low_price, tick.last_price)
+                bar.volume = tick.volume
+                bar.turnover = tick.turnover
+                bar.open_interest = tick.open_interest
+        return None
+
+class BarManager:
+    """多symbol多周期K线管理器"""
+    def __init__(self, intervals: list[int]):
+        self.intervals = intervals
+        self.generators: DefaultDict[str, dict[int, BarGenerator]] = defaultdict(dict)
+
+    def on_tick(self, tick: TickData) -> list[BarData]:
+        bars: list[BarData] = []
+        symbol = tick.symbol
+        exchange = tick.exchange
+        logger.debug(f"BarManager收到tick: {symbol} {tick.datetime} {tick.last_price}")
+        for interval in self.intervals:
+            if interval not in self.generators[symbol]:
+                self.generators[symbol][interval] = BarGenerator(symbol, exchange, interval)
+            bar = self.generators[symbol][interval].on_tick(tick)
+            if bar is not None:
+                logger.info(f"BarManager生成K线: {bar.symbol} {bar.datetime} O:{bar.open_price} H:{bar.high_price} L:{bar.low_price} C:{bar.close_price}")
+                bars.append(bar)
+        return bars
+
+
 class DataService:
     """统一的数据服务 - 整合行情和存储"""
     
@@ -435,6 +504,9 @@ class DataService:
         # 配置参数
         self.buffer_size = config.get("data.market.buffer_size", 1000)
         self.enable_persistence = config.get("data.market.enable_persistence", True)
+        
+        # K线合成管理
+        self.bar_manager = BarManager([1, 5, 10])  # 支持1m/5m/10m
         
         # 性能统计
         self.stats = {
@@ -525,6 +597,7 @@ class DataService:
             return
         
         try:
+            logger.debug(f"DataService收到tick: {tick_data.symbol} {tick_data.datetime} {tick_data.last_price}")
             # 更新统计
             self.stats["tick_count"] += 1
             self.stats["last_tick_time"] = time.time()
@@ -544,6 +617,12 @@ class DataService:
             # 异步持久化
             if self.enable_persistence:
                 asyncio.create_task(self.db_manager.save_tick_data(tick_data))
+                
+            # K线合成
+            bars = self.bar_manager.on_tick(tick_data)
+            for bar in bars:
+                logger.info(f"分发MARKET_BAR: {bar.symbol} {bar.datetime} O:{bar.open_price} H:{bar.high_price} L:{bar.low_price} C:{bar.close_price}")
+                self.event_bus.publish(Event("market.bar", bar))
                 
         except Exception as e:
             logger.error(f"处理tick数据失败: {e}")

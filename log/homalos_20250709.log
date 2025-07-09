@@ -375,3 +375,1301 @@
 2025-07-09 21:51:53.954 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for TestBus
 2025-07-09 21:51:54.955 | INFO | EventBus | _stop_async:226 | Async engine stopped for TestBus
 2025-07-09 21:51:54.955 | INFO | EventBus | stop:88 | EventBus 'TestBus' engines stopped
+2025-07-09 22:06:49.473 | INFO | EventBus | start:82 | EventBus 'BarTest' engines started
+2025-07-09 22:06:49.473 | INFO | DataService | _init_database:169 | 数据库初始化成功: :memory:
+2025-07-09 22:06:49.473 | INFO | DataService | __init__:520 | 数据服务初始化完成
+2025-07-09 22:06:50.475 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for BarTest
+2025-07-09 22:06:51.476 | INFO | EventBus | _stop_async:226 | Async engine stopped for BarTest
+2025-07-09 22:06:51.477 | INFO | EventBus | stop:88 | EventBus 'BarTest' engines stopped
+2025-07-09 22:13:22.251 | INFO | EventBus | start:82 | EventBus 'CTPBarTest' engines started
+2025-07-09 22:13:22.251 | INFO | DataService | _init_database:169 | 数据库初始化成功: :memory:
+2025-07-09 22:13:22.251 | INFO | DataService | __init__:520 | 数据服务初始化完成
+2025-07-09 22:15:52.350 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for CTPBarTest
+2025-07-09 22:15:53.350 | INFO | EventBus | _stop_async:226 | Async engine stopped for CTPBarTest
+2025-07-09 22:15:53.350 | INFO | EventBus | stop:88 | EventBus 'CTPBarTest' engines stopped
+2025-07-09 22:18:05.119 | INFO | EventBus | start:82 | EventBus 'CTPBarTest' engines started
+2025-07-09 22:18:05.119 | INFO | DataService | _init_database:169 | 数据库初始化成功: :memory:
+2025-07-09 22:18:05.119 | INFO | DataService | __init__:522 | 数据服务初始化完成
+2025-07-09 22:20:02.229 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for CTPBarTest
+2025-07-09 22:20:03.228 | INFO | EventBus | _stop_async:226 | Async engine stopped for CTPBarTest
+2025-07-09 22:20:03.228 | INFO | EventBus | stop:88 | EventBus 'CTPBarTest' engines stopped
+2025-07-09 22:23:35.861 | INFO | EventBus | start:82 | EventBus 'CTPBarTest' engines started
+2025-07-09 22:23:35.861 | INFO | DataService | _init_database:169 | 数据库初始化成功: :memory:
+2025-07-09 22:23:35.861 | INFO | DataService | __init__:522 | 数据服务初始化完成
+2025-07-09 22:25:02.930 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for CTPBarTest
+2025-07-09 22:25:03.931 | INFO | EventBus | _stop_async:226 | Async engine stopped for CTPBarTest
+2025-07-09 22:25:03.931 | INFO | EventBus | stop:88 | EventBus 'CTPBarTest' engines stopped
+2025-07-09 22:28:59.516 | INFO | EventBus | start:82 | EventBus 'CTPBarTest' engines started
+2025-07-09 22:28:59.516 | INFO | DataService | _init_database:169 | 数据库初始化成功: :memory:
+2025-07-09 22:28:59.516 | INFO | DataService | __init__:522 | 数据服务初始化完成
+2025-07-09 22:29:01.580 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:28:56.500000+08:00 1048.0
+2025-07-09 22:29:01.580 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:28:56.500000+08:00 1048.0
+2025-07-09 22:29:01.963 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:28:57+08:00 1048.0
+2025-07-09 22:29:01.963 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:28:57+08:00 1048.0
+2025-07-09 22:29:02.059 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:28:57+08:00 1206.0
+2025-07-09 22:29:02.059 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:28:57+08:00 1206.0
+2025-07-09 22:29:02.448 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:28:57.500000+08:00 1048.0
+2025-07-09 22:29:02.448 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:28:57.500000+08:00 1048.0
+2025-07-09 22:29:02.484 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:28:57.500000+08:00 1206.0
+2025-07-09 22:29:02.484 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:28:57.500000+08:00 1206.0
+2025-07-09 22:29:02.968 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:28:58+08:00 1048.0
+2025-07-09 22:29:02.968 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:28:58+08:00 1048.0
+2025-07-09 22:29:02.968 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:28:58+08:00 1206.0
+2025-07-09 22:29:02.968 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:28:58+08:00 1206.0
+2025-07-09 22:29:03.458 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:28:58.500000+08:00 1048.0
+2025-07-09 22:29:03.458 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:28:58.500000+08:00 1048.0
+2025-07-09 22:29:03.458 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:28:58.500000+08:00 1207.0
+2025-07-09 22:29:03.458 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:28:58.500000+08:00 1207.0
+2025-07-09 22:29:03.984 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:28:59+08:00 1048.0
+2025-07-09 22:29:03.984 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:28:59+08:00 1048.0
+2025-07-09 22:29:03.984 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:28:59+08:00 1207.0
+2025-07-09 22:29:03.984 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:28:59+08:00 1207.0
+2025-07-09 22:29:04.497 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:28:59.500000+08:00 1048.0
+2025-07-09 22:29:04.497 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:28:59.500000+08:00 1048.0
+2025-07-09 22:29:04.497 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:28:59.500000+08:00 1207.0
+2025-07-09 22:29:04.497 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:28:59.500000+08:00 1207.0
+2025-07-09 22:29:04.995 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:29:00+08:00 1048.0
+2025-07-09 22:29:04.995 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:29:00+08:00 1048.0
+2025-07-09 22:29:04.995 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:29:00+08:00 1207.0
+2025-07-09 22:29:04.995 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:29:00+08:00 1207.0
+2025-07-09 22:29:05.512 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:29:00.500000+08:00 1048.0
+2025-07-09 22:29:05.512 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:29:00.500000+08:00 1048.0
+2025-07-09 22:29:05.512 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:29:00.500000+08:00 1207.0
+2025-07-09 22:29:05.527 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:29:00.500000+08:00 1207.0
+2025-07-09 22:29:06.018 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:29:01+08:00 1048.0
+2025-07-09 22:29:06.018 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:29:01+08:00 1048.0
+2025-07-09 22:29:06.018 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:29:01+08:00 1207.0
+2025-07-09 22:29:06.018 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:29:01+08:00 1207.0
+2025-07-09 22:29:06.433 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:29:01.500000+08:00 1048.0
+2025-07-09 22:29:06.433 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:29:01.500000+08:00 1048.0
+2025-07-09 22:29:06.472 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:29:01.500000+08:00 1207.0
+2025-07-09 22:29:06.472 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:29:01.500000+08:00 1207.0
+2025-07-09 22:29:06.965 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:29:02+08:00 1048.0
+2025-07-09 22:29:06.965 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:29:02+08:00 1048.0
+2025-07-09 22:29:06.965 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:29:02+08:00 1207.0
+2025-07-09 22:29:06.965 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:29:02+08:00 1207.0
+2025-07-09 22:29:07.474 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:29:02.500000+08:00 1048.0
+2025-07-09 22:29:07.474 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:29:02.500000+08:00 1048.0
+2025-07-09 22:29:07.474 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:29:02.500000+08:00 1207.0
+2025-07-09 22:29:07.474 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:29:02.500000+08:00 1207.0
+2025-07-09 22:29:07.976 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:29:03+08:00 1048.0
+2025-07-09 22:29:07.976 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:29:03+08:00 1048.0
+2025-07-09 22:29:07.976 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:29:03+08:00 1207.0
+2025-07-09 22:29:07.976 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:29:03+08:00 1207.0
+2025-07-09 22:29:08.466 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:29:03.500000+08:00 1048.0
+2025-07-09 22:29:08.466 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:29:03.500000+08:00 1048.0
+2025-07-09 22:29:08.466 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:29:03.500000+08:00 1207.0
+2025-07-09 22:29:08.466 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:29:03.500000+08:00 1207.0
+2025-07-09 22:29:08.948 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:29:04+08:00 1049.0
+2025-07-09 22:29:08.948 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:29:04+08:00 1049.0
+2025-07-09 22:29:08.948 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:29:04+08:00 1207.0
+2025-07-09 22:29:08.948 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:29:04+08:00 1207.0
+2025-07-09 22:29:09.452 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:29:04.500000+08:00 1048.0
+2025-07-09 22:29:09.467 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:29:04.500000+08:00 1048.0
+2025-07-09 22:29:09.467 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:29:04.500000+08:00 1207.0
+2025-07-09 22:29:09.467 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:29:04.500000+08:00 1207.0
+2025-07-09 22:29:09.980 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:29:05+08:00 1048.0
+2025-07-09 22:29:09.980 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:29:05+08:00 1048.0
+2025-07-09 22:29:09.980 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:29:05+08:00 1207.0
+2025-07-09 22:29:09.980 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:29:05+08:00 1207.0
+2025-07-09 22:29:10.495 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:29:05.500000+08:00 1048.0
+2025-07-09 22:29:10.495 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:29:05.500000+08:00 1048.0
+2025-07-09 22:29:10.495 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:29:05.500000+08:00 1208.0
+2025-07-09 22:29:10.495 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:29:05.500000+08:00 1208.0
+2025-07-09 22:29:10.533 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for CTPBarTest
+2025-07-09 22:29:10.976 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:29:06+08:00 1048.0
+2025-07-09 22:29:10.976 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:29:06+08:00 1048.0
+2025-07-09 22:29:10.976 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:29:06+08:00 1207.0
+2025-07-09 22:29:10.976 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:29:06+08:00 1207.0
+2025-07-09 22:29:11.485 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:29:06.500000+08:00 1048.0
+2025-07-09 22:29:11.485 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:29:06.500000+08:00 1048.0
+2025-07-09 22:29:11.485 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:29:06.500000+08:00 1207.0
+2025-07-09 22:29:11.485 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:29:06.500000+08:00 1207.0
+2025-07-09 22:29:11.534 | INFO | EventBus | _stop_async:226 | Async engine stopped for CTPBarTest
+2025-07-09 22:29:11.535 | INFO | EventBus | stop:88 | EventBus 'CTPBarTest' engines stopped
+2025-07-09 22:32:14.429 | INFO | EventBus | start:82 | EventBus 'CTPBarTest' engines started
+2025-07-09 22:32:14.429 | INFO | DataService | _init_database:169 | 数据库初始化成功: :memory:
+2025-07-09 22:32:14.429 | INFO | DataService | __init__:522 | 数据服务初始化完成
+2025-07-09 22:32:16.516 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:11.500000+08:00 1047.0
+2025-07-09 22:32:16.516 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:11.500000+08:00 1047.0
+2025-07-09 22:32:16.993 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:12+08:00 1047.0
+2025-07-09 22:32:17.009 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:12+08:00 1047.0
+2025-07-09 22:32:17.026 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:12+08:00 1206.0
+2025-07-09 22:32:17.026 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:12+08:00 1206.0
+2025-07-09 22:32:17.456 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:12.500000+08:00 1047.0
+2025-07-09 22:32:17.456 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:12.500000+08:00 1047.0
+2025-07-09 22:32:17.456 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:12.500000+08:00 1207.0
+2025-07-09 22:32:17.456 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:12.500000+08:00 1207.0
+2025-07-09 22:32:17.943 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:13+08:00 1047.0
+2025-07-09 22:32:17.958 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:13+08:00 1047.0
+2025-07-09 22:32:17.959 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:13+08:00 1206.0
+2025-07-09 22:32:17.959 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:13+08:00 1206.0
+2025-07-09 22:32:18.476 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:13.500000+08:00 1048.0
+2025-07-09 22:32:18.476 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:13.500000+08:00 1048.0
+2025-07-09 22:32:18.493 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:13.500000+08:00 1207.0
+2025-07-09 22:32:18.495 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:13.500000+08:00 1207.0
+2025-07-09 22:32:19.023 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:14+08:00 1047.0
+2025-07-09 22:32:19.023 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:14+08:00 1047.0
+2025-07-09 22:32:19.023 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:14+08:00 1207.0
+2025-07-09 22:32:19.023 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:14+08:00 1207.0
+2025-07-09 22:32:19.478 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:14.500000+08:00 1047.0
+2025-07-09 22:32:19.478 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:14.500000+08:00 1047.0
+2025-07-09 22:32:19.478 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:14.500000+08:00 1206.0
+2025-07-09 22:32:19.478 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:14.500000+08:00 1206.0
+2025-07-09 22:32:19.996 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:15+08:00 1048.0
+2025-07-09 22:32:19.996 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:15+08:00 1048.0
+2025-07-09 22:32:19.996 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:15+08:00 1206.0
+2025-07-09 22:32:19.996 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:15+08:00 1206.0
+2025-07-09 22:32:20.447 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:15.500000+08:00 1048.0
+2025-07-09 22:32:20.447 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:15.500000+08:00 1048.0
+2025-07-09 22:32:20.447 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:15.500000+08:00 1206.0
+2025-07-09 22:32:20.447 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:15.500000+08:00 1206.0
+2025-07-09 22:32:21.015 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:16+08:00 1047.0
+2025-07-09 22:32:21.015 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:16+08:00 1047.0
+2025-07-09 22:32:21.015 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:16+08:00 1206.0
+2025-07-09 22:32:21.015 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:16+08:00 1206.0
+2025-07-09 22:32:21.502 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:16.500000+08:00 1048.0
+2025-07-09 22:32:21.502 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:16.500000+08:00 1048.0
+2025-07-09 22:32:21.502 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:16.500000+08:00 1206.0
+2025-07-09 22:32:21.502 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:16.500000+08:00 1206.0
+2025-07-09 22:32:21.956 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:17+08:00 1047.0
+2025-07-09 22:32:21.956 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:17+08:00 1047.0
+2025-07-09 22:32:21.956 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:17+08:00 1207.0
+2025-07-09 22:32:21.971 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:17+08:00 1207.0
+2025-07-09 22:32:22.495 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:17.500000+08:00 1047.0
+2025-07-09 22:32:22.503 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:17.500000+08:00 1047.0
+2025-07-09 22:32:22.505 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:17.500000+08:00 1206.0
+2025-07-09 22:32:22.506 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:17.500000+08:00 1206.0
+2025-07-09 22:32:22.983 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:18+08:00 1047.0
+2025-07-09 22:32:22.985 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:18+08:00 1047.0
+2025-07-09 22:32:22.985 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:18+08:00 1206.0
+2025-07-09 22:32:22.985 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:18+08:00 1206.0
+2025-07-09 22:32:23.497 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:18.500000+08:00 1047.0
+2025-07-09 22:32:23.513 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:18.500000+08:00 1047.0
+2025-07-09 22:32:23.514 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:18.500000+08:00 1206.0
+2025-07-09 22:32:23.514 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:18.500000+08:00 1206.0
+2025-07-09 22:32:23.977 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:19+08:00 1047.0
+2025-07-09 22:32:23.977 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:19+08:00 1047.0
+2025-07-09 22:32:23.993 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:19+08:00 1207.0
+2025-07-09 22:32:23.994 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:19+08:00 1207.0
+2025-07-09 22:32:24.482 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:19.500000+08:00 1048.0
+2025-07-09 22:32:24.482 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:19.500000+08:00 1048.0
+2025-07-09 22:32:24.482 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:19.500000+08:00 1206.0
+2025-07-09 22:32:24.482 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:19.500000+08:00 1206.0
+2025-07-09 22:32:24.988 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:20+08:00 1048.0
+2025-07-09 22:32:24.988 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:20+08:00 1048.0
+2025-07-09 22:32:24.988 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:20+08:00 1206.0
+2025-07-09 22:32:24.988 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:20+08:00 1206.0
+2025-07-09 22:32:25.518 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:20.500000+08:00 1047.0
+2025-07-09 22:32:25.518 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:20.500000+08:00 1047.0
+2025-07-09 22:32:25.518 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:20.500000+08:00 1206.0
+2025-07-09 22:32:25.518 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:20.500000+08:00 1206.0
+2025-07-09 22:32:26.005 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:21+08:00 1047.0
+2025-07-09 22:32:26.005 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:21+08:00 1047.0
+2025-07-09 22:32:26.005 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:21+08:00 1206.0
+2025-07-09 22:32:26.005 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:21+08:00 1206.0
+2025-07-09 22:32:26.498 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:21.500000+08:00 1047.0
+2025-07-09 22:32:26.498 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:21.500000+08:00 1047.0
+2025-07-09 22:32:26.498 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:21.500000+08:00 1206.0
+2025-07-09 22:32:26.498 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:21.500000+08:00 1206.0
+2025-07-09 22:32:26.995 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:22+08:00 1048.0
+2025-07-09 22:32:26.995 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:22+08:00 1048.0
+2025-07-09 22:32:26.995 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:22+08:00 1206.0
+2025-07-09 22:32:26.995 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:22+08:00 1206.0
+2025-07-09 22:32:27.466 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:22.500000+08:00 1047.0
+2025-07-09 22:32:27.466 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:22.500000+08:00 1047.0
+2025-07-09 22:32:27.482 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:22.500000+08:00 1206.0
+2025-07-09 22:32:27.483 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:22.500000+08:00 1206.0
+2025-07-09 22:32:27.968 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:23+08:00 1047.0
+2025-07-09 22:32:27.982 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:23+08:00 1047.0
+2025-07-09 22:32:27.982 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:23+08:00 1206.0
+2025-07-09 22:32:27.982 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:23+08:00 1206.0
+2025-07-09 22:32:28.428 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:23.500000+08:00 1047.0
+2025-07-09 22:32:28.428 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:23.500000+08:00 1047.0
+2025-07-09 22:32:28.428 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:23.500000+08:00 1206.0
+2025-07-09 22:32:28.428 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:23.500000+08:00 1206.0
+2025-07-09 22:32:28.939 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:24+08:00 1047.0
+2025-07-09 22:32:28.939 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:24+08:00 1047.0
+2025-07-09 22:32:28.981 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:24+08:00 1206.0
+2025-07-09 22:32:28.981 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:24+08:00 1206.0
+2025-07-09 22:32:29.453 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:24.500000+08:00 1048.0
+2025-07-09 22:32:29.453 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:24.500000+08:00 1048.0
+2025-07-09 22:32:29.494 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:24.500000+08:00 1206.0
+2025-07-09 22:32:29.494 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:24.500000+08:00 1206.0
+2025-07-09 22:32:30.022 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:25+08:00 1048.0
+2025-07-09 22:32:30.022 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:25+08:00 1048.0
+2025-07-09 22:32:30.022 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:25+08:00 1207.0
+2025-07-09 22:32:30.022 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:25+08:00 1207.0
+2025-07-09 22:32:30.523 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:25.500000+08:00 1047.0
+2025-07-09 22:32:30.523 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:25.500000+08:00 1047.0
+2025-07-09 22:32:30.523 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:25.500000+08:00 1206.0
+2025-07-09 22:32:30.523 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:25.500000+08:00 1206.0
+2025-07-09 22:32:30.999 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:26+08:00 1047.0
+2025-07-09 22:32:30.999 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:26+08:00 1047.0
+2025-07-09 22:32:30.999 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:26+08:00 1206.0
+2025-07-09 22:32:30.999 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:26+08:00 1206.0
+2025-07-09 22:32:31.445 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:26.500000+08:00 1047.0
+2025-07-09 22:32:31.446 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:26.500000+08:00 1047.0
+2025-07-09 22:32:31.446 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:26.500000+08:00 1206.0
+2025-07-09 22:32:31.446 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:26.500000+08:00 1206.0
+2025-07-09 22:32:31.959 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:27+08:00 1047.0
+2025-07-09 22:32:31.959 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:27+08:00 1047.0
+2025-07-09 22:32:31.959 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:27+08:00 1206.0
+2025-07-09 22:32:31.975 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:27+08:00 1206.0
+2025-07-09 22:32:32.421 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:27.500000+08:00 1048.0
+2025-07-09 22:32:32.421 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:27.500000+08:00 1048.0
+2025-07-09 22:32:32.437 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:27.500000+08:00 1206.0
+2025-07-09 22:32:32.437 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:27.500000+08:00 1206.0
+2025-07-09 22:32:33.011 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:28+08:00 1047.0
+2025-07-09 22:32:33.011 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:28+08:00 1047.0
+2025-07-09 22:32:33.011 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:28+08:00 1206.0
+2025-07-09 22:32:33.011 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:28+08:00 1206.0
+2025-07-09 22:32:33.501 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:28.500000+08:00 1047.0
+2025-07-09 22:32:33.501 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:28.500000+08:00 1047.0
+2025-07-09 22:32:33.501 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:28.500000+08:00 1206.0
+2025-07-09 22:32:33.501 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:28.500000+08:00 1206.0
+2025-07-09 22:32:34.020 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:29+08:00 1047.0
+2025-07-09 22:32:34.020 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:29+08:00 1047.0
+2025-07-09 22:32:34.020 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:29+08:00 1206.0
+2025-07-09 22:32:34.020 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:29+08:00 1206.0
+2025-07-09 22:32:34.445 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:29.500000+08:00 1047.0
+2025-07-09 22:32:34.445 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:29.500000+08:00 1047.0
+2025-07-09 22:32:34.455 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:29.500000+08:00 1206.0
+2025-07-09 22:32:34.455 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:29.500000+08:00 1206.0
+2025-07-09 22:32:34.980 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:30+08:00 1047.0
+2025-07-09 22:32:34.980 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:30+08:00 1047.0
+2025-07-09 22:32:34.980 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:30+08:00 1206.0
+2025-07-09 22:32:34.980 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:30+08:00 1206.0
+2025-07-09 22:32:35.534 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:30.500000+08:00 1047.0
+2025-07-09 22:32:35.534 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:30.500000+08:00 1047.0
+2025-07-09 22:32:35.534 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:30.500000+08:00 1207.0
+2025-07-09 22:32:35.534 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:30.500000+08:00 1207.0
+2025-07-09 22:32:36.023 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:31+08:00 1047.0
+2025-07-09 22:32:36.023 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:31+08:00 1047.0
+2025-07-09 22:32:36.023 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:31+08:00 1206.0
+2025-07-09 22:32:36.023 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:31+08:00 1206.0
+2025-07-09 22:32:36.470 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:31.500000+08:00 1048.0
+2025-07-09 22:32:36.470 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:31.500000+08:00 1048.0
+2025-07-09 22:32:36.470 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:31.500000+08:00 1207.0
+2025-07-09 22:32:36.470 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:31.500000+08:00 1207.0
+2025-07-09 22:32:36.965 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:32+08:00 1048.0
+2025-07-09 22:32:36.965 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:32+08:00 1048.0
+2025-07-09 22:32:36.965 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:32+08:00 1207.0
+2025-07-09 22:32:36.965 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:32+08:00 1207.0
+2025-07-09 22:32:37.472 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:32.500000+08:00 1048.0
+2025-07-09 22:32:37.472 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:32.500000+08:00 1048.0
+2025-07-09 22:32:37.472 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:32.500000+08:00 1207.0
+2025-07-09 22:32:37.472 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:32.500000+08:00 1207.0
+2025-07-09 22:32:37.991 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:33+08:00 1048.0
+2025-07-09 22:32:37.993 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:33+08:00 1048.0
+2025-07-09 22:32:37.994 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:33+08:00 1207.0
+2025-07-09 22:32:37.995 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:33+08:00 1207.0
+2025-07-09 22:32:38.472 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:33.500000+08:00 1048.0
+2025-07-09 22:32:38.472 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:33.500000+08:00 1048.0
+2025-07-09 22:32:38.479 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:33.500000+08:00 1207.0
+2025-07-09 22:32:38.481 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:33.500000+08:00 1207.0
+2025-07-09 22:32:38.973 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:34+08:00 1048.0
+2025-07-09 22:32:38.973 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:34+08:00 1048.0
+2025-07-09 22:32:38.973 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:34+08:00 1207.0
+2025-07-09 22:32:38.973 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:34+08:00 1207.0
+2025-07-09 22:32:39.490 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:34.500000+08:00 1048.0
+2025-07-09 22:32:39.490 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:34.500000+08:00 1048.0
+2025-07-09 22:32:39.490 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:34.500000+08:00 1207.0
+2025-07-09 22:32:39.490 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:34.500000+08:00 1207.0
+2025-07-09 22:32:39.978 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:35+08:00 1048.0
+2025-07-09 22:32:39.978 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:35+08:00 1048.0
+2025-07-09 22:32:39.978 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:35+08:00 1207.0
+2025-07-09 22:32:39.978 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:35+08:00 1207.0
+2025-07-09 22:32:40.461 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:35.500000+08:00 1048.0
+2025-07-09 22:32:40.461 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:35.500000+08:00 1048.0
+2025-07-09 22:32:40.461 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:35.500000+08:00 1207.0
+2025-07-09 22:32:40.461 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:35.500000+08:00 1207.0
+2025-07-09 22:32:41.018 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:36+08:00 1048.0
+2025-07-09 22:32:41.018 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:36+08:00 1048.0
+2025-07-09 22:32:41.018 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:36+08:00 1207.0
+2025-07-09 22:32:41.018 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:36+08:00 1207.0
+2025-07-09 22:32:41.488 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:36.500000+08:00 1048.0
+2025-07-09 22:32:41.488 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:36.500000+08:00 1048.0
+2025-07-09 22:32:41.488 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:36.500000+08:00 1208.0
+2025-07-09 22:32:41.488 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:36.500000+08:00 1208.0
+2025-07-09 22:32:41.964 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:37+08:00 1048.0
+2025-07-09 22:32:41.965 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:37+08:00 1048.0
+2025-07-09 22:32:41.965 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:37+08:00 1207.0
+2025-07-09 22:32:41.965 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:37+08:00 1207.0
+2025-07-09 22:32:42.502 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:37.500000+08:00 1048.0
+2025-07-09 22:32:42.503 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:37.500000+08:00 1048.0
+2025-07-09 22:32:42.508 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:37.500000+08:00 1207.0
+2025-07-09 22:32:42.510 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:37.500000+08:00 1207.0
+2025-07-09 22:32:43.012 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:38+08:00 1048.0
+2025-07-09 22:32:43.012 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:38+08:00 1048.0
+2025-07-09 22:32:43.012 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:38+08:00 1207.0
+2025-07-09 22:32:43.026 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:38+08:00 1207.0
+2025-07-09 22:32:43.479 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:38.500000+08:00 1047.0
+2025-07-09 22:32:43.479 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:38.500000+08:00 1047.0
+2025-07-09 22:32:43.479 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:38.500000+08:00 1207.0
+2025-07-09 22:32:43.479 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:38.500000+08:00 1207.0
+2025-07-09 22:32:43.991 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:39+08:00 1047.0
+2025-07-09 22:32:43.991 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:39+08:00 1047.0
+2025-07-09 22:32:43.991 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:39+08:00 1206.0
+2025-07-09 22:32:43.991 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:39+08:00 1206.0
+2025-07-09 22:32:44.449 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:39.500000+08:00 1048.0
+2025-07-09 22:32:44.449 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:39.500000+08:00 1048.0
+2025-07-09 22:32:44.504 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:39.500000+08:00 1207.0
+2025-07-09 22:32:44.505 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:39.500000+08:00 1207.0
+2025-07-09 22:32:44.971 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:40+08:00 1047.0
+2025-07-09 22:32:44.971 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:40+08:00 1047.0
+2025-07-09 22:32:44.971 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:40+08:00 1207.0
+2025-07-09 22:32:44.971 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:40+08:00 1207.0
+2025-07-09 22:32:45.531 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:40.500000+08:00 1048.0
+2025-07-09 22:32:45.531 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:40.500000+08:00 1048.0
+2025-07-09 22:32:45.531 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:40.500000+08:00 1207.0
+2025-07-09 22:32:45.531 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:40.500000+08:00 1207.0
+2025-07-09 22:32:46.018 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:41+08:00 1047.0
+2025-07-09 22:32:46.018 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:41+08:00 1047.0
+2025-07-09 22:32:46.018 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:41+08:00 1206.0
+2025-07-09 22:32:46.018 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:41+08:00 1206.0
+2025-07-09 22:32:46.455 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:41.500000+08:00 1048.0
+2025-07-09 22:32:46.456 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:41.500000+08:00 1048.0
+2025-07-09 22:32:46.456 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:41.500000+08:00 1207.0
+2025-07-09 22:32:46.456 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:41.500000+08:00 1207.0
+2025-07-09 22:32:46.997 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:42+08:00 1047.0
+2025-07-09 22:32:46.998 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:42+08:00 1047.0
+2025-07-09 22:32:46.998 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:42+08:00 1207.0
+2025-07-09 22:32:46.998 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:42+08:00 1207.0
+2025-07-09 22:32:47.435 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:42.500000+08:00 1048.0
+2025-07-09 22:32:47.435 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:42.500000+08:00 1048.0
+2025-07-09 22:32:47.435 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:42.500000+08:00 1207.0
+2025-07-09 22:32:47.435 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:42.500000+08:00 1207.0
+2025-07-09 22:32:47.958 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:43+08:00 1047.0
+2025-07-09 22:32:47.963 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:43+08:00 1047.0
+2025-07-09 22:32:47.963 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:43+08:00 1207.0
+2025-07-09 22:32:47.963 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:43+08:00 1207.0
+2025-07-09 22:32:48.453 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:43.500000+08:00 1047.0
+2025-07-09 22:32:48.453 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:43.500000+08:00 1047.0
+2025-07-09 22:32:48.459 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:43.500000+08:00 1206.0
+2025-07-09 22:32:48.465 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:43.500000+08:00 1206.0
+2025-07-09 22:32:48.978 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:44+08:00 1048.0
+2025-07-09 22:32:48.978 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:44+08:00 1048.0
+2025-07-09 22:32:48.978 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:44+08:00 1207.0
+2025-07-09 22:32:48.978 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:44+08:00 1207.0
+2025-07-09 22:32:49.490 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:44.500000+08:00 1048.0
+2025-07-09 22:32:49.490 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:44.500000+08:00 1048.0
+2025-07-09 22:32:49.490 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:44.500000+08:00 1207.0
+2025-07-09 22:32:49.490 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:44.500000+08:00 1207.0
+2025-07-09 22:32:49.990 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:45+08:00 1047.0
+2025-07-09 22:32:49.992 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:45+08:00 1047.0
+2025-07-09 22:32:49.993 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:45+08:00 1207.0
+2025-07-09 22:32:49.994 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:45+08:00 1207.0
+2025-07-09 22:32:50.532 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:45.500000+08:00 1047.0
+2025-07-09 22:32:50.535 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:45.500000+08:00 1047.0
+2025-07-09 22:32:50.536 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:45.500000+08:00 1207.0
+2025-07-09 22:32:50.538 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:45.500000+08:00 1207.0
+2025-07-09 22:32:50.998 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:46+08:00 1047.0
+2025-07-09 22:32:50.998 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:46+08:00 1047.0
+2025-07-09 22:32:50.998 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:46+08:00 1208.0
+2025-07-09 22:32:50.998 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:46+08:00 1208.0
+2025-07-09 22:32:51.497 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:46.500000+08:00 1048.0
+2025-07-09 22:32:51.497 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:46.500000+08:00 1048.0
+2025-07-09 22:32:51.497 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:46.500000+08:00 1207.0
+2025-07-09 22:32:51.497 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:46.500000+08:00 1207.0
+2025-07-09 22:32:52.031 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:47+08:00 1048.0
+2025-07-09 22:32:52.032 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:47+08:00 1048.0
+2025-07-09 22:32:52.034 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:47+08:00 1207.0
+2025-07-09 22:32:52.034 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:47+08:00 1207.0
+2025-07-09 22:32:52.423 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:47.500000+08:00 1048.0
+2025-07-09 22:32:52.423 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:47.500000+08:00 1048.0
+2025-07-09 22:32:52.484 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:47.500000+08:00 1208.0
+2025-07-09 22:32:52.485 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:47.500000+08:00 1208.0
+2025-07-09 22:32:53.004 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:48+08:00 1048.0
+2025-07-09 22:32:53.021 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:48+08:00 1048.0
+2025-07-09 22:32:53.021 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:48+08:00 1207.0
+2025-07-09 22:32:53.021 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:48+08:00 1207.0
+2025-07-09 22:32:53.439 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:48.500000+08:00 1048.0
+2025-07-09 22:32:53.456 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:48.500000+08:00 1048.0
+2025-07-09 22:32:53.457 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:48.500000+08:00 1208.0
+2025-07-09 22:32:53.457 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:48.500000+08:00 1208.0
+2025-07-09 22:32:53.965 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:49+08:00 1048.0
+2025-07-09 22:32:53.965 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:49+08:00 1048.0
+2025-07-09 22:32:53.981 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:49+08:00 1208.0
+2025-07-09 22:32:53.981 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:49+08:00 1208.0
+2025-07-09 22:32:54.455 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:49.500000+08:00 1048.0
+2025-07-09 22:32:54.455 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:49.500000+08:00 1048.0
+2025-07-09 22:32:54.455 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:49.500000+08:00 1207.0
+2025-07-09 22:32:54.455 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:49.500000+08:00 1207.0
+2025-07-09 22:32:55.021 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:50+08:00 1048.0
+2025-07-09 22:32:55.021 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:50+08:00 1048.0
+2025-07-09 22:32:55.021 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:50+08:00 1207.0
+2025-07-09 22:32:55.035 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:50+08:00 1207.0
+2025-07-09 22:32:55.542 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:50.500000+08:00 1049.0
+2025-07-09 22:32:55.542 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:50.500000+08:00 1049.0
+2025-07-09 22:32:55.547 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:50.500000+08:00 1207.0
+2025-07-09 22:32:55.548 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:50.500000+08:00 1207.0
+2025-07-09 22:32:55.990 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:51+08:00 1048.0
+2025-07-09 22:32:55.990 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:51+08:00 1048.0
+2025-07-09 22:32:55.990 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:51+08:00 1207.0
+2025-07-09 22:32:55.996 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:51+08:00 1207.0
+2025-07-09 22:32:56.448 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:51.500000+08:00 1048.0
+2025-07-09 22:32:56.448 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:51.500000+08:00 1048.0
+2025-07-09 22:32:56.490 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:51.500000+08:00 1207.0
+2025-07-09 22:32:56.493 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:51.500000+08:00 1207.0
+2025-07-09 22:32:56.977 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:52+08:00 1048.0
+2025-07-09 22:32:56.977 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:52+08:00 1048.0
+2025-07-09 22:32:56.977 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:52+08:00 1208.0
+2025-07-09 22:32:56.993 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:52+08:00 1208.0
+2025-07-09 22:32:57.509 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:52.500000+08:00 1048.0
+2025-07-09 22:32:57.510 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:52.500000+08:00 1048.0
+2025-07-09 22:32:57.513 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:52.500000+08:00 1208.0
+2025-07-09 22:32:57.514 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:52.500000+08:00 1208.0
+2025-07-09 22:32:57.988 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:53+08:00 1048.0
+2025-07-09 22:32:57.988 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:53+08:00 1048.0
+2025-07-09 22:32:57.988 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:53+08:00 1207.0
+2025-07-09 22:32:57.988 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:53+08:00 1207.0
+2025-07-09 22:32:58.511 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:53.500000+08:00 1048.0
+2025-07-09 22:32:58.512 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:53.500000+08:00 1048.0
+2025-07-09 22:32:58.512 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:53.500000+08:00 1207.0
+2025-07-09 22:32:58.512 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:53.500000+08:00 1207.0
+2025-07-09 22:32:59.019 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:54+08:00 1048.0
+2025-07-09 22:32:59.019 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:54+08:00 1048.0
+2025-07-09 22:32:59.019 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:54+08:00 1207.0
+2025-07-09 22:32:59.019 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:54+08:00 1207.0
+2025-07-09 22:32:59.474 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:54.500000+08:00 1047.0
+2025-07-09 22:32:59.474 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:54.500000+08:00 1047.0
+2025-07-09 22:32:59.474 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:54.500000+08:00 1208.0
+2025-07-09 22:32:59.474 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:54.500000+08:00 1208.0
+2025-07-09 22:32:59.958 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:55+08:00 1047.0
+2025-07-09 22:32:59.960 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:55+08:00 1047.0
+2025-07-09 22:32:59.962 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:55+08:00 1208.0
+2025-07-09 22:32:59.963 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:55+08:00 1208.0
+2025-07-09 22:33:00.564 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:55.500000+08:00 1047.0
+2025-07-09 22:33:00.564 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:55.500000+08:00 1047.0
+2025-07-09 22:33:00.564 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:55.500000+08:00 1207.0
+2025-07-09 22:33:00.564 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:55.500000+08:00 1207.0
+2025-07-09 22:33:01.023 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:56+08:00 1047.0
+2025-07-09 22:33:01.023 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:56+08:00 1047.0
+2025-07-09 22:33:01.023 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:56+08:00 1207.0
+2025-07-09 22:33:01.038 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:56+08:00 1207.0
+2025-07-09 22:33:01.475 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for CTPBarTest
+2025-07-09 22:33:01.499 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:56.500000+08:00 1047.0
+2025-07-09 22:33:01.501 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:56.500000+08:00 1047.0
+2025-07-09 22:33:01.503 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:56.500000+08:00 1207.0
+2025-07-09 22:33:01.503 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:56.500000+08:00 1207.0
+2025-07-09 22:33:01.962 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:32:57+08:00 1047.0
+2025-07-09 22:33:01.962 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:32:57+08:00 1047.0
+2025-07-09 22:33:01.962 | INFO | MarketDataGateway | on_tick:144 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:32:57+08:00 1208.0
+2025-07-09 22:33:01.962 | INFO | MarketDataGateway | onRtnDepthMarketData:314 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:32:57+08:00 1208.0
+2025-07-09 22:33:02.476 | INFO | EventBus | _stop_async:226 | Async engine stopped for CTPBarTest
+2025-07-09 22:33:02.477 | INFO | EventBus | stop:88 | EventBus 'CTPBarTest' engines stopped
+2025-07-09 22:41:47.695 | INFO | EventBus | start:82 | EventBus 'CTPBarTest' engines started
+2025-07-09 22:41:47.695 | INFO | DataService | _init_database:169 | 数据库初始化成功: :memory:
+2025-07-09 22:41:47.695 | INFO | DataService | __init__:522 | 数据服务初始化完成
+2025-07-09 22:41:49.743 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:44.500000+08:00 1048.0
+2025-07-09 22:41:49.743 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:49.743 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:49.743 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:44.500000+08:00 1048.0
+2025-07-09 22:41:49.743 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:44.500000+08:00 1048.0
+2025-07-09 22:41:49.743 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:44.500000+08:00 1048.0
+2025-07-09 22:41:49.980 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:45+08:00 1048.0
+2025-07-09 22:41:49.980 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:49.980 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:49.980 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:45+08:00 1048.0
+2025-07-09 22:41:49.980 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:45+08:00 1048.0
+2025-07-09 22:41:49.980 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:45+08:00 1048.0
+2025-07-09 22:41:50.262 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:45+08:00 1208.0
+2025-07-09 22:41:50.262 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:50.262 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:50.262 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:45+08:00 1208.0
+2025-07-09 22:41:50.262 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:45+08:00 1208.0
+2025-07-09 22:41:50.262 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:45+08:00 1208.0
+2025-07-09 22:41:50.537 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:45.500000+08:00 1048.0
+2025-07-09 22:41:50.537 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:50.538 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:50.538 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:45.500000+08:00 1048.0
+2025-07-09 22:41:50.539 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:45.500000+08:00 1048.0
+2025-07-09 22:41:50.539 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:45.500000+08:00 1048.0
+2025-07-09 22:41:50.540 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:45.500000+08:00 1207.0
+2025-07-09 22:41:50.541 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:50.541 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:50.541 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:45.500000+08:00 1207.0
+2025-07-09 22:41:50.542 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:45.500000+08:00 1207.0
+2025-07-09 22:41:50.542 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:45.500000+08:00 1207.0
+2025-07-09 22:41:50.989 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:46+08:00 1048.0
+2025-07-09 22:41:50.989 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:50.989 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:50.989 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:46+08:00 1048.0
+2025-07-09 22:41:50.989 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:46+08:00 1048.0
+2025-07-09 22:41:50.989 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:46+08:00 1048.0
+2025-07-09 22:41:51.006 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:46+08:00 1207.0
+2025-07-09 22:41:51.006 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:51.008 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:51.008 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:46+08:00 1207.0
+2025-07-09 22:41:51.009 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:46+08:00 1207.0
+2025-07-09 22:41:51.012 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:46+08:00 1207.0
+2025-07-09 22:41:51.484 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:46.500000+08:00 1049.0
+2025-07-09 22:41:51.500 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:51.500 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:51.500 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:46.500000+08:00 1049.0
+2025-07-09 22:41:51.500 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:46.500000+08:00 1049.0
+2025-07-09 22:41:51.500 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:46.500000+08:00 1049.0
+2025-07-09 22:41:51.506 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:46.500000+08:00 1207.0
+2025-07-09 22:41:51.508 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:51.509 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:51.510 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:46.500000+08:00 1207.0
+2025-07-09 22:41:51.511 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:46.500000+08:00 1207.0
+2025-07-09 22:41:51.512 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:46.500000+08:00 1207.0
+2025-07-09 22:41:52.010 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:47+08:00 1049.0
+2025-07-09 22:41:52.010 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:52.010 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:52.010 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:47+08:00 1049.0
+2025-07-09 22:41:52.010 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:47+08:00 1049.0
+2025-07-09 22:41:52.010 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:47+08:00 1049.0
+2025-07-09 22:41:52.021 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:47+08:00 1208.0
+2025-07-09 22:41:52.023 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:52.023 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:52.023 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:47+08:00 1208.0
+2025-07-09 22:41:52.023 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:47+08:00 1208.0
+2025-07-09 22:41:52.023 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:47+08:00 1208.0
+2025-07-09 22:41:52.477 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:47.500000+08:00 1048.0
+2025-07-09 22:41:52.477 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:52.477 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:52.477 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:47.500000+08:00 1048.0
+2025-07-09 22:41:52.477 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:47.500000+08:00 1048.0
+2025-07-09 22:41:52.477 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:47.500000+08:00 1048.0
+2025-07-09 22:41:52.477 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:47.500000+08:00 1207.0
+2025-07-09 22:41:52.477 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:52.493 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:52.495 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:47.500000+08:00 1207.0
+2025-07-09 22:41:52.497 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:47.500000+08:00 1207.0
+2025-07-09 22:41:52.497 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:47.500000+08:00 1207.0
+2025-07-09 22:41:52.977 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:48+08:00 1048.0
+2025-07-09 22:41:52.977 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:52.977 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:52.977 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:48+08:00 1048.0
+2025-07-09 22:41:52.977 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:48+08:00 1048.0
+2025-07-09 22:41:52.992 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:48+08:00 1048.0
+2025-07-09 22:41:52.992 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:48+08:00 1208.0
+2025-07-09 22:41:52.992 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:53.008 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:53.009 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:48+08:00 1208.0
+2025-07-09 22:41:53.010 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:48+08:00 1208.0
+2025-07-09 22:41:53.010 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:48+08:00 1208.0
+2025-07-09 22:41:53.485 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:48.500000+08:00 1049.0
+2025-07-09 22:41:53.501 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:53.501 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:53.501 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:48.500000+08:00 1049.0
+2025-07-09 22:41:53.501 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:48.500000+08:00 1049.0
+2025-07-09 22:41:53.501 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:48.500000+08:00 1049.0
+2025-07-09 22:41:53.501 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:48.500000+08:00 1207.0
+2025-07-09 22:41:53.501 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:53.501 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:53.509 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:48.500000+08:00 1207.0
+2025-07-09 22:41:53.510 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:48.500000+08:00 1207.0
+2025-07-09 22:41:53.510 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:48.500000+08:00 1207.0
+2025-07-09 22:41:53.999 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:49+08:00 1048.0
+2025-07-09 22:41:53.999 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:53.999 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:53.999 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:49+08:00 1048.0
+2025-07-09 22:41:53.999 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:49+08:00 1048.0
+2025-07-09 22:41:53.999 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:49+08:00 1048.0
+2025-07-09 22:41:53.999 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:49+08:00 1207.0
+2025-07-09 22:41:54.014 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:54.014 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:54.017 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:49+08:00 1207.0
+2025-07-09 22:41:54.018 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:49+08:00 1207.0
+2025-07-09 22:41:54.019 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:49+08:00 1207.0
+2025-07-09 22:41:54.470 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:49.500000+08:00 1048.0
+2025-07-09 22:41:54.470 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:54.470 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:54.470 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:49.500000+08:00 1048.0
+2025-07-09 22:41:54.486 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:49.500000+08:00 1048.0
+2025-07-09 22:41:54.486 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:49.500000+08:00 1048.0
+2025-07-09 22:41:54.486 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:49.500000+08:00 1207.0
+2025-07-09 22:41:54.486 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:54.486 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:54.491 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:49.500000+08:00 1207.0
+2025-07-09 22:41:54.492 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:49.500000+08:00 1207.0
+2025-07-09 22:41:54.493 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:49.500000+08:00 1207.0
+2025-07-09 22:41:54.982 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:50+08:00 1049.0
+2025-07-09 22:41:54.982 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:54.982 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:54.997 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:50+08:00 1049.0
+2025-07-09 22:41:54.997 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:50+08:00 1049.0
+2025-07-09 22:41:54.997 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:50+08:00 1049.0
+2025-07-09 22:41:55.001 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:50+08:00 1208.0
+2025-07-09 22:41:55.004 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:55.005 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:55.006 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:50+08:00 1208.0
+2025-07-09 22:41:55.006 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:50+08:00 1208.0
+2025-07-09 22:41:55.007 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:50+08:00 1208.0
+2025-07-09 22:41:55.905 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:50.500000+08:00 1049.0
+2025-07-09 22:41:55.905 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:55.905 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:55.905 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:50.500000+08:00 1049.0
+2025-07-09 22:41:55.905 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:50.500000+08:00 1049.0
+2025-07-09 22:41:55.920 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:50.500000+08:00 1049.0
+2025-07-09 22:41:55.922 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:50.500000+08:00 1208.0
+2025-07-09 22:41:55.927 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:55.928 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:55.929 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:50.500000+08:00 1208.0
+2025-07-09 22:41:55.930 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:50.500000+08:00 1208.0
+2025-07-09 22:41:55.932 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:50.500000+08:00 1208.0
+2025-07-09 22:41:55.993 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:51+08:00 1049.0
+2025-07-09 22:41:55.993 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:55.993 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:55.993 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:51+08:00 1049.0
+2025-07-09 22:41:55.993 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:51+08:00 1049.0
+2025-07-09 22:41:55.993 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:51+08:00 1049.0
+2025-07-09 22:41:55.993 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:51+08:00 1208.0
+2025-07-09 22:41:55.993 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:55.993 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:56.006 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:51+08:00 1208.0
+2025-07-09 22:41:56.007 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:51+08:00 1208.0
+2025-07-09 22:41:56.008 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:51+08:00 1208.0
+2025-07-09 22:41:56.476 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:51.500000+08:00 1048.0
+2025-07-09 22:41:56.491 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:56.492 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:56.492 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:51.500000+08:00 1048.0
+2025-07-09 22:41:56.492 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:51.500000+08:00 1048.0
+2025-07-09 22:41:56.492 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:51.500000+08:00 1048.0
+2025-07-09 22:41:56.492 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:51.500000+08:00 1208.0
+2025-07-09 22:41:56.492 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:56.497 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:56.508 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:51.500000+08:00 1208.0
+2025-07-09 22:41:56.509 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:51.500000+08:00 1208.0
+2025-07-09 22:41:56.509 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:51.500000+08:00 1208.0
+2025-07-09 22:41:56.992 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:52+08:00 1048.0
+2025-07-09 22:41:56.992 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:56.992 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:56.992 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:52+08:00 1048.0
+2025-07-09 22:41:57.005 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:52+08:00 1048.0
+2025-07-09 22:41:57.011 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:52+08:00 1048.0
+2025-07-09 22:41:57.013 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:52+08:00 1208.0
+2025-07-09 22:41:57.014 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:57.015 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:57.015 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:52+08:00 1208.0
+2025-07-09 22:41:57.017 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:52+08:00 1208.0
+2025-07-09 22:41:57.018 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:52+08:00 1208.0
+2025-07-09 22:41:57.474 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:52.500000+08:00 1049.0
+2025-07-09 22:41:57.474 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:57.489 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:57.489 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:52.500000+08:00 1049.0
+2025-07-09 22:41:57.489 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:52.500000+08:00 1049.0
+2025-07-09 22:41:57.503 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:52.500000+08:00 1049.0
+2025-07-09 22:41:57.507 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:52.500000+08:00 1208.0
+2025-07-09 22:41:57.507 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:57.512 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:57.512 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:52.500000+08:00 1208.0
+2025-07-09 22:41:57.513 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:52.500000+08:00 1208.0
+2025-07-09 22:41:57.513 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:52.500000+08:00 1208.0
+2025-07-09 22:41:58.011 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:53+08:00 1048.0
+2025-07-09 22:41:58.011 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:58.011 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:58.011 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:53+08:00 1048.0
+2025-07-09 22:41:58.011 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:53+08:00 1048.0
+2025-07-09 22:41:58.011 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:53+08:00 1048.0
+2025-07-09 22:41:58.023 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:53+08:00 1208.0
+2025-07-09 22:41:58.023 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:58.023 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:58.029 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:53+08:00 1208.0
+2025-07-09 22:41:58.031 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:53+08:00 1208.0
+2025-07-09 22:41:58.032 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:53+08:00 1208.0
+2025-07-09 22:41:58.474 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:53.500000+08:00 1048.0
+2025-07-09 22:41:58.474 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:58.474 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:58.474 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:53.500000+08:00 1048.0
+2025-07-09 22:41:58.474 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:53.500000+08:00 1048.0
+2025-07-09 22:41:58.486 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:53.500000+08:00 1048.0
+2025-07-09 22:41:58.487 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:53.500000+08:00 1207.0
+2025-07-09 22:41:58.488 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:58.489 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:58.492 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:53.500000+08:00 1207.0
+2025-07-09 22:41:58.493 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:53.500000+08:00 1207.0
+2025-07-09 22:41:58.494 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:53.500000+08:00 1207.0
+2025-07-09 22:41:58.988 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:54+08:00 1049.0
+2025-07-09 22:41:58.988 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:58.988 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:58.988 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:54+08:00 1049.0
+2025-07-09 22:41:58.988 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:54+08:00 1049.0
+2025-07-09 22:41:58.988 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:54+08:00 1049.0
+2025-07-09 22:41:59.002 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:54+08:00 1208.0
+2025-07-09 22:41:59.005 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:59.005 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:59.007 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:54+08:00 1208.0
+2025-07-09 22:41:59.009 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:54+08:00 1208.0
+2025-07-09 22:41:59.010 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:54+08:00 1208.0
+2025-07-09 22:41:59.464 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:54.500000+08:00 1049.0
+2025-07-09 22:41:59.464 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:59.464 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:59.464 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:54.500000+08:00 1049.0
+2025-07-09 22:41:59.464 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:54.500000+08:00 1049.0
+2025-07-09 22:41:59.464 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:54.500000+08:00 1049.0
+2025-07-09 22:41:59.494 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:54.500000+08:00 1208.0
+2025-07-09 22:41:59.494 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:59.494 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:59.494 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:54.500000+08:00 1208.0
+2025-07-09 22:41:59.494 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:54.500000+08:00 1208.0
+2025-07-09 22:41:59.499 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:54.500000+08:00 1208.0
+2025-07-09 22:41:59.993 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:55+08:00 1049.0
+2025-07-09 22:41:59.993 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:41:59.993 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:41:59.993 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:55+08:00 1049.0
+2025-07-09 22:41:59.993 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:55+08:00 1049.0
+2025-07-09 22:41:59.993 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:55+08:00 1049.0
+2025-07-09 22:41:59.993 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:55+08:00 1207.0
+2025-07-09 22:41:59.993 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:00.006 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:00.007 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:55+08:00 1207.0
+2025-07-09 22:42:00.008 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:55+08:00 1207.0
+2025-07-09 22:42:00.008 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:55+08:00 1207.0
+2025-07-09 22:42:00.482 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:55.500000+08:00 1048.0
+2025-07-09 22:42:00.482 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:00.482 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:00.497 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:55.500000+08:00 1048.0
+2025-07-09 22:42:00.498 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:55.500000+08:00 1048.0
+2025-07-09 22:42:00.498 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:55.500000+08:00 1048.0
+2025-07-09 22:42:00.498 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:55.500000+08:00 1207.0
+2025-07-09 22:42:00.501 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:00.502 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:00.502 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:55.500000+08:00 1207.0
+2025-07-09 22:42:00.504 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:55.500000+08:00 1207.0
+2025-07-09 22:42:00.505 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:55.500000+08:00 1207.0
+2025-07-09 22:42:01.010 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:56+08:00 1049.0
+2025-07-09 22:42:01.010 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:01.010 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:01.010 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:56+08:00 1049.0
+2025-07-09 22:42:01.010 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:56+08:00 1049.0
+2025-07-09 22:42:01.010 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:56+08:00 1049.0
+2025-07-09 22:42:01.010 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:56+08:00 1207.0
+2025-07-09 22:42:01.010 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:01.010 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:01.023 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:56+08:00 1207.0
+2025-07-09 22:42:01.024 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:56+08:00 1207.0
+2025-07-09 22:42:01.025 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:56+08:00 1207.0
+2025-07-09 22:42:01.544 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:56.500000+08:00 1048.0
+2025-07-09 22:42:01.544 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:01.544 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:01.544 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:56.500000+08:00 1048.0
+2025-07-09 22:42:01.544 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:56.500000+08:00 1048.0
+2025-07-09 22:42:01.559 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:56.500000+08:00 1048.0
+2025-07-09 22:42:02.032 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:57+08:00 1048.0
+2025-07-09 22:42:02.032 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:02.032 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:02.032 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:57+08:00 1048.0
+2025-07-09 22:42:02.032 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:57+08:00 1048.0
+2025-07-09 22:42:02.032 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:57+08:00 1048.0
+2025-07-09 22:42:02.032 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:57+08:00 1207.0
+2025-07-09 22:42:02.032 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:02.032 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:02.032 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:57+08:00 1207.0
+2025-07-09 22:42:02.032 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:57+08:00 1207.0
+2025-07-09 22:42:02.032 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:57+08:00 1207.0
+2025-07-09 22:42:02.500 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:57.500000+08:00 1048.0
+2025-07-09 22:42:02.500 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:02.500 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:02.500 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:57.500000+08:00 1048.0
+2025-07-09 22:42:02.500 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:57.500000+08:00 1048.0
+2025-07-09 22:42:02.500 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:57.500000+08:00 1048.0
+2025-07-09 22:42:02.500 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:57.500000+08:00 1208.0
+2025-07-09 22:42:02.500 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:02.514 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:02.517 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:57.500000+08:00 1208.0
+2025-07-09 22:42:02.519 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:57.500000+08:00 1208.0
+2025-07-09 22:42:02.520 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:57.500000+08:00 1208.0
+2025-07-09 22:42:02.981 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:58+08:00 1208.0
+2025-07-09 22:42:02.981 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:02.981 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:02.981 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:58+08:00 1208.0
+2025-07-09 22:42:02.981 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:58+08:00 1208.0
+2025-07-09 22:42:02.981 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:58+08:00 1208.0
+2025-07-09 22:42:03.531 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:58.500000+08:00 1048.0
+2025-07-09 22:42:03.531 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:03.531 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:03.531 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:58.500000+08:00 1048.0
+2025-07-09 22:42:03.531 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:58.500000+08:00 1048.0
+2025-07-09 22:42:03.531 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:58.500000+08:00 1048.0
+2025-07-09 22:42:03.548 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:58.500000+08:00 1208.0
+2025-07-09 22:42:03.548 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:03.548 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:03.552 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:58.500000+08:00 1208.0
+2025-07-09 22:42:03.554 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:58.500000+08:00 1208.0
+2025-07-09 22:42:03.554 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:58.500000+08:00 1208.0
+2025-07-09 22:42:04.001 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:59+08:00 1048.0
+2025-07-09 22:42:04.015 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:04.015 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:04.015 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:59+08:00 1048.0
+2025-07-09 22:42:04.015 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:59+08:00 1048.0
+2025-07-09 22:42:04.015 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:59+08:00 1048.0
+2025-07-09 22:42:04.026 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:59+08:00 1207.0
+2025-07-09 22:42:04.028 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:04.028 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:04.029 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:59+08:00 1207.0
+2025-07-09 22:42:04.030 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:59+08:00 1207.0
+2025-07-09 22:42:04.034 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:59+08:00 1207.0
+2025-07-09 22:42:04.461 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:41:59.500000+08:00 1049.0
+2025-07-09 22:42:04.476 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:04.476 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:04.476 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:41:59.500000+08:00 1049.0
+2025-07-09 22:42:04.476 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:41:59.500000+08:00 1049.0
+2025-07-09 22:42:04.476 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:41:59.500000+08:00 1049.0
+2025-07-09 22:42:04.476 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:41:59.500000+08:00 1207.0
+2025-07-09 22:42:04.476 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:04.483 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:04.484 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:41:59.500000+08:00 1207.0
+2025-07-09 22:42:04.484 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:41:59.500000+08:00 1207.0
+2025-07-09 22:42:04.484 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:41:59.500000+08:00 1207.0
+2025-07-09 22:42:04.995 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:00+08:00 1049.0
+2025-07-09 22:42:05.010 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:05.010 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:05.010 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:00+08:00 1049.0
+2025-07-09 22:42:05.010 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:00+08:00 1049.0
+2025-07-09 22:42:05.010 | INFO | DataService | on_tick:481 | BarManager生成K线: FG509 2025-07-09 22:41:00+08:00 O:1048.0 H:1049.0 L:1048.0 C:1049.0
+2025-07-09 22:42:05.010 | INFO | DataService | _handle_raw_tick:624 | 分发MARKET_BAR: FG509 2025-07-09 22:41:00+08:00 O:1048.0 H:1049.0 L:1048.0 C:1049.0
+2025-07-09 22:42:05.010 | INFO | EventBus | publish:273 | EventBus发布事件: market.bar 数据类型: <class 'src.core.object.BarData'>
+2025-07-09 22:42:05.010 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.bar
+2025-07-09 22:42:05.010 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:00+08:00 1049.0
+2025-07-09 22:42:05.010 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:00+08:00 1208.0
+2025-07-09 22:42:05.017 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:05.018 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:05.022 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:00+08:00 1208.0
+2025-07-09 22:42:05.022 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:00+08:00 1208.0
+2025-07-09 22:42:05.023 | INFO | DataService | on_tick:481 | BarManager生成K线: SA509 2025-07-09 22:41:00+08:00 O:1208.0 H:1208.0 L:1207.0 C:1207.0
+2025-07-09 22:42:05.024 | INFO | DataService | _handle_raw_tick:624 | 分发MARKET_BAR: SA509 2025-07-09 22:41:00+08:00 O:1208.0 H:1208.0 L:1207.0 C:1207.0
+2025-07-09 22:42:05.024 | INFO | EventBus | publish:273 | EventBus发布事件: market.bar 数据类型: <class 'src.core.object.BarData'>
+2025-07-09 22:42:05.025 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.bar
+2025-07-09 22:42:05.025 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:00+08:00 1208.0
+2025-07-09 22:42:05.533 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:00.500000+08:00 1048.0
+2025-07-09 22:42:05.533 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:05.533 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:05.533 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:00.500000+08:00 1048.0
+2025-07-09 22:42:05.533 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:00.500000+08:00 1048.0
+2025-07-09 22:42:05.533 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:00.500000+08:00 1048.0
+2025-07-09 22:42:05.533 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:00.500000+08:00 1207.0
+2025-07-09 22:42:05.533 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:05.543 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:05.545 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:00.500000+08:00 1207.0
+2025-07-09 22:42:05.552 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:00.500000+08:00 1207.0
+2025-07-09 22:42:05.555 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:00.500000+08:00 1207.0
+2025-07-09 22:42:05.973 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:01+08:00 1049.0
+2025-07-09 22:42:05.973 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:05.973 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:05.973 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:01+08:00 1049.0
+2025-07-09 22:42:05.973 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:01+08:00 1049.0
+2025-07-09 22:42:05.973 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:01+08:00 1049.0
+2025-07-09 22:42:05.988 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:01+08:00 1207.0
+2025-07-09 22:42:05.990 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:05.990 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:05.992 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:01+08:00 1207.0
+2025-07-09 22:42:05.993 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:01+08:00 1207.0
+2025-07-09 22:42:05.994 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:01+08:00 1207.0
+2025-07-09 22:42:06.504 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:01.500000+08:00 1049.0
+2025-07-09 22:42:06.504 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:06.504 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:06.504 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:01.500000+08:00 1049.0
+2025-07-09 22:42:06.504 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:01.500000+08:00 1049.0
+2025-07-09 22:42:06.504 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:01.500000+08:00 1049.0
+2025-07-09 22:42:06.519 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:01.500000+08:00 1208.0
+2025-07-09 22:42:06.522 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:06.522 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:06.524 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:01.500000+08:00 1208.0
+2025-07-09 22:42:06.526 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:01.500000+08:00 1208.0
+2025-07-09 22:42:06.529 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:01.500000+08:00 1208.0
+2025-07-09 22:42:06.985 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:02+08:00 1049.0
+2025-07-09 22:42:06.986 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:06.987 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:06.988 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:02+08:00 1049.0
+2025-07-09 22:42:06.989 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:02+08:00 1049.0
+2025-07-09 22:42:06.990 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:02+08:00 1049.0
+2025-07-09 22:42:06.991 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:02+08:00 1208.0
+2025-07-09 22:42:06.993 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:06.994 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:06.994 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:02+08:00 1208.0
+2025-07-09 22:42:06.994 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:02+08:00 1208.0
+2025-07-09 22:42:06.995 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:02+08:00 1208.0
+2025-07-09 22:42:07.456 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:02.500000+08:00 1049.0
+2025-07-09 22:42:07.456 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:07.456 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:07.456 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:02.500000+08:00 1049.0
+2025-07-09 22:42:07.456 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:02.500000+08:00 1049.0
+2025-07-09 22:42:07.456 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:02.500000+08:00 1049.0
+2025-07-09 22:42:07.456 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:02.500000+08:00 1207.0
+2025-07-09 22:42:07.456 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:07.469 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:07.472 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:02.500000+08:00 1207.0
+2025-07-09 22:42:07.472 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:02.500000+08:00 1207.0
+2025-07-09 22:42:07.473 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:02.500000+08:00 1207.0
+2025-07-09 22:42:07.984 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:03+08:00 1048.0
+2025-07-09 22:42:07.984 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:07.984 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:07.984 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:03+08:00 1048.0
+2025-07-09 22:42:07.984 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:03+08:00 1048.0
+2025-07-09 22:42:07.984 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:03+08:00 1048.0
+2025-07-09 22:42:07.984 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:03+08:00 1208.0
+2025-07-09 22:42:07.984 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:07.984 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:07.984 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:03+08:00 1208.0
+2025-07-09 22:42:07.992 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:03+08:00 1208.0
+2025-07-09 22:42:07.992 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:03+08:00 1208.0
+2025-07-09 22:42:08.488 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:03.500000+08:00 1048.0
+2025-07-09 22:42:08.488 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:08.488 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:08.488 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:03.500000+08:00 1048.0
+2025-07-09 22:42:08.488 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:03.500000+08:00 1048.0
+2025-07-09 22:42:08.488 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:03.500000+08:00 1048.0
+2025-07-09 22:42:08.488 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:03.500000+08:00 1207.0
+2025-07-09 22:42:08.488 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:08.503 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:08.504 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:03.500000+08:00 1207.0
+2025-07-09 22:42:08.505 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:03.500000+08:00 1207.0
+2025-07-09 22:42:08.506 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:03.500000+08:00 1207.0
+2025-07-09 22:42:08.979 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:04+08:00 1049.0
+2025-07-09 22:42:08.979 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:08.979 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:08.979 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:04+08:00 1049.0
+2025-07-09 22:42:08.979 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:04+08:00 1049.0
+2025-07-09 22:42:08.979 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:04+08:00 1049.0
+2025-07-09 22:42:08.979 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:04+08:00 1208.0
+2025-07-09 22:42:08.979 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:08.979 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:08.988 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:04+08:00 1208.0
+2025-07-09 22:42:08.988 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:04+08:00 1208.0
+2025-07-09 22:42:08.989 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:04+08:00 1208.0
+2025-07-09 22:42:09.486 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:04.500000+08:00 1049.0
+2025-07-09 22:42:09.486 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:09.486 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:09.486 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:04.500000+08:00 1049.0
+2025-07-09 22:42:09.486 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:04.500000+08:00 1049.0
+2025-07-09 22:42:09.486 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:04.500000+08:00 1049.0
+2025-07-09 22:42:09.493 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:04.500000+08:00 1208.0
+2025-07-09 22:42:09.493 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:09.493 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:09.493 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:04.500000+08:00 1208.0
+2025-07-09 22:42:09.493 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:04.500000+08:00 1208.0
+2025-07-09 22:42:09.493 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:04.500000+08:00 1208.0
+2025-07-09 22:42:09.982 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:05+08:00 1048.0
+2025-07-09 22:42:09.982 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:09.982 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:09.997 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:05+08:00 1048.0
+2025-07-09 22:42:09.998 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:05+08:00 1048.0
+2025-07-09 22:42:09.998 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:05+08:00 1048.0
+2025-07-09 22:42:09.998 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:05+08:00 1208.0
+2025-07-09 22:42:09.998 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:09.998 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:10.002 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:05+08:00 1208.0
+2025-07-09 22:42:10.003 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:05+08:00 1208.0
+2025-07-09 22:42:10.003 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:05+08:00 1208.0
+2025-07-09 22:42:10.472 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:05.500000+08:00 1048.0
+2025-07-09 22:42:10.472 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:10.472 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:10.472 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:05.500000+08:00 1048.0
+2025-07-09 22:42:10.472 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:05.500000+08:00 1048.0
+2025-07-09 22:42:10.472 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:05.500000+08:00 1048.0
+2025-07-09 22:42:10.489 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:05.500000+08:00 1208.0
+2025-07-09 22:42:10.489 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:10.492 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:10.495 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:05.500000+08:00 1208.0
+2025-07-09 22:42:10.495 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:05.500000+08:00 1208.0
+2025-07-09 22:42:10.496 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:05.500000+08:00 1208.0
+2025-07-09 22:42:10.958 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:06+08:00 1048.0
+2025-07-09 22:42:10.958 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:10.958 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:10.958 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:06+08:00 1048.0
+2025-07-09 22:42:10.958 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:06+08:00 1048.0
+2025-07-09 22:42:10.958 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:06+08:00 1048.0
+2025-07-09 22:42:10.974 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:06+08:00 1208.0
+2025-07-09 22:42:10.974 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:10.974 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:10.978 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:06+08:00 1208.0
+2025-07-09 22:42:10.978 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:06+08:00 1208.0
+2025-07-09 22:42:10.979 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:06+08:00 1208.0
+2025-07-09 22:42:11.472 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:06.500000+08:00 1048.0
+2025-07-09 22:42:11.472 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:11.472 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:11.472 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:06.500000+08:00 1048.0
+2025-07-09 22:42:11.472 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:06.500000+08:00 1048.0
+2025-07-09 22:42:11.472 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:06.500000+08:00 1048.0
+2025-07-09 22:42:11.472 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:06.500000+08:00 1208.0
+2025-07-09 22:42:11.472 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:11.472 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:11.487 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:06.500000+08:00 1208.0
+2025-07-09 22:42:11.489 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:06.500000+08:00 1208.0
+2025-07-09 22:42:11.490 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:06.500000+08:00 1208.0
+2025-07-09 22:42:11.994 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:07+08:00 1049.0
+2025-07-09 22:42:11.996 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:11.996 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:11.996 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:07+08:00 1049.0
+2025-07-09 22:42:11.996 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:07+08:00 1049.0
+2025-07-09 22:42:11.996 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:07+08:00 1049.0
+2025-07-09 22:42:11.996 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:07+08:00 1208.0
+2025-07-09 22:42:11.996 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:12.002 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:12.003 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:07+08:00 1208.0
+2025-07-09 22:42:12.006 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:07+08:00 1208.0
+2025-07-09 22:42:12.007 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:07+08:00 1208.0
+2025-07-09 22:42:12.471 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:07.500000+08:00 1049.0
+2025-07-09 22:42:12.471 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:12.471 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:12.471 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:07.500000+08:00 1049.0
+2025-07-09 22:42:12.471 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:07.500000+08:00 1049.0
+2025-07-09 22:42:12.471 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:07.500000+08:00 1049.0
+2025-07-09 22:42:12.471 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:07.500000+08:00 1208.0
+2025-07-09 22:42:12.471 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:12.471 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:12.484 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:07.500000+08:00 1208.0
+2025-07-09 22:42:12.486 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:07.500000+08:00 1208.0
+2025-07-09 22:42:12.487 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:07.500000+08:00 1208.0
+2025-07-09 22:42:12.991 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:08+08:00 1048.0
+2025-07-09 22:42:13.007 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:13.007 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:13.007 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:08+08:00 1048.0
+2025-07-09 22:42:13.007 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:08+08:00 1048.0
+2025-07-09 22:42:13.007 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:08+08:00 1048.0
+2025-07-09 22:42:13.007 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:08+08:00 1207.0
+2025-07-09 22:42:13.007 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:13.014 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:13.015 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:08+08:00 1207.0
+2025-07-09 22:42:13.015 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:08+08:00 1207.0
+2025-07-09 22:42:13.017 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:08+08:00 1207.0
+2025-07-09 22:42:13.476 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:08.500000+08:00 1048.0
+2025-07-09 22:42:13.476 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:13.476 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:13.476 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:08.500000+08:00 1048.0
+2025-07-09 22:42:13.476 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:08.500000+08:00 1048.0
+2025-07-09 22:42:13.476 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:08.500000+08:00 1048.0
+2025-07-09 22:42:13.476 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:08.500000+08:00 1208.0
+2025-07-09 22:42:13.476 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:13.476 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:13.490 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:08.500000+08:00 1208.0
+2025-07-09 22:42:13.492 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:08.500000+08:00 1208.0
+2025-07-09 22:42:13.492 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:08.500000+08:00 1208.0
+2025-07-09 22:42:13.991 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:09+08:00 1048.0
+2025-07-09 22:42:13.991 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:13.991 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:13.991 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:09+08:00 1048.0
+2025-07-09 22:42:13.991 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:09+08:00 1048.0
+2025-07-09 22:42:13.991 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:09+08:00 1048.0
+2025-07-09 22:42:14.004 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:09+08:00 1208.0
+2025-07-09 22:42:14.005 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:14.006 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:14.007 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:09+08:00 1208.0
+2025-07-09 22:42:14.008 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:09+08:00 1208.0
+2025-07-09 22:42:14.010 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:09+08:00 1208.0
+2025-07-09 22:42:14.486 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:09.500000+08:00 1048.0
+2025-07-09 22:42:14.486 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:14.486 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:14.486 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:09.500000+08:00 1048.0
+2025-07-09 22:42:14.486 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:09.500000+08:00 1048.0
+2025-07-09 22:42:14.486 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:09.500000+08:00 1048.0
+2025-07-09 22:42:14.486 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:09.500000+08:00 1208.0
+2025-07-09 22:42:14.486 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:14.486 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:14.501 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:09.500000+08:00 1208.0
+2025-07-09 22:42:14.503 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:09.500000+08:00 1208.0
+2025-07-09 22:42:14.505 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:09.500000+08:00 1208.0
+2025-07-09 22:42:15.006 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:10+08:00 1048.0
+2025-07-09 22:42:15.006 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:15.006 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:15.006 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:10+08:00 1048.0
+2025-07-09 22:42:15.006 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:10+08:00 1048.0
+2025-07-09 22:42:15.006 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:10+08:00 1048.0
+2025-07-09 22:42:15.006 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:10+08:00 1208.0
+2025-07-09 22:42:15.006 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:15.021 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:15.022 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:10+08:00 1208.0
+2025-07-09 22:42:15.023 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:10+08:00 1208.0
+2025-07-09 22:42:15.025 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:10+08:00 1208.0
+2025-07-09 22:42:15.512 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:10.500000+08:00 1049.0
+2025-07-09 22:42:15.512 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:15.512 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:15.512 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:10.500000+08:00 1049.0
+2025-07-09 22:42:15.528 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:10.500000+08:00 1049.0
+2025-07-09 22:42:15.528 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:10.500000+08:00 1049.0
+2025-07-09 22:42:15.528 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:10.500000+08:00 1208.0
+2025-07-09 22:42:15.528 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:15.532 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:15.533 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:10.500000+08:00 1208.0
+2025-07-09 22:42:15.533 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:10.500000+08:00 1208.0
+2025-07-09 22:42:15.534 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:10.500000+08:00 1208.0
+2025-07-09 22:42:15.957 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:11+08:00 1049.0
+2025-07-09 22:42:15.958 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:15.958 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:15.958 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:11+08:00 1049.0
+2025-07-09 22:42:15.958 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:11+08:00 1049.0
+2025-07-09 22:42:15.958 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:11+08:00 1049.0
+2025-07-09 22:42:15.993 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:11+08:00 1208.0
+2025-07-09 22:42:15.994 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:15.995 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:15.995 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:11+08:00 1208.0
+2025-07-09 22:42:15.996 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:11+08:00 1208.0
+2025-07-09 22:42:15.998 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:11+08:00 1208.0
+2025-07-09 22:42:16.483 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:11.500000+08:00 1048.0
+2025-07-09 22:42:16.483 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:16.483 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:16.483 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:11.500000+08:00 1048.0
+2025-07-09 22:42:16.483 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:11.500000+08:00 1048.0
+2025-07-09 22:42:16.483 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:11.500000+08:00 1048.0
+2025-07-09 22:42:16.499 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:11.500000+08:00 1208.0
+2025-07-09 22:42:16.499 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:16.501 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:16.502 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:11.500000+08:00 1208.0
+2025-07-09 22:42:16.502 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:11.500000+08:00 1208.0
+2025-07-09 22:42:16.504 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:11.500000+08:00 1208.0
+2025-07-09 22:42:16.984 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:12+08:00 1049.0
+2025-07-09 22:42:16.990 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:16.991 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:16.991 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:12+08:00 1049.0
+2025-07-09 22:42:16.991 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:12+08:00 1049.0
+2025-07-09 22:42:16.991 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:12+08:00 1049.0
+2025-07-09 22:42:16.991 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:12+08:00 1208.0
+2025-07-09 22:42:16.997 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:16.997 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:16.998 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:12+08:00 1208.0
+2025-07-09 22:42:16.999 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:12+08:00 1208.0
+2025-07-09 22:42:16.999 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:12+08:00 1208.0
+2025-07-09 22:42:17.452 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:12.500000+08:00 1049.0
+2025-07-09 22:42:17.452 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:17.452 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:17.452 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:12.500000+08:00 1049.0
+2025-07-09 22:42:17.452 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:12.500000+08:00 1049.0
+2025-07-09 22:42:17.452 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:12.500000+08:00 1049.0
+2025-07-09 22:42:17.452 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:12.500000+08:00 1207.0
+2025-07-09 22:42:17.452 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:17.452 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:17.466 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:12.500000+08:00 1207.0
+2025-07-09 22:42:17.467 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:12.500000+08:00 1207.0
+2025-07-09 22:42:17.467 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:12.500000+08:00 1207.0
+2025-07-09 22:42:17.996 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:13+08:00 1048.0
+2025-07-09 22:42:17.996 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:17.996 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:17.996 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:13+08:00 1048.0
+2025-07-09 22:42:17.996 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:13+08:00 1048.0
+2025-07-09 22:42:17.996 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:13+08:00 1048.0
+2025-07-09 22:42:17.996 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:13+08:00 1208.0
+2025-07-09 22:42:18.011 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:18.011 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:18.012 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:13+08:00 1208.0
+2025-07-09 22:42:18.013 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:13+08:00 1208.0
+2025-07-09 22:42:18.013 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:13+08:00 1208.0
+2025-07-09 22:42:18.509 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:13.500000+08:00 1049.0
+2025-07-09 22:42:18.510 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:18.511 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:18.512 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:13.500000+08:00 1049.0
+2025-07-09 22:42:18.512 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:13.500000+08:00 1049.0
+2025-07-09 22:42:18.513 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:13.500000+08:00 1049.0
+2025-07-09 22:42:18.515 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:13.500000+08:00 1208.0
+2025-07-09 22:42:18.516 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:18.517 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:18.518 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:13.500000+08:00 1208.0
+2025-07-09 22:42:18.518 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:13.500000+08:00 1208.0
+2025-07-09 22:42:18.519 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:13.500000+08:00 1208.0
+2025-07-09 22:42:19.018 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:14+08:00 1049.0
+2025-07-09 22:42:19.018 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:19.018 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:19.018 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:14+08:00 1049.0
+2025-07-09 22:42:19.018 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:14+08:00 1049.0
+2025-07-09 22:42:19.018 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:14+08:00 1049.0
+2025-07-09 22:42:19.018 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:14+08:00 1208.0
+2025-07-09 22:42:19.018 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:19.030 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:19.031 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:14+08:00 1208.0
+2025-07-09 22:42:19.032 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:14+08:00 1208.0
+2025-07-09 22:42:19.032 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:14+08:00 1208.0
+2025-07-09 22:42:19.477 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:14.500000+08:00 1049.0
+2025-07-09 22:42:19.483 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:19.484 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:19.484 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:14.500000+08:00 1049.0
+2025-07-09 22:42:19.484 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:14.500000+08:00 1049.0
+2025-07-09 22:42:19.484 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:14.500000+08:00 1049.0
+2025-07-09 22:42:19.484 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:14.500000+08:00 1208.0
+2025-07-09 22:42:19.484 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:19.490 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:19.490 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:14.500000+08:00 1208.0
+2025-07-09 22:42:19.491 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:14.500000+08:00 1208.0
+2025-07-09 22:42:19.491 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:14.500000+08:00 1208.0
+2025-07-09 22:42:19.987 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:15+08:00 1049.0
+2025-07-09 22:42:19.987 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:19.988 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:19.988 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:15+08:00 1049.0
+2025-07-09 22:42:19.989 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:15+08:00 1049.0
+2025-07-09 22:42:19.989 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:15+08:00 1049.0
+2025-07-09 22:42:19.990 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:15+08:00 1207.0
+2025-07-09 22:42:19.990 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:19.990 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:19.990 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:15+08:00 1207.0
+2025-07-09 22:42:19.990 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:15+08:00 1207.0
+2025-07-09 22:42:19.990 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:15+08:00 1207.0
+2025-07-09 22:42:20.484 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:15.500000+08:00 1049.0
+2025-07-09 22:42:20.484 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:20.484 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:20.484 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:15.500000+08:00 1049.0
+2025-07-09 22:42:20.484 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:15.500000+08:00 1049.0
+2025-07-09 22:42:20.484 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:15.500000+08:00 1049.0
+2025-07-09 22:42:20.484 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:15.500000+08:00 1207.0
+2025-07-09 22:42:20.484 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:20.484 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:20.497 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:15.500000+08:00 1207.0
+2025-07-09 22:42:20.497 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:15.500000+08:00 1207.0
+2025-07-09 22:42:20.499 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:15.500000+08:00 1207.0
+2025-07-09 22:42:21.010 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:16+08:00 1048.0
+2025-07-09 22:42:21.012 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:21.013 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:21.014 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:16+08:00 1048.0
+2025-07-09 22:42:21.016 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:16+08:00 1048.0
+2025-07-09 22:42:21.016 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:16+08:00 1048.0
+2025-07-09 22:42:21.017 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:16+08:00 1208.0
+2025-07-09 22:42:21.017 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:21.019 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:21.019 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:16+08:00 1208.0
+2025-07-09 22:42:21.019 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:16+08:00 1208.0
+2025-07-09 22:42:21.019 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:16+08:00 1208.0
+2025-07-09 22:42:21.526 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:16.500000+08:00 1049.0
+2025-07-09 22:42:21.527 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:21.528 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:21.529 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:16.500000+08:00 1049.0
+2025-07-09 22:42:21.529 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:16.500000+08:00 1049.0
+2025-07-09 22:42:21.530 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:16.500000+08:00 1049.0
+2025-07-09 22:42:21.531 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:16.500000+08:00 1208.0
+2025-07-09 22:42:21.531 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:21.531 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:21.534 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:16.500000+08:00 1208.0
+2025-07-09 22:42:21.534 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:16.500000+08:00 1208.0
+2025-07-09 22:42:21.535 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:16.500000+08:00 1208.0
+2025-07-09 22:42:21.721 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for CTPBarTest
+2025-07-09 22:42:22.009 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:17+08:00 1049.0
+2025-07-09 22:42:22.009 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:22.009 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:22.018 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:17+08:00 1049.0
+2025-07-09 22:42:22.018 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:17+08:00 1049.0
+2025-07-09 22:42:22.018 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:17+08:00 1049.0
+2025-07-09 22:42:22.019 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:17+08:00 1208.0
+2025-07-09 22:42:22.022 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:22.022 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:22.027 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:17+08:00 1208.0
+2025-07-09 22:42:22.029 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:17+08:00 1208.0
+2025-07-09 22:42:22.032 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:17+08:00 1208.0
+2025-07-09 22:42:22.510 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick FG509 2025-07-09 22:42:17.500000+08:00 1048.0
+2025-07-09 22:42:22.510 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:22.510 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:22.510 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: FG509 2025-07-09 22:42:17.500000+08:00 1048.0
+2025-07-09 22:42:22.510 | INFO | DataService | on_tick:475 | BarManager收到tick: FG509 2025-07-09 22:42:17.500000+08:00 1048.0
+2025-07-09 22:42:22.510 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick FG509 2025-07-09 22:42:17.500000+08:00 1048.0
+2025-07-09 22:42:22.510 | INFO | MarketDataGateway | on_tick:145 | MarketDataGateway.on_tick: 收到tick SA509 2025-07-09 22:42:17.500000+08:00 1207.0
+2025-07-09 22:42:22.517 | INFO | EventBus | publish:273 | EventBus发布事件: market.tick.raw 数据类型: <class 'src.core.object.TickData'>
+2025-07-09 22:42:22.518 | INFO | EventBus | _notify_monitors:287 | EventBus通知监控器: market.tick.raw
+2025-07-09 22:42:22.519 | INFO | DataService | _handle_raw_tick:600 | DataService收到tick: SA509 2025-07-09 22:42:17.500000+08:00 1207.0
+2025-07-09 22:42:22.520 | INFO | DataService | on_tick:475 | BarManager收到tick: SA509 2025-07-09 22:42:17.500000+08:00 1207.0
+2025-07-09 22:42:22.522 | INFO | MarketDataGateway | onRtnDepthMarketData:317 | CtpMdApi.onRtnDepthMarketData: 推送tick SA509 2025-07-09 22:42:17.500000+08:00 1207.0
+2025-07-09 22:42:22.722 | INFO | EventBus | _stop_async:226 | Async engine stopped for CTPBarTest
+2025-07-09 22:42:22.723 | INFO | EventBus | stop:88 | EventBus 'CTPBarTest' engines stopped
+2025-07-09 22:46:00.534 | INFO | EventBus | start:82 | EventBus 'CTPBarTest' engines started
+2025-07-09 22:46:00.534 | INFO | DataService | _init_database:169 | 数据库初始化成功: :memory:
+2025-07-09 22:46:00.534 | INFO | DataService | __init__:522 | 数据服务初始化完成
+2025-07-09 22:46:05.007 | INFO | DataService | on_tick:481 | BarManager生成K线: FG509 2025-07-09 22:45:00+08:00 O:1048.0 H:1048.0 L:1048.0 C:1048.0
+2025-07-09 22:46:05.008 | INFO | DataService | _handle_raw_tick:624 | 分发MARKET_BAR: FG509 2025-07-09 22:45:00+08:00 O:1048.0 H:1048.0 L:1048.0 C:1048.0
+2025-07-09 22:46:05.008 | INFO | DataService | on_tick:481 | BarManager生成K线: SA509 2025-07-09 22:45:00+08:00 O:1208.0 H:1208.0 L:1207.0 C:1207.0
+2025-07-09 22:46:05.008 | INFO | DataService | _handle_raw_tick:624 | 分发MARKET_BAR: SA509 2025-07-09 22:45:00+08:00 O:1208.0 H:1208.0 L:1207.0 C:1207.0
+2025-07-09 22:47:04.980 | INFO | DataService | on_tick:481 | BarManager生成K线: FG509 2025-07-09 22:46:00+08:00 O:1049.0 H:1049.0 L:1047.0 C:1048.0
+2025-07-09 22:47:04.980 | INFO | DataService | _handle_raw_tick:624 | 分发MARKET_BAR: FG509 2025-07-09 22:46:00+08:00 O:1049.0 H:1049.0 L:1047.0 C:1048.0
+2025-07-09 22:47:04.980 | INFO | DataService | on_tick:481 | BarManager生成K线: SA509 2025-07-09 22:46:00+08:00 O:1207.0 H:1208.0 L:1206.0 C:1207.0
+2025-07-09 22:47:04.980 | INFO | DataService | _handle_raw_tick:624 | 分发MARKET_BAR: SA509 2025-07-09 22:46:00+08:00 O:1207.0 H:1208.0 L:1206.0 C:1207.0
+2025-07-09 22:47:37.604 | INFO | EventBus | _stop_sync:141 | Sync engine stopped for CTPBarTest
+2025-07-09 22:47:38.605 | INFO | EventBus | _stop_async:226 | Async engine stopped for CTPBarTest
+2025-07-09 22:47:38.605 | INFO | EventBus | stop:88 | EventBus 'CTPBarTest' engines stopped

@@ -270,6 +270,7 @@ class EventBus:
         :param event: 事件对象
         :param is_async: 是否异步处理，默认为False
         """
+        logger.debug(f"EventBus发布事件: {event.type} 数据类型: {type(event.data)}")
         self._event_count += 1
 
         # 通知监控器
@@ -283,6 +284,7 @@ class EventBus:
 
     def _notify_monitors(self, event: Event) -> None:
         """通知所有事件监控器"""
+        logger.debug(f"EventBus通知监控器: {event.type}")
         for monitor in self._monitors:
             try:
                 monitor(event)
