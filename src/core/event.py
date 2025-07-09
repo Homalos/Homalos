@@ -56,7 +56,7 @@ class PriorityEvent(Event):
 
 
 # 事件类型常量定义
-class EventTypes:
+class EventType:
     """事件类型常量，按优先级分类"""
     
     # 紧急事件
@@ -77,6 +77,10 @@ class EventTypes:
     MARKET_BAR = "market.bar"
     POSITION_UPDATE = "position.update"
     ACCOUNT_UPDATE = "account.update"
+    MODULE_LOADED = "module.loaded"
+    MODULE_UNLOAD = "module.unload"
+    TIMER = "timer"
+    SHUTDOWN = "shutdown"
     
     # 低优先级事件
     LOG_MESSAGE = "log.message"

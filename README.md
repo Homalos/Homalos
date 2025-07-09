@@ -37,8 +37,6 @@ Homalos_v2/
 
 #### 1. **Core 核心模块** (`src/core/`)
 
-- **app.py**: 应用程序基类
-- **engine.py**: 交易引擎核心
 - **event.py**: 事件驱动系统
 - **gateway.py**: 交易网关接口
 - **object.py**: 数据对象定义

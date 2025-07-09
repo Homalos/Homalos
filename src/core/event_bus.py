@@ -9,14 +9,15 @@
 @Software   : PyCharm
 @Description: 高性能事件总线
 """
+import sys
 import time
 from collections import defaultdict
+from datetime import datetime
 from queue import Queue, Empty, Full
 from threading import Thread
-from typing import Any, Dict, List, Callable, Optional
+from typing import Any, Dict, List, Callable, Optional, Union
 
-from src.core.event import Event
-from src.core.event_type import EventType
+from src.core.event import Event, EventType
 from src.core.logger import get_logger
 
 logger = get_logger("EventBus")
@@ -37,7 +38,7 @@ class EventBus:
     DEFAULT_TIMER_INTERVAL = 1
 
     def __init__(self,
-                 name: str = "default",
+                 name: str = "EventBus",
                  max_async_queue_size: int = DEFAULT_ASYNC_QUEUE_SIZE,
                  interval: int = DEFAULT_TIMER_INTERVAL):
         # 系统标识
@@ -55,7 +56,13 @@ class EventBus:
 
         # 事件监控
         self._monitors: List[Callable] = []
+        
+        # 事件统计信息
         self._event_count = 0
+        self._sync_processed_count = 0
+        self._async_processed_count = 0
+        self._error_count = 0
+        self._event_type_stats: Dict[str, int] = defaultdict(int)
 
         # 线程控制标志
         self._sync_active: bool = False
@@ -67,23 +74,23 @@ class EventBus:
         self._sync_timer: Optional[Thread] = None
         self._async_timer: Optional[Thread] = None
 
-        # 启动事件处理引擎
-        self.start_engines()
+        # 启动事件处理线程
+        self.start()
 
-    def start_engines(self) -> None:
-        """启动所有事件处理引擎"""
-        self._start_sync_engine()
-        self._start_async_engine()
+    def start(self) -> None:
+        """启动所有事件处理线程"""
+        self._start_sync()
+        self._start_async()
         logger.info(f"EventBus '{self._name}' engines started")
 
-    def stop_engines(self) -> None:
-        """停止所有事件处理引擎"""
-        self.stop_sync_engine()
-        self.stop_async_engine()
+    def stop(self) -> None:
+        """停止所有事件处理线程"""
+        self._stop_sync()
+        self._stop_async()
         logger.info(f"EventBus '{self._name}' engines stopped")
 
-    def _start_sync_engine(self) -> None:
-        """启动同步事件处理引擎"""
+    def _start_sync(self) -> None:
+        """启动同步事件处理线程"""
         if self._sync_active:
             return
 
@@ -107,41 +114,61 @@ class EventBus:
         self._sync_timer.start()
         logger.debug(f"Started sync Timer for {self._name}")
 
-    def stop_sync_engine(self) -> None:
+    def _stop_sync(self) -> None:
         """停止同步事件处理引擎"""
         if not self._sync_active:
             return
 
         self._sync_active = False
-        # 优雅关闭线程
+        
+        # 优雅关闭定时器线程
         if self._sync_timer and self._sync_timer.is_alive():
-            self._sync_timer.join(timeout=2.0)
+            try:
+                self._sync_timer.join(timeout=2.0)
+                if self._sync_timer.is_alive():
+                    logger.warning(f"Sync timer thread failed to stop within timeout for {self._name}")
+            except Exception as e:
+                logger.error(f"Error stopping sync timer thread: {e}", exc_info=True)
 
+        # 优雅关闭事件处理线程
         if self._sync_thread and self._sync_thread.is_alive():
-            # 发送停止信号
-            self._sync_queue.put(Event(EventType.SHUTDOWN.value))
-            self._sync_thread.join(timeout=3.0)
+            try:
+                # 发送停止信号
+                self._sync_queue.put(Event(EventType.SHUTDOWN))
+                self._sync_thread.join(timeout=3.0)
+                if self._sync_thread.is_alive():
+                    logger.warning(f"Sync thread failed to stop within timeout for {self._name}")
+            except Exception as e:
+                logger.error(f"Error stopping sync thread: {e}", exc_info=True)
         logger.info(f"Sync engine stopped for {self._name}")
 
     def _run_sync_loop(self) -> None:
         """同步事件处理主循环"""
+        logger.debug(f"Sync event loop started for {self._name}")
         while self._sync_active:
             try:
                 event: Event = self._sync_queue.get(block=True, timeout=0.5)
 
                 # 检查关闭信号
-                if event.type == EventType.SHUTDOWN.value:
+                if event.type == EventType.SHUTDOWN:
                     logger.debug("Received shutdown signal in sync engine")
                     break
 
+                # 记录事件处理开始
+                logger.debug(f"Processing sync event: {event.type}")
                 self._process_sync_event(event)
+                
             except Empty:
-                pass
+                # 超时是正常的，不需要记录
+                continue
             except Exception as e:
-                logger.error(f"Sync event processing error: {e}", exc_info=True)
+                logger.error(f"Sync event processing error in {self._name}: "
+                           f"Event type: {getattr(event, 'type', 'Unknown')}, "
+                           f"Error: {e}", exc_info=True)
+        logger.debug(f"Sync event loop stopped for {self._name}")
 
-    def _start_async_engine(self) -> None:
-        """启动异步事件处理引擎"""
+    def _start_async(self) -> None:
+        """启动异步事件处理线程"""
         if self._async_active:
             return
 
@@ -167,43 +194,65 @@ class EventBus:
         self._async_timer.start()
         logger.debug(f"Async engine started for {self._name}")
 
-    def stop_async_engine(self) -> None:
+    def _stop_async(self) -> None:
         """停止异步事件处理引擎"""
-        if not self._sync_active: return
+        if not self._async_active: 
+            return
 
         self._async_active = False
 
-        # 发送关闭信号
-        self._async_queue.put(Event(EventType.SHUTDOWN.value))
+        # 优雅关闭定时器线程
+        if self._async_timer and self._async_timer.is_alive():
+            try:
+                self._async_timer.join(timeout=2.0)
+                if self._async_timer.is_alive():
+                    logger.warning(f"Async timer thread failed to stop within timeout for {self._name}")
+            except Exception as e:
+                logger.error(f"Error stopping async timer thread: {e}", exc_info=True)
 
-        # 等待线程终止
-        self._async_timer.join(timeout=2.0)
-        self._async_thread.join(timeout=3.0)
-        logger.debug(f"Async engine stopped for {self._name}")
+        # 优雅关闭事件处理线程
+        if self._async_thread and self._async_thread.is_alive():
+            try:
+                # 发送关闭信号
+                self._async_queue.put(Event(EventType.SHUTDOWN))
+                self._async_thread.join(timeout=3.0)
+                if self._async_thread.is_alive():
+                    logger.warning(f"Async thread failed to stop within timeout for {self._name}")
+            except Exception as e:
+                logger.error(f"Error stopping async thread: {e}", exc_info=True)
+        logger.info(f"Async engine stopped for {self._name}")
 
     def _run_async_loop(self) -> None:
         """异步事件处理循环"""
+        logger.debug(f"Async event loop started for {self._name}")
         while self._async_active:
             try:
                 event = self._async_queue.get(timeout=0.5)
 
                 # 检查关闭信号
-                if event.type == EventType.SHUTDOWN.value:
+                if event.type == EventType.SHUTDOWN:
                     logger.debug("Received shutdown signal in async engine")
                     break
 
+                # 记录事件处理开始
+                logger.debug(f"Processing async event: {event.type}")
                 self._process_async_event(event)
+                
             except Empty:
+                # 超时是正常的，不需要记录
                 continue
             except Exception as e:
-                logger.error(f"Async event processing error: {e}", exc_info=True)
+                logger.error(f"Async event processing error in {self._name}: "
+                           f"Event type: {getattr(event, 'type', 'Unknown')}, "
+                           f"Error: {e}", exc_info=True)
+        logger.debug(f"Async event loop stopped for {self._name}")
 
     def _run_timer(self, queue: Queue, interval: int) -> None:
         """定时事件生成器"""
         while self._active_flag(queue):
             time.sleep(interval)
             try:
-                queue.put_nowait(Event(EventType.TIMER.value))
+                queue.put_nowait(Event(EventType.TIMER))
             except Full:
                 logger.warning(f"Timer queue full, dropping timer event")
 
@@ -248,16 +297,32 @@ class EventBus:
 
     def _process_sync_event(self, event: Event) -> None:
         """处理同步事件（立即执行）"""
-        # 特定类型处理器
-        self._invoke_handlers(event, self._sync_handlers.get(event.type, []))
+        try:
+            # 特定类型处理器
+            self._invoke_handlers(event, self._sync_handlers.get(event.type, []))
 
-        # 全局处理器
-        self._invoke_handlers(event, self._global_handlers)
+            # 全局处理器
+            self._invoke_handlers(event, self._global_handlers)
+            
+            # 更新统计信息
+            self._sync_processed_count += 1
+            self._event_type_stats[event.type] += 1
+        except Exception as e:
+            self._error_count += 1
+            raise e
 
     def _process_async_event(self, event: Event) -> None:
         """处理异步事件（队列中执行）"""
-        # 特定类型处理器
-        self._invoke_handlers(event, self._async_handlers.get(event.type, []))
+        try:
+            # 特定类型处理器
+            self._invoke_handlers(event, self._async_handlers.get(event.type, []))
+            
+            # 更新统计信息
+            self._async_processed_count += 1
+            self._event_type_stats[event.type] += 1
+        except Exception as e:
+            self._error_count += 1
+            raise e
 
     @staticmethod
     def _invoke_handlers(event: Event, handlers: List[Callable]) -> None:
@@ -268,31 +333,51 @@ class EventBus:
             except Exception as e:
                 logger.error(f"Handler error for {event.type}: {e}", exc_info=True)
 
-    def subscribe(self, event_type: str, handler: Callable, is_async: bool = False) -> None:
+    def subscribe(self, event_type: Union[str, EventType], handler: Callable, is_async: bool = False) -> None:
         """
         订阅事件
-        :param event_type: 事件类型
+        :param event_type: 事件类型，可以是字符串或EventType枚举
         :param handler: 处理函数
         :param is_async: 是否异步处理，默认为False
         """
-        handler_list = self._async_handlers[event_type] if is_async else self._sync_handlers[event_type]
+        # 类型验证和转换
+        if isinstance(event_type, str):
+            event_type_str = event_type
+        else:
+            raise TypeError(f"event_type must be str or EventType, got {type(event_type)}")
+        
+        # 验证处理函数
+        if not callable(handler):
+            raise TypeError(f"handler must be callable, got {type(handler)}")
+        
+        handler_list = self._async_handlers[event_type_str] if is_async else self._sync_handlers[event_type_str]
 
         if handler not in handler_list:
             handler_list.append(handler)
-            logger.debug(f"Subscribed handler for {event_type} (async={is_async})")
+            logger.debug(f"Subscribed handler for {event_type_str} (async={is_async})")
+        else:
+            logger.warning(f"Handler already subscribed for {event_type_str} (async={is_async})")
 
-    def unsubscribe(self, event_type: str, handler: Callable, is_async: bool = False) -> None:
+    def unsubscribe(self, event_type: Union[str, EventType], handler: Callable, is_async: bool = False) -> None:
         """
         取消订阅事件
-        :param event_type: 事件类型
+        :param event_type: 事件类型，可以是字符串或EventType枚举
         :param handler: 处理函数
         :param is_async: 是否异步处理，默认为False
         """
-        handler_list = self._async_handlers[event_type] if is_async else self._sync_handlers[event_type]
+        # 类型验证和转换
+        if isinstance(event_type, str):
+            event_type_str = event_type
+        else:
+            raise TypeError(f"event_type must be str or EventType, got {type(event_type)}")
+        
+        handler_list = self._async_handlers[event_type_str] if is_async else self._sync_handlers[event_type_str]
 
         if handler in handler_list:
             handler_list.remove(handler)
-            logger.debug(f"Unsubscribed handler for {event_type} (async={is_async})")
+            logger.debug(f"Unsubscribed handler for {event_type_str} (async={is_async})")
+        else:
+            logger.warning(f"Handler not found for unsubscription: {event_type_str} (async={is_async})")
 
     def subscribe_global(self, handler: Callable) -> None:
         """订阅所有事件（仅同步）"""
@@ -321,35 +406,46 @@ class EventBus:
     def load_module(self, module_path: str) -> None:
         """动态加载模块"""
         logger.info(f"Loading module: {module_path}")
-        self.publish(Event(EventType.MODULE_LOADED.value, {"path": module_path}))
+        self.publish(Event(EventType.MODULE_LOADED, {"path": module_path}))
 
     def unload_module(self, module_path: str) -> None:
         """卸载模块"""
         logger.info(f"Unloading module: {module_path}")
-        self.publish(Event(EventType.MODULE_UNLOAD.value, {"path": module_path}))
+        self.publish(Event(EventType.MODULE_UNLOAD, {"path": module_path}))
 
     def get_stats(self) -> Dict[str, Any]:
         """获取总线统计信息"""
         return {
             "name": self._name,
-            "event_count": self._event_count,
-            "sync_handlers": {k: len(v) for k, v in self._sync_handlers.items()},
-            "async_handlers": {k: len(v) for k, v in self._async_handlers.items()},
-            "global_handlers": len(self._global_handlers),
+            "total_events_published": self._event_count,
+            "sync_events_processed": self._sync_processed_count,
+            "async_events_processed": self._async_processed_count,
+            "total_events_processed": self._sync_processed_count + self._async_processed_count,
+            "error_count": self._error_count,
+            "event_type_stats": dict(self._event_type_stats),
+            "handlers": {
+                "sync_handlers": {k: len(v) for k, v in self._sync_handlers.items()},
+                "async_handlers": {k: len(v) for k, v in self._async_handlers.items()},
+                "global_handlers": len(self._global_handlers),
+            },
             "monitors": len(self._monitors),
-            "sync_queue_size": self._sync_queue.qsize(),
-            "async_queue_size": self._async_queue.qsize(),
-            "sync_active": self._sync_active,
-            "async_active": self._async_active
+            "queues": {
+                "sync_queue_size": self._sync_queue.qsize(),
+                "async_queue_size": self._async_queue.qsize(),
+            },
+            "status": {
+                "sync_active": self._sync_active,
+                "async_active": self._async_active,
+            }
         }
 
     # ---------- 上下文管理 ---------- #
     def __enter__(self):
-        self.start_engines()
+        self.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.stop_engines()
+        self.stop()
         # 处理异常或记录日志
         if exc_type:
             logger.error(f"EventBus context error: {exc_val}", exc_info=True)
@@ -360,3 +456,46 @@ class EventBus:
         if queue is self._sync_queue:
             return self._sync_active
         return self._async_active
+
+
+if __name__ == '__main__':
+    def timer_handler(event):
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(f'[{timestamp}] 处理TIMER事件')
+        sys.stdout.flush()  # 强制刷新输出缓冲
+    
+    def shutdown_handler(event):
+        print(f'收到关闭事件：{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+        sys.stdout.flush()  # 强制刷新输出缓冲
+
+    print("=" * 50)
+    print("启动事件总线测试...")
+    sys.stdout.flush()  # 强制刷新输出缓冲
+    
+    eb = EventBus(name="Test Engine")
+    
+    # 等待一小段时间让日志输出完成
+    time.sleep(0.1)
+    
+    # 正确订阅TIMER事件类型
+    eb.subscribe(EventType.TIMER, timer_handler)
+    eb.subscribe(EventType.SHUTDOWN, shutdown_handler)
+    
+    print("\n事件总线已启动，按 Ctrl+C 退出...")
+    print("=" * 50)
+    sys.stdout.flush()  # 强制刷新输出缓冲
+    
+    try:
+        # 保持程序运行
+        input("按 Enter 键停止测试...\n")
+    except KeyboardInterrupt:
+        print("\n收到中断信号，正在停止...")
+        sys.stdout.flush()  # 强制刷新输出缓冲
+    finally:
+        eb.stop()
+        # 等待停止日志输出完成
+        time.sleep(0.1)
+        print("\n" + "=" * 50)
+        print("测试完成！")
+        print("=" * 50)
+        sys.stdout.flush()  # 强制刷新输出缓冲

@@ -46,7 +46,7 @@ def _get_log_format(record: Any) -> str:
             "<magenta>{extra[gateway_name]}</magenta> | "
             "<cyan>{extra[module_name]}</cyan> | "
             "<cyan>{function}:{line}</cyan> | "
-            "<level>{message}</level>"
+            "<level>{message}</level>\n"
         )
     else:
         # 不带网关名的格式
@@ -55,7 +55,7 @@ def _get_log_format(record: Any) -> str:
             "<level>{level}</level> | "
             "<cyan>{extra[module_name]}</cyan> | "
             "<cyan>{function}:{line}</cyan> | "
-            "<level>{message}</level>"
+            "<level>{message}</level>\n"
         )
 
 
@@ -98,7 +98,7 @@ class Logger:
         # 控制台日志配置
         if self.log_settings.get("console", True):
             self.logger.add(
-                sink=sys.stderr,
+                sink=sys.stdout,
                 level=self.level,
                 format=_get_log_format,
                 colorize=True,
