@@ -28,6 +28,7 @@ from src.config.constant import Interval
 from typing import DefaultDict
 from src.core.logger import get_logger
 
+
 logger = get_logger("DataService")
 
 

@@ -198,13 +198,23 @@ class MinimalStrategy(BaseStrategy):
         
         # 通过事件总线发布信号
         try:
-            from src.core.event import create_trading_event, EventType
-            signal_event = create_trading_event(
-                EventType.STRATEGY_SIGNAL,
+            from src.core.event import create_trading_event
+            
+            event = create_trading_event(
+                "strategy.signal",
                 signal_data,
-                self.strategy_id
+                "MinimalStrategy"
             )
-            self.event_bus.publish(signal_event)
-            self.write_log(f"同步发送买入信号: {self.volume}@{price} (订单#{self.order_count})")
+            
+            if hasattr(self.event_bus, 'publish'):
+                self.event_bus.publish(event)
+                self.write_log(f"发送同步买入信号: {self.volume}@{price} (订单#{self.order_count})")
+            else:
+                self.write_log("事件总线不可用", "ERROR")
+                
         except Exception as e:
-            self.write_log(f"同步下单失败: {e}", "ERROR") 
+            self.write_log(f"发送策略信号失败: {e}", "ERROR")
+
+
+# 为策略管理器提供兼容性别名
+Strategy = MinimalStrategy 

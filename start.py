@@ -35,9 +35,8 @@ try:
     CTP_AVAILABLE = True
 except ImportError:
     CTP_AVAILABLE = False
-    # 定义占位符类型
-    class MarketDataGateway: pass
-    class OrderTradingGateway: pass
+    MarketDataGateway = None
+    OrderTradingGateway = None
 
 logger = get_logger("Main")
 
@@ -138,12 +137,12 @@ class HomalosSystem:
                 
                 # 初始化行情网关
                 logger.info("📊 初始化CTP行情网关...")
-                if self.event_bus and CTP_AVAILABLE:
+                if self.event_bus and MarketDataGateway:
                     self.market_gateway = MarketDataGateway(self.event_bus, "CTP_MD")
                 
                 # 初始化交易网关
                 logger.info("💰 初始化CTP交易网关...")
-                if self.event_bus and CTP_AVAILABLE:
+                if self.event_bus and OrderTradingGateway:
                     self.trading_gateway = OrderTradingGateway(self.event_bus, "CTP_TD")
             
                 # 连接网关
@@ -158,17 +157,23 @@ class HomalosSystem:
             # 连接行情网关
             if self.market_gateway:
                 logger.info("🔗 连接行情网关...")
-                # market_gateway.connect(ctp_config)  # 根据实际网关API调用
+                self.market_gateway.connect(ctp_config)
+                # 等待连接建立
+                await asyncio.sleep(2)
             
             # 连接交易网关  
             if self.trading_gateway:
                 logger.info("🔗 连接交易网关...")
-                # trading_gateway.connect(ctp_config)  # 根据实际网关API调用
+                self.trading_gateway.connect(ctp_config)
+                # 等待连接建立
+                await asyncio.sleep(2)
             
             logger.info("✅ 网关连接完成")
             
         except Exception as e:
             logger.error(f"❌ 网关连接失败: {e}")
+            # 继续运行，不因网关连接失败而退出
+            logger.warning("⚠️ 系统将在无网关模式下运行")
     
     async def start(self):
         """启动系统"""

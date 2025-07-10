@@ -23,6 +23,7 @@ from src.core.event_bus import EventBus
 from src.core.logger import get_logger
 from src.core.object import OrderRequest, OrderData, TradeData, TickData, PositionData, AccountData, Status
 
+
 logger = get_logger("TradingEngine")
 
 
@@ -73,6 +74,26 @@ class StrategyManager:
         self.event_bus.subscribe("strategy.start", self._handle_start_strategy)
         self.event_bus.subscribe("strategy.stop", self._handle_stop_strategy)
     
+    def _find_strategy_class(self, module):
+        """自动发现策略类 - 查找继承自BaseStrategy的类"""
+        import inspect
+        from src.strategies.base_strategy import BaseStrategy
+        
+        for name, obj in inspect.getmembers(module):
+            if (inspect.isclass(obj) and 
+                issubclass(obj, BaseStrategy) and 
+                obj != BaseStrategy):
+                logger.debug(f"发现策略类: {name}")
+                return obj
+        
+        # 如果没找到继承自BaseStrategy的类，尝试查找名为Strategy的类
+        strategy_class = getattr(module, 'Strategy', None)
+        if strategy_class is not None:
+            logger.debug("使用Strategy类作为回退选项")
+            return strategy_class
+            
+        return None
+    
     async def load_strategy(self, strategy_path: str, strategy_id: str, params: Dict[str, Any]) -> bool:
         """动态加载策略"""
         try:
@@ -86,10 +107,10 @@ class StrategyManager:
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             
-            # 创建策略实例
-            strategy_class = getattr(module, 'Strategy', None)
+            # 创建策略实例 - 自动发现策略类
+            strategy_class = self._find_strategy_class(module)
             if strategy_class is None:
-                raise ValueError("策略文件中未找到Strategy类")
+                raise ValueError("策略文件中未找到继承自BaseStrategy的策略类")
             
             strategy_instance = strategy_class(strategy_id, self.event_bus, params)
             
@@ -227,10 +248,12 @@ class StrategyManager:
     
     def get_all_strategies(self) -> Dict[str, Dict[str, Any]]:
         """获取所有策略状态"""
-        return {
-            strategy_id: self.get_strategy_status(strategy_id)
-            for strategy_id in self.strategies
-        }
+        result = {}
+        for strategy_id in self.strategies:
+            status = self.get_strategy_status(strategy_id)
+            if status is not None:
+                result[strategy_id] = status
+        return result
 
 
 class RiskManager:
