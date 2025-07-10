@@ -1,5 +1,7 @@
 # Homalos——基于Python的期货量化交易系统
 
+中文 | [ENGLISH](README_EN.md)
+
 ## 项目整体架构
 
 ```reStructuredText
