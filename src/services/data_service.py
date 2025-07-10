@@ -606,13 +606,22 @@ class DataService:
             symbol = tick_data.symbol
             self.tick_buffer[symbol] = tick_data
             
-            # 分发给订阅的策略
+            # 分发给订阅的策略 - 发布策略专用事件
             for strategy_id in self.subscribers.get(symbol, set()):
+                # 发布策略专用事件：market.tick.{strategy_id}
                 self.event_bus.publish(create_market_event(
-                    EventType.MARKET_TICK,
+                    f"{EventType.MARKET_TICK}.{strategy_id}",
                     tick_data,
                     "DataService"
                 ))
+                logger.debug(f"为策略 {strategy_id} 发布tick事件: {symbol}")
+
+            # 同时保持通用事件的发布，用于全局监听器
+            self.event_bus.publish(create_market_event(
+                EventType.MARKET_TICK,
+                tick_data,
+                "DataService"
+            ))
             
             # 异步持久化
             if self.enable_persistence:
@@ -642,13 +651,22 @@ class DataService:
             interval = bar_data.interval.value if bar_data.interval else '1m'
             self.bar_buffer[symbol][interval] = bar_data
             
-            # 分发给订阅的策略
+            # 分发给订阅的策略 - 发布策略专用事件
             for strategy_id in self.subscribers.get(symbol, set()):
+                # 发布策略专用事件：market.bar.{strategy_id}
                 self.event_bus.publish(create_market_event(
-                    EventType.MARKET_BAR,
+                    f"{EventType.MARKET_BAR}.{strategy_id}",
                     bar_data,
                     "DataService"
                 ))
+                logger.debug(f"为策略 {strategy_id} 发布bar事件: {symbol}")
+
+            # 同时保持通用事件的发布
+            self.event_bus.publish(create_market_event(
+                EventType.MARKET_BAR,
+                bar_data,
+                "DataService"
+            ))
             
             # 异步持久化
             if self.enable_persistence:

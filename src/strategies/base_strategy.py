@@ -10,6 +10,7 @@
 @Description: 策略基类 - 适配MVP架构
 """
 import asyncio
+import threading
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -45,6 +46,10 @@ class BaseStrategy(ABC):
         self.strategy_id: str = strategy_id
         self.event_bus: EventBus = event_bus
         self.params: Dict[str, Any] = params if params else {}
+        
+        # 事件循环引用（用于跨线程异步调用）
+        self.main_loop: Optional[asyncio.AbstractEventLoop] = None
+        self.main_thread_id: Optional[int] = None
         
         # 策略状态
         self.active: bool = False
@@ -90,8 +95,11 @@ class BaseStrategy(ABC):
             # 更新缓存
             self.tick_cache[tick_data.symbol] = tick_data
             
-            # 调用策略的tick处理
-            asyncio.create_task(self.on_tick(tick_data))
+            # 添加调试日志
+            self.write_log(f"收到tick事件: {tick_data.symbol} {tick_data.last_price} 事件类型:{event.type}", "DEBUG")
+            
+            # 安全地调用策略的tick处理
+            self._safe_call_async(self.on_tick(tick_data))
     
     def _handle_bar_event(self, event: Event):
         """处理Bar事件"""
@@ -101,8 +109,8 @@ class BaseStrategy(ABC):
             interval = bar_data.interval.value if bar_data.interval else '1m'
             self.bar_cache[bar_data.symbol][interval] = bar_data
             
-            # 调用策略的bar处理
-            asyncio.create_task(self.on_bar(bar_data))
+            # 安全地调用策略的bar处理
+            self._safe_call_async(self.on_bar(bar_data))
     
     def _handle_trade_event(self, event: Event):
         """处理成交事件"""
@@ -136,6 +144,77 @@ class BaseStrategy(ABC):
         data = event.data
         # 可以在这里添加风控拒绝的处理逻辑
         self.write_log(f"订单被风控拒绝: {data.get('reasons', [])}", "WARNING")
+
+    def _safe_call_async(self, coro):
+        """安全地调用异步方法 - 改进的线程安全版本"""
+        try:
+            # 方法1: 优先尝试获取当前线程的事件循环
+            current_loop = asyncio.get_running_loop()
+            current_loop.create_task(coro)
+            return
+        except RuntimeError:
+            pass
+        
+        # 方法2: 如果有保存的主线程事件循环，使用线程安全调用
+        if self.main_loop and not self.main_loop.is_closed():
+            try:
+                current_thread_id = threading.get_ident()
+                if current_thread_id == self.main_thread_id:
+                    # 同一线程，直接创建任务
+                    self.main_loop.create_task(coro)
+                else:
+                    # 不同线程，使用线程安全方式
+                    self.main_loop.call_soon_threadsafe(
+                        lambda: self.main_loop.create_task(coro)
+                    )
+                return
+            except Exception as e:
+                self.write_log(f"主线程事件循环调用失败: {e}", "WARNING")
+        
+        # 方法3: 同步回退 - 使用同步版本的处理器
+        try:
+            self.write_log("使用同步回退处理事件", "DEBUG")
+            self._sync_fallback_handler(coro)
+        except Exception as e:
+                         self.write_log(f"同步回退失败: {e}", "ERROR")
+    
+    def _sync_fallback_handler(self, coro):
+        """同步回退处理器 - 当无法使用异步时的备用方案"""
+        import inspect
+        
+        # 检查协程的实际方法
+        if hasattr(coro, 'cr_frame') and coro.cr_frame:
+            func_name = coro.cr_frame.f_code.co_name
+            if func_name == 'on_tick' and hasattr(coro, 'cr_frame'):
+                # 提取tick_data参数
+                tick_data = None
+                try:
+                    # 从协程的局部变量中获取tick_data
+                    if 'tick' in coro.cr_frame.f_locals:
+                        tick_data = coro.cr_frame.f_locals['tick']
+                    elif 'tick_data' in coro.cr_frame.f_locals:
+                        tick_data = coro.cr_frame.f_locals['tick_data']
+                    
+                    if tick_data:
+                        self._sync_on_tick(tick_data)
+                        return
+                except Exception as e:
+                    self.write_log(f"提取tick_data失败: {e}", "DEBUG")
+        
+        # 如果无法识别或提取参数，关闭协程
+        try:
+            coro.close()
+        except:
+            pass
+        self.write_log("使用同步回退但无法处理该协程类型", "WARNING")
+    
+    def _sync_on_tick(self, tick_data: TickData):
+        """同步版本的tick处理 - 子类可重写提供同步逻辑"""
+        # 默认实现：记录日志
+        self.write_log(f"同步处理tick: {tick_data.symbol} @ {tick_data.last_price}", "DEBUG")
+        
+        # 这里可以添加基本的交易逻辑，比如检查条件并下单
+        # 子类应该重写这个方法来实现具体的同步交易逻辑
     
     # ============ 生命周期方法 ============
     
@@ -145,6 +224,14 @@ class BaseStrategy(ABC):
             return
         
         try:
+            # 保存主线程的事件循环引用
+            try:
+                self.main_loop = asyncio.get_running_loop()
+                self.main_thread_id = threading.get_ident()
+                self.write_log(f"保存主线程事件循环: 线程ID={self.main_thread_id}", "DEBUG")
+            except RuntimeError:
+                self.write_log("未找到运行中的事件循环，将使用同步回退", "WARNING")
+            
             await self.on_init()
             self.initialized = True
             self.write_log(f"策略 {self.strategy_id} 初始化完成")

@@ -427,6 +427,9 @@ class OrderManager:
             "OrderManager"
         ))
         
+        # 发布订单提交事件（供监控器监听）
+        self.event_bus.publish(Event("order.submitted", order_data))
+        
         logger.info(f"订单已提交: {order_id} ({strategy_id})")
         return order_id
     

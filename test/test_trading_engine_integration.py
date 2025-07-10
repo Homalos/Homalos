@@ -5,16 +5,16 @@
 import asyncio
 import sys
 import time
-from datetime import datetime
 from unittest.mock import MagicMock
 
+from src.config.constant import Exchange, Product
 from src.core.event_bus import EventBus
+from src.core.object import ContractData, SubscribeRequest
+from src.ctp.gateway.market_data_gateway import MarketDataGateway, symbol_contract_map
 from src.services.data_service import DataService
 from src.services.trading_engine import TradingEngine
-from src.ctp.gateway.market_data_gateway import MarketDataGateway, symbol_contract_map
-from src.core.object import ContractData, SubscribeRequest
-from src.config.constant import Exchange, Product
 from src.strategies.minimal_strategy import MinimalStrategy
+
 
 class TradingMonitor:
     """交易监控器 - 监控订单、账户、持仓变化"""
@@ -25,7 +25,10 @@ class TradingMonitor:
         self.positions = []
         
     def __call__(self, event):
-        if event.type == "order.submitted":
+        if event.type.startswith("market.tick"):
+            print(f"[TICK] 收到Tick: {event.data.symbol} {event.data.last_price} 事件类型:{event.type}")
+            
+        elif event.type == "order.submitted":
             self.orders.append(event.data)
             print(f"[ORDER] 订单提交: {event.data.orderid} {event.data.symbol} {event.data.direction.value if event.data.direction else 'UNKNOWN'} {event.data.volume}@{event.data.price}")
             

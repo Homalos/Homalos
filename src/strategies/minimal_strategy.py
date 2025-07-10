@@ -153,4 +153,58 @@ class MinimalStrategy(BaseStrategy):
             self.active_orders[order_id] = order_request
             self.write_log(f"发送买入订单: {self.volume}@{price} (订单#{self.order_count})")
         else:
-            self.write_log("发送订单失败", "ERROR") 
+            self.write_log("发送订单失败", "ERROR")
+    
+    def _sync_on_tick(self, tick_data: TickData):
+        """同步版本的tick处理 - 应急回退逻辑"""
+        if tick_data.symbol != self.symbol:
+            return
+        
+        current_time = time.time()
+        
+        # 防刷单：检查时间间隔和订单数量
+        if (current_time - self.last_order_time < self.order_interval or 
+            self.order_count >= self.max_orders):
+            return
+        
+        # 同步版本的下单逻辑
+        self._sync_place_buy_order(tick_data.last_price)
+        
+        # 更新状态
+        self.last_order_time = current_time
+        self.order_count += 1
+    
+    def _sync_place_buy_order(self, price: float):
+        """同步版本的下单 - 发布策略信号事件"""
+        # 创建订单请求
+        order_request = OrderRequest(
+            symbol=self.symbol,
+            exchange=self.exchange,
+            direction=Direction.LONG,
+            type=OrderType.LIMIT,
+            volume=self.volume,
+            price=price,
+            offset=Offset.OPEN,
+            reference=f"{self.strategy_id}_sync_buy_{self.order_count}"
+        )
+        
+        # 发布策略信号事件（让交易引擎处理）
+        signal_data = {
+            "strategy_id": self.strategy_id,
+            "action": "place_order",
+            "order_request": order_request,
+            "timestamp": time.time()
+        }
+        
+        # 通过事件总线发布信号
+        try:
+            from src.core.event import create_trading_event, EventType
+            signal_event = create_trading_event(
+                EventType.STRATEGY_SIGNAL,
+                signal_data,
+                self.strategy_id
+            )
+            self.event_bus.publish(signal_event)
+            self.write_log(f"同步发送买入信号: {self.volume}@{price} (订单#{self.order_count})")
+        except Exception as e:
+            self.write_log(f"同步下单失败: {e}", "ERROR") 
