@@ -280,8 +280,8 @@ class PerformanceTestFramework:
                 for task in done:
                     tasks.remove(task)
                     try:
-                        result = await task
-                        results.append(result)
+                        task_result = await task
+                        results.append(task_result)
                         completed_count += 1
                     except Exception as e:
                         error_count += 1
@@ -635,7 +635,7 @@ class TestPerformanceFramework:
         assert result.metrics.get("success_rate", 0) > 0.8, "压力测试成功率过低"
     
     @pytest.mark.asyncio
-    async def test_latency_benchmark(self, performance_framework):
+    async def test_latency_benchmark(self, performance_framework: Any) -> None:
         """测试延迟基准"""
         result = await performance_framework.run_latency_benchmark(operation_count=100)
         performance_framework.benchmark_results.append(result)
@@ -644,7 +644,7 @@ class TestPerformanceFramework:
         assert result.avg_latency_ms < 50, f"平均延迟过高: {result.avg_latency_ms}ms"
     
     @pytest.mark.asyncio
-    async def test_throughput_benchmark(self, performance_framework):
+    async def test_throughput_benchmark(self, performance_framework: Any) -> None:
         """测试吞吐量基准"""
         result = await performance_framework.run_throughput_benchmark(duration_seconds=10)
         performance_framework.benchmark_results.append(result)
