@@ -275,6 +275,14 @@ class RiskManager:
         self.enable_price_check = config.get("risk.enable_price_check", True)
         self.price_deviation_threshold = config.get("risk.price_deviation_threshold", 0.05)
         
+        # 新增：绝对价格限制配置
+        self.absolute_price_limits = config.get("risk.absolute_price_limits", {
+            "rb": {"min": 2000, "max": 6000},
+            "hc": {"min": 2000, "max": 6000},
+            "i": {"min": 400, "max": 1000},
+            "default": {"min": 1, "max": 100000}
+        })
+        
         # 实时监控数据
         self.daily_loss = defaultdict(float)  # strategy_id -> daily_loss
         self.order_frequency = {}  # strategy_id -> {timestamp -> count}
@@ -384,27 +392,34 @@ class RiskManager:
             self.last_prices[tick_data.symbol] = tick_data.last_price
     
     def _enhanced_price_check(self, order_request: OrderRequest) -> RiskCheckResult:
-        """增强的价格合理性检查"""
+        """增强的价格合理性检查（支持绝对限制）"""
         if not self.enable_price_check:
             return RiskCheckResult(True, "", [], "low")
         
         symbol = order_request.symbol
         order_price = order_request.price
+        violations = []
         
-        # 获取最新市场价格
+        # 1. 绝对价格合理性检查（适用于所有环境）
+        # 获取品种前缀
+        symbol_prefix = symbol[:2] if len(symbol) >= 2 else "default"
+        price_limit = self.absolute_price_limits.get(symbol_prefix, self.absolute_price_limits.get("default", {"min": 1, "max": 100000}))
+        
+        if order_price < price_limit["min"] or order_price > price_limit["max"]:
+            violations.append(f"订单价格 {order_price} 超出合理范围 [{price_limit['min']}, {price_limit['max']}]")
+        
+        # 2. 相对价格偏离检查（需要市场数据）
         last_price = self.last_prices.get(symbol)
-        if not last_price:
-            # 没有最新价格，允许通过但记录警告
-            logger.warning(f"无法获取 {symbol} 的最新价格，跳过价格检查")
-            return RiskCheckResult(True, "", ["无最新价格数据"], "medium")
+        if last_price:
+            price_deviation = abs(order_price - last_price) / last_price
+            if price_deviation > self.price_deviation_threshold:
+                violations.append(f"订单价格 {order_price} 偏离市场价格 {last_price} 超过 {self.price_deviation_threshold*100}%")
+        else:
+            # 无市场数据时记录警告，但依靠绝对限制
+            logger.warning(f"无法获取 {symbol} 的最新价格，使用绝对价格限制检查")
         
-        # 计算价格偏离度
-        price_deviation = abs(order_price - last_price) / last_price
-        
-        if price_deviation > self.price_deviation_threshold:
-            return RiskCheckResult(False, "", [
-                f"订单价格 {order_price} 偏离市场价格 {last_price} 超过 {self.price_deviation_threshold*100}%"
-            ], "high")
+        if violations:
+            return RiskCheckResult(False, "", violations, "high")
         
         return RiskCheckResult(True, "", [], "low")
     
@@ -636,7 +651,10 @@ class OrderManager:
         # 发布下单事件（将由网关处理）
         self.event_bus.publish(create_trading_event(
             "gateway.send_order",
-            {"order_data": order_data},
+            {
+                "order_request": order_request,
+                "order_data": order_data
+            },
             "OrderManager"
         ))
         

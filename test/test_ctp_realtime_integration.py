@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.core.event_bus import EventBus
-from src.core.event import Event
+from src.core.event import Event, EventType
 from src.config.config_manager import ConfigManager
 from src.services.trading_engine import TradingEngine
 from src.ctp.gateway.order_trading_gateway import OrderTradingGateway
@@ -66,6 +66,24 @@ class CTRealTimeIntegrationTest:
             # 注册测试事件监听
             self._setup_test_listeners()
             
+            # 为测试环境添加模拟价格数据和行情订阅
+            if hasattr(self.trading_engine.risk_manager, 'last_prices'):
+                # 模拟rb2510的合理市场价格
+                self.trading_engine.risk_manager.last_prices['rb2510'] = 3140.0
+                logger.info("✅ 已设置测试环境模拟价格数据: rb2510@3140.0")
+            
+            # 订阅测试合约行情数据
+            if self.market_gateway:
+                try:
+                    # 发布行情订阅请求
+                    self.event_bus.publish(Event("gateway.subscribe", {
+                        "symbols": ["rb2510"],
+                        "gateway_name": "CTP_MD_TEST"
+                    }))
+                    logger.info("✅ 已请求订阅 rb2510 行情数据")
+                except Exception as e:
+                    logger.warning(f"⚠️ 行情订阅失败: {e}")
+            
             logger.info("✅ 测试环境设置完成")
             return True
             
@@ -112,6 +130,9 @@ class CTRealTimeIntegrationTest:
         # 新增：监听网关状态变更事件
         self.event_bus.subscribe("gateway.state_changed", self._on_gateway_state_changed)
         self.event_bus.subscribe("gateway.contracts_ready", self._on_contracts_ready)
+        # 新增：监听风控相关事件
+        self.event_bus.subscribe("risk.rejected", self._on_risk_rejected)
+        self.event_bus.subscribe(EventType.RISK_APPROVED, self._on_risk_approved)
     
     def _on_order_submitted(self, event: Event):
         """订单提交事件"""
@@ -160,6 +181,21 @@ class CTRealTimeIntegrationTest:
         query_duration = data.get("query_duration", 0)
         logger.info(f"📋 合约信息就绪: {gateway_name} 加载了{contract_count}个合约，用时{query_duration:.2f}秒")
     
+    def _on_risk_rejected(self, event: Event):
+        """风控拒绝事件"""
+        data = event.data
+        violations = data.get("violations", [])
+        strategy_id = data.get("strategy_id", "unknown")
+        logger.warning(f"🚫 风控拒绝: {strategy_id} - {violations}")
+        self.order_responses.append(("risk_rejected", data, time.time()))
+    
+    def _on_risk_approved(self, event: Event):
+        """风控通过事件"""
+        data = event.data
+        strategy_id = data.get("strategy_id", "unknown")
+        logger.info(f"✅ 风控通过: {strategy_id}")
+        self.order_responses.append(("risk_approved", data, time.time()))
+    
     async def test_order_execution_chain(self):
         """测试完整的订单执行链路"""
         logger.info("🧪 开始测试订单执行链路...")
@@ -182,8 +218,9 @@ class CTRealTimeIntegrationTest:
             # 发送订单到交易引擎
             start_time = time.time()
             
-            # 通过事件总线发送订单
-            self.event_bus.publish(Event("order.place", {
+            # 通过策略信号事件发送订单（正确的风控流程）
+            self.event_bus.publish(Event(EventType.STRATEGY_SIGNAL, {
+                "action": "place_order",
                 "order_request": order_request,
                 "strategy_id": "integration_test"
             }))
@@ -220,15 +257,17 @@ class CTRealTimeIntegrationTest:
             if hasattr(data, '__dict__'):
                 logger.debug(f"    数据: {data.__dict__}")
         
-        # 检查关键事件（修正判断逻辑）
+        # 检查关键事件（增强版包含风控）
         success_indicators = [
             ("submitted", "订单提交成功"),
+            ("risk_approved", "风控检查通过"),
             ("sent_to_ctp", "订单发送到CTP成功"),
         ]
         
-        # 失败指标检查
+        # 失败指标检查（增强版）
         failure_indicators = [
             ("send_failed", "订单发送失败"),
+            ("risk_rejected", "风控拒绝"),
             ("rejected", "订单被拒绝"),
             ("error", "系统错误")
         ]
@@ -341,7 +380,8 @@ class CTRealTimeIntegrationTest:
             )
             
             logger.info("📝 测试超大订单风控...")
-            self.event_bus.publish(Event("order.place", {
+            self.event_bus.publish(Event(EventType.STRATEGY_SIGNAL, {
+                "action": "place_order",
                 "order_request": large_order,
                 "strategy_id": "risk_test"
             }))
@@ -355,28 +395,43 @@ class CTRealTimeIntegrationTest:
                 direction=Direction.LONG,
                 type=OrderType.LIMIT,
                 volume=1,
-                price=10000.0,  # 异常高价
+                price=8000.0,  # 改为8000元，超出rb品种6000元上限
                 offset=Offset.OPEN,
                 reference="risk_test_price"
             )
             
             logger.info("📝 测试异常价格风控...")
-            self.event_bus.publish(Event("order.place", {
+            self.event_bus.publish(Event(EventType.STRATEGY_SIGNAL, {
+                "action": "place_order",
                 "order_request": bad_price_order,
                 "strategy_id": "risk_test"
             }))
             
             await asyncio.sleep(3)
             
-            # 分析风控结果
+            # 分析风控结果（增强版）
             risk_rejection_count = sum(1 for event_type, _, _ in self.order_responses 
-                                     if event_type in ["send_failed", "rejected"])
+                                     if event_type == "risk_rejected")
             
-            if risk_rejection_count >= 2:
-                logger.info("✅ 风控系统正常工作")
+            # 检查具体的拒绝原因
+            risk_rejected_events = [data for event_type, data, _ in self.order_responses 
+                                   if event_type == "risk_rejected"]
+            
+            volume_rejected = any("订单手数" in str(event.get("violations", [])) for event in risk_rejected_events)
+            price_rejected = any("价格" in str(event.get("violations", [])) for event in risk_rejected_events)
+            
+            # 超大订单和异常价格都应该被风控拦截
+            expected_rejections = 2
+            
+            if risk_rejection_count >= expected_rejections and volume_rejected and price_rejected:
+                logger.info(f"✅ 风控系统正常工作 - 拦截了 {risk_rejection_count} 个违规订单")
+                logger.info(f"   - 手数限制检查: {'✅' if volume_rejected else '❌'}")
+                logger.info(f"   - 价格限制检查: {'✅' if price_rejected else '❌'}")
                 return True
             else:
-                logger.warning("⚠️ 风控系统可能未正常工作")
+                logger.warning(f"⚠️ 风控系统未完全工作 - 拦截了 {risk_rejection_count}/{expected_rejections} 个违规订单")
+                logger.warning(f"   - 手数限制检查: {'✅' if volume_rejected else '❌'}")
+                logger.warning(f"   - 价格限制检查: {'✅' if price_rejected else '❌'}")
                 return False
                 
         except Exception as e:
