@@ -74,7 +74,7 @@ class OrderTradingGateway(BaseGateway):
         try:
             current_dir = os.path.dirname(os.path.abspath(__file__))
             # 构建到 instrument_exchange_id.json 的相对路径
-            map_file_path = os.path.join(current_dir, "..", "..", "config_files", "instrument_exchange_id.json")
+            map_file_path = os.path.join(current_dir, "..", "..", "..", "config", "instrument_exchange_id.json")
             map_file_path = os.path.normpath(map_file_path)  # 规范化路径
 
             if os.path.exists(map_file_path):

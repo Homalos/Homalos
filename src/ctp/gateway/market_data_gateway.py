@@ -487,6 +487,9 @@ class CtpMdApi(MdApi):
             global_var.md_login_success = True
             self.gateway._update_connection_state(ConnectionState.LOGGED_IN)
             self.gateway.write_log("行情服务器登录成功")
+            
+            # 更新心跳时间
+            self.gateway.last_heartbeat = time.time()
 
             for symbol in self.subscribed:
                 self.subscribeMarketData(symbol)
@@ -533,6 +536,9 @@ class CtpMdApi(MdApi):
         :return:
         """
         """行情数据推送"""
+        # 更新心跳时间
+        self.gateway.last_heartbeat = time.time()
+        
         # 过滤没有时间戳的异常行情数据
         if not data["UpdateTime"]:
             return

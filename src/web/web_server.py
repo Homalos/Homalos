@@ -189,6 +189,20 @@ class WebServer:
                 raise HTTPException(status_code=500, detail=str(e))
         
         # 策略管理API
+        @app.get("/api/v1/strategies/discover")
+        async def discover_strategies():
+            """发现可用策略"""
+            try:
+                strategies = await self._discover_available_strategies()
+                return SystemResponse(
+                    success=True,
+                    message="策略发现成功",
+                    data={"available_strategies": strategies}
+                )
+            except Exception as e:
+                logger.error(f"策略发现失败: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
         @app.get("/api/v1/strategies")
         async def list_strategies():
             """获取策略列表"""
@@ -417,6 +431,89 @@ class WebServer:
         except Exception:
             return str(data)
     
+    async def _discover_available_strategies(self) -> List[Dict[str, Any]]:
+        """发现可用策略文件"""
+        try:
+            from pathlib import Path
+            import importlib.util
+            import inspect
+            from src.strategies.base_strategy import BaseStrategy
+            
+            strategies = []
+            strategy_dir = Path("src/strategies")
+            
+            if not strategy_dir.exists():
+                logger.warning("策略目录不存在")
+                return strategies
+            
+            # 扫描策略文件
+            for strategy_file in strategy_dir.glob("*.py"):
+                if strategy_file.name.startswith("__") or strategy_file.name in ["base_strategy.py", "strategy_factory.py"]:
+                    continue
+                
+                try:
+                    # 尝试动态导入模块
+                    spec = importlib.util.spec_from_file_location(
+                        strategy_file.stem, str(strategy_file)
+                    )
+                    
+                    if spec is None or spec.loader is None:
+                        continue
+                    
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    
+                    # 查找策略类
+                    strategy_classes = []
+                    detected_classes = set()  # 添加去重集合
+                    
+                    for name, obj in inspect.getmembers(module):
+                        if (inspect.isclass(obj) and 
+                            issubclass(obj, BaseStrategy) and 
+                            obj != BaseStrategy and
+                            obj.__name__ not in detected_classes):  # 避免重复检测
+                            
+                            try:
+                                # 验证策略类必要属性
+                                if not (hasattr(obj, 'strategy_name') or hasattr(obj, '__name__')):
+                                    logger.warning(f"策略类 {name} 缺少必要属性，跳过")
+                                    continue
+                                    
+                                # 读取策略类的简洁属性而非docstring
+                                strategy_info = {
+                                    "class_name": obj.__name__,  # 使用类的真实名称
+                                    "name": getattr(obj, "strategy_name", obj.__name__),
+                                    "authors": getattr(obj, "authors", getattr(obj, "strategy_author", "未知")),
+                                    "version": getattr(obj, "version", getattr(obj, "strategy_version", "1.0.0")),
+                                    "description": getattr(obj, "description", getattr(obj, "strategy_description", "无描述"))
+                                }
+                                
+                                strategy_classes.append(strategy_info)
+                                detected_classes.add(obj.__name__)  # 记录已检测的类
+                                
+                            except AttributeError as e:
+                                logger.debug(f"策略类 {name} 属性访问错误: {e}")
+                                continue
+                    
+                    if strategy_classes:
+                        strategies.append({
+                            "file_name": strategy_file.name,
+                            "file_path": str(strategy_file),
+                            "strategy_classes": strategy_classes,
+                            "is_template": "template" in strategy_file.name.lower()
+                        })
+                        
+                except Exception as e:
+                    logger.debug(f"跳过策略文件 {strategy_file.name}: {e}")
+                    continue
+            
+            logger.info(f"发现 {len(strategies)} 个策略文件")
+            return strategies
+            
+        except Exception as e:
+            logger.error(f"策略发现失败: {e}")
+            return []
+
     def _get_home_html(self) -> str:
         """获取主页HTML"""
         return '''
@@ -440,6 +537,56 @@ class WebServer:
         .log-type { font-weight: bold; margin: 0 0.5rem; }
         .log-message { color: #333; }
         .strategy-table { margin-top: 1rem; }
+        
+        /* 策略加载弹框专用样式 */
+        .strategy-option { 
+            margin-bottom: 1.5rem; 
+            border: 1px solid #e4e7ed; 
+            border-radius: 8px; 
+            padding: 1rem; 
+            transition: all 0.3s ease; 
+        }
+        .strategy-option:hover { 
+            border-color: #409EFF; 
+            box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2); 
+        }
+        .strategy-option.selected { 
+            border-color: #409EFF; 
+            background-color: #f0f9ff; 
+        }
+        .strategy-filename { 
+            font-weight: bold; 
+            font-size: 1rem; 
+            color: #303133; 
+            margin-left: 0.5rem; 
+        }
+        .strategy-classes-container { 
+            margin-top: 0.8rem; 
+            padding-left: 1.5rem; 
+        }
+        .strategy-class-card { 
+            background: #fafafa; 
+            border-left: 3px solid #409EFF; 
+            padding: 0.8rem; 
+            margin-bottom: 0.6rem; 
+            border-radius: 4px; 
+        }
+        .strategy-class-header { 
+            display: flex; 
+            align-items: center; 
+            gap: 0.5rem; 
+            margin-bottom: 0.5rem; 
+        }
+        .strategy-class-meta { 
+            font-size: 0.85rem; 
+            color: #606266; 
+            margin-bottom: 0.3rem; 
+        }
+        .strategy-class-description { 
+            font-size: 0.9rem; 
+            color: #303133; 
+            line-height: 1.4; 
+        }
     </style>
 </head>
 <body>
@@ -527,6 +674,96 @@ class WebServer:
                 </el-table>
             </el-card>
             
+            <!-- 策略加载对话框 -->
+            <el-dialog 
+                v-model="strategyDialogVisible" 
+                title="加载策略" 
+                width="800px"
+                :close-on-click-modal="false">
+                
+                <div v-if="availableStrategies.length > 0">
+                    <h4>1. 选择策略文件：</h4>
+                    <el-radio-group v-model="selectedStrategy">
+                        <div v-for="strategy in availableStrategies" :key="strategy.file_name" 
+                             class="strategy-option" 
+                             :class="{ selected: selectedStrategy && selectedStrategy.file_name === strategy.file_name }"
+                             :data-strategy="strategy.file_name">
+                            <el-radio :label="strategy" class="strategy-radio">
+                                <span class="strategy-filename">📁 {{ strategy.file_name }}</span>
+                            </el-radio>
+                            
+                            <div class="strategy-classes-container">
+                                <div v-for="cls in strategy.strategy_classes" :key="cls.class_name" class="strategy-class-card">
+                                    <div class="strategy-class-header">
+                                        <el-tag size="small" type="primary">{{ cls.name }}</el-tag>
+                                        <el-tag size="small" type="info">v{{ cls.version }}</el-tag>
+                                        <el-tag size="small" type="success">{{ cls.class_name }}</el-tag>
+                                    </div>
+                                    <div class="strategy-class-meta">
+                                        <i class="el-icon-user"></i> 作者: {{ Array.isArray(cls.authors) ? cls.authors.join(', ') : cls.authors }}
+                                    </div>
+                                    <div class="strategy-class-description">
+                                        {{ cls.description }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </el-radio-group>
+                    
+                    <div v-if="selectedStrategy" style="margin-top: 2rem;">
+                        <h4>2. 配置策略参数：</h4>
+                        <el-form :model="strategyFormData" label-width="120px">
+                            <el-form-item label="策略ID" required>
+                                <el-input 
+                                    v-model="strategyFormData.strategyId" 
+                                    placeholder="请输入唯一的策略ID"
+                                    style="width: 300px;">
+                                </el-input>
+                                <el-text type="info" style="margin-left: 1rem;">用于识别策略实例的唯一标识</el-text>
+                            </el-form-item>
+                            
+                            <el-form-item label="策略参数">
+                                <div style="width: 100%;">
+                                    <el-input 
+                                        v-model="paramsJsonText" 
+                                        type="textarea" 
+                                        :rows="4"
+                                        placeholder='{"symbol": "rb2510", "volume": 1}'
+                                        @input="updateParams">
+                                    </el-input>
+                                    <el-text type="info" style="display: block; margin-top: 0.5rem;">
+                                        请输入JSON格式的策略参数（可选）
+                                    </el-text>
+                                </div>
+                            </el-form-item>
+                        </el-form>
+                        
+                        <div style="margin-top: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: 4px;">
+                            <h5>预览信息：</h5>
+                            <p><strong>文件路径：</strong>{{ selectedStrategy.file_path }}</p>
+                            <p><strong>策略类：</strong>{{ selectedStrategy.strategy_classes.map(c => c.class_name).join(', ') }}</p>
+                            <p><strong>是否模板：</strong>{{ selectedStrategy.is_template ? '是' : '否' }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div v-else style="text-align: center; padding: 2rem;">
+                    <el-empty description="未发现可用策略文件"></el-empty>
+                </div>
+                
+                <template #footer>
+                    <span class="dialog-footer">
+                        <el-button @click="strategyDialogVisible = false">取消</el-button>
+                        <el-button 
+                            type="primary" 
+                            @click="executeStrategyLoad"
+                            :disabled="!selectedStrategy || !strategyFormData.strategyId">
+                            加载策略
+                        </el-button>
+                    </span>
+                </template>
+            </el-dialog>
+            
             <!-- 实时日志 -->
             <el-card style="margin-top: 1rem;">
                 <div slot="header">
@@ -556,7 +793,16 @@ class WebServer:
                     accountInfo: {},
                     realtimeLogs: [],
                     wsConnected: false,
-                    ws: null
+                    ws: null,
+                    // 策略加载对话框状态
+                    strategyDialogVisible: false,
+                    availableStrategies: [],
+                    selectedStrategy: null,
+                    strategyFormData: {
+                        strategyId: '',
+                        params: {}
+                    },
+                    paramsJsonText: ''
                 }
             },
             computed: {
@@ -656,13 +902,103 @@ class WebServer:
                     }
                 },
                 
-                loadStrategy() {
-                    this.$prompt('请输入策略文件路径', '加载策略', {
-                        confirmButtonText: '确定',
-                        cancelButtonText: '取消'
-                    }).then(({ value }) => {
-                        // 这里可以实现策略加载逻辑
-                        this.$message.info('策略加载功能需要进一步完善');
+                async loadAvailableStrategies() {
+                    try {
+                        const response = await fetch('/api/v1/strategies/discover');
+                        const result = await response.json();
+                        if (result.success) {
+                            return result.data.available_strategies;
+                        }
+                        throw new Error(result.message);
+                    } catch (error) {
+                        this.$message.error('获取策略列表失败');
+                        console.error('获取策略列表失败:', error);
+                        return [];
+                    }
+                },
+                
+                async loadStrategy() {
+                    try {
+                        // 1. 获取可用策略列表
+                        this.availableStrategies = await this.loadAvailableStrategies();
+                        
+                        if (this.availableStrategies.length === 0) {
+                            this.$message.warning('未发现可用策略文件');
+                            return;
+                        }
+                        
+                        // 2. 显示策略选择对话框
+                        this.selectedStrategy = null;
+                        this.strategyFormData = {
+                            strategyId: '',
+                            params: {}
+                        };
+                        this.strategyDialogVisible = true;
+                        
+                    } catch (error) {
+                        this.$message.error('策略加载失败');
+                        console.error('策略加载错误:', error);
+                    }
+                },
+                
+                async executeStrategyLoad() {
+                    if (!this.selectedStrategy || !this.strategyFormData.strategyId) {
+                        this.$message.warning('请选择策略并输入策略ID');
+                        return;
+                    }
+                    
+                    try {
+                        const payload = {
+                            strategy_id: this.strategyFormData.strategyId,
+                            strategy_path: this.selectedStrategy.file_path,
+                            params: this.strategyFormData.params
+                        };
+                        
+                        const response = await fetch('/api/v1/strategies', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            this.$message.success(result.message);
+                            this.strategyDialogVisible = false;
+                            await this.loadStrategies(); // 刷新策略列表
+                        } else {
+                            this.$message.error(result.message);
+                        }
+                    } catch (error) {
+                        this.$message.error('策略加载失败');
+                        console.error('策略加载失败:', error);
+                    }
+                },
+                
+                updateParams() {
+                    try {
+                        if (this.paramsJsonText.trim() === '') {
+                            this.strategyFormData.params = {};
+                        } else {
+                            this.strategyFormData.params = JSON.parse(this.paramsJsonText);
+                        }
+                    } catch (error) {
+                        // JSON解析失败时保持原有参数
+                        console.warn('JSON参数格式错误:', error);
+                    }
+                },
+                
+                selectStrategy(strategy) {
+                    this.selectedStrategy = strategy;
+                    // 添加视觉反馈
+                    this.$nextTick(() => {
+                        document.querySelectorAll('.strategy-option').forEach(el => {
+                            el.classList.remove('selected');
+                        });
+                        const selectedElement = document.querySelector(`[data-strategy="${strategy.file_name}"]`);
+                        if (selectedElement) {
+                            selectedElement.classList.add('selected');
+                        }
                     });
                 },
                 
@@ -735,7 +1071,7 @@ class WebServer:
                 
                 clearLogs() {
                     this.realtimeLogs = [];
-                },
+          c      },
                 
                 getStatusType(status) {
                     const types = {
