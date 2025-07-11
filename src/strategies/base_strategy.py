@@ -12,6 +12,7 @@
 import asyncio
 import threading
 import time
+import uuid
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import Optional, Dict, List, Any, Set
@@ -45,6 +46,7 @@ class BaseStrategy(ABC):
     
     def __init__(self, strategy_id: str, event_bus: EventBus, params: Optional[Dict[str, Any]] = None):
         self.strategy_id = strategy_id
+        self.strategy_uuid = str(uuid.uuid4())  # 自动生成UUID作为唯一标识
         self.event_bus = event_bus
         self.params = params or {}
         
@@ -450,6 +452,10 @@ class BaseStrategy(ABC):
         self.params[key] = value
     
     # ============ 工具方法 ============
+    
+    def get_strategy_uuid(self) -> str:
+        """获取策略UUID"""
+        return self.strategy_uuid
     
     def write_log(self, msg: str, level: str = "INFO"):
         """写日志"""

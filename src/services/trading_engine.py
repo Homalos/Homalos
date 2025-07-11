@@ -36,6 +36,8 @@ class StrategyInfo:
     instance: Any
     status: str  # "loading", "loaded", "running", "stopped", "error"
     params: Dict[str, Any]
+    strategy_uuid: Optional[str] = None  # 策略UUID唯一标识
+    strategy_path: Optional[str] = None  # 策略文件路径
     start_time: Optional[float] = None
     stop_time: Optional[float] = None
     error_message: Optional[str] = None
@@ -95,8 +97,10 @@ class StrategyManager:
             
         return None
     
-    async def load_strategy(self, strategy_path: str, strategy_id: str, params: Dict[str, Any]) -> bool:
-        """动态加载策略"""
+    async def load_strategy(self, strategy_path: str, user_strategy_name: Optional[str] = None, params: Optional[Dict[str, Any]] = None) -> tuple[bool, str]:
+        """动态加载策略 - 自动生成UUID作为主键"""
+        params = params or {}
+        
         try:
             import importlib.util
             
@@ -113,49 +117,69 @@ class StrategyManager:
             if strategy_class is None:
                 raise ValueError("策略文件中未找到继承自BaseStrategy的策略类")
             
-            strategy_instance = strategy_class(strategy_id, self.event_bus, params)
+            # 创建策略实例，传入用户提供的策略名称或自动生成
+            display_name = user_strategy_name or strategy_class.__name__
+            strategy_instance = strategy_class(display_name, self.event_bus, params)
             
-            # 注册策略信息
+            # 获取策略自动生成的UUID
+            strategy_uuid = strategy_instance.get_strategy_uuid()
+            
+            # 注册策略信息，使用UUID作为主键
             strategy_info = StrategyInfo(
-                strategy_id=strategy_id,
-                strategy_name=getattr(strategy_instance, 'strategy_name', strategy_id),
+                strategy_id=display_name,  # 用于显示的友好名称
+                strategy_name=getattr(strategy_instance, 'strategy_name', display_name),
                 instance=strategy_instance,
                 status="loaded",
-                params=params
+                params=params,
+                strategy_uuid=strategy_uuid,  # 策略UUID作为唯一标识
+                strategy_path=strategy_path  # 保存策略文件路径
             )
             
-            self.strategies[strategy_id] = strategy_info
+            # 使用UUID作为存储键
+            self.strategies[strategy_uuid] = strategy_info
             
-            # 发布策略加载事件
+            # 发布策略加载成功事件
             self.event_bus.publish(create_trading_event(
-                EventType.STRATEGY_SIGNAL,
+                "strategy.loaded",
                 {
-                    "action": "loaded",
-                    "strategy_id": strategy_id,
-                    "strategy_name": strategy_info.strategy_name
+                    "strategy_id": display_name,
+                    "strategy_uuid": strategy_uuid,
+                    "strategy_name": strategy_info.strategy_name,
+                    "strategy_path": strategy_path,
+                    "message": f"策略 {display_name} 加载成功"
                 },
                 "StrategyManager"
             ))
             
-            logger.info(f"策略加载成功: {strategy_id} ({strategy_info.strategy_name})")
-            return True
+            logger.info(f"策略加载成功: {display_name} (UUID: {strategy_uuid})")
+            return True, strategy_uuid
             
         except Exception as e:
-            logger.error(f"策略加载失败 {strategy_id}: {e}")
-            if strategy_id in self.strategies:
-                self.strategies[strategy_id].status = "error"
-                self.strategies[strategy_id].error_message = str(e)
-            return False
+            error_msg = f"策略加载失败: {e}"
+            logger.error(error_msg)
+            
+            # 发布策略加载失败事件
+            self.event_bus.publish(create_trading_event(
+                "strategy.load_failed",
+                {
+                    "strategy_path": strategy_path,
+                    "error": str(e),
+                    "message": error_msg
+                },
+                "StrategyManager"
+            ))
+            
+            return False, ""
     
-    async def start_strategy(self, strategy_id: str) -> bool:
-        """启动策略"""
-        if strategy_id not in self.strategies:
-            logger.error(f"策略不存在: {strategy_id}")
+    async def start_strategy(self, strategy_uuid: str) -> bool:
+        """启动策略 - 使用UUID作为标识符"""
+        if strategy_uuid not in self.strategies:
+            logger.error(f"策略不存在: {strategy_uuid}")
             return False
         
-        strategy_info = self.strategies[strategy_id]
+        strategy_info = self.strategies[strategy_uuid]
         if strategy_info.status == "running":
-            logger.warning(f"策略已在运行: {strategy_id}")
+            logger.warning(f"策略已在运行: {strategy_info.strategy_name} ({strategy_uuid})")
             return True
         
         try:
@@ -165,22 +189,47 @@ class StrategyManager:
             strategy_info.status = "running"
             strategy_info.start_time = time.time()
             
-            logger.info(f"策略启动成功: {strategy_id}")
+            # 发布策略启动成功事件
+            self.event_bus.publish(create_trading_event(
+                "strategy.started",
+                {
+                    "strategy_id": strategy_info.strategy_id,
+                    "strategy_uuid": strategy_uuid,
+                    "strategy_name": strategy_info.strategy_name,
+                    "message": f"策略 {strategy_info.strategy_name} 启动成功"
+                },
+                "StrategyManager"
+            ))
+            
+            logger.info(f"策略启动成功: {strategy_info.strategy_name} (UUID: {strategy_uuid})")
             return True
             
         except Exception as e:
-            logger.error(f"策略启动失败 {strategy_id}: {e}")
+            logger.error(f"策略启动失败 {strategy_info.strategy_name}: {e}")
             strategy_info.status = "error"
             strategy_info.error_message = str(e)
+            
+            # 发布策略启动失败事件
+            self.event_bus.publish(create_trading_event(
+                "strategy.start_failed",
+                {
+                    "strategy_id": strategy_info.strategy_id,
+                    "strategy_uuid": strategy_uuid,
+                    "error": str(e),
+                    "message": f"策略 {strategy_info.strategy_name} 启动失败: {e}"
+                },
+                "StrategyManager"
+            ))
+            
             return False
     
-    async def stop_strategy(self, strategy_id: str) -> bool:
-        """停止策略"""
-        if strategy_id not in self.strategies:
-            logger.error(f"策略不存在: {strategy_id}")
+    async def stop_strategy(self, strategy_uuid: str) -> bool:
+        """停止策略 - 使用UUID作为标识符"""
+        if strategy_uuid not in self.strategies:
+            logger.error(f"策略不存在: {strategy_uuid}")
             return False
         
-        strategy_info = self.strategies[strategy_id]
+        strategy_info = self.strategies[strategy_uuid]
         
         try:
             # 修改：调用策略的stop()方法
@@ -189,11 +238,36 @@ class StrategyManager:
             strategy_info.status = "stopped"
             strategy_info.stop_time = time.time()
             
-            logger.info(f"策略停止成功: {strategy_id}")
+            # 发布策略停止成功事件
+            self.event_bus.publish(create_trading_event(
+                "strategy.stopped",
+                {
+                    "strategy_id": strategy_info.strategy_id,
+                    "strategy_uuid": strategy_uuid,
+                    "strategy_name": strategy_info.strategy_name,
+                    "message": f"策略 {strategy_info.strategy_name} 停止成功"
+                },
+                "StrategyManager"
+            ))
+            
+            logger.info(f"策略停止成功: {strategy_info.strategy_name} (UUID: {strategy_uuid})")
             return True
             
         except Exception as e:
-            logger.error(f"策略停止失败 {strategy_id}: {e}")
+            logger.error(f"策略停止失败 {strategy_info.strategy_name}: {e}")
+            
+            # 发布策略停止失败事件
+            self.event_bus.publish(create_trading_event(
+                "strategy.stop_failed",
+                {
+                    "strategy_id": strategy_info.strategy_id,
+                    "strategy_uuid": strategy_uuid,
+                    "error": str(e),
+                    "message": f"策略 {strategy_info.strategy_name} 停止失败: {e}"
+                },
+                "StrategyManager"
+            ))
+            
             return False
     
     def _handle_market_tick(self, event: Event):
@@ -223,23 +297,25 @@ class StrategyManager:
     
     def _handle_start_strategy(self, event: Event):
         """处理策略启动请求"""
-        strategy_id = event.data["strategy_id"]
-        asyncio.create_task(self.start_strategy(strategy_id))
+        strategy_uuid = event.data["strategy_uuid"]
+        asyncio.create_task(self.start_strategy(strategy_uuid))
     
     def _handle_stop_strategy(self, event: Event):
         """处理策略停止请求"""
-        strategy_id = event.data["strategy_id"]
-        asyncio.create_task(self.stop_strategy(strategy_id))
+        strategy_uuid = event.data["strategy_uuid"]
+        asyncio.create_task(self.stop_strategy(strategy_uuid))
     
-    def get_strategy_status(self, strategy_id: str) -> Optional[Dict[str, Any]]:
-        """获取策略状态"""
-        if strategy_id not in self.strategies:
+    def get_strategy_status(self, strategy_uuid: str) -> Optional[Dict[str, Any]]:
+        """获取策略状态 - 使用UUID查找"""
+        if strategy_uuid not in self.strategies:
             return None
         
-        strategy_info = self.strategies[strategy_id]
+        strategy_info = self.strategies[strategy_uuid]
         return {
             "strategy_id": strategy_info.strategy_id,
             "strategy_name": strategy_info.strategy_name,
+            "strategy_uuid": strategy_info.strategy_uuid,  # 返回策略UUID
+            "strategy_path": strategy_info.strategy_path,  # 返回策略路径
             "status": strategy_info.status,
             "start_time": strategy_info.start_time,
             "stop_time": strategy_info.stop_time,
@@ -1024,8 +1100,8 @@ class TradingEngine:
             return
         
         # 停止所有策略
-        for strategy_id in list(self.strategy_manager.strategies.keys()):
-            await self.strategy_manager.stop_strategy(strategy_id)
+        for strategy_uuid in list(self.strategy_manager.strategies.keys()):
+            await self.strategy_manager.stop_strategy(strategy_uuid)
         
         # 停止性能监控
         self.performance_monitor.stop_monitoring()

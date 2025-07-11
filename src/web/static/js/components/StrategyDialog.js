@@ -15,15 +15,15 @@ const StrategyDialogComponent = {
             <div v-if="availableStrategies.length > 0">
                 <h4>1. 选择策略文件：</h4>
                 
-                <el-radio-group v-model="selectedStrategy">
+                <el-radio-group v-model="selectedStrategyId">
                     <div v-for="strategy in availableStrategies" 
                          :key="strategy.file_name" 
                          class="strategy-option" 
-                         :class="{ selected: selectedStrategy && selectedStrategy.file_name === strategy.file_name }"
+                         :class="{ selected: selectedStrategyId === strategy.file_name }"
                          :data-strategy="strategy.file_name"
                          @click="selectStrategy(strategy)">
                          
-                        <el-radio :label="strategy" class="strategy-radio">
+                        <el-radio :label="strategy.file_name" class="strategy-radio">
                             <span class="strategy-filename">📁 {{ strategy.file_name }}</span>
                         </el-radio>
                         
@@ -53,22 +53,9 @@ const StrategyDialogComponent = {
                 
                 <!-- 参数配置区域 -->
                 <div v-if="selectedStrategy" class="strategy-params-section">
-                    <h4>2. 配置策略参数：</h4>
+                    <h4>2. 配置策略参数（可选）：</h4>
                     
                     <el-form :model="strategyFormData" label-width="120px" class="strategy-form">
-                        <el-form-item label="策略ID" required>
-                            <el-input 
-                                v-model="strategyFormData.strategyId" 
-                                placeholder="请输入唯一的策略ID"
-                                style="width: 300px;"
-                                :maxlength="50"
-                                show-word-limit>
-                            </el-input>
-                            <div style="margin-top: 0.5rem;">
-                                <el-text type="info">用于识别策略实例的唯一标识</el-text>
-                            </div>
-                        </el-form-item>
-                        
                         <el-form-item label="策略参数">
                             <div style="width: 100%;">
                                 <el-input 
@@ -100,6 +87,7 @@ const StrategyDialogComponent = {
                         <p v-if="strategyFormData.params && Object.keys(strategyFormData.params).length > 0">
                             <strong>参数预览：</strong>{{ JSON.stringify(strategyFormData.params, null, 2) }}
                         </p>
+                        <p><strong>说明：</strong>系统将自动生成策略UUID作为唯一标识</p>
                     </div>
                 </div>
             </div>
@@ -142,7 +130,8 @@ const StrategyDialogComponent = {
         
         // 本地响应式数据
         const availableStrategies = Vue.ref([])
-        const selectedStrategy = Vue.ref(null)
+        const selectedStrategy = Vue.ref(null) // 完整的策略对象
+        const selectedStrategyId = Vue.ref('') // 策略文件名，用于ElRadio绑定
         const loadingStrategies = Vue.ref(false)
         const loadingStrategy = Vue.ref(false)
         const paramError = Vue.ref('')
@@ -150,17 +139,14 @@ const StrategyDialogComponent = {
         
         // 表单数据
         const strategyFormData = Vue.reactive({
-            strategyId: '',
             params: {}
         })
         
         const paramsJsonText = Vue.ref('')
         
-        // 计算是否可以加载策略
+        // 计算是否可以加载策略 - 移除策略ID检查，只检查策略选择和参数格式
         const canLoadStrategy = Vue.computed(() => {
-            return selectedStrategy.value && 
-                   strategyFormData.strategyId.trim() !== '' && 
-                   !paramError.value
+            return selectedStrategy.value && !paramError.value
         })
         
         // 获取空状态描述
@@ -183,6 +169,7 @@ const StrategyDialogComponent = {
         // 选择策略
         const selectStrategy = (strategy) => {
             selectedStrategy.value = strategy
+            selectedStrategyId.value = strategy.file_name
             actions.selectStrategy(strategy)
         }
         
@@ -198,7 +185,6 @@ const StrategyDialogComponent = {
                 }
             } catch (error) {
                 paramError.value = 'JSON格式错误'
-                console.warn('JSON参数格式错误:', error)
             }
         }
         
@@ -212,15 +198,59 @@ const StrategyDialogComponent = {
                 if (window.ApiResponse.isSuccess(response)) {
                     const allStrategies = window.ApiResponse.getData(response).available_strategies
                     
-                    // 过滤掉已加载的策略，避免重复加载
-                    const loadedStrategyPaths = new Set(
-                        Object.values(state.strategies).map(s => s.strategy_path || s.file_path)
-                    )
+                    // 过滤掉已加载的策略，避免重复加载 - 使用UUID精确匹配
+                    const loadedStrategyUuids = new Set()
+                    const loadedStrategyPaths = new Set()
                     
-                    // 过滤策略文件
-                    const filteredStrategies = allStrategies.filter(strategy => 
-                        !loadedStrategyPaths.has(strategy.file_path)
-                    )
+                    // 从已加载策略中收集UUID和路径信息
+                    Object.values(state.strategies).forEach(s => {
+                        // 优先使用UUID进行匹配
+                        if (s.strategy_uuid) {
+                            loadedStrategyUuids.add(s.strategy_uuid)
+                        }
+                        
+                        // 同时收集路径信息作为备用匹配方式
+                        if (s.strategy_path) {
+                            loadedStrategyPaths.add(s.strategy_path)
+                            // 标准化路径处理，同时支持Windows和Unix风格
+                            const normalizedPath = s.strategy_path.replace(/\\/g, '/')
+                            loadedStrategyPaths.add(normalizedPath)
+                            
+                            // 获取绝对路径的相对部分
+                            const relativePath = normalizedPath.startsWith('src/') ? 
+                                normalizedPath : normalizedPath.substring(normalizedPath.indexOf('src/'))
+                            if (relativePath !== normalizedPath) {
+                                loadedStrategyPaths.add(relativePath)
+                            }
+                        }
+                    })
+                    
+                    console.debug('已加载策略UUID:', Array.from(loadedStrategyUuids))
+                    console.debug('已加载策略路径:', Array.from(loadedStrategyPaths))
+                    
+                    // 过滤策略文件 - 改进的匹配算法，优先使用路径匹配
+                    const filteredStrategies = allStrategies.filter(strategy => {
+                        const strategyPath = strategy.file_path
+                        const normalizedStrategyPath = strategyPath.replace(/\\/g, '/')
+                        
+                        // 检查完整路径匹配
+                        if (loadedStrategyPaths.has(strategyPath) || 
+                            loadedStrategyPaths.has(normalizedStrategyPath)) {
+                            console.debug(`策略已加载(完整路径匹配): ${strategyPath}`)
+                            return false
+                        }
+                        
+                        // 检查相对路径匹配
+                        const relativeStrategyPath = normalizedStrategyPath.startsWith('src/') ? 
+                            normalizedStrategyPath : normalizedStrategyPath.substring(normalizedStrategyPath.indexOf('src/'))
+                        if (loadedStrategyPaths.has(relativeStrategyPath)) {
+                            console.debug(`策略已加载(相对路径匹配): ${strategyPath}`)
+                            return false
+                        }
+                        
+                        console.debug(`策略可加载: ${strategyPath}`)
+                        return true
+                    })
                     
                     availableStrategies.value = filteredStrategies
                     actions.updateAvailableStrategies(filteredStrategies)
@@ -234,12 +264,12 @@ const StrategyDialogComponent = {
                     }
                     
                 } else {
-                    ElMessage.error('获取策略列表失败')
+                    window.ElMessage.error('获取策略列表失败')
                 }
                 
             } catch (error) {
                 console.error('获取策略列表失败:', error)
-                ElMessage.error('获取策略列表失败')
+                window.ElMessage.error('获取策略列表失败')
             } finally {
                 loadingStrategies.value = false
             }
@@ -250,10 +280,10 @@ const StrategyDialogComponent = {
             loadAvailableStrategies()
         }
         
-        // 执行策略加载
+        // 执行策略加载 - 移除策略ID输入要求
         const executeStrategyLoad = async () => {
-            if (!canLoadStrategy.value) {
-                ElMessage.warning('请选择策略并输入策略ID')
+            if (!selectedStrategy.value) {
+                window.ElMessage.warning('请选择策略文件')
                 return
             }
             
@@ -261,27 +291,30 @@ const StrategyDialogComponent = {
                 loadingStrategy.value = true
                 
                 const payload = {
-                    strategy_id: strategyFormData.strategyId,
                     strategy_path: selectedStrategy.value.file_path,
+                    strategy_name: selectedStrategy.value.file_name.replace('.py', ''),  // 使用文件名作为默认名称
                     params: strategyFormData.params
                 }
                 
                 const response = await window.ApiService.loadStrategy(payload)
                 
                 if (window.ApiResponse.isSuccess(response)) {
-                    ElMessage.success(window.ApiResponse.getMessage(response))
+                    const responseData = window.ApiResponse.getData(response)
+                    const strategyUuid = responseData.strategy_uuid
+                    
+                    window.ElMessage.success('策略加载成功')
                     closeDialog()
                     
                     // 通知父组件刷新策略列表
-                    actions.addLog('info', `策略 ${strategyFormData.strategyId} 加载成功`)
+                    actions.addLog('info', `策略加载成功，UUID: ${strategyUuid}`)
                     
                 } else {
-                    ElMessage.error(window.ApiResponse.getMessage(response))
+                    window.ElMessage.error(window.ApiResponse.getMessage(response))
                 }
                 
             } catch (error) {
                 console.error('策略加载失败:', error)
-                ElMessage.error('策略加载失败')
+                window.ElMessage.error('策略加载失败')
             } finally {
                 loadingStrategy.value = false
             }
@@ -296,7 +329,7 @@ const StrategyDialogComponent = {
         // 重置表单
         const resetForm = () => {
             selectedStrategy.value = null
-            strategyFormData.strategyId = ''
+            selectedStrategyId.value = ''
             strategyFormData.params = {}
             paramsJsonText.value = ''
             paramError.value = ''
@@ -318,6 +351,7 @@ const StrategyDialogComponent = {
             state,
             availableStrategies,
             selectedStrategy,
+            selectedStrategyId,
             loadingStrategies,
             loadingStrategy,
             strategyFormData,

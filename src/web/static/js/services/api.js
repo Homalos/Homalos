@@ -48,24 +48,24 @@ class ApiService {
         })
     }
     
-    static async startStrategy(strategyId) {
-        return await this.request(`/api/v1/strategies/${strategyId}/start`, {
+    static async startStrategy(strategyUuid) {
+        return await this.request(`/api/v1/strategies/${strategyUuid}/start`, {
             method: 'POST'
         })
     }
     
-    static async stopStrategy(strategyId) {
-        return await this.request(`/api/v1/strategies/${strategyId}/stop`, {
+    static async stopStrategy(strategyUuid) {
+        return await this.request(`/api/v1/strategies/${strategyUuid}/stop`, {
             method: 'POST'
         })
     }
     
-    static async getStrategyStatus(strategyId) {
-        return await this.request(`/api/v1/strategies/${strategyId}`)
+    static async getStrategyStatus(strategyUuid) {
+        return await this.request(`/api/v1/strategies/${strategyUuid}`)
     }
     
-    static async getStrategyOrders(strategyId) {
-        return await this.request(`/api/v1/strategies/${strategyId}/orders`)
+    static async getStrategyOrders(strategyUuid) {
+        return await this.request(`/api/v1/strategies/${strategyUuid}/orders`)
     }
     
     // 账户信息API

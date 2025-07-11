@@ -33,8 +33,8 @@ logger = get_logger("WebServer")
 # Pydantic模型定义
 class StrategyRequest(BaseModel):
     """策略加载请求"""
-    strategy_id: str = Field(..., description="策略ID")
     strategy_path: str = Field(..., description="策略文件路径")
+    strategy_name: Optional[str] = Field(None, description="策略名称（可选）")
     params: Dict[str, Any] = Field(default_factory=dict, description="策略参数")
 
 
@@ -219,155 +219,74 @@ class WebServer:
         
         @app.post("/api/v1/strategies")
         async def load_strategy(request: StrategyRequest):
-            """加载策略"""
+            """加载策略 - UUID自动生成"""
             try:
-                success = await self.trading_engine.strategy_manager.load_strategy(
+                success, strategy_uuid = await self.trading_engine.strategy_manager.load_strategy(
                     request.strategy_path,
-                    request.strategy_id,
+                    request.strategy_name,
                     request.params
                 )
                 
                 if success:
-                    # 发布策略加载成功事件
-                    self.event_bus.publish(create_trading_event(
-                        "strategy.loaded",
-                        {
-                            "strategy_id": request.strategy_id,
-                            "strategy_path": request.strategy_path,
-                            "message": f"策略 {request.strategy_id} 加载成功"
-                        },
-                        "WebServer"
-                    ))
-                    
                     return SystemResponse(
                         success=True,
-                        message=f"策略 {request.strategy_id} 加载成功"
+                        message="策略加载成功",
+                        data={
+                            "strategy_uuid": strategy_uuid,
+                            "strategy_path": request.strategy_path,
+                            "strategy_name": request.strategy_name
+                        }
                     )
                 else:
-                    # 发布策略加载失败事件
-                    self.event_bus.publish(create_trading_event(
-                        "strategy.load_failed",
-                        {
-                            "strategy_id": request.strategy_id,
-                            "message": f"策略 {request.strategy_id} 加载失败"
-                        },
-                        "WebServer"
-                    ))
                     raise HTTPException(status_code=400, detail="策略加载失败")
                     
             except Exception as e:
                 logger.error(f"加载策略失败: {e}")
-                # 发布策略加载错误事件
-                self.event_bus.publish(create_trading_event(
-                    "strategy.load_error",
-                    {
-                        "strategy_id": request.strategy_id,
-                        "error": str(e),
-                        "message": f"策略 {request.strategy_id} 加载出错: {e}"
-                    },
-                    "WebServer"
-                ))
                 raise HTTPException(status_code=500, detail=str(e))
         
-        @app.post("/api/v1/strategies/{strategy_id}/start")
-        async def start_strategy(strategy_id: str):
-            """启动策略"""
+        @app.post("/api/v1/strategies/{strategy_uuid}/start")
+        async def start_strategy(strategy_uuid: str):
+            """启动策略 - 使用UUID"""
             try:
-                success = await self.trading_engine.strategy_manager.start_strategy(strategy_id)
+                success = await self.trading_engine.strategy_manager.start_strategy(strategy_uuid)
                 
                 if success:
-                    # 发布策略启动成功事件
-                    self.event_bus.publish(create_trading_event(
-                        "strategy.started",
-                        {
-                            "strategy_id": strategy_id,
-                            "message": f"策略 {strategy_id} 启动成功"
-                        },
-                        "WebServer"
-                    ))
-                    
                     return SystemResponse(
                         success=True,
-                        message=f"策略 {strategy_id} 启动成功"
+                        message="策略启动成功",
+                        data={"strategy_uuid": strategy_uuid}
                     )
                 else:
-                    # 发布策略启动失败事件
-                    self.event_bus.publish(create_trading_event(
-                        "strategy.start_failed",
-                        {
-                            "strategy_id": strategy_id,
-                            "message": f"策略 {strategy_id} 启动失败"
-                        },
-                        "WebServer"
-                    ))
                     raise HTTPException(status_code=400, detail="策略启动失败")
                     
             except Exception as e:
                 logger.error(f"启动策略失败: {e}")
-                # 发布策略启动错误事件
-                self.event_bus.publish(create_trading_event(
-                    "strategy.start_error",
-                    {
-                        "strategy_id": strategy_id,
-                        "error": str(e),
-                        "message": f"策略 {strategy_id} 启动出错: {e}"
-                    },
-                    "WebServer"
-                ))
                 raise HTTPException(status_code=500, detail=str(e))
         
-        @app.post("/api/v1/strategies/{strategy_id}/stop")
-        async def stop_strategy(strategy_id: str):
-            """停止策略"""
+        @app.post("/api/v1/strategies/{strategy_uuid}/stop")
+        async def stop_strategy(strategy_uuid: str):
+            """停止策略 - 使用UUID"""
             try:
-                success = await self.trading_engine.strategy_manager.stop_strategy(strategy_id)
+                success = await self.trading_engine.strategy_manager.stop_strategy(strategy_uuid)
                 
                 if success:
-                    # 发布策略停止成功事件
-                    self.event_bus.publish(create_trading_event(
-                        "strategy.stopped",
-                        {
-                            "strategy_id": strategy_id,
-                            "message": f"策略 {strategy_id} 停止成功"
-                        },
-                        "WebServer"
-                    ))
-                    
                     return SystemResponse(
                         success=True,
-                        message=f"策略 {strategy_id} 停止成功"
+                        message="策略停止成功",
+                        data={"strategy_uuid": strategy_uuid}
                     )
                 else:
-                    # 发布策略停止失败事件
-                    self.event_bus.publish(create_trading_event(
-                        "strategy.stop_failed",
-                        {
-                            "strategy_id": strategy_id,
-                            "message": f"策略 {strategy_id} 停止失败"
-                        },
-                        "WebServer"
-                    ))
                     raise HTTPException(status_code=400, detail="策略停止失败")
                     
             except Exception as e:
                 logger.error(f"停止策略失败: {e}")
-                # 发布策略停止错误事件
-                self.event_bus.publish(create_trading_event(
-                    "strategy.stop_error",
-                    {
-                        "strategy_id": strategy_id,
-                        "error": str(e),
-                        "message": f"策略 {strategy_id} 停止出错: {e}"
-                    },
-                    "WebServer"
-                ))
                 raise HTTPException(status_code=500, detail=str(e))
         
-        @app.get("/api/v1/strategies/{strategy_id}")
-        async def get_strategy_status(strategy_id: str):
-            """获取策略状态"""
+        @app.get("/api/v1/strategies/{strategy_uuid}")
+        async def get_strategy_status(strategy_uuid: str):
+            """获取策略状态 - 使用UUID"""
             try:
-                status = self.trading_engine.strategy_manager.get_strategy_status(strategy_id)
+                status = self.trading_engine.strategy_manager.get_strategy_status(strategy_uuid)
                 
                 if status:
                     return SystemResponse(
@@ -382,11 +301,11 @@ class WebServer:
                 logger.error(f"获取策略状态失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
-        @app.get("/api/v1/strategies/{strategy_id}/orders")
-        async def get_strategy_orders(strategy_id: str):
+        @app.get("/api/v1/strategies/{strategy_uuid}/orders")
+        async def get_strategy_orders(strategy_uuid: str):
             """获取策略订单"""
             try:
-                orders = self.trading_engine.order_manager.get_strategy_orders(strategy_id)
+                orders = self.trading_engine.order_manager.get_strategy_orders(strategy_uuid)
                 return SystemResponse(
                     success=True,
                     message="策略订单获取成功",
@@ -493,7 +412,17 @@ class WebServer:
                     "risk.rejected", "system.error", "engine.started", "engine.stopped"
                 ]
                 
-                if any(event.type.startswith(prefix) for prefix in push_events):
+                # 调试日志：记录所有接收到的事件
+                logger.debug(f"WebSocket事件监控器收到事件: {event.type} from {event.source}")
+                
+                # 使用更宽松的匹配条件，确保策略事件能被捕获
+                should_push = (any(event.type.startswith(prefix) for prefix in push_events) or 
+                              "strategy." in event.type or 
+                              event.type in push_events)
+                
+                if should_push:
+                    logger.info(f"WebSocket推送事件: {event.type} -> {len(self.ws_manager.active_connections)} 个连接")
+                    
                     message = {
                         "type": "event",
                         "event_type": event.type,
@@ -502,14 +431,20 @@ class WebServer:
                         "timestamp": event.timestamp / 1_000_000_000  # 转换为秒
                     }
                     
+                    # 调试日志：记录推送的消息内容
+                    logger.debug(f"WebSocket推送消息: {message}")
+                    
                     # 异步广播消息
                     asyncio.create_task(self.ws_manager.broadcast(message))
                     
             except Exception as e:
                 logger.error(f"事件推送失败: {e}")
+                import traceback
+                logger.error(f"错误详情: {traceback.format_exc()}")
         
         # 注册事件监控器
         self.event_bus.add_monitor(event_monitor)
+        logger.info("WebSocket事件监控器已注册")
     
     def _serialize_event_data(self, data: Any) -> Any:
         """序列化事件数据"""
@@ -633,39 +568,39 @@ class WebServer:
             logger.error(f"读取静态HTML文件失败: {e}")
             return f"<html><body><h1>页面加载错误</h1><p>{str(e)}</p></body></html>"
     
-    async def start(self, host: str = None, port: int = None):
+    async def start(self, host: Optional[str] = None, port: Optional[int] = None):
         """启动Web服务器"""
         import uvicorn
         
-        host = host or self.config.get("web.host", "0.0.0.0")
-        port = port or self.config.get("web.port", 8000)
+        actual_host: str = host or self.config.get("web.host", "0.0.0.0")
+        actual_port: int = port or self.config.get("web.port", 8000)
         debug = self.config.get("web.debug", False)
         
-        logger.info(f"Web服务器启动: http://{host}:{port}")
+        logger.info(f"Web服务器启动: http://{actual_host}:{actual_port}")
         
         # 使用uvicorn启动服务器
         config = uvicorn.Config(
             self.app, 
-            host=host, 
-            port=port, 
+            host=actual_host, 
+            port=actual_port, 
             log_level="info" if not debug else "debug"
         )
         server = uvicorn.Server(config)
         await server.serve()
     
-    def run_sync(self, host: str = None, port: int = None):
+    def run_sync(self, host: Optional[str] = None, port: Optional[int] = None):
         """同步启动Web服务器"""
         import uvicorn
         
-        host = host or self.config.get("web.host", "0.0.0.0")
-        port = port or self.config.get("web.port", 8000)
+        actual_host: str = host or self.config.get("web.host", "0.0.0.0")
+        actual_port: int = port or self.config.get("web.port", 8000)
         debug = self.config.get("web.debug", False)
         
-        logger.info(f"Web服务器启动: http://{host}:{port}")
+        logger.info(f"Web服务器启动: http://{actual_host}:{actual_port}")
         
         uvicorn.run(
             self.app,
-            host=host,
-            port=port,
+            host=actual_host,
+            port=actual_port,
             log_level="info" if not debug else "debug"
         ) 

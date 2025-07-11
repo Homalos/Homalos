@@ -152,6 +152,14 @@ function createVueApp() {
         // 使用ElementPlus
         app.use(ElementPlus)
         
+        // 暴露ElementPlus组件到全局作用域，解决组件内部访问问题
+        window.ElMessage = ElementPlus.ElMessage
+        window.ElMessageBox = ElementPlus.ElMessageBox
+        window.ElNotification = ElementPlus.ElNotification
+        window.ElLoading = ElementPlus.ElLoading
+        
+        console.log('✅ ElementPlus组件已暴露到全局作用域')
+        
         // 注册其他组件
         if (window.VueComponentRegistry) {
             const registry = window.VueComponentRegistry

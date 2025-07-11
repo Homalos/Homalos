@@ -25,15 +25,30 @@ const StrategyTableComponent = {
                 :loading-text="state.ui.loadingText">
                 
                 <el-table-column 
-                    prop="strategy_id" 
-                    label="策略ID" 
+                    prop="strategy_name" 
+                    label="策略名称" 
                     width="200">
                 </el-table-column>
                 
                 <el-table-column 
-                    prop="strategy_name" 
-                    label="策略名称" 
-                    width="200">
+                    prop="strategy_uuid" 
+                    label="策略UUID" 
+                    width="280">
+                    <template #default="scope">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-family: monospace; font-size: 12px; color: #666;">
+                                {{ scope.row.strategy_uuid || '-' }}
+                            </span>
+                            <el-button 
+                                v-if="scope.row.strategy_uuid"
+                                type="text" 
+                                size="small"
+                                @click="copyUuid(scope.row.strategy_uuid)"
+                                title="复制UUID">
+                                📋
+                            </el-button>
+                        </div>
+                    </template>
                 </el-table-column>
                 
                 <el-table-column 
@@ -64,20 +79,20 @@ const StrategyTableComponent = {
                     <template #default="scope">
                         <div class="strategy-actions">
                             <el-button 
-                                @click="startStrategy(scope.row.strategy_id)"
+                                @click="startStrategy(scope.row.strategy_uuid)"
                                 :disabled="scope.row.status === 'running'"
                                 type="success" 
                                 size="small"
-                                :loading="startingStrategies.has(scope.row.strategy_id)">
+                                :loading="startingStrategies.has(scope.row.strategy_uuid)">
                                 启动
                             </el-button>
                             
                             <el-button 
-                                @click="stopStrategy(scope.row.strategy_id)"
+                                @click="stopStrategy(scope.row.strategy_uuid)"
                                 :disabled="scope.row.status !== 'running'"
                                 type="danger" 
                                 size="small"
-                                :loading="stoppingStrategies.has(scope.row.strategy_id)">
+                                :loading="stoppingStrategies.has(scope.row.strategy_uuid)">
                                 停止
                             </el-button>
                         </div>
@@ -133,49 +148,49 @@ const StrategyTableComponent = {
             actions.toggleStrategyDialog(true)
         }
         
-        // 启动策略
-        const startStrategy = async (strategyId) => {
+        // 启动策略 - 使用UUID
+        const startStrategy = async (strategyUuid) => {
             try {
-                startingStrategies.value.add(strategyId)
+                startingStrategies.value.add(strategyUuid)
                 
-                const response = await window.ApiService.startStrategy(strategyId)
+                const response = await window.ApiService.startStrategy(strategyUuid)
                 
                 if (window.ApiResponse.isSuccess(response)) {
-                    ElMessage.success(window.ApiResponse.getMessage(response))
+                    window.ElMessage.success('策略启动成功')
                     // 刷新策略列表
                     await refreshStrategies()
                 } else {
-                    ElMessage.error(window.ApiResponse.getMessage(response))
+                    window.ElMessage.error(window.ApiResponse.getMessage(response))
                 }
                 
             } catch (error) {
                 console.error('启动策略失败:', error)
-                ElMessage.error('启动策略失败')
+                window.ElMessage.error('启动策略失败')
             } finally {
-                startingStrategies.value.delete(strategyId)
+                startingStrategies.value.delete(strategyUuid)
             }
         }
         
-        // 停止策略
-        const stopStrategy = async (strategyId) => {
+        // 停止策略 - 使用UUID
+        const stopStrategy = async (strategyUuid) => {
             try {
-                stoppingStrategies.value.add(strategyId)
+                stoppingStrategies.value.add(strategyUuid)
                 
-                const response = await window.ApiService.stopStrategy(strategyId)
+                const response = await window.ApiService.stopStrategy(strategyUuid)
                 
                 if (window.ApiResponse.isSuccess(response)) {
-                    ElMessage.success(window.ApiResponse.getMessage(response))
+                    window.ElMessage.success('策略停止成功')
                     // 刷新策略列表
                     await refreshStrategies()
                 } else {
-                    ElMessage.error(window.ApiResponse.getMessage(response))
+                    window.ElMessage.error(window.ApiResponse.getMessage(response))
                 }
                 
             } catch (error) {
                 console.error('停止策略失败:', error)
-                ElMessage.error('停止策略失败')
+                window.ElMessage.error('停止策略失败')
             } finally {
-                stoppingStrategies.value.delete(strategyId)
+                stoppingStrategies.value.delete(strategyUuid)
             }
         }
         
@@ -193,11 +208,30 @@ const StrategyTableComponent = {
             }
         }
         
+        // 复制UUID到剪贴板
+        const copyUuid = async (uuid) => {
+            try {
+                await navigator.clipboard.writeText(uuid)
+                window.ElMessage.success('UUID已复制到剪贴板')
+            } catch (error) {
+                console.error('复制UUID失败:', error)
+                // 降级方案：使用传统方法
+                const textArea = document.createElement('textarea')
+                textArea.value = uuid
+                document.body.appendChild(textArea)
+                textArea.select()
+                document.execCommand('copy')
+                document.body.removeChild(textArea)
+                window.ElMessage.success('UUID已复制到剪贴板')
+            }
+        }
+        
         return {
             state,
             strategyList,
             startingStrategies,
             stoppingStrategies,
+            copyUuid,
             getStatusType,
             formatTime,
             openStrategyDialog,
