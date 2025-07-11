@@ -191,8 +191,6 @@ All 4 extension modules have been successfully compiled and copied to the target
 - Meson 1.8.1 + Ninja build system
 - Pybind11 for Python-C++ bindings
 
-The unified build system is now fully ready to support the continued development and deployment of the Homalos quantitative trading system!
-
 ## ✅ Build Process Check Results
 
 **meson compile -C build** The command ran completely successfully!
@@ -448,6 +446,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/strategies \
 
 ### Community Support
 - **GitHub Repository**: [Homalos_v2](https://github.com/your-repo/Homalos_v2)
+- **Project Manual**: [homalos.github.io](https://homalos.github.io/)
 - **Technical Exchange**: Quantitative Trading Technology Group
 - **Issue Feedback**: GitHub Issues
 

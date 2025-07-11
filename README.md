@@ -191,8 +191,6 @@ python build.py
 - Meson 1.8.1 + Ninja构建系统
 - Pybind11用于Python-C++绑定
 
-统一构建系统现已完全就绪，可以支持Homalos量化交易系统的持续开发和部署！
-
 ## ✅ 构建过程检查结果
 
 **meson compile -C build** 命令运行完全成功！
@@ -448,6 +446,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/strategies \
 
 ### 社区支持
 - **GitHub仓库**: [Homalos_v2](https://github.com/your-repo/Homalos_v2)
+- **项目手册**: [homalos.github.io](https://homalos.github.io/)
 - **技术交流**: 量化交易技术群
 - **问题反馈**: GitHub Issues
 
