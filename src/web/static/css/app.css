@@ -1,0 +1,104 @@
+/* 全局变量 */
+:root {
+    --primary-color: #409EFF;
+    --success-color: #67C23A;
+    --warning-color: #E6A23C;
+    --danger-color: #F56C6C;
+    --info-color: #909399;
+    --background-color: #f5f5f5;
+    --border-color: #e4e7ed;
+}
+
+/* 全局样式重置 */
+body {
+    margin: 0;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    background-color: #f8f9fa;
+}
+
+/* 主要布局 */
+.header {
+    background: var(--primary-color);
+    color: white;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 1.8rem;
+}
+
+.header p {
+    margin: 0.5rem 0 0 0;
+    opacity: 0.9;
+}
+
+.container {
+    padding: 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* 卡片样式 */
+.stats-card {
+    margin-bottom: 1rem;
+}
+
+.strategy-table {
+    margin-top: 1rem;
+}
+
+/* 实时日志样式 */
+.real-time-log {
+    height: 300px;
+    overflow-y: auto;
+    background: var(--background-color);
+    padding: 1rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.log-item {
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.log-time {
+    color: var(--info-color);
+    font-weight: 500;
+}
+
+.log-type {
+    font-weight: bold;
+    margin: 0 0.5rem;
+}
+
+.log-message {
+    color: #333;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .container {
+        padding: 0.5rem;
+    }
+    
+    .header h1 {
+        font-size: 1.5rem;
+    }
+}
+
+/* 工具类 */
+.text-center {
+    text-align: center;
+}
+
+.mb-2 {
+    margin-bottom: 1rem;
+}
+
+.mt-2 {
+    margin-top: 1rem;
+} 

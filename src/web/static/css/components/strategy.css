@@ -1,0 +1,178 @@
+/* 策略加载弹框专用样式 */
+.strategy-option {
+    margin-bottom: 1.5rem;
+    border: 1px solid #e4e7ed;
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.strategy-option:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+
+.strategy-option.selected {
+    border-color: var(--primary-color);
+    background-color: #f0f9ff;
+}
+
+.strategy-filename {
+    font-weight: bold;
+    font-size: 1rem;
+    color: #303133;
+    margin-left: 0.5rem;
+}
+
+.strategy-classes-container {
+    margin-top: 0.8rem;
+    padding-left: 1.5rem;
+}
+
+.strategy-class-card {
+    background: #fafafa;
+    border-left: 3px solid var(--primary-color);
+    padding: 0.8rem;
+    margin-bottom: 0.6rem;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.strategy-class-card:hover {
+    background: #f0f0f0;
+}
+
+.strategy-class-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.strategy-class-meta {
+    font-size: 0.85rem;
+    color: #606266;
+    margin-bottom: 0.3rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.strategy-class-description {
+    font-size: 0.9rem;
+    color: #303133;
+    line-height: 1.4;
+}
+
+/* 策略表格样式 */
+.strategy-status-tag {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.5rem;
+}
+
+.strategy-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.strategy-actions .el-button {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.8rem;
+}
+
+/* 参数配置区域 */
+.strategy-params-section {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.strategy-params-section h4 {
+    margin-top: 0;
+    color: #495057;
+}
+
+.strategy-preview {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+.strategy-preview h5 {
+    margin-top: 0;
+    margin-bottom: 0.8rem;
+    color: #495057;
+}
+
+.strategy-preview p {
+    margin: 0.3rem 0;
+    font-size: 0.9rem;
+}
+
+.strategy-preview strong {
+    color: #333;
+}
+
+/* 对话框调整 */
+.strategy-dialog .el-dialog__body {
+    padding: 1.5rem;
+}
+
+.strategy-dialog .el-radio {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 0.5rem;
+}
+
+.strategy-dialog .el-radio__label {
+    width: 100%;
+    padding-left: 0.5rem;
+}
+
+/* 表单样式优化 */
+.strategy-form .el-form-item__label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.strategy-form .el-input__inner {
+    border-radius: 4px;
+}
+
+.strategy-form .el-textarea__inner {
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .strategy-option {
+        margin-bottom: 1rem;
+        padding: 0.8rem;
+    }
+    
+    .strategy-classes-container {
+        padding-left: 1rem;
+    }
+    
+    .strategy-class-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3rem;
+    }
+    
+    .strategy-actions {
+        flex-direction: column;
+    }
+    
+    .strategy-actions .el-button {
+        width: 100%;
+    }
+} 
