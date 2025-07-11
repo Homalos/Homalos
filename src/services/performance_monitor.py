@@ -109,6 +109,16 @@ class PerformanceMonitor:
         self._monitor_task: Optional[asyncio.Task] = None
         self._stats_lock = threading.Lock()
         
+        # 告警去重和抑制机制
+        self._alert_history: Dict[str, float] = {}  # alert_key -> last_alert_time
+        self._alert_suppression_time = 300.0  # 5分钟内相同告警只发送一次
+        self._alert_escalation_rules = {
+            "high_memory_usage": {"threshold": 3, "escalation_time": 900},  # 15分钟内3次告警升级
+            "high_cpu_usage": {"threshold": 3, "escalation_time": 900},
+            "high_order_latency": {"threshold": 2, "escalation_time": 600}  # 10分钟内2次告警升级
+        }
+        self._alert_counters: Dict[str, List[float]] = {}  # alert_type -> [timestamps]
+        
         # 设置事件处理器
         self._setup_event_handlers()
         
@@ -222,25 +232,85 @@ class PerformanceMonitor:
         except Exception as e:
             logger.error(f"检查性能阈值失败: {e}")
     
-    def _send_performance_alert(self, alert_type: str, message: str) -> None:
-        """发送性能告警"""
+    def _send_performance_alert(self, alert_type: str, message: str, severity: str = "warning") -> None:
+        """发送性能告警（带抑制和升级机制）"""
         try:
+            current_time = time.time()
+            alert_key = f"{alert_type}:{message}"
+            
+            # 检查告警抑制
+            if self._should_suppress_alert(alert_key, current_time):
+                return
+            
+            # 检查告警升级
+            severity = self._check_alert_escalation(alert_type, current_time, severity)
+            
+            # 记录告警历史
+            self._alert_history[alert_key] = current_time
+            
+            # 发送告警事件
             alert_event = create_log_event(
                 "performance.alert",
                 {
                     "alert_type": alert_type,
                     "message": message,
-                    "timestamp": time.time(),
-                    "system_metrics": self.system_metrics.__dict__
+                    "severity": severity,
+                    "timestamp": current_time,
+                    "system_metrics": self.system_metrics.__dict__,
+                    "escalated": severity in ["critical", "emergency"]
                 },
                 "PerformanceMonitor"
             )
             
             self.event_bus.publish(alert_event)
-            logger.warning(f"性能告警: {message}")
+            
+            # 根据严重程度记录日志
+            if severity == "emergency":
+                logger.critical(f"紧急性能告警: {message}")
+            elif severity == "critical":
+                logger.error(f"严重性能告警: {message}")
+            else:
+                logger.warning(f"性能告警: {message}")
             
         except Exception as e:
             logger.error(f"发送性能告警失败: {e}")
+    
+    def _should_suppress_alert(self, alert_key: str, current_time: float) -> bool:
+        """检查是否应该抑制告警"""
+        last_alert_time = self._alert_history.get(alert_key, 0)
+        return (current_time - last_alert_time) < self._alert_suppression_time
+    
+    def _check_alert_escalation(self, alert_type: str, current_time: float, base_severity: str) -> str:
+        """检查告警升级"""
+        if alert_type not in self._alert_escalation_rules:
+            return base_severity
+        
+        rule = self._alert_escalation_rules[alert_type]
+        
+        # 初始化计数器
+        if alert_type not in self._alert_counters:
+            self._alert_counters[alert_type] = []
+        
+        # 清理过期的时间戳
+        escalation_time = rule["escalation_time"]
+        self._alert_counters[alert_type] = [
+            ts for ts in self._alert_counters[alert_type] 
+            if current_time - ts < escalation_time
+        ]
+        
+        # 添加当前时间戳
+        self._alert_counters[alert_type].append(current_time)
+        
+        # 检查是否达到升级阈值
+        alert_count = len(self._alert_counters[alert_type])
+        threshold = rule["threshold"]
+        
+        if alert_count >= threshold * 2:  # 超过两倍阈值，紧急告警
+            return "emergency"
+        elif alert_count >= threshold:  # 达到阈值，升级为严重告警
+            return "critical"
+        else:
+            return base_severity
     
     def _update_strategy_metrics(self) -> None:
         """更新策略性能指标"""

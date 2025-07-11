@@ -93,6 +93,14 @@ class MarketDataGateway(BaseGateway):
         self.last_heartbeat: float = 0.0
         self.connection_start_time: Optional[float] = None
         
+        # 自动重连配置
+        self._enable_auto_reconnect: bool = True
+        self._reconnect_interval: float = 5.0  # 重连间隔（秒）
+        self._max_reconnect_attempts: int = 10  # 最大重连次数
+        self._current_reconnect_attempts: int = 0
+        self._reconnect_task: Optional[asyncio.Task] = None
+        self._last_connection_config: Optional[dict] = None
+        
         # 订阅状态管理
         self.pending_subscriptions: set[str] = set()  # 待订阅合约
         self.active_subscriptions: set[str] = set()   # 已订阅合约
@@ -273,12 +281,77 @@ class MarketDataGateway(BaseGateway):
         if not self.md_api:
             self.md_api = CtpMdApi(self)
 
-        userid: str = setting["userid"]
-        password: str = setting["password"]
-        broker_id: str = setting["broker_id"]
-        md_address: str = self._prepare_address(setting["md_address"])
+        # 兼容性配置字段处理 - 支持userid和user_id两种字段名
+        userid: str = setting.get("userid", setting.get("user_id", ""))
+        password: str = setting.get("password", "")
+        broker_id: str = setting.get("broker_id", "")
+        md_address: str = self._prepare_address(setting.get("md_address", ""))
+        
+        # 验证必需字段
+        if not all([userid, password, broker_id, md_address]):
+            missing_fields = []
+            if not userid: missing_fields.append("userid/user_id")
+            if not password: missing_fields.append("password") 
+            if not broker_id: missing_fields.append("broker_id")
+            if not md_address: missing_fields.append("md_address")
+            raise ValueError(f"CTP行情网关连接参数不完整，缺少字段: {missing_fields}")
+
+        # 保存连接配置以供重连使用
+        self._last_connection_config = setting.copy()
+        
+        # 重置重连计数器
+        self._current_reconnect_attempts = 0
 
         self.md_api.connect(md_address, userid, password, broker_id)
+    
+    async def _start_auto_reconnect(self) -> None:
+        """启动智能自动重连"""
+        if not self._enable_auto_reconnect or not self._last_connection_config:
+            return
+            
+        if self._reconnect_task and not self._reconnect_task.done():
+            return  # 重连任务已在运行
+            
+        self._reconnect_task = asyncio.create_task(self._auto_reconnect_loop())
+    
+    async def _auto_reconnect_loop(self) -> None:
+        """自动重连循环"""
+        try:
+            while (self._current_reconnect_attempts < self._max_reconnect_attempts and 
+                   self.connection_state == ConnectionState.DISCONNECTED and
+                   self._enable_auto_reconnect):
+                
+                self._current_reconnect_attempts += 1
+                wait_time = min(self._reconnect_interval * (2 ** (self._current_reconnect_attempts - 1)), 60)  # 指数退避，最大60秒
+                
+                logger.info(f"第 {self._current_reconnect_attempts}/{self._max_reconnect_attempts} 次重连尝试，等待 {wait_time:.1f} 秒...")
+                await asyncio.sleep(wait_time)
+                
+                try:
+                    self.write_log(f"尝试自动重连 ({self._current_reconnect_attempts}/{self._max_reconnect_attempts})")
+                    self.connect(self._last_connection_config)
+                    
+                    # 等待连接结果（最多等待30秒）
+                    for _ in range(30):
+                        if self.connection_state != ConnectionState.DISCONNECTED:
+                            logger.info("自动重连成功")
+                            return
+                        await asyncio.sleep(1)
+                        
+                except Exception as e:
+                    logger.error(f"自动重连失败: {e}")
+            
+            if self._current_reconnect_attempts >= self._max_reconnect_attempts:
+                logger.error(f"已达到最大重连次数 ({self._max_reconnect_attempts})，停止自动重连")
+                self.event_bus.publish(Event("gateway.reconnect_failed", {
+                    "gateway_name": self.name,
+                    "attempts": self._current_reconnect_attempts
+                }))
+                
+        except asyncio.CancelledError:
+            logger.info("自动重连任务已取消")
+        except Exception as e:
+            logger.error(f"自动重连循环异常: {e}")
 
     def subscribe(self, req: SubscribeRequest) -> None:
         """
@@ -379,10 +452,25 @@ class CtpMdApi(MdApi):
         """
         self.login_status = False
         self.gateway._update_connection_state(ConnectionState.DISCONNECTED)
-        self.gateway.write_log("行情服务器连接断开，原因：{}".format(reason))
+        
+        # 解析断开原因
+        reason_hex = hex(reason)
+        reason_msg = {
+            0x1001: "网络读失败",
+            0x1002: "网络写失败", 
+            0x2001: "接收心跳超时",
+            0x2002: "发送心跳失败",
+            0x2003: "收到错误报文"
+        }.get(reason, f"未知原因({reason_hex})")
+        
+        self.gateway.write_log(f"行情服务器连接断开，原因：{reason_msg} ({reason_hex})")
         
         # 触发连接丢失处理
         asyncio.create_task(self.gateway._handle_connection_lost())
+        
+        # 启动智能重连机制
+        if hasattr(self.gateway, '_enable_auto_reconnect') and self.gateway._enable_auto_reconnect:
+            asyncio.create_task(self.gateway._start_auto_reconnect())
 
     def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """

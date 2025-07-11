@@ -77,7 +77,7 @@ def config_manager(tmp_path_factory):
     tmpdir = tmp_path_factory.mktemp("db")
     cfg = MagicMock()
     cfg.get.side_effect = lambda k, d=None: {
-        "database.path": str(tmpdir/"test.db"),
+        "database.path": str(tmpdir/"tests.db"),
         "database.batch_size": 2,
         "database.flush_interval": 1,
         "data.market.buffer_size": 10,

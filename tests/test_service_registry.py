@@ -33,7 +33,7 @@ def print_services(registry):
 
 def test_register_and_unregister(event_bus, registry, capture):
     print("[测试] 服务注册与注销")
-    service_info = {"name": "TestService", "type": "test", "capabilities": ["ping"]}
+    service_info = {"name": "TestService", "type": "tests", "capabilities": ["ping"]}
     event_bus.publish(Event(EventType.SERVICE_REGISTER, service_info))
     time.sleep(0.2)
     print_services(registry)

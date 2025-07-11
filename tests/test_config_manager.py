@@ -231,8 +231,8 @@ def test_global_functions():
         # 测试快捷函数
         print("2. 测试快捷函数:")
         assert get_config("system.version") == "1.0.0"
-        set_config("test.key", "test_value")
-        assert get_config("test.key") == "test_value"
+        set_config("tests.key", "test_value")
+        assert get_config("tests.key") == "test_value"
         print("   ✓ 快捷函数测试通过")
         
         # 测试全局监听器
@@ -243,8 +243,8 @@ def test_global_functions():
             callback_calls.append((key, old_value, new_value))
             print(f"   全局回调: {key} = {old_value} -> {new_value}")
         
-        watch_config("test.*", global_callback)
-        set_config("test.new_key", "new_value")
+        watch_config("tests.*", global_callback)
+        set_config("tests.new_key", "new_value")
         assert len(callback_calls) == 1
         print("   ✓ 全局监听器测试通过")
         

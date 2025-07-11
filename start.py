@@ -13,8 +13,9 @@ import asyncio
 import signal
 import sys
 import time
+import traceback
 from pathlib import Path
-from typing import Optional, Any, Type
+from typing import Optional, Any, Type, Union
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event
@@ -34,14 +35,14 @@ try:
     from src.ctp.gateway.market_data_gateway import MarketDataGateway
     from src.ctp.gateway.order_trading_gateway import OrderTradingGateway
     CTP_AVAILABLE = True
-    MarketDataGatewayType = MarketDataGateway
-    OrderTradingGatewayType = OrderTradingGateway
+    MarketDataGatewayType: Type[MarketDataGateway] = MarketDataGateway
+    OrderTradingGatewayType: Type[OrderTradingGateway] = OrderTradingGateway
 except ImportError:
     CTP_AVAILABLE = False
-    MarketDataGateway = None
-    OrderTradingGateway = None
-    MarketDataGatewayType = None
-    OrderTradingGatewayType = None
+    MarketDataGateway = None  # type: ignore
+    OrderTradingGateway = None  # type: ignore
+    MarketDataGatewayType = None  # type: ignore
+    OrderTradingGatewayType = None  # type: ignore
 
 logger = get_logger("Main")
 
@@ -61,8 +62,8 @@ class HomalosSystem:
         self.web_server: Optional[WebServer] = None
         
         # 网关组件
-        self.market_gateway: Optional[MarketDataGateway] = None
-        self.trading_gateway: Optional[OrderTradingGateway] = None
+        self.market_gateway: Optional[Union[MarketDataGateway, Any]] = None
+        self.trading_gateway: Optional[Union[OrderTradingGateway, Any]] = None
         
         # 系统状态
         self.is_running = False
@@ -251,14 +252,14 @@ class HomalosSystem:
             # 等待连接建立（可以根据实际API调整）
             await asyncio.sleep(3)
     
-    async def _connect_trading_gateway(self, ctp_config: dict):
+    async def _connect_trading_gateway(self, ctp_config: dict) -> None:
         """连接交易网关"""
         if self.trading_gateway:
             self.trading_gateway.connect(ctp_config)
             # 等待连接建立（可以根据实际API调整）
             await asyncio.sleep(3)
     
-    async def _handle_gateway_connection_failure(self):
+    async def _handle_gateway_connection_failure(self) -> None:
         """处理网关连接失败的回退策略"""
         try:
             logger.warning("🔄 实施网关连接失败回退策略...")
@@ -290,29 +291,41 @@ class HomalosSystem:
         except Exception as e:
             logger.error(f"❌ 处理网关连接失败时发生错误: {e}")
     
-    async def start(self):
-        """启动系统"""
+    async def start(self) -> None:
+        """启动系统（增强错误处理）"""
         if self.is_running:
             logger.warning("系统已在运行")
             return
         
+        startup_tasks = []
+        
         try:
             # 初始化系统
+            logger.info("📋 开始系统初始化...")
             if not await self.initialize():
                 logger.error("系统初始化失败，退出")
+                await self._graceful_shutdown_on_failure()
                 return
             
-            # 启动事件总线
-            logger.info("🚀 启动事件总线...")
-            self.event_bus.start()
+            # 启动核心组件（有依赖顺序）
+            startup_steps = [
+                ("启动事件总线", self._start_event_bus),
+                ("启动服务注册中心", self._start_service_registry),
+                ("启动交易引擎", self._start_trading_engine),
+                ("启动Web服务器", self._start_web_server)
+            ]
             
-            # 启动服务注册中心
-            logger.info("🚀 启动服务注册中心...")
-            self.service_registry.start()
-            
-            # 启动交易引擎
-            logger.info("🚀 启动交易引擎...")
-            await self.trading_engine.start()
+            for step_name, step_func in startup_steps:
+                try:
+                    logger.info(f"🚀 {step_name}...")
+                    await step_func()
+                    logger.info(f"✅ {step_name}成功")
+                except Exception as e:
+                    logger.error(f"❌ {step_name}失败: {e}")
+                    if step_name in ["启动事件总线", "启动交易引擎"]:  # 关键组件失败
+                        raise
+                    else:  # 非关键组件失败，继续启动
+                        logger.warning(f"⚠️ {step_name}失败，但系统将继续启动")
             
             # 标记系统运行状态
             self.is_running = True
@@ -324,29 +337,51 @@ class HomalosSystem:
             # 显示系统信息
             self._print_system_info()
             
-            # 启动Web服务器（如果启用）
-            if self.web_server:
-                logger.info("🌐 启动Web管理界面...")
-                
-                # 在后台运行Web服务器
-                web_task = asyncio.create_task(self._run_web_server())
-                
-                # 主循环保持系统运行
-                await self._main_loop()
-                
-                # 取消Web服务器任务
-                web_task.cancel()
-                try:
-                    await web_task
-                except asyncio.CancelledError:
-                    pass
-            else:
-                # 没有Web服务器时的主循环
-                await self._main_loop()
+            # 发布系统启动成功事件
+            if self.event_bus:
+                self.event_bus.publish(Event("system.startup_complete", {
+                    "start_time": self.start_time,
+                    "components": self.get_system_status()["components"]
+                }))
+            
+            # 主循环保持系统运行
+            await self._main_loop()
                 
         except Exception as e:
             logger.error(f"❌ 系统启动失败: {e}")
+            logger.error(f"错误详情: {traceback.format_exc()}")
+            await self._graceful_shutdown_on_failure()
+    
+    async def _start_event_bus(self) -> None:
+        """启动事件总线"""
+        if self.event_bus:
+            self.event_bus.start()
+    
+    async def _start_service_registry(self) -> None:
+        """启动服务注册中心"""
+        if self.service_registry:
+            self.service_registry.start()
+    
+    async def _start_trading_engine(self) -> None:
+        """启动交易引擎"""
+        if self.trading_engine:
+            await self.trading_engine.start()
+    
+    async def _start_web_server(self) -> None:
+        """启动Web服务器"""
+        if self.web_server:
+            # 在后台运行Web服务器
+            self._web_task = asyncio.create_task(self._run_web_server())
+    
+    async def _graceful_shutdown_on_failure(self) -> None:
+        """启动失败时的优雅关闭"""
+        logger.info("🛑 启动失败，执行优雅关闭...")
+        try:
             await self.shutdown()
+        except Exception as e:
+            logger.error(f"优雅关闭失败: {e}")
+        finally:
+            self.is_running = False
     
     async def _run_web_server(self):
         """运行Web服务器"""

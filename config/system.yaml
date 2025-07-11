@@ -149,16 +149,16 @@ monitoring:
   
   # 性能阈值 - 测试环境适配
   thresholds:
-    order_latency_ms: 50        # 从10放宽到50ms
+    order_latency_ms: 100       # 调整为100ms适应测试环境
     tick_processing_rate: 1000
-    memory_usage_mb: 16000      # 从500增加到16000MB适应测试环境
-    cpu_usage_percent: 90       # 从80放宽到90%
+    memory_usage_mb: 32000      # 调整为32GB适应开发环境
+    cpu_usage_percent: 95       # 调整为95%
     
   # 告警配置 - 测试环境适配
   alerts:
-    high_latency_threshold: 100 # 从50增加到100ms
-    memory_threshold: 16000     # 从500增加到16000MB
-    error_rate_threshold: 0.05  # 从1%放宽到5%
+    high_latency_threshold: 200 # 调整为200ms
+    memory_threshold: 32000     # 调整为32GB
+    error_rate_threshold: 0.1   # 调整为10%
 
 # 交易时段配置
 trading_hours:

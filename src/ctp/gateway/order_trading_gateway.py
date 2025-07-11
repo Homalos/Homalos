@@ -162,12 +162,22 @@ class OrderTradingGateway(BaseGateway):
         if not self.td_api:
             self.td_api = CtpTdApi(self)
 
-        userid: str = setting["userid"]  # 用户名
-        password: str = setting["password"]  # 密码
-        broker_id: str = setting["broker_id"]  # 经纪商代码
-        td_address: str = setting["td_address"]  # 交易服务器
-        appid: str = setting["appid"]  # 产品名称
-        auth_code: str = setting["auth_code"]  # 授权编码
+        # 兼容性配置字段处理 - 支持userid和user_id两种字段名
+        userid: str = setting.get("userid", setting.get("user_id", ""))  # 用户名
+        password: str = setting.get("password", "")  # 密码
+        broker_id: str = setting.get("broker_id", "")  # 经纪商代码
+        td_address: str = setting.get("td_address", "")  # 交易服务器
+        appid: str = setting.get("appid", setting.get("app_id", ""))  # 产品名称 - 支持appid和app_id
+        auth_code: str = setting.get("auth_code", "")  # 授权编码
+        
+        # 验证必需字段
+        if not all([userid, password, broker_id, td_address]):
+            missing_fields = []
+            if not userid: missing_fields.append("userid/user_id")
+            if not password: missing_fields.append("password") 
+            if not broker_id: missing_fields.append("broker_id")
+            if not td_address: missing_fields.append("td_address")
+            raise ValueError(f"CTP交易网关连接参数不完整，缺少字段: {missing_fields}")
 
         td_address = self._prepare_address(td_address)
         self.td_api.connect(td_address, userid, password, broker_id, auth_code, appid)
