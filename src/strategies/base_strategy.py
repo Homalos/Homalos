@@ -180,8 +180,7 @@ class BaseStrategy(ABC):
     
     def _sync_fallback_handler(self, coro):
         """同步回退处理器 - 当无法使用异步时的备用方案"""
-        import inspect
-        
+
         # 检查协程的实际方法
         if hasattr(coro, 'cr_frame') and coro.cr_frame:
             func_name = coro.cr_frame.f_code.co_name

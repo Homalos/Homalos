@@ -1,0 +1,160 @@
+# Homalos量化交易系统测试环境配置文件
+# 专为性能测试和开发测试设计
+
+system:
+  name: "Homalos Trading System - Test"
+  version: "0.0.1"
+  log_level: "DEBUG"
+  data_path: "test_data/"
+  timezone: "Asia/Shanghai"
+
+# 事件总线配置 - 测试优化
+event_bus:
+  name: "test_trading_system"
+  max_async_queue_size: 1000
+  max_sync_queue_size: 500
+  timer_interval: 0.1
+  enable_monitoring: true
+  enable_priority: true
+
+# 数据库配置 - 测试环境
+database:
+  type: "sqlite"
+  path: "test_data/trading_test.db" 
+  batch_size: 50
+  flush_interval: 1
+  connection_pool_size: 5
+  enable_wal: true
+
+# 交易网关配置 - 测试环境
+gateway:
+  # CTP配置 - 模拟环境
+  ctp:
+    broker_id: "9999"
+    md_address: "tcp://182.254.243.31:30011"
+    td_address: "tcp://182.254.243.31:30001"
+    app_id: "simnow_client_test"
+    auth_code: "0000000000000000"
+    user_id: "160219"
+    password: "donny@103010"
+    product_info: ""
+    md_timeout: 10
+    td_timeout: 10
+    reconnect_interval: 2
+    max_reconnect_attempts: 3
+
+# 风控配置 - 测试环境宽松设置
+risk:
+  enabled: true
+  max_position_size: 10000000    # 增大限制
+  max_daily_loss: 500000         # 增大限制
+  max_order_size: 1000           # 增大限制
+  order_frequency_limit: 1000    # 大幅增加频率限制
+  position_concentration: 1.0    # 完全放开仓位集中度
+  enable_self_trade_check: false # 关闭自成交检查
+  enable_price_check: false      # 关闭价格检查
+  price_deviation_threshold: 1.0 # 完全放开价格偏离
+
+# 策略管理配置 - 测试环境
+strategy:
+  base_path: "src/strategies/"
+  auto_start: false
+  max_concurrent_strategies: 50  # 支持更多并发策略
+  enable_hot_reload: true
+  default_params:
+    initial_capital: 100000
+    max_drawdown: 1.0            # 放开回撤限制
+    
+# 数据服务配置 - 测试环境
+data:
+  # 行情数据
+  market:
+    buffer_size: 500
+    enable_persistence: false    # 测试时关闭持久化
+    tick_storage_days: 1
+    bar_storage_days: 7
+    
+  # 历史数据
+  history:
+    provider: "local"
+    cache_size: 100
+
+# Web管理界面配置 - 测试环境
+web:
+  enabled: false               # 测试时关闭Web界面
+  host: "127.0.0.1"
+  port: 8001                   # 使用不同端口避免冲突
+  debug: true
+  cors_origins: ["*"]
+  cors_methods: ["GET", "POST", "PUT", "DELETE"]
+  cors_headers: ["*"]
+  
+  # WebSocket配置
+  websocket:
+    heartbeat_interval: 10
+    max_connections: 10
+    
+  # API配置
+  api:
+    rate_limit: 1000
+    enable_swagger: false
+    api_prefix: "/api/v1"
+
+# 日志配置 - 测试环境
+logging:
+  level: "DEBUG"
+  console:
+    enabled: true
+    format: "{time:HH:mm:ss} | {level} | {name} | {message}"
+  file:
+    enabled: false               # 测试时关闭文件日志
+    path: "test_logs/homalos_test_{time:YYYY-MM-DD}.log"
+    rotation: "1 day"
+    retention: "7 days"
+    compression: "zip"
+  
+  # 特定模块日志级别
+  modules:
+    event_bus: "INFO"
+    trading_engine: "DEBUG"
+    strategy_manager: "DEBUG"
+    risk_manager: "INFO"
+    order_manager: "DEBUG"
+    data_service: "INFO"
+    ctp_gateway: "INFO"
+
+# 性能监控配置 - 测试环境极度宽松
+monitoring:
+  enabled: true
+  metrics_interval: 1           # 更频繁的监控
+  enable_alerts: false          # 关闭告警避免干扰测试
+  
+  # 性能阈值 - 测试环境极度宽松
+  thresholds:
+    order_latency_ms: 1000      # 1秒超时
+    tick_processing_rate: 10000 # 高处理速率
+    memory_usage_mb: 32000      # 32GB内存限制
+    cpu_usage_percent: 95       # 95%CPU使用率
+    
+  # 告警配置 - 测试环境关闭
+  alerts:
+    high_latency_threshold: 5000  # 5秒
+    memory_threshold: 32000       # 32GB
+    error_rate_threshold: 0.9     # 90%错误率才告警
+
+# 交易时段配置 - 测试环境全天候
+trading_hours:
+  enable_check: false           # 关闭交易时段检查
+
+# 邮件通知配置 - 测试环境关闭
+email:
+  enabled: false
+
+# 外部数据源配置 - 测试环境关闭
+external_data:
+  tushare:
+    enabled: false
+  akshare:
+    enabled: false
+  wind:
+    enabled: false 

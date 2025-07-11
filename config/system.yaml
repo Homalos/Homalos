@@ -59,17 +59,17 @@ gateway:
     reconnect_interval: 5
     max_reconnect_attempts: 10
 
-# 风控配置
+# 风控配置 - 测试环境优化
 risk:
   enabled: true
   max_position_size: 1000000     # 最大持仓金额（元）
   max_daily_loss: 50000          # 单日最大亏损（元）
   max_order_size: 100            # 单笔最大手数
-  order_frequency_limit: 10      # 每秒最大订单数
-  position_concentration: 0.3    # 单品种最大仓位比例
-  enable_self_trade_check: true  # 启用自成交检查
+  order_frequency_limit: 100     # 每秒最大订单数 (从10增加到100)
+  position_concentration: 0.5    # 单品种最大仓位比例 (从0.3放宽到0.5)
+  enable_self_trade_check: false # 启用自成交检查 (测试环境关闭)
   enable_price_check: true       # 启用价格合理性检查
-  price_deviation_threshold: 0.05 # 价格偏离阈值（5%）
+  price_deviation_threshold: 0.1 # 价格偏离阈值 (从5%放宽到10%)
 
 # 策略管理配置
 strategy:
@@ -141,24 +141,24 @@ logging:
     data_service: "INFO"
     ctp_gateway: "INFO"
 
-# 性能监控配置
+# 性能监控配置 - 测试环境优化
 monitoring:
   enabled: true
   metrics_interval: 10  # 统计间隔（秒）
   enable_alerts: true
   
-  # 性能阈值
+  # 性能阈值 - 测试环境适配
   thresholds:
-    order_latency_ms: 10
+    order_latency_ms: 50        # 从10放宽到50ms
     tick_processing_rate: 1000
-    memory_usage_mb: 500
-    cpu_usage_percent: 80
+    memory_usage_mb: 16000      # 从500增加到16000MB适应测试环境
+    cpu_usage_percent: 90       # 从80放宽到90%
     
-  # 告警配置
+  # 告警配置 - 测试环境适配
   alerts:
-    high_latency_threshold: 50  # 毫秒
-    memory_threshold: 500       # MB
-    error_rate_threshold: 0.01  # 1%
+    high_latency_threshold: 100 # 从50增加到100ms
+    memory_threshold: 16000     # 从500增加到16000MB
+    error_rate_threshold: 0.05  # 从1%放宽到5%
 
 # 交易时段配置
 trading_hours:

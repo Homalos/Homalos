@@ -10,24 +10,25 @@
 @Description: 性能测试框架 - 端到端、压力测试和基准测试
 """
 import asyncio
-import time
 import statistics
+import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Callable, Optional
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+from typing import Dict, List, Any, Optional
+
 import psutil
 import pytest
 
-from src.core.event_bus import EventBus
 from src.config.config_manager import ConfigManager
-from src.services.trading_engine import TradingEngine
+from src.config.constant import Direction, OrderType, Exchange
+from src.core.event import Event, create_trading_event
+from src.core.event_bus import EventBus
+from src.core.logger import get_logger
+from src.core.object import OrderRequest, TickData
 from src.services.data_service import DataService
 from src.services.performance_monitor import PerformanceMonitor
-from src.core.event import Event, create_trading_event
-from src.core.object import OrderRequest, TickData
-from src.config.constant import Direction, OrderType, Exchange
-from src.core.logger import get_logger
+from src.services.trading_engine import TradingEngine
 
 logger = get_logger("PerformanceTest")
 
@@ -59,11 +60,11 @@ class BenchmarkResult:
 class PerformanceTestFramework:
     """性能测试框架"""
     
-    def __init__(self):
-        # 测试配置
+    def __init__(self) -> None:
+        # 测试配置 - 使用专用测试配置文件
         self.test_config = {
             "event_bus_name": "test_trading_system",
-            "config_file": "config/system.yaml"
+            "config_file": "config/test_system.yaml"
         }
         
         # 组件
@@ -80,7 +81,7 @@ class PerformanceTestFramework:
         logger.info("性能测试框架初始化完成")
     
     async def setup_test_environment(self) -> bool:
-        """设置测试环境"""
+        """设置测试环境 - 增强版"""
         try:
             logger.info("🔧 设置性能测试环境...")
             
@@ -91,18 +92,34 @@ class PerformanceTestFramework:
             # 启动事件总线
             self.event_bus.start()
             
+            # 等待事件总线完全启动
+            await asyncio.sleep(0.5)
+            
             # 初始化核心服务
             self.trading_engine = TradingEngine(self.event_bus, self.config)
             self.data_service = DataService(self.event_bus, self.config)
             self.performance_monitor = PerformanceMonitor(self.event_bus, self.config)
             
-            # 初始化服务
-            await self.trading_engine.initialize()
-            await self.data_service.initialize()
+            # 初始化服务 - 添加重试机制
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    await self.trading_engine.initialize()
+                    await self.data_service.initialize()
+                    break
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        raise
+                    logger.warning(f"初始化失败，重试 {attempt + 1}/{max_retries}: {e}")
+                    await asyncio.sleep(1)
             
             # 启动服务
             await self.trading_engine.start()
             self.performance_monitor.start_monitoring()
+            
+            # 验证组件状态
+            if not self._verify_components_ready():
+                raise Exception("组件未正确初始化")
             
             logger.info("✅ 测试环境设置完成")
             return True
@@ -110,6 +127,16 @@ class PerformanceTestFramework:
         except Exception as e:
             logger.error(f"❌ 测试环境设置失败: {e}")
             return False
+    
+    def _verify_components_ready(self) -> bool:
+        """验证组件就绪状态"""
+        checks = [
+            self.event_bus is not None,
+            self.trading_engine is not None,
+            self.data_service is not None,
+            self.performance_monitor is not None
+        ]
+        return all(checks)
     
     async def teardown_test_environment(self) -> None:
         """清理测试环境"""
@@ -145,10 +172,17 @@ class PerformanceTestFramework:
             strategy_id = f"test_strategy_{uuid.uuid4().hex[:8]}"
             
             # 模拟策略加载
+            assert self.trading_engine is not None
             load_success = await self.trading_engine.strategy_manager.load_strategy(
                 "src/strategies/minimal_strategy.py",
                 strategy_id,
-                {"symbol": "IF2501", "initial_capital": 100000}
+                {
+                    "symbol": "FG509",
+                    "exchange": "CZCE",
+                    "volume": 1,
+                    "order_interval": 5,
+                    "max_orders": 10
+                }
             )
             
             if not load_success:
@@ -160,12 +194,12 @@ class PerformanceTestFramework:
                 raise Exception("策略启动失败")
             
             # 模拟市场数据
-            await self._send_mock_market_data("IF2501", 100)
+            await self._send_mock_market_data("FG509", 100)
             
             # 模拟下单
             order_request = OrderRequest(
-                symbol="IF2501",
-                exchange=Exchange.CFFEX,
+                symbol="FG509",
+                exchange=Exchange.CZCE,
                 direction=Direction.LONG,
                 type=OrderType.LIMIT,
                 volume=1,
@@ -185,8 +219,9 @@ class PerformanceTestFramework:
             duration = time.time() - start_time
             
             # 收集性能指标
-            performance_metrics = self.performance_monitor.get_performance_summary(strategy_id)
-            system_metrics = self.performance_monitor.get_system_metrics()
+            assert self.performance_monitor is not None
+            performance_metrics = self.performance_monitor.get_performance_summary(strategy_id) if hasattr(self.performance_monitor, 'get_performance_summary') else {}
+            system_metrics = self.performance_monitor.get_system_metrics() if hasattr(self.performance_monitor, 'get_system_metrics') else {}
             
             result = TestResult(
                 test_name=test_name,
@@ -441,14 +476,16 @@ class PerformanceTestFramework:
         for i in range(count):
             tick_data = TickData(
                 symbol=symbol,
-                exchange=Exchange.CFFEX,
-                datetime=time.time(),
+                exchange=Exchange.CZCE,
+                datetime=datetime.now(),
                 last_price=base_price + (i % 10) * 0.2,
                 volume=100 + i,
                 turnover=(base_price + (i % 10) * 0.2) * (100 + i),
-                open_interest=1000 + i
+                open_interest=1000 + i,
+                gateway_name="send_mock_market_data"
             )
             
+            assert self.event_bus is not None
             self.event_bus.publish(Event("market.tick", tick_data))
             await asyncio.sleep(0.001)  # 1ms间隔
     
@@ -458,14 +495,15 @@ class PerformanceTestFramework:
         await asyncio.sleep(0.001)
         
         # 发布模拟事件
+        assert self.event_bus is not None
         self.event_bus.publish(create_trading_event(
             "strategy.signal",
             {
                 "action": "place_order",
                 "strategy_id": operation_id,
                 "order_request": OrderRequest(
-                    symbol="IF2501",
-                    exchange=Exchange.CFFEX,
+                    symbol="FG509",
+                    exchange=Exchange.CZCE,
                     direction=Direction.LONG,
                     type=OrderType.LIMIT,
                     volume=1,
@@ -483,8 +521,8 @@ class PerformanceTestFramework:
     async def _single_order_operation(self, operation_id: str) -> None:
         """单次订单操作"""
         order_request = OrderRequest(
-            symbol="IF2501",
-            exchange=Exchange.CFFEX,
+            symbol="FG509",
+            exchange=Exchange.CZCE,
             direction=Direction.LONG,
             type=OrderType.LIMIT,
             volume=1,
@@ -492,6 +530,7 @@ class PerformanceTestFramework:
         )
         
         # 发布订单事件
+        assert self.event_bus is not None
         self.event_bus.publish(create_trading_event(
             "strategy.signal",
             {
@@ -509,15 +548,17 @@ class PerformanceTestFramework:
         """高频操作"""
         # 发布高频tick事件
         tick_data = TickData(
-            symbol="IF2501",
-            exchange=Exchange.CFFEX,
-            datetime=time.time(),
+            symbol="FG509",
+            exchange=Exchange.CZCE,
+            datetime=datetime.now(),
             last_price=4500.0 + (operation_id % 100) * 0.1,
             volume=100,
             turnover=450000.0,
-            open_interest=1000
+            open_interest=1000,
+            gateway_name="high_frequency_operation"
         )
         
+        assert self.event_bus is not None
         self.event_bus.publish(Event("market.tick", tick_data))
         
         # 微小延迟
@@ -564,7 +605,7 @@ class TestPerformanceFramework:
     """性能测试用例集合"""
     
     @pytest.fixture
-    async def performance_framework(self):
+    async def performance_framework(self) -> Any:
         """性能测试框架夹具"""
         framework = PerformanceTestFramework()
         setup_success = await framework.setup_test_environment()
@@ -576,7 +617,7 @@ class TestPerformanceFramework:
         await framework.teardown_test_environment()
     
     @pytest.mark.asyncio
-    async def test_end_to_end_performance(self, performance_framework):
+    async def test_end_to_end_performance(self, performance_framework: Any) -> None:
         """测试端到端性能"""
         result = await performance_framework.run_end_to_end_test()
         performance_framework.test_results.append(result)
@@ -585,7 +626,7 @@ class TestPerformanceFramework:
         assert result.duration < 10.0, f"端到端测试耗时过长: {result.duration}秒"
     
     @pytest.mark.asyncio
-    async def test_stress_performance(self, performance_framework):
+    async def test_stress_performance(self, performance_framework: Any) -> None:
         """测试压力性能"""
         result = await performance_framework.run_stress_test(concurrent_operations=50, duration_seconds=10)
         performance_framework.test_results.append(result)
@@ -613,7 +654,7 @@ class TestPerformanceFramework:
 
 
 if __name__ == "__main__":
-    async def main():
+    async def main() -> None:
         """主测试函数"""
         framework = PerformanceTestFramework()
         

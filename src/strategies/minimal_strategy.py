@@ -9,12 +9,12 @@
 @Software   : PyCharm
 @Description: 最小策略 - 用于测试交易引擎全链路功能
 """
-from typing import Dict, Any
 import time
+from typing import Dict, Any
 
-from src.strategies.base_strategy import BaseStrategy
-from src.core.object import TickData, BarData, OrderData, TradeData, OrderRequest
 from src.config.constant import Direction, Offset, OrderType, Exchange
+from src.core.object import TickData, BarData, OrderData, TradeData, OrderRequest
+from src.strategies.base_strategy import BaseStrategy
 
 
 class MinimalStrategy(BaseStrategy):
@@ -33,7 +33,7 @@ class MinimalStrategy(BaseStrategy):
     description = "最小策略 - 用于测试交易引擎全链路功能"
     
     def __init__(self, strategy_id: str, event_bus, params: Dict[str, Any] | None = None):
-        # 默认参数
+        # 默认参数定义
         default_params = {
             "symbol": "FG509",
             "exchange": "CZCE",
@@ -42,12 +42,30 @@ class MinimalStrategy(BaseStrategy):
             "max_orders": 5         # 最大订单数
         }
         
+        # 合并用户参数
         if params:
             default_params.update(params)
         
+        # 先调用父类构造函数初始化self.params
         super().__init__(strategy_id, event_bus, default_params)
         
-        # 策略状态
+        # 再获取策略参数
+        self.symbol = self.get_parameter("symbol")
+        
+        # 正确处理exchange参数：字符串转枚举
+        exchange_str = self.get_parameter("exchange")
+        if isinstance(exchange_str, str):
+            self.exchange = Exchange[exchange_str]  # 字符串转枚举
+        elif isinstance(exchange_str, Exchange):
+            self.exchange = exchange_str  # 已经是枚举对象
+        else:
+            raise ValueError(f"无效的exchange参数: {exchange_str}")
+            
+        self.volume = self.get_parameter("volume", 1)
+        self.order_interval = self.get_parameter("order_interval", 10)
+        self.max_orders = self.get_parameter("max_orders", 5)
+        
+        # 策略状态初始化
         self.last_order_time = 0
         self.order_count = 0
         self.active_orders = {}  # 活跃订单管理
@@ -55,14 +73,6 @@ class MinimalStrategy(BaseStrategy):
     async def on_init(self):
         """策略初始化"""
         self.write_log("最小策略初始化")
-        
-        # 获取策略参数
-        self.symbol = self.get_parameter("symbol")
-        self.exchange = Exchange[self.get_parameter("exchange")]
-        self.volume = self.get_parameter("volume")
-        self.order_interval = self.get_parameter("order_interval")
-        self.max_orders = self.get_parameter("max_orders")
-        
         self.write_log(f"策略参数: {self.symbol}.{self.exchange.value}, "
                       f"手数={self.volume}, 间隔={self.order_interval}秒")
     

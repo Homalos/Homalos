@@ -14,11 +14,11 @@ import signal
 import sys
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any, Type
 
 from src.config.config_manager import ConfigManager
-from src.services.trading_engine import TradingEngine
 from src.core.event import Event
+from src.services.trading_engine import TradingEngine
 
 # 添加项目根目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent))
@@ -34,10 +34,14 @@ try:
     from src.ctp.gateway.market_data_gateway import MarketDataGateway
     from src.ctp.gateway.order_trading_gateway import OrderTradingGateway
     CTP_AVAILABLE = True
+    MarketDataGatewayType = MarketDataGateway
+    OrderTradingGatewayType = OrderTradingGateway
 except ImportError:
     CTP_AVAILABLE = False
     MarketDataGateway = None
     OrderTradingGateway = None
+    MarketDataGatewayType = None
+    OrderTradingGatewayType = None
 
 logger = get_logger("Main")
 
@@ -57,8 +61,8 @@ class HomalosSystem:
         self.web_server: Optional[WebServer] = None
         
         # 网关组件
-        self.market_gateway = None
-        self.trading_gateway = None
+        self.market_gateway: Optional[MarketDataGateway] = None
+        self.trading_gateway: Optional[OrderTradingGateway] = None
         
         # 系统状态
         self.is_running = False
@@ -67,9 +71,9 @@ class HomalosSystem:
         # 信号处理
         self._setup_signal_handlers()
     
-    def _setup_signal_handlers(self):
+    def _setup_signal_handlers(self) -> None:
         """设置信号处理器"""
-        def signal_handler(signum, frame):
+        def signal_handler(signum: int, frame: Any) -> None:
             logger.info(f"接收到退出信号 {signum}，正在关闭系统...")
             asyncio.create_task(self.shutdown())
         
@@ -122,7 +126,7 @@ class HomalosSystem:
             logger.error(f"❌ 系统初始化失败: {e}")
             return False
     
-    async def _initialize_gateways(self):
+    async def _initialize_gateways(self) -> None:
         """初始化交易网关"""
         try:
             if not CTP_AVAILABLE:
@@ -171,7 +175,7 @@ class HomalosSystem:
             # 继续运行，不因网关初始化失败而退出
             logger.warning("⚠️ 系统将在无网关模式下运行")
     
-    async def _connect_gateways_with_timeout(self, ctp_config: dict):
+    async def _connect_gateways_with_timeout(self, ctp_config: dict) -> None:
         """带超时控制的网关连接"""
         connection_timeout = 30  # 30秒连接超时
         max_retries = 3
@@ -240,7 +244,7 @@ class HomalosSystem:
             # 实施回退策略
             await self._handle_gateway_connection_failure()
     
-    async def _connect_market_gateway(self, ctp_config: dict):
+    async def _connect_market_gateway(self, ctp_config: dict) -> None:
         """连接行情网关"""
         if self.market_gateway:
             self.market_gateway.connect(ctp_config)

@@ -159,8 +159,8 @@ class StrategyManager:
             return True
         
         try:
-            # 调用策略的启动方法
-            await strategy_info.instance.on_start()
+            # 修改：调用策略的start()方法，这会自动处理initialize() -> on_init() -> on_start()流程
+            await strategy_info.instance.start()
             
             strategy_info.status = "running"
             strategy_info.start_time = time.time()
@@ -183,8 +183,8 @@ class StrategyManager:
         strategy_info = self.strategies[strategy_id]
         
         try:
-            # 调用策略的停止方法
-            await strategy_info.instance.on_stop()
+            # 修改：调用策略的stop()方法
+            await strategy_info.instance.stop()
             
             strategy_info.status = "stopped"
             strategy_info.stop_time = time.time()
