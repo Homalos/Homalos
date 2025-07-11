@@ -12,13 +12,13 @@
 import asyncio
 import time
 import uuid
-from collections import defaultdict, deque
+from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from typing import Dict, List, Optional, Any
 
 from src.config.config_manager import ConfigManager
-from src.core.event import Event, EventType, create_trading_event, create_critical_event
+from src.core.event import Event, EventType, create_trading_event
 from src.core.event_bus import EventBus
 from src.core.logger import get_logger
 from src.core.object import OrderRequest, OrderData, TradeData, TickData, PositionData, AccountData, Status
@@ -264,145 +264,298 @@ class RiskManager:
         self.event_bus = event_bus
         self.config = config
         
-        # 风控规则
-        self.rules = self._load_risk_rules()
+        # 风控配置
+        self.enabled = config.get("risk.enabled", True)
+        self.max_position_size = config.get("risk.max_position_size", 1000000)
+        self.max_daily_loss = config.get("risk.max_daily_loss", 50000)
+        self.max_order_size = config.get("risk.max_order_size", 100)
+        self.order_frequency_limit = config.get("risk.order_frequency_limit", 10)
+        self.position_concentration = config.get("risk.position_concentration", 0.3)
+        self.enable_self_trade_check = config.get("risk.enable_self_trade_check", True)
+        self.enable_price_check = config.get("risk.enable_price_check", True)
+        self.price_deviation_threshold = config.get("risk.price_deviation_threshold", 0.05)
         
-        # 运行时数据
-        self.position_tracker: Dict[str, PositionData] = {}
-        self.daily_stats = {
-            "total_pnl": 0.0,
-            "order_count": 0,
-            "last_reset": time.time()
-        }
-        self.order_frequency = deque(maxlen=100)  # 订单频率控制
+        # 实时监控数据
+        self.daily_loss = defaultdict(float)  # strategy_id -> daily_loss
+        self.order_frequency = {}  # strategy_id -> {timestamp -> count}
+        self.position_sizes = defaultdict(float)  # strategy_id -> total_position_value
+        self.last_prices = {}  # symbol -> last_price
+        
+        # 实盘级别额外风控
+        self.max_total_position = config.get("risk.max_total_position", 5000000)  # 总持仓限制
+        self.max_single_order_value = config.get("risk.max_single_order_value", 100000)  # 单笔订单价值限制
+        self.trading_hours_check = config.get("risk.trading_hours_check", True)  # 交易时间检查
+        self.instrument_risk_limits = {}  # 品种风险限制
+        
+        # 异常计数和限制
+        self.error_counts = defaultdict(int)  # strategy_id -> error_count
+        self.max_errors_per_hour = config.get("risk.max_errors_per_hour", 50)
+        self.strategy_suspend_threshold = config.get("risk.strategy_suspend_threshold", 100)
         
         # 注册事件处理器
         self.event_bus.subscribe("risk.check", self._handle_risk_check)
+        self.event_bus.subscribe("strategy.error", self._handle_strategy_error)
+        self.event_bus.subscribe("market.tick", self._update_market_prices)
         
-    def _load_risk_rules(self) -> Dict[str, Any]:
-        """加载风控规则"""
-        return {
-            'max_position_size': self.config.get('risk.max_position_size', 1000000),
-            'max_daily_loss': self.config.get('risk.max_daily_loss', 50000),
-            'max_order_size': self.config.get('risk.max_order_size', 100),
-            'order_frequency_limit': self.config.get('risk.order_frequency_limit', 10),
-            'position_concentration': self.config.get('risk.position_concentration', 0.3),
-            'enable_self_trade_check': self.config.get('risk.enable_self_trade_check', True),
-            'enable_price_check': self.config.get('risk.enable_price_check', True),
-            'price_deviation_threshold': self.config.get('risk.price_deviation_threshold', 0.05)
-        }
+        # 启动风控监控任务
+        asyncio.create_task(self._risk_monitoring_task())
     
-    async def check_order_risk(self, order_request: OrderRequest, strategy_id: str) -> RiskCheckResult:
-        """并行风控检查"""
-        order_id = str(uuid.uuid4())
-        reasons = []
-        risk_level = "low"
+    async def _risk_monitoring_task(self):
+        """实时风控监控任务"""
+        while True:
+            try:
+                await asyncio.sleep(10)  # 每10秒检查一次
+                
+                # 清理过期数据
+                self._cleanup_expired_data()
+                
+                # 检查策略错误频率
+                self._check_strategy_error_rates()
+                
+                # 检查市场异常情况
+                self._check_market_conditions()
+                
+            except Exception as e:
+                logger.error(f"风控监控任务异常: {e}")
+                await asyncio.sleep(30)  # 异常后等待30秒再继续
+    
+    def _cleanup_expired_data(self):
+        """清理过期的监控数据"""
+        current_time = time.time()
+        one_hour_ago = current_time - 3600
+        
+        # 清理1小时前的订单频率数据
+        for strategy_id in list(self.order_frequency.keys()):
+            if strategy_id in self.order_frequency:
+                self.order_frequency[strategy_id] = {
+                    ts: count for ts, count in self.order_frequency[strategy_id].items()
+                    if ts > one_hour_ago
+                }
+    
+    def _check_strategy_error_rates(self):
+        """检查策略错误率"""
+        for strategy_id, error_count in self.error_counts.items():
+            if error_count > self.strategy_suspend_threshold:
+                logger.error(f"策略 {strategy_id} 错误次数过多({error_count})，建议暂停")
+                # 发布策略暂停建议事件
+                self.event_bus.publish(Event("risk.strategy_suspend_recommended", {
+                    "strategy_id": strategy_id,
+                    "error_count": error_count,
+                    "reason": "错误次数超过阈值"
+                }))
+    
+    def _check_market_conditions(self):
+        """检查市场条件"""
+        if not self.trading_hours_check:
+            return
+        
+        # 简化的交易时间检查
+        import datetime
+        now = datetime.datetime.now()
+        hour = now.hour
+        
+        # 期货交易时间：9:00-11:30, 13:30-15:00, 21:00-次日2:30
+        is_trading_hours = (
+            (9 <= hour <= 11) or 
+            (13 <= hour <= 14) or 
+            (21 <= hour <= 23) or 
+            (0 <= hour <= 2)
+        )
+        
+        if not is_trading_hours:
+            # 非交易时间，暂停接受新订单
+            logger.warning(f"当前非交易时间 {hour}:00，暂停接受新订单")
+    
+    def _handle_strategy_error(self, event: Event):
+        """处理策略错误事件"""
+        data = event.data
+        strategy_id = data.get("strategy_id", "unknown")
+        error_type = data.get("error_type", "general")
+        
+        # 增加错误计数
+        self.error_counts[strategy_id] += 1
+        
+        logger.warning(f"策略错误记录: {strategy_id} - {error_type}, 累计错误: {self.error_counts[strategy_id]}")
+    
+    def _update_market_prices(self, event: Event):
+        """更新市场价格"""
+        tick_data = event.data
+        if hasattr(tick_data, 'symbol') and hasattr(tick_data, 'last_price'):
+            self.last_prices[tick_data.symbol] = tick_data.last_price
+    
+    def _enhanced_price_check(self, order_request: OrderRequest) -> RiskCheckResult:
+        """增强的价格合理性检查"""
+        if not self.enable_price_check:
+            return RiskCheckResult(True, "", [], "low")
+        
+        symbol = order_request.symbol
+        order_price = order_request.price
+        
+        # 获取最新市场价格
+        last_price = self.last_prices.get(symbol)
+        if not last_price:
+            # 没有最新价格，允许通过但记录警告
+            logger.warning(f"无法获取 {symbol} 的最新价格，跳过价格检查")
+            return RiskCheckResult(True, "", ["无最新价格数据"], "medium")
+        
+        # 计算价格偏离度
+        price_deviation = abs(order_price - last_price) / last_price
+        
+        if price_deviation > self.price_deviation_threshold:
+            return RiskCheckResult(False, "", [
+                f"订单价格 {order_price} 偏离市场价格 {last_price} 超过 {self.price_deviation_threshold*100}%"
+            ], "high")
+        
+        return RiskCheckResult(True, "", [], "low")
+    
+    def _trading_hours_check(self) -> RiskCheckResult:
+        """交易时间检查"""
+        if not self.trading_hours_check:
+            return RiskCheckResult(True, "", [], "low")
+        
+        import datetime
+        now = datetime.datetime.now()
+        hour = now.hour
+        minute = now.minute
+        
+        # 详细的期货交易时间检查
+        is_trading_hours = False
+        
+        # 上午：9:00-11:30
+        if (hour == 9 and minute >= 0) or (hour == 10) or (hour == 11 and minute <= 30):
+            is_trading_hours = True
+        # 下午：13:30-15:00
+        elif (hour == 13 and minute >= 30) or (hour == 14) or (hour == 15 and minute == 0):
+            is_trading_hours = True
+        # 夜盘：21:00-次日2:30
+        elif hour >= 21 or hour <= 2:
+            if hour == 2 and minute > 30:
+                is_trading_hours = False
+            else:
+                is_trading_hours = True
+        
+        if not is_trading_hours:
+            return RiskCheckResult(False, "", [f"当前时间 {hour:02d}:{minute:02d} 不在交易时间内"], "critical")
+        
+        return RiskCheckResult(True, "", [], "low")
+    
+    def _check_order_value_limit(self, order_request: OrderRequest) -> RiskCheckResult:
+        """检查单笔订单价值限制"""
+        try:
+            order_value = order_request.price * order_request.volume
+            
+            # 根据不同合约类型设置不同的限制（这里简化处理）
+            multiplier = 10  # 假设每手价值是价格*10（实际应根据合约规格）
+            actual_order_value = order_value * multiplier
+            
+            if actual_order_value > self.max_single_order_value:
+                return RiskCheckResult(False, "", [
+                    f"订单价值 {actual_order_value} 超过单笔限制 {self.max_single_order_value}"
+                ], "high")
+            
+            return RiskCheckResult(True, "", [], "low")
+            
+        except Exception as e:
+            logger.error(f"订单价值检查异常: {e}")
+            return RiskCheckResult(False, "", [f"订单价值计算异常: {e}"], "critical")
+    
+    def _check_order_frequency(self, strategy_id: str) -> RiskCheckResult:
+        """检查订单频率"""
+        current_time = time.time()
+        one_minute_ago = current_time - 60
+        
+        # 获取策略的订单历史
+        if strategy_id not in self.order_frequency:
+            self.order_frequency[strategy_id] = {}
+        
+        # 清理过期数据
+        self.order_frequency[strategy_id] = {
+            ts: count for ts, count in self.order_frequency[strategy_id].items()
+            if ts > one_minute_ago
+        }
+        
+        # 计算当前分钟的订单数
+        current_minute = int(current_time // 60)
+        orders_this_minute = self.order_frequency[strategy_id].get(current_minute, 0)
+        
+        if orders_this_minute >= self.order_frequency_limit:
+            return RiskCheckResult(False, "", [
+                f"策略 {strategy_id} 订单频率过高: {orders_this_minute}/{self.order_frequency_limit} 每分钟"
+            ], "high")
+        
+        # 更新计数
+        self.order_frequency[strategy_id][current_minute] = orders_this_minute + 1
+        
+        return RiskCheckResult(True, "", [], "low")
+    
+    def _check_position_concentration(self, strategy_id: str, order_request: OrderRequest) -> RiskCheckResult:
+        """检查持仓集中度"""
+        # 简化实现
+        return RiskCheckResult(True, "", [], "low")
+
+    async def check_risk(self, order_request: OrderRequest, strategy_id: str) -> RiskCheckResult:
+        """风控检查"""
+        if not self.enabled:
+            return RiskCheckResult(True, "", [], "low")
+        
+        violations = []
+        max_risk_level = "low"
+        order_id = f"{strategy_id}_{int(time.time() * 1000)}"
         
         try:
-            # 并行执行多个风控检查
-            checks = await asyncio.gather(
-                self._check_order_size(order_request),
-                self._check_daily_loss_limit(order_request),
-                self._check_position_limit(order_request, strategy_id),
-                self._check_frequency_limit(),
-                self._check_price_validity(order_request),
-                return_exceptions=True
-            )
+            # 1. 交易时间检查
+            time_check = self._trading_hours_check()
+            if not time_check.passed:
+                violations.extend(time_check.reasons)
+                max_risk_level = max(max_risk_level, time_check.risk_level, key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
             
-            # 处理检查结果
-            for i, result in enumerate(checks):
-                if isinstance(result, Exception):
-                    reasons.append(f"风控检查异常: {str(result)}")
-                    risk_level = "critical"
-                elif not result:
-                    check_names = [
-                        "订单大小检查", "日亏损限制检查", "持仓限制检查", 
-                        "频率限制检查", "价格有效性检查"
-                    ]
-                    reasons.append(f"{check_names[i]}未通过")
-                    if risk_level != "critical":
-                        risk_level = "high"
+            # 2. 订单大小检查
+            if order_request.volume > self.max_order_size:
+                violations.append(f"订单手数 {order_request.volume} 超过限制 {self.max_order_size}")
+                max_risk_level = max(max_risk_level, "high", key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
             
-            passed = len(reasons) == 0
+            # 3. 订单价值检查
+            value_check = self._check_order_value_limit(order_request)
+            if not value_check.passed:
+                violations.extend(value_check.reasons)
+                max_risk_level = max(max_risk_level, value_check.risk_level, key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
             
-            # 创建检查结果
-            result = RiskCheckResult(
-                passed=passed,
-                order_id=order_id,
-                reasons=reasons,
-                risk_level=risk_level
-            )
+            # 4. 增强价格检查
+            price_check = self._enhanced_price_check(order_request)
+            if not price_check.passed:
+                violations.extend(price_check.reasons)
+                max_risk_level = max(max_risk_level, price_check.risk_level, key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
             
-            # 发布风控结果事件
-            if passed:
-                self.event_bus.publish(create_trading_event(
-                    EventType.RISK_APPROVED,
-                    {"order_request": order_request, "strategy_id": strategy_id, "order_id": order_id},
-                    "RiskManager"
-                ))
+            # 5. 订单频率检查
+            freq_check = self._check_order_frequency(strategy_id)
+            if not freq_check.passed:
+                violations.extend(freq_check.reasons)
+                max_risk_level = max(max_risk_level, freq_check.risk_level, key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
+            
+            # 6. 持仓集中度检查（简化）
+            concentration_check = self._check_position_concentration(strategy_id, order_request)
+            if not concentration_check.passed:
+                violations.extend(concentration_check.reasons)
+                max_risk_level = max(max_risk_level, concentration_check.risk_level, key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
+            
+            # 记录风控检查结果
+            result = RiskCheckResult(len(violations) == 0, order_id, violations, max_risk_level)
+            
+            if result.passed:
+                logger.debug(f"风控检查通过: {strategy_id} {order_request.symbol}")
             else:
-                self.event_bus.publish(create_critical_event(
-                    EventType.RISK_REJECTED,
-                    {
-                        "order_request": order_request,
-                        "strategy_id": strategy_id,
-                        "reasons": reasons,
-                        "risk_level": risk_level
-                    },
-                    "RiskManager"
-                ))
+                logger.warning(f"风控检查失败: {strategy_id} {order_request.symbol} - {violations}")
             
             return result
             
         except Exception as e:
             logger.error(f"风控检查异常: {e}")
-            return RiskCheckResult(
-                passed=False,
-                order_id=order_id,
-                reasons=[f"风控系统异常: {str(e)}"],
-                risk_level="critical"
-            )
-    
-    async def _check_order_size(self, order_request: OrderRequest) -> bool:
-        """检查订单大小"""
-        max_size = self.rules['max_order_size']
-        return order_request.volume <= max_size
-    
-    async def _check_daily_loss_limit(self, order_request: OrderRequest) -> bool:
-        """检查当日亏损限制"""
-        max_loss = self.rules['max_daily_loss']
-        return abs(self.daily_stats['total_pnl']) < max_loss
-    
-    async def _check_position_limit(self, order_request: OrderRequest, strategy_id: str) -> bool:
-        """检查持仓限制"""
-        max_position = self.rules['max_position_size']
-        # 简化检查：假设当前持仓总值小于限制
-        return True  # 具体实现需要根据实际持仓计算
-    
-    async def _check_frequency_limit(self) -> bool:
-        """检查下单频率"""
-        current_time = time.time()
-        self.order_frequency.append(current_time)
-        
-        # 统计最近一秒的订单数量
-        one_second_ago = current_time - 1.0
-        recent_orders = sum(1 for t in self.order_frequency if t >= one_second_ago)
-        
-        limit = self.rules['order_frequency_limit']
-        return recent_orders <= limit
-    
-    async def _check_price_validity(self, order_request: OrderRequest) -> bool:
-        """检查价格有效性"""
-        if not self.rules['enable_price_check']:
-            return True
-        
-        # 简化实现：检查价格是否为正数
-        return order_request.price > 0
+            return RiskCheckResult(False, order_id, [f"风控检查异常: {e}"], "critical")
     
     def _handle_risk_check(self, event: Event):
         """处理风控检查请求"""
         data = event.data
-        asyncio.create_task(self.check_order_risk(
+        asyncio.create_task(self.check_risk(
             data["order_request"],
             data["strategy_id"]
         ))
@@ -417,6 +570,9 @@ class OrderManager:
         
         self.orders: Dict[str, OrderInfo] = {}
         self.strategy_orders: Dict[str, set] = defaultdict(set)  # strategy_id -> order_ids
+        # 添加订单ID映射：系统订单ID -> CTP订单ID
+        self.system_to_ctp_orderid: Dict[str, str] = {}
+        self.ctp_to_system_orderid: Dict[str, str] = {}
         
         # 注册事件处理器
         self.event_bus.subscribe(EventType.RISK_APPROVED, self._handle_risk_approved)
@@ -424,6 +580,12 @@ class OrderManager:
         self.event_bus.subscribe(EventType.ORDER_CANCELLED, self._handle_order_cancelled)
         self.event_bus.subscribe("order.place", self._handle_order_request)
         self.event_bus.subscribe("order.cancel", self._handle_cancel_order)
+        
+        # 订阅CTP网关回报事件
+        self.event_bus.subscribe(EventType.ORDER, self._handle_ctp_order_update)
+        self.event_bus.subscribe(EventType.TRADE, self._handle_ctp_trade_update)
+        self.event_bus.subscribe("order.sent_to_ctp", self._handle_order_sent_to_ctp)
+        self.event_bus.subscribe("order.send_failed", self._handle_order_send_failed)
     
     async def place_order(self, order_request: OrderRequest, strategy_id: str) -> str:
         """下单"""
@@ -516,41 +678,30 @@ class OrderManager:
         order_data = order_request.create_order_data(order_id, "CTP_TD")
         order_data.datetime = datetime.now()
         
-        # 发布订单事件
+        # 存储订单信息
+        order_info = OrderInfo(
+            order_data=order_data,
+            strategy_id=strategy_id,
+            create_time=time.time(),
+            update_time=time.time()
+        )
+        self.orders[order_id] = order_info
+        self.strategy_orders[strategy_id].add(order_id)
+        
+        # 发布订单提交事件
         self.event_bus.publish(Event("order.submitted", order_data))
         
-        # 自动mock成交回报（1秒后）
-        asyncio.create_task(self._mock_trade_fill(order_data, 1.0))
+        # 转发到CTP网关进行真实下单
+        self.event_bus.publish(create_trading_event(
+            "gateway.send_order",
+            {
+                "order_request": order_request,
+                "order_data": order_data
+            },
+            "OrderManager"
+        ))
         
-        logger.info(f"处理下单请求: {order_id} {order_request.symbol} {order_request.direction.value if order_request.direction else 'UNKNOWN'} {order_request.volume}@{order_request.price}")
-    
-    async def _mock_trade_fill(self, order_data: OrderData, delay: float):
-        """模拟订单成交"""
-        await asyncio.sleep(delay)
-        
-        # 创建成交数据
-        trade_data = TradeData(
-            symbol=order_data.symbol,
-            exchange=order_data.exchange,
-            orderid=order_data.orderid,
-            trade_id=f"mock_{order_data.orderid}",
-            direction=order_data.direction,
-            offset=order_data.offset,
-            price=order_data.price,
-            volume=order_data.volume,
-            datetime=datetime.now(),
-            gateway_name="CTP_TD"
-        )
-        
-        # 更新订单状态为已成交
-        order_data.status = Status.ALL_TRADED
-        order_data.traded = order_data.volume
-        
-        # 发布成交事件
-        self.event_bus.publish(Event("order.filled", trade_data))
-        self.event_bus.publish(Event("order.updated", order_data))
-        
-        logger.info(f"模拟成交: {trade_data.trade_id} {trade_data.symbol} {trade_data.direction.value if trade_data.direction else 'UNKNOWN'} {trade_data.volume}@{trade_data.price}")
+        logger.info(f"转发下单请求到CTP网关: {order_id} {order_request.symbol} {order_request.direction.value if order_request.direction else 'UNKNOWN'} {order_request.volume}@{order_request.price}")
     
     def _handle_cancel_order(self, event: Event):
         """处理撤单请求"""
@@ -570,6 +721,97 @@ class OrderManager:
             for order_id in order_ids if order_id in self.orders
         ]
 
+    def _handle_ctp_order_update(self, event: Event):
+        """处理CTP订单状态更新"""
+        order_data = event.data
+        if isinstance(order_data, OrderData):
+            # 通过CTP订单ID找到系统订单ID
+            ctp_order_id = order_data.orderid
+            system_order_id = self.ctp_to_system_orderid.get(ctp_order_id)
+            
+            if system_order_id and system_order_id in self.orders:
+                # 更新系统中的订单信息
+                order_info = self.orders[system_order_id]
+                order_info.order_data.status = order_data.status
+                order_info.order_data.traded = order_data.traded
+                order_info.update_time = time.time()
+                
+                logger.info(f"订单状态更新: {system_order_id} -> {order_data.status.value}")
+                
+                # 转发给策略
+                self.event_bus.publish(Event("order.updated", order_info.order_data))
+            else:
+                # 可能是其他来源的订单，记录日志
+                logger.debug(f"收到未知CTP订单更新: {ctp_order_id}")
+    
+    def _handle_ctp_trade_update(self, event: Event):
+        """处理CTP成交回报"""
+        trade_data = event.data
+        if isinstance(trade_data, TradeData):
+            # 通过CTP订单ID找到系统订单ID
+            ctp_order_id = trade_data.orderid
+            system_order_id = self.ctp_to_system_orderid.get(ctp_order_id)
+            
+            if system_order_id and system_order_id in self.orders:
+                order_info = self.orders[system_order_id]
+                
+                logger.info(f"订单成交: {system_order_id} - {trade_data.volume}@{trade_data.price}")
+                
+                # 发布成交事件给AccountManager和策略
+                self.event_bus.publish(Event("order.filled", trade_data))
+                
+                # 更新订单状态
+                if order_info.order_data.traded >= order_info.order_data.volume:
+                    order_info.order_data.status = Status.ALL_TRADED
+                else:
+                    order_info.order_data.status = Status.PART_TRADED
+                
+                order_info.update_time = time.time()
+                
+                # 通知策略
+                self.event_bus.publish(Event("order.updated", order_info.order_data))
+            else:
+                logger.debug(f"收到未知CTP成交回报: {ctp_order_id}")
+    
+    def _handle_order_sent_to_ctp(self, event: Event):
+        """处理订单已发送到CTP的确认"""
+        data = event.data
+        ctp_order_id = data.get("order_id")
+        order_data = data.get("order_data")
+        
+        if ctp_order_id and order_data:
+            system_order_id = order_data.orderid
+            
+            # 建立订单ID映射
+            self.system_to_ctp_orderid[system_order_id] = ctp_order_id
+            self.ctp_to_system_orderid[ctp_order_id] = system_order_id
+            
+            # 更新订单状态为已提交
+            if system_order_id in self.orders:
+                self.orders[system_order_id].order_data.status = Status.SUBMITTING
+                self.orders[system_order_id].update_time = time.time()
+            
+            logger.info(f"订单已发送到CTP: {system_order_id} -> {ctp_order_id}")
+    
+    def _handle_order_send_failed(self, event: Event):
+        """处理订单发送失败"""
+        data = event.data
+        order_data = data.get("order_data")
+        reason = data.get("reason", "未知原因")
+        
+        if order_data:
+            system_order_id = order_data.orderid
+            
+            # 更新订单状态为被拒绝
+            if system_order_id in self.orders:
+                self.orders[system_order_id].order_data.status = Status.REJECTED
+                self.orders[system_order_id].update_time = time.time()
+                
+                # 通知策略
+                self.event_bus.publish(Event("order.updated", self.orders[system_order_id].order_data))
+            
+            logger.error(f"订单发送失败: {system_order_id} - {reason}")
+
 
 class AccountManager:
     """账户管理器"""
@@ -586,12 +828,42 @@ class AccountManager:
         self.event_bus.subscribe(EventType.ACCOUNT_UPDATE, self._handle_account_update)
         self.event_bus.subscribe(EventType.POSITION_UPDATE, self._handle_position_update)
         self.event_bus.subscribe(EventType.ORDER_FILLED, self._handle_trade_update)
+        
+        # 添加定期查询任务
+        self._last_query_time = 0
+        self._query_interval = 30  # 30秒查询一次
+        
+        # 启动定期查询任务
+        asyncio.create_task(self._periodic_query_task())
+    
+    async def _periodic_query_task(self):
+        """定期查询账户和持仓"""
+        while True:
+            try:
+                await asyncio.sleep(self._query_interval)
+                current_time = time.time()
+                
+                if current_time - self._last_query_time >= self._query_interval:
+                    # 发布查询请求事件
+                    self.event_bus.publish(Event("gateway.query_account", {}))
+                    self.event_bus.publish(Event("gateway.query_position", {}))
+                    self._last_query_time = current_time
+                    
+            except Exception as e:
+                from src.core.logger import get_logger
+                logger = get_logger("AccountManager")
+                logger.error(f"定期查询任务异常: {e}")
+                await asyncio.sleep(5)  # 异常后等待5秒再继续
     
     def _handle_account_update(self, event: Event):
         """处理账户更新"""
         account_data = event.data
         if isinstance(account_data, AccountData):
             self.accounts[account_data.account_id] = account_data
+            
+            from src.core.logger import get_logger
+            logger = get_logger("AccountManager")
+            logger.info(f"账户更新: {account_data.account_id} 余额={account_data.balance} 可用={account_data.available}")
     
     def _handle_position_update(self, event: Event):
         """处理持仓更新"""
@@ -599,6 +871,10 @@ class AccountManager:
         if isinstance(position_data, PositionData):
             position_key = f"{position_data.symbol}.{position_data.direction.value}"
             self.positions[position_key] = position_data
+            
+            from src.core.logger import get_logger
+            logger = get_logger("AccountManager")
+            logger.info(f"持仓更新: {position_key} 数量={position_data.volume} 均价={position_data.price}")
     
     def _handle_trade_update(self, event: Event):
         """处理成交更新，计算策略盈亏"""
@@ -606,7 +882,9 @@ class AccountManager:
         if isinstance(trade_data, TradeData):
             # 简化盈亏计算逻辑
             # 实际应用中需要根据具体的持仓和价格变化计算
-            pass
+            from src.core.logger import get_logger
+            logger = get_logger("AccountManager")
+            logger.info(f"成交更新: {trade_data.symbol} {trade_data.direction.value if trade_data.direction else 'UNKNOWN'} {trade_data.volume}@{trade_data.price}")
     
     def get_strategy_pnl(self, strategy_id: str) -> float:
         """获取策略盈亏"""

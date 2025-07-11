@@ -15,11 +15,12 @@ import time
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import Optional, Dict, List, Any, Set
+from datetime import datetime
 
 from src.core.event import Event, EventType, create_trading_event, create_market_event
 from src.core.event_bus import EventBus
 from src.core.logger import get_logger
-from src.core.object import OrderRequest, TickData, OrderData, TradeData, BarData
+from src.core.object import OrderRequest, TickData, OrderData, TradeData, BarData, Status
 
 logger = get_logger("BaseStrategy")
 
@@ -43,40 +44,43 @@ class BaseStrategy(ABC):
     description: str = ""
     
     def __init__(self, strategy_id: str, event_bus: EventBus, params: Optional[Dict[str, Any]] = None):
-        self.strategy_id: str = strategy_id
-        self.event_bus: EventBus = event_bus
-        self.params: Dict[str, Any] = params if params else {}
-        
-        # 事件循环引用（用于跨线程异步调用）
-        self.main_loop: Optional[asyncio.AbstractEventLoop] = None
-        self.main_thread_id: Optional[int] = None
+        self.strategy_id = strategy_id
+        self.event_bus = event_bus
+        self.params = params or {}
         
         # 策略状态
-        self.active: bool = False
-        self.initialized: bool = False
-        self.start_time: Optional[float] = None
-        self.stop_time: Optional[float] = None
+        self.initialized = False
+        self.active = False
+        self.start_time = None
+        self.stop_time = None
         
-        # 订阅管理
+        # 订单管理 - 改进订单跟踪
+        self.pending_orders: Set[str] = set()  # 系统订单ID
+        self.filled_orders: Dict[str, TradeData] = {}  # trade_id -> TradeData
+        self.strategy_orders: Dict[str, OrderData] = {}  # 系统订单ID -> OrderData
+        
+        # 行情订阅管理
         self.subscribed_symbols: Set[str] = set()
+        
+        # 缓存
         self.tick_cache: Dict[str, TickData] = {}
-        self.bar_cache: Dict[str, Dict[str, BarData]] = defaultdict(dict)  # symbol -> interval -> bar
+        self.bar_cache: Dict[str, Dict[str, BarData]] = defaultdict(dict)  # symbol -> {interval: BarData}
         
-        # 交易记录
-        self.pending_orders: Dict[str, OrderData] = {}
-        self.filled_orders: Dict[str, TradeData] = {}
-        
-        # 性能统计
+        # 统计信息
         self.stats = {
             "total_orders": 0,
             "filled_orders": 0,
-            "total_pnl": 0.0,
-            "win_count": 0,
-            "loss_count": 0,
+            "cancelled_orders": 0,
+            "rejected_orders": 0,
+            "total_trades": 0,
             "last_trade_time": None
         }
         
-        # 注册事件处理器
+        # 线程安全相关
+        self.main_loop = None
+        self.main_thread_id = None
+        
+        # 设置事件处理器
         self._setup_event_handlers()
     
     def _setup_event_handlers(self):
@@ -117,27 +121,54 @@ class BaseStrategy(ABC):
         trade_data = event.data
         if isinstance(trade_data, TradeData):
             # 检查是否是本策略的成交
-            if trade_data.orderid in self.pending_orders:
+            # 通过策略订单记录来判断
+            is_strategy_trade = False
+            for system_order_id, order_data in self.strategy_orders.items():
+                # 简化判断：通过symbol和时间窗口判断
+                if (order_data.symbol == trade_data.symbol and 
+                    abs(time.time() - (order_data.datetime.timestamp() if order_data.datetime else 0)) < 300):  # 5分钟内
+                    is_strategy_trade = True
+                    break
+            
+            if is_strategy_trade:
                 self.filled_orders[trade_data.trade_id] = trade_data
                 
                 # 更新统计
                 self.stats["filled_orders"] += 1
+                self.stats["total_trades"] += 1
                 self.stats["last_trade_time"] = time.time()
                 
-                # 简单的盈亏统计（需要通过其他方式计算）
-                # 这里可以根据价格和持仓计算盈亏
+                self.write_log(f"策略成交: {trade_data.symbol} {trade_data.direction.value if trade_data.direction else 'UNKNOWN'} {trade_data.volume}@{trade_data.price}")
                 
                 # 调用策略的成交处理
-                asyncio.create_task(self.on_trade(trade_data))
+                self._safe_call_async(self.on_trade(trade_data))
     
     def _handle_order_event(self, event: Event):
         """处理订单事件"""
         order_data = event.data
         if isinstance(order_data, OrderData):
             # 检查是否是本策略的订单
-            if order_data.orderid in self.pending_orders:
+            # 通过策略订单记录来判断
+            is_strategy_order = False
+            for system_order_id, cached_order in self.strategy_orders.items():
+                if (cached_order.symbol == order_data.symbol and 
+                    abs(time.time() - (cached_order.datetime.timestamp() if cached_order.datetime else 0)) < 300):  # 5分钟内
+                    is_strategy_order = True
+                    # 更新缓存的订单数据
+                    self.strategy_orders[system_order_id] = order_data
+                    break
+            
+            if is_strategy_order:
+                self.write_log(f"策略订单更新: {order_data.orderid} {order_data.status.value}")
+                
+                # 统计更新
+                if order_data.status == Status.CANCELLED:
+                    self.stats["cancelled_orders"] += 1
+                elif order_data.status == Status.REJECTED:
+                    self.stats["rejected_orders"] += 1
+                
                 # 调用策略的订单处理
-                asyncio.create_task(self.on_order(order_data))
+                self._safe_call_async(self.on_order(order_data))
     
     def _handle_risk_rejected(self, event: Event):
         """处理风控拒绝事件"""
@@ -313,26 +344,31 @@ class BaseStrategy(ABC):
     # ============ 交易接口 ============
     
     async def send_order(self, order_request: OrderRequest) -> Optional[str]:
-        """发送订单请求"""
+        """发送订单"""
+        if not self.active:
+            self.write_log("策略未启动，无法发送订单", "WARNING")
+            return None
+        
         try:
-            # 发布下单信号给交易引擎
-            self.event_bus.publish(create_trading_event(
-                EventType.STRATEGY_SIGNAL,
-                {
-                    "action": "place_order",
-                    "order_request": order_request,
-                    "strategy_id": self.strategy_id
-                },
-                f"Strategy_{self.strategy_id}"
-            ))
+            # 为订单请求添加策略标识
+            order_request.reference = self.strategy_id
             
-            # 更新统计
-            self.stats["total_orders"] += 1
+            # 通过事件总线发送订单
+            order_id = await self._send_order_via_eventbus(order_request)
             
-            self.write_log(f"发送订单请求: {order_request.symbol} {order_request.direction.value} {order_request.volume}@{order_request.price}")
+            if order_id:
+                # 记录订单信息
+                self.pending_orders.add(order_id)
+                self.stats["total_orders"] += 1
+                
+                # 创建OrderData用于跟踪
+                order_data = order_request.create_order_data(order_id, "CTP_TD")
+                order_data.datetime = datetime.now()
+                self.strategy_orders[order_id] = order_data
+                
+                self.write_log(f"订单已发送: {order_id} {order_request.symbol} {order_request.direction.value if order_request.direction else 'UNKNOWN'} {order_request.volume}@{order_request.price}")
             
-            # 返回策略ID（实际订单ID会在订单回报中获得）
-            return self.strategy_id
+            return order_id
             
         except Exception as e:
             self.write_log(f"发送订单失败: {e}", "ERROR")

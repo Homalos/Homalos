@@ -227,4 +227,4 @@ class MinimalStrategy(BaseStrategy):
 
 
 # 为策略管理器提供兼容性别名
-Strategy = MinimalStrategy 
+Strategy = MinimalStrategy

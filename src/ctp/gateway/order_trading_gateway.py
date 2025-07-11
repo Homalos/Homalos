@@ -92,7 +92,12 @@ class OrderTradingGateway(BaseGateway):
         try:
             # 订阅交易相关事件
             self.event_bus.subscribe("gateway.order", self._handle_gateway_order)
+            self.event_bus.subscribe("gateway.send_order", self._handle_gateway_send_order)
             self.event_bus.subscribe("gateway.cancel", self._handle_gateway_cancel)
+            
+            # 订阅查询相关事件
+            self.event_bus.subscribe("gateway.query_account", self._handle_query_account)
+            self.event_bus.subscribe("gateway.query_position", self._handle_query_position)
             
             # 导入logger
             from src.core.logger import get_logger
@@ -139,6 +144,66 @@ class OrderTradingGateway(BaseGateway):
                 
         except Exception as e:
             self.write_log(f"处理撤单请求失败: {e}")
+
+    def _handle_gateway_send_order(self, event: Event) -> None:
+        """处理OrderManager转发的下单请求"""
+        try:
+            data = event.data
+            order_request = data.get("order_request")
+            order_data = data.get("order_data")
+            
+            if order_request:
+                self.write_log(f"CTP网关收到下单请求: {order_request.symbol} {order_request.direction.value if order_request.direction else 'UNKNOWN'} {order_request.volume}@{order_request.price}")
+                
+                # 发送订单到CTP
+                order_id = self.send_order(order_request)
+                
+                if order_id:
+                    self.write_log(f"订单已发送到CTP: {order_id}")
+                    # 发布订单已发送到CTP的事件
+                    from src.core.event import Event
+                    self.event_bus.publish(Event("order.sent_to_ctp", {
+                        "order_id": order_id,
+                        "order_request": order_request,
+                        "order_data": order_data
+                    }))
+                else:
+                    self.write_log("订单发送失败")
+                    # 发布订单发送失败事件
+                    from src.core.event import Event
+                    self.event_bus.publish(Event("order.send_failed", {
+                        "order_request": order_request,
+                        "order_data": order_data,
+                        "reason": "CTP send_order返回空"
+                    }))
+            else:
+                self.write_log("下单请求数据无效")
+                
+        except Exception as e:
+            self.write_log(f"处理下单请求失败: {e}")
+            # 发布订单发送失败事件
+            from src.core.event import Event
+            self.event_bus.publish(Event("order.send_failed", {
+                "order_request": data.get("order_request"),
+                "order_data": data.get("order_data"),
+                "reason": f"异常: {e}"
+            }))
+
+    def _handle_query_account(self, event: Event) -> None:
+        """处理账户查询请求"""
+        try:
+            self.write_log("收到账户查询请求")
+            self.query_account()
+        except Exception as e:
+            self.write_log(f"处理账户查询请求失败: {e}")
+    
+    def _handle_query_position(self, event: Event) -> None:
+        """处理持仓查询请求"""
+        try:
+            self.write_log("收到持仓查询请求")
+            self.query_position()
+        except Exception as e:
+            self.write_log(f"处理持仓查询请求失败: {e}")
 
 
     @staticmethod
