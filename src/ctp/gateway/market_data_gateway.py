@@ -13,7 +13,9 @@ import asyncio
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
+from enum import Enum
+import time
 
 from src.config import global_var
 from src.config.constant import Exchange
@@ -33,6 +35,16 @@ CHINA_TZ = ZoneInfo("Asia/Shanghai")       # 中国时区
 
 # 合约数据全局缓存字典
 symbol_contract_map: dict[str, ContractData] = {}
+
+
+class ConnectionState(Enum):
+    """连接状态枚举"""
+    DISCONNECTED = "disconnected"
+    CONNECTING = "connecting"
+    CONNECTED = "connected"
+    AUTHENTICATED = "authenticated"
+    LOGGED_IN = "logged_in"
+    ERROR = "error"
 
 
 class MarketDataGateway(BaseGateway):
@@ -73,6 +85,173 @@ class MarketDataGateway(BaseGateway):
         # 连接状态管理
         self._running: bool = True
         self.heartbeat_task: Optional[asyncio.Task] = None
+        
+        # 连接状态管理增强
+        self.connection_state: ConnectionState = ConnectionState.DISCONNECTED
+        self.reconnect_attempts: int = 0
+        self.max_reconnect_attempts: int = 10
+        self.last_heartbeat: float = 0.0
+        self.connection_start_time: Optional[float] = None
+        
+        # 订阅状态管理
+        self.pending_subscriptions: set[str] = set()  # 待订阅合约
+        self.active_subscriptions: set[str] = set()   # 已订阅合约
+        
+        # 设置网关事件处理器
+        self._setup_gateway_event_handlers()
+    
+    def get_connection_status(self) -> dict[str, Any]:
+        """获取详细连接状态"""
+        return {
+            "state": self.connection_state.value,
+            "is_connected": self.connection_state in [ConnectionState.CONNECTED, ConnectionState.AUTHENTICATED, ConnectionState.LOGGED_IN],
+            "reconnect_attempts": self.reconnect_attempts,
+            "max_reconnect_attempts": self.max_reconnect_attempts,
+            "last_heartbeat": self.last_heartbeat,
+            "connection_duration": time.time() - self.connection_start_time if self.connection_start_time else 0,
+            "subscriptions": self.get_subscription_status()
+        }
+    
+    def _start_heartbeat_monitor(self) -> None:
+        """启动心跳监控"""
+        if self.heartbeat_task and not self.heartbeat_task.done():
+            return
+            
+        self.heartbeat_task = asyncio.create_task(self._heartbeat_monitor_loop())
+        logger.info("心跳监控已启动")
+    
+    async def _heartbeat_monitor_loop(self) -> None:
+        """心跳监控循环"""
+        try:
+            while self._running and self.connection_state != ConnectionState.DISCONNECTED:
+                await asyncio.sleep(30)  # 每30秒检查一次
+                
+                current_time = time.time()
+                if self.last_heartbeat > 0 and current_time - self.last_heartbeat > 60:
+                    # 超过60秒没有心跳，认为连接断开
+                    logger.warning("心跳超时，检测到连接断开")
+                    await self._handle_connection_lost()
+                    
+        except asyncio.CancelledError:
+            logger.info("心跳监控已停止")
+        except Exception as e:
+            logger.error(f"心跳监控异常: {e}")
+    
+    async def _handle_connection_lost(self) -> None:
+        """处理连接丢失"""
+        try:
+            logger.warning("处理连接丢失事件")
+            self.connection_state = ConnectionState.DISCONNECTED
+            self.last_heartbeat = 0.0
+            
+            # 清空订阅状态，等待重连后重新订阅
+            self.pending_subscriptions.update(self.active_subscriptions)
+            self.active_subscriptions.clear()
+            
+            # 发布连接断开事件
+            self.event_bus.publish(Event("gateway.disconnected", {
+                "gateway_name": self.name,
+                "reason": "connection_lost"
+            }))
+            
+        except Exception as e:
+            logger.error(f"处理连接丢失失败: {e}")
+    
+    def _update_connection_state(self, new_state: ConnectionState) -> None:
+        """更新连接状态"""
+        if self.connection_state != new_state:
+            old_state = self.connection_state
+            self.connection_state = new_state
+            
+            logger.info(f"连接状态变更: {old_state.value} -> {new_state.value}")
+            
+            # 发布状态变更事件
+            self.event_bus.publish(Event("gateway.state_changed", {
+                "gateway_name": self.name,
+                "old_state": old_state.value,
+                "new_state": new_state.value
+            }))
+            
+            # 记录特殊状态的时间
+            if new_state == ConnectionState.CONNECTED:
+                self.connection_start_time = time.time()
+                self.last_heartbeat = time.time()
+                # 启动心跳监控
+                self._start_heartbeat_monitor()
+            elif new_state == ConnectionState.DISCONNECTED:
+                self.connection_start_time = None
+                self.last_heartbeat = 0.0
+
+    def _setup_gateway_event_handlers(self) -> None:
+        """设置网关事件处理器"""
+        try:
+            # 订阅网关订阅/取消订阅事件
+            self.event_bus.subscribe("gateway.subscribe", self._handle_gateway_subscribe)
+            self.event_bus.subscribe("gateway.unsubscribe", self._handle_gateway_unsubscribe)
+            logger.info(f"{self.name} 网关事件处理器已注册")
+        except Exception as e:
+            logger.error(f"设置网关事件处理器失败: {e}")
+
+    def _handle_gateway_subscribe(self, event: Event) -> None:
+        """处理动态订阅请求"""
+        try:
+            data = event.data
+            symbols = data.get("symbols", [])
+            strategy_id = data.get("strategy_id", "unknown")
+
+            logger.info(f"网关收到订阅请求: 策略={strategy_id}, 合约={symbols}")
+
+            for symbol in symbols:
+                if symbol not in self.active_subscriptions:
+                    # 创建订阅请求
+                    subscribe_req = SubscribeRequest(
+                        symbol=symbol,
+                        exchange=Exchange.CZCE  # 默认交易所，实际应根据合约解析
+                    )
+
+                    # 添加到待订阅列表
+                    self.pending_subscriptions.add(symbol)
+
+                    # 调用订阅方法
+                    self.subscribe(subscribe_req)
+
+                    logger.info(f"已发送订阅请求: {symbol}")
+                else:
+                    logger.debug(f"合约 {symbol} 已在订阅列表中")
+
+        except Exception as e:
+            logger.error(f"处理订阅请求失败: {e}")
+
+    def _handle_gateway_unsubscribe(self, event: Event) -> None:
+        """处理动态取消订阅请求"""
+        try:
+            data = event.data
+            symbols = data.get("symbols", [])
+            strategy_id = data.get("strategy_id", "unknown")
+
+            logger.info(f"网关收到取消订阅请求: 策略={strategy_id}, 合约={symbols}")
+
+            for symbol in symbols:
+                if symbol in self.active_subscriptions:
+                    # 从订阅列表中移除
+                    self.active_subscriptions.discard(symbol)
+                    self.pending_subscriptions.discard(symbol)
+
+                    logger.info(f"已取消订阅: {symbol}")
+                else:
+                    logger.debug(f"合约 {symbol} 未在订阅列表中")
+
+        except Exception as e:
+            logger.error(f"处理取消订阅请求失败: {e}")
+
+    def get_subscription_status(self) -> dict:
+        """获取订阅状态"""
+        return {
+            "active_subscriptions": list(self.active_subscriptions),
+            "pending_subscriptions": list(self.pending_subscriptions),
+            "total_active": len(self.active_subscriptions),
+            "total_pending": len(self.pending_subscriptions)
+        }
 
     @staticmethod
     def _prepare_address(address: str) -> str:
@@ -178,6 +357,7 @@ class CtpMdApi(MdApi):
         :return:
         """
         self.gateway.write_log("行情服务器连接成功")
+        self.gateway._update_connection_state(ConnectionState.CONNECTED)
         self.login()
 
     def onFrontDisconnected(self, reason: int) -> None:
@@ -198,7 +378,11 @@ class CtpMdApi(MdApi):
         :return:
         """
         self.login_status = False
+        self.gateway._update_connection_state(ConnectionState.DISCONNECTED)
         self.gateway.write_log("行情服务器连接断开，原因：{}".format(reason))
+        
+        # 触发连接丢失处理
+        asyncio.create_task(self.gateway._handle_connection_lost())
 
     def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
@@ -212,11 +396,13 @@ class CtpMdApi(MdApi):
         if not error["ErrorID"]:
             self.login_status = True
             global_var.md_login_success = True
+            self.gateway._update_connection_state(ConnectionState.LOGGED_IN)
             self.gateway.write_log("行情服务器登录成功")
 
             for symbol in self.subscribed:
                 self.subscribeMarketData(symbol)
         else:
+            self.gateway._update_connection_state(ConnectionState.ERROR)
             self.gateway.write_error("行情服务器登录失败", error)
 
     def onRspError(self, error: dict, reqid: int, last: bool) -> None:
@@ -239,6 +425,14 @@ class CtpMdApi(MdApi):
         :return:
         """
         if not error or not error["ErrorID"]:
+            # 订阅成功
+            if data and "InstrumentID" in data:
+                symbol = data["InstrumentID"]
+                # 更新网关订阅状态
+                if symbol in self.gateway.pending_subscriptions:
+                    self.gateway.pending_subscriptions.discard(symbol)
+                    self.gateway.active_subscriptions.add(symbol)
+                    self.gateway.write_log(f"行情订阅成功: {symbol}")
             return
 
         self.gateway.write_error("行情订阅失败", error)

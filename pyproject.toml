@@ -33,6 +33,7 @@ dependencies = [
     "pip>=25.1.1",
     "polars>=1.30.0",
     "polib>=1.2.0",
+    "psutil>=7.0.0",
     "pybind11>=2.13.6",
     "pybind11-stubgen>=2.5.4",
     "pyyaml>=6.0.2",

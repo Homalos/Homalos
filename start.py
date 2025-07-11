@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-@ProjectName: Homalos_v2  
+@ProjectName: Homalos_v2
 @FileName   : main
 @Date       : 2025/7/6 22:00
 @Author     : Donny
@@ -18,6 +18,7 @@ from typing import Optional
 
 from src.config.config_manager import ConfigManager
 from src.services.trading_engine import TradingEngine
+from src.core.event import Event
 
 # 添加项目根目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent))
@@ -128,52 +129,162 @@ class HomalosSystem:
                 logger.warning("⚠️ CTP网关不可用，跳过网关初始化")
                 return
             
-            # CTP网关配置
+            # CTP网关配置验证
             if self.config:
                 ctp_config = self.config.get("gateway.ctp", {})
-                if not ctp_config.get("user_id") or not ctp_config.get("password"):
-                    logger.warning("⚠️ CTP网关配置不完整，跳过网关初始化")
+                
+                # 详细配置验证
+                required_fields = ["user_id", "password", "broker_id", "md_address", "td_address"]
+                missing_fields = [field for field in required_fields if not ctp_config.get(field)]
+                
+                if missing_fields:
+                    logger.error(f"❌ CTP网关配置不完整，缺少字段: {missing_fields}")
+                    logger.warning("⚠️ 系统将在无网关模式下运行")
                     return
+                
+                # 验证网络地址格式
+                for addr_field in ["md_address", "td_address"]:
+                    address = ctp_config.get(addr_field, "")
+                    if not address or not any(address.startswith(prefix) for prefix in ["tcp://", "ssl://", "socks://"]):
+                        if not address.startswith("tcp://"):
+                            ctp_config[addr_field] = "tcp://" + address
+                
+                logger.info("✅ CTP网关配置验证通过")
                 
                 # 初始化行情网关
                 logger.info("📊 初始化CTP行情网关...")
                 if self.event_bus and MarketDataGateway:
                     self.market_gateway = MarketDataGateway(self.event_bus, "CTP_MD")
+                    logger.info(f"行情网关已创建: {self.market_gateway.name}")
                 
                 # 初始化交易网关
                 logger.info("💰 初始化CTP交易网关...")
                 if self.event_bus and OrderTradingGateway:
                     self.trading_gateway = OrderTradingGateway(self.event_bus, "CTP_TD")
+                    logger.info(f"交易网关已创建: {self.trading_gateway.name}")
             
-                # 连接网关
-                await self._connect_gateways(ctp_config)
+                # 连接网关（带超时控制）
+                await self._connect_gateways_with_timeout(ctp_config)
             
         except Exception as e:
             logger.error(f"❌ 网关初始化失败: {e}")
+            # 继续运行，不因网关初始化失败而退出
+            logger.warning("⚠️ 系统将在无网关模式下运行")
     
-    async def _connect_gateways(self, ctp_config: dict):
-        """连接交易网关"""
+    async def _connect_gateways_with_timeout(self, ctp_config: dict):
+        """带超时控制的网关连接"""
+        connection_timeout = 30  # 30秒连接超时
+        max_retries = 3
+        
         try:
             # 连接行情网关
             if self.market_gateway:
                 logger.info("🔗 连接行情网关...")
-                self.market_gateway.connect(ctp_config)
-                # 等待连接建立
-                await asyncio.sleep(2)
+                
+                for attempt in range(max_retries):
+                    try:
+                        # 使用超时控制连接
+                        connection_task = asyncio.create_task(
+                            self._connect_market_gateway(ctp_config)
+                        )
+                        await asyncio.wait_for(connection_task, timeout=connection_timeout)
+                        
+                        logger.info("✅ 行情网关连接成功")
+                        break
+                        
+                    except asyncio.TimeoutError:
+                        logger.warning(f"⚠️ 行情网关连接超时 (尝试 {attempt + 1}/{max_retries})")
+                        if attempt == max_retries - 1:
+                            logger.error("❌ 行情网关连接失败，已达最大重试次数")
+                    except Exception as e:
+                        logger.warning(f"⚠️ 行情网关连接异常: {e} (尝试 {attempt + 1}/{max_retries})")
+                        if attempt == max_retries - 1:
+                            logger.error("❌ 行情网关连接失败")
+                    
+                    # 重试前等待
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(2)
             
             # 连接交易网关  
             if self.trading_gateway:
                 logger.info("🔗 连接交易网关...")
-                self.trading_gateway.connect(ctp_config)
-                # 等待连接建立
-                await asyncio.sleep(2)
+                
+                for attempt in range(max_retries):
+                    try:
+                        # 使用超时控制连接
+                        connection_task = asyncio.create_task(
+                            self._connect_trading_gateway(ctp_config)
+                        )
+                        await asyncio.wait_for(connection_task, timeout=connection_timeout)
+                        
+                        logger.info("✅ 交易网关连接成功")
+                        break
+                        
+                    except asyncio.TimeoutError:
+                        logger.warning(f"⚠️ 交易网关连接超时 (尝试 {attempt + 1}/{max_retries})")
+                        if attempt == max_retries - 1:
+                            logger.error("❌ 交易网关连接失败，已达最大重试次数")
+                    except Exception as e:
+                        logger.warning(f"⚠️ 交易网关连接异常: {e} (尝试 {attempt + 1}/{max_retries})")
+                        if attempt == max_retries - 1:
+                            logger.error("❌ 交易网关连接失败")
+                    
+                    # 重试前等待
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(2)
             
-            logger.info("✅ 网关连接完成")
+            logger.info("✅ 网关连接流程完成")
             
         except Exception as e:
-            logger.error(f"❌ 网关连接失败: {e}")
-            # 继续运行，不因网关连接失败而退出
-            logger.warning("⚠️ 系统将在无网关模式下运行")
+            logger.error(f"❌ 网关连接过程中发生严重错误: {e}")
+            # 实施回退策略
+            await self._handle_gateway_connection_failure()
+    
+    async def _connect_market_gateway(self, ctp_config: dict):
+        """连接行情网关"""
+        if self.market_gateway:
+            self.market_gateway.connect(ctp_config)
+            # 等待连接建立（可以根据实际API调整）
+            await asyncio.sleep(3)
+    
+    async def _connect_trading_gateway(self, ctp_config: dict):
+        """连接交易网关"""
+        if self.trading_gateway:
+            self.trading_gateway.connect(ctp_config)
+            # 等待连接建立（可以根据实际API调整）
+            await asyncio.sleep(3)
+    
+    async def _handle_gateway_connection_failure(self):
+        """处理网关连接失败的回退策略"""
+        try:
+            logger.warning("🔄 实施网关连接失败回退策略...")
+            
+            # 清理失败的网关连接
+            if self.market_gateway:
+                try:
+                    self.market_gateway.close()
+                except Exception as e:
+                    logger.debug(f"清理行情网关连接时出错: {e}")
+                self.market_gateway = None
+                
+            if self.trading_gateway:
+                try:
+                    self.trading_gateway.close()
+                except Exception as e:
+                    logger.debug(f"清理交易网关连接时出错: {e}")
+                self.trading_gateway = None
+            
+            # 发布网关连接失败事件
+            if self.event_bus:
+                self.event_bus.publish(Event("system.gateway_connection_failed", {
+                    "timestamp": time.time(),
+                    "reason": "connection_timeout_or_error"
+                }))
+            
+            logger.info("📝 网关连接失败处理完成，系统将在模拟模式下运行")
+            
+        except Exception as e:
+            logger.error(f"❌ 处理网关连接失败时发生错误: {e}")
     
     async def start(self):
         """启动系统"""

@@ -23,6 +23,7 @@ from src.config.global_var import product_info, instrument_exchange_id_map
 from src.config.path import GlobalPath
 from src.core.gateway import BaseGateway
 from src.core.object import ContractData, PositionData, OrderData, AccountData, TradeData, OrderRequest, CancelRequest
+from src.core.event import Event
 from src.ctp.api import TdApi, THOST_FTDC_HF_Speculation, THOST_FTDC_CC_Immediately, THOST_FTDC_FCC_NotForceClose, \
     THOST_FTDC_AF_Delete
 from src.util.utility import ZoneInfo, get_folder_path, del_num
@@ -82,6 +83,63 @@ class OrderTradingGateway(BaseGateway):
                 self.write_log(f"警告：合约交易所映射文件未找到于 {map_file_path}。回退逻辑可能受限。")
         except Exception as e:
             self.write_log(f"加载合约交易所映射文件 {map_file_path} 时出错: {e}")
+            
+        # 设置网关事件处理器
+        self._setup_gateway_event_handlers()
+    
+    def _setup_gateway_event_handlers(self) -> None:
+        """设置网关事件处理器"""
+        try:
+            # 订阅交易相关事件
+            self.event_bus.subscribe("gateway.order", self._handle_gateway_order)
+            self.event_bus.subscribe("gateway.cancel", self._handle_gateway_cancel)
+            
+            # 导入logger
+            from src.core.logger import get_logger
+            logger = get_logger("OrderTradingGateway")
+            logger.info(f"{self.name} 交易网关事件处理器已注册")
+        except Exception as e:
+            try:
+                from src.core.logger import get_logger
+                logger = get_logger("OrderTradingGateway")
+                logger.error(f"设置交易网关事件处理器失败: {e}")
+            except:
+                self.write_log(f"设置交易网关事件处理器失败: {e}")
+    
+    def _handle_gateway_order(self, event: Event) -> None:
+        """处理下单请求"""
+        try:
+            data = event.data
+            order_request = data.get("order_request")
+            strategy_id = data.get("strategy_id", "unknown")
+            
+            if order_request:
+                self.write_log(f"交易网关收到下单请求: 策略={strategy_id}")
+                order_id = self.send_order(order_request)
+                self.write_log(f"下单请求已发送: {order_id}")
+            else:
+                self.write_log("下单请求数据无效")
+                
+        except Exception as e:
+            self.write_log(f"处理下单请求失败: {e}")
+    
+    def _handle_gateway_cancel(self, event: Event) -> None:
+        """处理撤单请求"""
+        try:
+            data = event.data
+            cancel_request = data.get("cancel_request")
+            strategy_id = data.get("strategy_id", "unknown")
+            
+            if cancel_request:
+                self.write_log(f"交易网关收到撤单请求: 策略={strategy_id}")
+                self.cancel_order(cancel_request)
+                self.write_log(f"撤单请求已发送")
+            else:
+                self.write_log("撤单请求数据无效")
+                
+        except Exception as e:
+            self.write_log(f"处理撤单请求失败: {e}")
+
 
     @staticmethod
     def _prepare_address(address: str) -> str:

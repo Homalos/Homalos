@@ -22,6 +22,7 @@ from src.core.event import Event, EventType, create_trading_event, create_critic
 from src.core.event_bus import EventBus
 from src.core.logger import get_logger
 from src.core.object import OrderRequest, OrderData, TradeData, TickData, PositionData, AccountData, Status
+from src.services.performance_monitor import PerformanceMonitor
 
 
 logger = get_logger("TradingEngine")
@@ -641,6 +642,9 @@ class TradingEngine:
         self.is_running = False
         self.start_time: Optional[float] = None
         
+        # 初始化性能监控器
+        self.performance_monitor = PerformanceMonitor(event_bus, config)
+        
         # 设置事件处理器
         self._setup_event_handlers()
         
@@ -678,6 +682,9 @@ class TradingEngine:
         self.is_running = True
         self.start_time = time.time()
         
+        # 启动性能监控
+        self.performance_monitor.start_monitoring()
+        
         logger.info("交易引擎已启动")
         
         # 发布引擎启动事件
@@ -697,6 +704,9 @@ class TradingEngine:
         for strategy_id in list(self.strategy_manager.strategies.keys()):
             await self.strategy_manager.stop_strategy(strategy_id)
         
+        # 停止性能监控
+        self.performance_monitor.stop_monitoring()
+        
         self.is_running = False
         
         logger.info("交易引擎已停止")
@@ -712,11 +722,21 @@ class TradingEngine:
         """处理策略信号"""
         data = event.data
         action = data.get("action")
+        strategy_id = data.get("strategy_id", "unknown")
+        
+        # 记录订单处理开始时间（用于延迟计算）
+        process_start_time = time.time()
         
         if action == "place_order":
             # 策略请求下单 -> 风控检查
             order_request = data["order_request"]
-            strategy_id = data["strategy_id"]
+            
+            # 记录订单下达事件
+            self.event_bus.publish(Event("strategy.order_placed", {
+                "strategy_id": strategy_id,
+                "order_request": order_request.__dict__ if hasattr(order_request, '__dict__') else str(order_request),
+                "timestamp": process_start_time
+            }))
             
             # 发布风控检查事件
             self.event_bus.publish(create_trading_event(
@@ -744,9 +764,33 @@ class TradingEngine:
     
     def get_engine_status(self) -> Dict[str, Any]:
         """获取引擎状态"""
-        return {
+        base_status = {
             "is_running": self.is_running,
             "start_time": self.start_time,
             "strategies": self.strategy_manager.get_all_strategies(),
             "account_info": self.account_manager.get_total_account_info()
-        } 
+        }
+        
+        # 集成性能监控数据
+        if self.performance_monitor:
+            base_status["performance"] = {
+                "system_metrics": self.performance_monitor.get_system_metrics(),
+                "strategy_performance": {
+                    strategy_id: self.performance_monitor.get_performance_summary(strategy_id)
+                    for strategy_id in self.strategy_manager.strategies.keys()
+                }
+            }
+        
+        return base_status
+    
+    def get_performance_metrics(self, strategy_id: str) -> Dict[str, Any]:
+        """获取特定策略的性能指标"""
+        if self.performance_monitor:
+            return self.performance_monitor.get_performance_summary(strategy_id)
+        return {}
+    
+    def get_system_performance(self) -> Dict[str, Any]:
+        """获取系统性能指标"""
+        if self.performance_monitor:
+            return self.performance_monitor.get_system_metrics()
+        return {} 
