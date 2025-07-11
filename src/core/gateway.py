@@ -1,262 +1,275 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@ProjectName: Homalos
+@FileName   : gateway
+@Date       : 2025/5/28 14:30
+@Author     : Donny
+@Email      : donnymoving@gmail.com
+@Software   : PyCharm
+@Description: 交易网关的基本数据结构。
+"""
+import asyncio
+import threading
 from abc import ABC, abstractmethod
+from typing import Dict, Any, Optional, Callable, Coroutine
+from concurrent.futures import ThreadPoolExecutor
 
-from src.core.event import Event, EventType
-from .event_bus import EventBus
+from src.core.event_bus import EventBus
+from src.core.event import Event
+from src.core.logger import get_logger
 
-from .object import (
-    AccountData,
-    BarData,
-    CancelRequest,
-    ContractData,
-    Exchange,
-    HistoryRequest,
-    LogData,
-    OrderData,
-    OrderRequest,
-    PositionData,
-    QuoteData,
-    QuoteRequest,
-    SubscribeRequest,
-    TickData,
-    TradeData,
-)
+logger = get_logger("BaseGateway")
+
+
+class ThreadSafeCallback:
+    """线程安全的回调辅助类，用于CTP API回调与Python事件循环的桥接"""
+    
+    def __init__(self, event_loop: Optional[asyncio.AbstractEventLoop] = None):
+        self.event_loop = event_loop or asyncio.get_event_loop()
+        self.thread_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="callback_")
+        
+        # 增强监控和统计
+        self.success_count = 0
+        self.failure_count = 0
+        self.retry_count = 0
+        self.max_retries = 3
+        self.retry_delay = 0.1  # 重试延迟(秒)
+    
+    def schedule_async_task(self, coro: Coroutine) -> None:
+        """线程安全地调度异步任务（增强版本）"""
+        for attempt in range(self.max_retries + 1):
+            try:
+                # 检查事件循环状态
+                if not self.event_loop or self.event_loop.is_closed():
+                    logger.error("事件循环已关闭，无法调度异步任务")
+                    self.failure_count += 1
+                    return
+                
+                if self.event_loop.is_running():
+                    # 事件循环正在运行，使用run_coroutine_threadsafe
+                    future = asyncio.run_coroutine_threadsafe(coro, self.event_loop)
+                    # 不等待结果，避免阻塞CTP回调线程
+                    self.success_count += 1
+                    if attempt > 0:
+                        self.retry_count += 1
+                    return
+                else:
+                    # 事件循环未运行，记录警告
+                    logger.warning("事件循环未运行，无法调度异步任务")
+                    self.failure_count += 1
+                    return
+                    
+            except Exception as e:
+                if attempt < self.max_retries:
+                    logger.warning(f"调度异步任务失败，重试 {attempt + 1}/{self.max_retries}: {e}")
+                    import time
+                    time.sleep(self.retry_delay)
+                else:
+                    logger.error(f"调度异步任务最终失败: {e}")
+                    self.failure_count += 1
+    
+    def schedule_callback(self, callback: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
+        """线程安全地调度同步回调（增强版本）"""
+        for attempt in range(self.max_retries + 1):
+            try:
+                # 检查事件循环状态
+                if not self.event_loop or self.event_loop.is_closed():
+                    logger.error("事件循环已关闭，无法调度回调")
+                    self.failure_count += 1
+                    return
+                
+                self.event_loop.call_soon_threadsafe(callback, *args, **kwargs)
+                self.success_count += 1
+                if attempt > 0:
+                    self.retry_count += 1
+                return
+                
+            except Exception as e:
+                if attempt < self.max_retries:
+                    logger.warning(f"调度回调失败，重试 {attempt + 1}/{self.max_retries}: {e}")
+                    import time
+                    time.sleep(self.retry_delay)
+                else:
+                    logger.error(f"调度回调最终失败: {e}")
+                    self.failure_count += 1
+    
+    def get_statistics(self) -> Dict[str, int]:
+        """获取统计信息"""
+        return {
+            "success_count": self.success_count,
+            "failure_count": self.failure_count,
+            "retry_count": self.retry_count,
+            "total_attempts": self.success_count + self.failure_count
+        }
+    
+    def close(self) -> None:
+        """关闭线程池（增强版本）"""
+        try:
+            # 记录统计信息
+            stats = self.get_statistics()
+            if stats["total_attempts"] > 0:
+                success_rate = (stats["success_count"] / stats["total_attempts"]) * 100
+                logger.info(f"ThreadSafeCallback统计: 成功率 {success_rate:.1f}%, "
+                           f"成功 {stats['success_count']}, 失败 {stats['failure_count']}, "
+                           f"重试 {stats['retry_count']}")
+            
+            self.thread_pool.shutdown(wait=False)
+        except Exception as e:
+            logger.error(f"关闭线程池失败: {e}")
 
 
 class BaseGateway(ABC):
     """
-    用于创建连接到不同交易系统的网关的抽象网关类。
-
-    # 如何实现网关：
-
-    ---
-    ## 基础知识
-    网关应满足：
-    * 此类应是线程安全的：
-    * 所有方法均应是线程安全的
-    * 对象之间不存在可变的共享属性。
-    * 所有方法均应是非阻塞的
-    * 满足文档字符串中针对每个方法和回调函数编写的所有要求。
-    * 连接断开时自动重新连接。
-
-    ---
-    ## 方法必须实现：
-    所有 @abstractmethod
-
-    ---
-    ## 回调函数必须手动响应：
-    * on_tick
-    * on_trade
-    * on_order
-    * on_position
-    * on_account
-    * on_contract
-
-    传递给回调函数的所有 XxxData 均应为常量，这意味着
-    该对象在传递给 on_xxxx 后不应被修改。
-    因此，如果您使用缓存来存储数据的引用，请在将数据传递给 on_xxxx 之前使用 copy.copy 创建一个新对象。
+    抽象网关类用于外部系统连接。
+    
+    每个网关都应该继承这个类，
+    并且应该有一个唯一的网关名称。
     """
 
-    # Default name for the gateway.
-    default_name: str = "gateway"
-
-    # Fields required in setting dict for connect function.
-    default_setting: dict[str, str | int | float | bool] = {}
-
-    # Exchanges supported in the gateway.
-    exchanges: list[Exchange] = []
+    default_name: str = ""
+    default_setting: Dict[str, Any] = {}
 
     def __init__(self, event_bus: EventBus, name: str) -> None:
-        """"""
-        self.event_bus: EventBus = event_bus
-        self.name: str = name if name else self.default_name
+        """初始化网关"""
+        self.event_bus = event_bus
+        self.name = name
+        
+        # 线程安全回调处理器
+        self._callback_handler: Optional[ThreadSafeCallback] = None
+        self._running = False
+        
+        # 初始化线程安全回调处理器
+        self._init_callback_handler()
 
-    def on_event(self, event_type: str, data: object = None) -> None:
-        """
-        General event push.
-        """
-        event: Event = Event(event_type, data)
-        self.event_bus.put_sync(event)
+    def _init_callback_handler(self) -> None:
+        """初始化线程安全回调处理器"""
+        try:
+            # 获取当前事件循环，如果没有则创建一个
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                # 没有运行中的事件循环，尝试获取默认事件循环
+                loop = asyncio.get_event_loop()
+            
+            self._callback_handler = ThreadSafeCallback(loop)
+            logger.debug(f"网关 {self.name} 线程安全回调处理器已初始化")
+        except Exception as e:
+            logger.error(f"初始化线程安全回调处理器失败: {e}")
+            self._callback_handler = None
 
-    def on_tick(self, tick: TickData) -> None:
-        """
-        Tick event push.
-        Tick event of a specific ho_symbol is also pushed.
-        """
-        self.on_event(EventType.MARKET_TICK, tick)
-        self.on_event(EventType.MARKET_TICK + tick.ho_symbol, tick)
+    def _schedule_async_task(self, coro: Coroutine) -> None:
+        """线程安全地调度异步任务（供子类使用）"""
+        if self._callback_handler:
+            self._callback_handler.schedule_async_task(coro)
+        else:
+            logger.error(f"网关 {self.name} 回调处理器未初始化，无法调度任务")
 
-    def on_trade(self, trade: TradeData) -> None:
-        """
-        Trade event push.
-        Trade event of a specific ho_symbol is also pushed.
-        """
-        self.on_event(EventType.TRADE, trade)
-        self.on_event(EventType.TRADE + trade.ho_symbol, trade)
+    def _schedule_callback(self, callback: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
+        """线程安全地调度同步回调（供子类使用）"""
+        if self._callback_handler:
+            self._callback_handler.schedule_callback(callback, *args, **kwargs)
+        else:
+            logger.error(f"网关 {self.name} 回调处理器未初始化，无法调度回调")
 
-    def on_order(self, order: OrderData) -> None:
-        """
-        Order event push.
-        Order event of a specific ho_orderid is also pushed.
-        """
-        self.on_event(EventType.ORDER, order)
-        self.on_event(EventType.ORDER + order.ho_orderid, order)
-
-    def on_position(self, position: PositionData) -> None:
-        """
-        Position event push.
-        Position event of a specific ho_symbol is also pushed.
-        """
-        self.on_event(EventType.POSITION_UPDATE, position)
-        self.on_event(EventType.POSITION_UPDATE + position.ho_symbol, position)
-
-    def on_account(self, account: AccountData) -> None:
-        """
-        Account event push.
-        Account event of a specific ho_account_id is also pushed.
-        """
-        self.on_event(EventType.ACCOUNT_UPDATE, account)
-        self.on_event(EventType.ACCOUNT_UPDATE + account.ho_account_id, account)
-
-    def on_quote(self, quote: QuoteData) -> None:
-        """
-        Quote event push.
-        Quote event of a specific ho_symbol is also pushed.
-        """
-        self.on_event(EventType.QUOTE, quote)
-        self.on_event(EventType.QUOTE + quote.ho_symbol, quote)
-
-    def on_log(self, log: LogData) -> None:
-        """
-        Log event push.
-        """
-        self.on_event(EventType.LOG_MESSAGE, log)
-
-    def on_contract(self, contract: ContractData) -> None:
-        """
-        Contract event push.
-        """
-        self.on_event(EventType.CONTRACT, contract)
+    def _safe_publish_event(self, event_type: str, data: Any) -> None:
+        """线程安全地发布事件"""
+        try:
+            def publish_event():
+                self.event_bus.publish(Event(event_type, data))
+            
+            self._schedule_callback(publish_event)
+        except Exception as e:
+            logger.error(f"网关 {self.name} 发布事件失败: {e}")
 
     def write_log(self, msg: str) -> None:
-        """
-        Write a log event from gateway.
-        """
-        log: LogData = LogData(msg=msg, gateway_name=self.name)
-        self.on_log(log)
+        """写日志（兼容性方法）"""
+        logger.info(f"[{self.name}] {msg}")
 
-    def write_error(self, msg: str, error: dict) -> None:
-        """输出错误信息日志"""
+    def write_error(self, msg: str, error: Dict[str, Any]) -> None:
+        """写错误日志（兼容性方法）"""
         error_id = error.get("ErrorID", "N/A")
         error_msg = error.get("ErrorMsg", str(error))
-        log_msg = f"{msg}，{'代码'}：{error_id}，{'信息'}：{error_msg}"
-        self.write_log(log_msg)
+        log_msg = f"{msg}，代码：{error_id}，信息：{error_msg}"
+        logger.error(f"[{self.name}] {log_msg}")
+
+    # 核心回调方法 - CTP网关兼容性接口
+    def on_contract(self, contract: Any) -> None:
+        """处理合约信息回调"""
+        try:
+            self._safe_publish_event("contract.updated", {
+                "contract": contract,
+                "gateway_name": self.name,
+                "timestamp": __import__('time').time()
+            })
+            logger.debug(f"[{self.name}] 合约信息已发布: {getattr(contract, 'symbol', 'unknown')}")
+        except Exception as e:
+            logger.error(f"[{self.name}] 处理合约信息失败: {e}")
+
+    def on_order(self, order: Any) -> None:
+        """处理订单状态回调"""
+        try:
+            self._safe_publish_event("order.updated", order)
+            order_id = getattr(order, 'orderid', 'unknown')
+            status = getattr(order, 'status', 'unknown')
+            logger.debug(f"[{self.name}] 订单状态已更新: {order_id} -> {status}")
+        except Exception as e:
+            logger.error(f"[{self.name}] 处理订单状态失败: {e}")
+
+    def on_trade(self, trade: Any) -> None:
+        """处理成交回报回调"""
+        try:
+            self._safe_publish_event("trade.updated", trade)
+            trade_id = getattr(trade, 'trade_id', 'unknown')
+            symbol = getattr(trade, 'symbol', 'unknown')
+            volume = getattr(trade, 'volume', 0)
+            price = getattr(trade, 'price', 0)
+            logger.info(f"[{self.name}] 成交回报: {trade_id} {symbol} {volume}@{price}")
+        except Exception as e:
+            logger.error(f"[{self.name}] 处理成交回报失败: {e}")
+
+    def on_account(self, account: Any) -> None:
+        """处理账户信息回调"""
+        try:
+            self._safe_publish_event("account.updated", account)
+            account_id = getattr(account, 'account_id', 'unknown')
+            balance = getattr(account, 'balance', 0)
+            logger.debug(f"[{self.name}] 账户信息已更新: {account_id} 余额:{balance}")
+        except Exception as e:
+            logger.error(f"[{self.name}] 处理账户信息失败: {e}")
+
+    def on_position(self, position: Any) -> None:
+        """处理持仓信息回调"""
+        try:
+            self._safe_publish_event("position.updated", position)
+            symbol = getattr(position, 'symbol', 'unknown')
+            volume = getattr(position, 'volume', 0)
+            direction = getattr(position, 'direction', 'unknown')
+            logger.debug(f"[{self.name}] 持仓信息已更新: {symbol} {direction} {volume}")
+        except Exception as e:
+            logger.error(f"[{self.name}] 处理持仓信息失败: {e}")
 
     @abstractmethod
-    def connect(self, setting: dict) -> None:
-        """
-        Start gateway connection.
-
-        to implement this method, you must:
-        * connect to server if necessary
-        * log connected if all necessary connection is established
-        * do the following query and response corresponding on_xxxx and write_log
-            * contracts : on_contract
-            * account asset : on_account
-            * account holding: on_position
-            * orders of account: on_order
-            * trades of account: on_trade
-        * if any of query above is failed,  write log.
-
-        future plan:
-        response callback/change status instead of write_log
-
-        """
+    def connect(self, setting: Dict[str, Any]) -> None:
+        """连接外部系统"""
         pass
 
     @abstractmethod
     def close(self) -> None:
-        """
-        Close gateway connection.
-        """
-        pass
+        """关闭连接"""
+        if self._callback_handler:
+            self._callback_handler.close()
+            self._callback_handler = None
+        self._running = False
 
-    def subscribe(self, req: SubscribeRequest) -> None:
-        """
-        Subscribe tick data update.
-        """
-        pass
+    def get_default_setting(self) -> Dict[str, Any]:
+        """获取默认设置"""
+        return self.default_setting.copy()
 
-    def send_order(self, req: OrderRequest) -> str:
-        """
-        Send a new order to server.
-
-        implementation should finish the tasks blow:
-        * create an OrderData from req using OrderRequest.create_order_data
-        * assign a unique(gateway instance scope) id to OrderData.orderid
-        * send request to server
-            * if request is sent, OrderData.status should be set to Status.SUBMITTING
-            * if request is failed to sent, OrderData.status should be set to Status.REJECTED
-        * response on_order:
-        * return vt_orderid
-
-        :return str vt_orderid for created OrderData
-        """
-        pass
-
-    def cancel_order(self, req: CancelRequest) -> None:
-        """
-        Cancel an existing order.
-        implementation should finish the tasks blow:
-        * send request to server
-        """
-        pass
-
-
-    def send_quote(self, req: QuoteRequest) -> str:
-        """
-        向服务器发送新的双边报价。
-
-        实现应完成以下任务：
-        * 使用 QuoteRequest.create_quote_data 从请求创建 QuoteData
-        * 为 QuoteData.quote_id 分配一个唯一的（网关实例范围）ID
-        * 向服务器发送请求
-        * 如果请求已发送，则 QuoteData.status 应设置为 Status.SUBMITTING
-        * 如果请求发送失败，则 QuoteData.status 应设置为 Status.REJECTED
-        * on_quote 响应：
-        * 返回 ho_quote_id
-
-        :return str ho_quote_id for created QuoteData
-        """
-        return ""
-
-    def cancel_quote(self, req: CancelRequest) -> None:
-        """
-        取消现有报价。
-        实施应完成以下任务：
-        * 向服务器发送请求
-        """
-        return
-
-    def query_account(self) -> None:
-        """
-        Query account balance.
-        """
-        pass
-
-    def query_position(self) -> None:
-        """
-        Query holding positions.
-        """
-        pass
-
-    def query_history(self, req: HistoryRequest) -> list[BarData]:
-        """
-        Query bar history data.
-        """
-        return []
-
-    def get_default_setting(self) -> dict[str, str | int | float | bool]:
-        """
-        Return default setting dict.
-        """
-        return self.default_setting
+    def get_connection_status(self) -> Dict[str, Any]:
+        """获取连接状态"""
+        return {
+            "name": self.name,
+            "connected": False,
+            "callback_handler_ready": self._callback_handler is not None
+        }

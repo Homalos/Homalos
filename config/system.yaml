@@ -7,6 +7,9 @@ system:
   log_level: "INFO"
   data_path: "data/"
   timezone: "Asia/Shanghai"
+  # 测试模式配置
+  test_mode: false  # 是否启用测试模式
+  test_trading_hours: true  # 测试模式下是否绕过交易时间检查
 
 # 事件总线配置
 event_bus:

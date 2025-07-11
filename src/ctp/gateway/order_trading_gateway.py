@@ -16,6 +16,11 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 from time import sleep
+from typing import Dict, Any, Optional, Set
+from enum import Enum
+import asyncio
+import time
+import threading
 
 from src.config import global_var
 from src.config.constant import Status, Exchange, Direction, OrderType
@@ -40,6 +45,16 @@ CHINA_TZ = ZoneInfo("Asia/Shanghai")
 # 合约数据全局缓存字典
 symbol_contract_map: dict[str, ContractData] = {}
 
+class GatewayState(Enum):
+    """网关状态枚举"""
+    DISCONNECTED = "disconnected"
+    CONNECTING = "connecting"
+    AUTHENTICATED = "authenticated"
+    QUERYING_CONTRACTS = "querying_contracts"
+    READY = "ready"
+    ERROR = "error"
+
+
 class OrderTradingGateway(BaseGateway):
     """
     用于对接期货CTP柜台的交易接口。
@@ -60,11 +75,23 @@ class OrderTradingGateway(BaseGateway):
     exchanges: list[str] = list(EXCHANGE_CTP2VT.values())
 
     def __init__(self,  event_bus: EventBus, name: str) -> None:
+        """初始化网关"""
         super().__init__(event_bus, name)
-        self.event_bus: EventBus = event_bus  # Ensure this line is present
-        self.query_functions = None
-        self.td_api: CtpTdApi | None = None
-        self.count: int = 0
+        
+        self.td_api: Optional[CtpTdApi] = None
+        
+        # 网关状态管理
+        self._gateway_state: GatewayState = GatewayState.DISCONNECTED
+        self._contract_query_timeout: int = 60  # 合约查询超时时间(秒)
+        self._state_lock = threading.Lock()  # 状态变更锁（改为同步锁）
+        
+        # 数据缓存 - 用于合约信息未就绪时的数据暂存
+        self._pending_orders: list[Dict[str, Any]] = []
+        self._pending_trades: list[Dict[str, Any]] = []
+        
+        # 合约就绪标志
+        self._contracts_ready: bool = False
+        self._contract_query_start_time: Optional[float] = None
 
         # 加载合约交易所映射文件
         self.instrument_exchange_map: dict = {}
@@ -86,6 +113,83 @@ class OrderTradingGateway(BaseGateway):
             
         # 设置网关事件处理器
         self._setup_gateway_event_handlers()
+
+    def _set_gateway_state(self, new_state: GatewayState) -> None:
+        """设置网关状态（线程安全，同步版本）"""
+        with self._state_lock:
+            old_state = self._gateway_state
+            self._gateway_state = new_state
+            
+            # 获取当前线程信息
+            current_thread = threading.current_thread()
+            thread_info = f"[线程:{current_thread.name}]"
+            
+            # 发布状态变更事件（线程安全）
+            self._safe_publish_event("gateway.state_changed", {
+                "gateway_name": self.name,
+                "old_state": old_state.value,
+                "new_state": new_state.value,
+                "timestamp": time.time(),
+                "thread_name": current_thread.name
+            })
+            
+            self.write_log(f"网关状态变更: {old_state.value} -> {new_state.value} {thread_info}")
+
+    def _get_gateway_state(self) -> GatewayState:
+        """获取当前网关状态"""
+        return self._gateway_state
+
+    def _is_contracts_ready(self) -> bool:
+        """检查合约信息是否就绪"""
+        return self._contracts_ready and len(symbol_contract_map) > 0
+
+    def _add_pending_order_data(self, order_data: Dict[str, Any]) -> None:
+        """添加待处理的订单数据"""
+        self._pending_orders.append({
+            "data": order_data,
+            "timestamp": time.time(),
+            "type": "order"
+        })
+        self.write_log(f"订单数据已缓存，等待合约信息就绪。缓存数量: {len(self._pending_orders)}")
+
+    def _add_pending_trade_data(self, trade_data: Dict[str, Any]) -> None:
+        """添加待处理的成交数据"""
+        self._pending_trades.append({
+            "data": trade_data,
+            "timestamp": time.time(),
+            "type": "trade"
+        })
+        self.write_log(f"成交数据已缓存，等待合约信息就绪。缓存数量: {len(self._pending_trades)}")
+
+    def _process_pending_data(self) -> None:
+        """处理所有待处理的数据"""
+        try:
+            # 处理待处理的订单数据
+            for pending_item in self._pending_orders:
+                try:
+                    self.td_api.onRtnOrder(pending_item["data"])
+                except Exception as e:
+                    self.write_log(f"处理缓存订单数据失败: {e}")
+            
+            # 处理待处理的成交数据
+            for pending_item in self._pending_trades:
+                try:
+                    self.td_api.onRtnTrade(pending_item["data"])
+                except Exception as e:
+                    self.write_log(f"处理缓存成交数据失败: {e}")
+            
+            processed_orders = len(self._pending_orders)
+            processed_trades = len(self._pending_trades)
+            
+            # 清空缓存
+            self._pending_orders.clear()
+            self._pending_trades.clear()
+            
+            if processed_orders > 0 or processed_trades > 0:
+                self.write_log(f"已处理缓存数据: {processed_orders}个订单, {processed_trades}个成交")
+                
+        except Exception as e:
+            self.write_log(f"处理缓存数据时发生错误: {e}")
     
     def _setup_gateway_event_handlers(self) -> None:
         """设置网关事件处理器"""
@@ -146,48 +250,85 @@ class OrderTradingGateway(BaseGateway):
             self.write_log(f"处理撤单请求失败: {e}")
 
     def _handle_gateway_send_order(self, event: Event) -> None:
-        """处理OrderManager转发的下单请求"""
+        """处理网关下单请求（增强版本，包含合约就绪检查）"""
         try:
             data = event.data
             order_request = data.get("order_request")
             order_data = data.get("order_data")
             
-            if order_request:
-                self.write_log(f"CTP网关收到下单请求: {order_request.symbol} {order_request.direction.value if order_request.direction else 'UNKNOWN'} {order_request.volume}@{order_request.price}")
-                
-                # 发送订单到CTP
-                order_id = self.send_order(order_request)
+            if not order_request or not order_data:
+                self.write_log("下单请求数据不完整")
+                return
+            
+            # 检查网关状态和合约信息就绪状态
+            if self._gateway_state != GatewayState.READY:
+                self.write_log(f"网关状态未就绪: {self._gateway_state.value}，拒绝下单请求")
+                self._safe_publish_event("order.send_failed", {
+                    "order_request": order_request,
+                    "order_data": order_data,
+                    "reason": f"网关状态未就绪: {self._gateway_state.value}"
+                })
+                return
+            
+            # 检查合约信息是否就绪
+            if not self._is_contracts_ready():
+                self.write_log("合约信息未就绪，拒绝下单请求")
+                self._safe_publish_event("order.send_failed", {
+                    "order_request": order_request,
+                    "order_data": order_data,
+                    "reason": "合约信息未就绪"
+                })
+                return
+            
+            # 检查具体合约是否存在
+            symbol = order_request.symbol
+            if symbol not in symbol_contract_map:
+                self.write_log(f"合约 {symbol} 不存在于合约映射中，拒绝下单请求")
+                self._safe_publish_event("order.send_failed", {
+                    "order_request": order_request,
+                    "order_data": order_data,
+                    "reason": f"合约 {symbol} 不存在"
+                })
+                return
+            
+            self.write_log(f"CTP网关收到下单请求: {order_request.symbol} {order_request.direction} {order_request.volume}@{order_request.price}")
+            
+            # 发送订单到CTP
+            if self.td_api:
+                order_id = self.td_api.send_order(order_request)
                 
                 if order_id:
                     self.write_log(f"订单已发送到CTP: {order_id}")
-                    # 发布订单已发送到CTP的事件
-                    from src.core.event import Event
-                    self.event_bus.publish(Event("order.sent_to_ctp", {
+                    # 使用线程安全的方式发布订单已发送到CTP的事件
+                    self._safe_publish_event("order.sent_to_ctp", {
                         "order_id": order_id,
                         "order_request": order_request,
                         "order_data": order_data
-                    }))
+                    })
                 else:
                     self.write_log("订单发送失败")
-                    # 发布订单发送失败事件
-                    from src.core.event import Event
-                    self.event_bus.publish(Event("order.send_failed", {
+                    # 使用线程安全的方式发布订单发送失败事件
+                    self._safe_publish_event("order.send_failed", {
                         "order_request": order_request,
                         "order_data": order_data,
                         "reason": "CTP send_order返回空"
-                    }))
+                    })
             else:
-                self.write_log("下单请求数据无效")
+                self.write_log("CTP API未初始化")
+                self._safe_publish_event("order.send_failed", {
+                    "order_request": order_request,
+                    "order_data": order_data,
+                    "reason": "CTP API未初始化"
+                })
                 
         except Exception as e:
             self.write_log(f"处理下单请求失败: {e}")
-            # 发布订单发送失败事件
-            from src.core.event import Event
-            self.event_bus.publish(Event("order.send_failed", {
+            # 使用线程安全的方式发布订单发送失败事件
+            self._safe_publish_event("order.send_failed", {
                 "order_request": data.get("order_request"),
                 "order_data": data.get("order_data"),
                 "reason": f"异常: {e}"
-            }))
+            })
 
     def _handle_query_account(self, event: Event) -> None:
         """处理账户查询请求"""
@@ -483,33 +624,68 @@ class CtpTdApi(TdApi):
 
     def onRspOrderInsert(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
-        委托下单失败回报
+        报单录入失败回报，当执行ReqOrderInsert后，CTP判定失败后调用
+        增强版本：包含合约映射验证和保护逻辑
         :param data:
         :param error:
         :param reqid:
         :param last:
         :return:
         """
-        order_ref: str = data["OrderRef"]
-        orderid: str = f"{self.front_id}_{self.session_id}_{order_ref}"
+        if not error or error.get("ErrorID") == 0:
+            # 没有错误，正常返回
+            return
 
-        symbol: str = data["InstrumentID"]
-        contract: ContractData = symbol_contract_map[symbol]
+        # 验证数据完整性
+        if not data or "InstrumentID" not in data:
+            self.gateway.write_error("订单插入失败回报数据不完整", error)
+            return
 
-        order: OrderData = OrderData(
-            symbol=symbol,
-            exchange=contract.exchange,
-            orderid=orderid,
-            direction=DIRECTION_CTP2VT[data["Direction"]],
-            offset=OFFSET_CTP2VT[data["CombOffsetFlag"]],
-            price=data["LimitPrice"],
-            volume=data["VolumeTotalOriginal"],
-            status=Status.REJECTED,
-            gateway_name=self.gateway_name
-        )
-        self.gateway.on_order(order)
+        symbol = data["InstrumentID"]
+        
+        # 检查合约信息是否存在
+        if symbol not in symbol_contract_map:
+            self.gateway.write_log(f"订单失败：合约 {symbol} 不在合约映射中，可能合约信息尚未加载完成")
+            
+            # 如果合约信息尚未就绪，将订单数据缓存
+            if not self.gateway._is_contracts_ready():
+                self.gateway.write_log(f"合约信息未就绪，缓存订单失败数据: {symbol}")
+                self.gateway._add_pending_order_data(data)
+                return
+            else:
+                # 合约就绪但找不到该合约，可能是不支持的合约
+                self.gateway.write_error(f"不支持的合约: {symbol}", error)
+                return
 
-        self.gateway.write_error("交易委托失败", error)
+        try:
+            # 构建订单数据
+            order_ref: str = data["OrderRef"]
+            orderid: str = f"{self.front_id}_{self.session_id}_{order_ref}"
+            contract: ContractData = symbol_contract_map[symbol]
+
+            order: OrderData = OrderData(
+                symbol=symbol,
+                exchange=contract.exchange,
+                orderid=orderid,
+                direction=DIRECTION_CTP2VT[data["Direction"]],
+                offset=OFFSET_CTP2VT[data["CombOffsetFlag"]],
+                price=data["LimitPrice"],
+                volume=data["VolumeTotalOriginal"],
+                status=Status.REJECTED,
+                gateway_name=self.gateway_name
+            )
+            
+            # 发布订单状态更新
+            self.gateway.on_order(order)
+
+            # 记录详细错误信息
+            error_id = error.get("ErrorID", "N/A")
+            error_msg = error.get("ErrorMsg", "未知错误")
+            self.gateway.write_error(f"交易委托失败 - 订单ID: {orderid}, 合约: {symbol}, 错误码: {error_id}, 错误信息: {error_msg}", error)
+            
+        except Exception as e:
+            self.gateway.write_log(f"处理订单插入失败回报时发生异常: {e}")
+            self.gateway.write_error("交易委托失败", error)
 
     def onRspOrderAction(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
@@ -656,6 +832,7 @@ class CtpTdApi(TdApi):
     def onRspQryInstrument(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
         合约查询回报，当执行 ReqQryInstrument 后，该方法被调用
+        增强版本：包含状态管理和超时保护
         :param data: 合约
         :param error: 响应信息
         :param reqid: 返回用户操作请求的 ID，该 ID 由用户在操作请求时指定。
@@ -663,121 +840,227 @@ class CtpTdApi(TdApi):
         :return:
         """
         if error and error.get("ErrorID") != 0:
-            self.gateway.write_log("CtpTdApi：onRspQryInstrument 出错。最后：{}，错误 ID：{}".format(last,
-                                                                                                   error.get(
-                                                                                                       'ErrorID',
-                                                                                                       'N/A')))
-        # 合约对象构建
-        contract = ctp_build_contract(data, self.gateway_name)
-        if contract:
-            self.gateway.on_contract(contract)
-            symbol_contract_map[contract.symbol] = contract
+            self.gateway.write_log(f"CtpTdApi：onRspQryInstrument 出错。最后：{last}，错误 ID：{error.get('ErrorID', 'N/A')}")
+            if last:
+                # 合约查询失败，设置错误状态（同步调用）
+                self.gateway._set_gateway_state(GatewayState.ERROR)
+            return
 
-        # 更新exchange_id_map，只取非纯数字的合约和6位以内的合约，即只取期货合约
-        if not data.get("InstrumentID", "").isdigit() and len(data.get("InstrumentID", "")) <= 6:
-            self.instrument_exchange_id_map[data.get("InstrumentID", "")] = data.get("ExchangeID", "")
+        # 如果是第一次回报，记录开始时间
+        if self.gateway._contract_query_start_time is None:
+            self.gateway._contract_query_start_time = time.time()
+            self.gateway.write_log("开始处理合约信息...")
 
-        # 最后一次回报时写文件、处理缓存
-        if last:
-            self.contract_inited = True
-            self.gateway.write_log("合约信息查询成功")
+        # 处理单个合约数据
+        if data:
             try:
-                write_json_file(GlobalPath.instrument_exchange_id_filepath, self.instrument_exchange_id_map)
+                # 合约对象构建
+                contract = ctp_build_contract(data, self.gateway_name)
+                if contract:
+                    self.gateway.on_contract(contract)
+                    symbol_contract_map[contract.symbol] = contract
+
+                # 更新exchange_id_map，只取非纯数字的合约和6位以内的合约，即只取期货合约
+                instrument_id = data.get("InstrumentID", "")
+                if not instrument_id.isdigit() and len(instrument_id) <= 6:
+                    self.instrument_exchange_id_map[instrument_id] = data.get("ExchangeID", "")
+                    
             except Exception as e:
-                self.gateway.write_error("写入 instrument_exchange_id.json 失败：{}".format(e), error)
+                self.gateway.write_log(f"处理合约数据失败: {e}")
 
-            for data in self.order_data:
-                self.onRtnOrder(data)
-            self.order_data.clear()
+        # 最后一次回报时的处理
+        if last:
+            try:
+                # 检查是否在超时时间内完成
+                if self.gateway._contract_query_start_time:
+                    query_duration = time.time() - self.gateway._contract_query_start_time
+                    if query_duration > self.gateway._contract_query_timeout:
+                        self.gateway.write_log(f"合约查询超时: {query_duration:.2f}秒")
+                        self.gateway._set_gateway_state(GatewayState.ERROR)
+                        return
 
-            for data in self.trade_data:
-                self.onRtnTrade(data)
-            self.trade_data.clear()
+                # 标记合约初始化完成
+                self.contract_inited = True
+                self.gateway._contracts_ready = True
+                
+                # 记录合约加载统计
+                contract_count = len(symbol_contract_map)
+                exchange_count = len(self.instrument_exchange_id_map)
+                
+                self.gateway.write_log(f"合约信息查询成功 - 共加载 {contract_count} 个合约，{exchange_count} 个交易所映射")
+                
+                # 保存合约交易所映射文件
+                try:
+                    write_json_file(str(GlobalPath.instrument_exchange_id_filepath), self.instrument_exchange_id_map)
+                    self.gateway.write_log("合约交易所映射文件保存成功")
+                except Exception as e:
+                    self.gateway.write_error(f"写入 instrument_exchange_id.json 失败：{e}", error)
 
+                # 设置网关状态为就绪（同步调用）
+                self.gateway._set_gateway_state(GatewayState.READY)
+                
+                # 发布合约就绪事件
+                self.gateway._safe_publish_event("gateway.contracts_ready", {
+                    "gateway_name": self.gateway_name,
+                    "contract_count": contract_count,
+                    "timestamp": time.time(),
+                    "query_duration": time.time() - self.gateway._contract_query_start_time if self.gateway._contract_query_start_time else 0
+                })
+
+                # 处理所有缓存的订单和成交数据
+                self.gateway._process_pending_data()
+
+                # 处理之前缓存的CTP回调数据
+                for data in self.order_data:
+                    self.onRtnOrder(data)
+                self.order_data.clear()
+
+                for data in self.trade_data:
+                    self.onRtnTrade(data)
+                self.trade_data.clear()
+
+                self.gateway.write_log("🎉 CTP网关已完全就绪，可以开始交易")
+                
+            except Exception as e:
+                self.gateway.write_log(f"完成合约初始化时发生错误: {e}")
+                self.gateway._set_gateway_state(GatewayState.ERROR)
 
     def onRtnOrder(self, data: dict) -> None:
         """
         委托更新推送，报单发出后有状态变动则通过此接口返回。公有流
+        增强版本：包含合约映射验证和保护逻辑
         :param data:
         :return:
         """
+        # 如果合约信息尚未初始化，缓存数据
         if not self.contract_inited:
             self.order_data.append(data)
             return
 
+        if not data or "InstrumentID" not in data:
+            self.gateway.write_log("订单更新数据不完整")
+            return
+
         symbol: str = data["InstrumentID"]
-        contract: ContractData = symbol_contract_map[symbol]
+        
+        # 检查合约是否存在
+        if symbol not in symbol_contract_map:
+            self.gateway.write_log(f"订单更新：合约 {symbol} 不在合约映射中")
+            
+            # 如果合约信息尚未就绪，将数据缓存
+            if not self.gateway._is_contracts_ready():
+                self.gateway.write_log(f"合约信息未就绪，缓存订单更新数据: {symbol}")
+                self.gateway._add_pending_order_data(data)
+                return
+            else:
+                self.gateway.write_log(f"跳过不支持的合约订单更新: {symbol}")
+                return
 
-        front_id: int = data["FrontID"]
-        session_id: int = data["SessionID"]
-        order_ref: str = data["OrderRef"]
-        orderid: str = f"{front_id}_{session_id}_{order_ref}"
+        try:
+            contract: ContractData = symbol_contract_map[symbol]
 
-        status: Status = STATUS_CTP2VT.get(data["OrderStatus"], None)
-        if not status:
-            self.gateway.write_log("收到不支持的委托状态，委托号：{}".format(orderid))
-            return
+            front_id: int = data["FrontID"]
+            session_id: int = data["SessionID"]
+            order_ref: str = data["OrderRef"]
+            orderid: str = f"{front_id}_{session_id}_{order_ref}"
 
-        timestamp: str = f"{data['InsertDate']} {data['InsertTime']}"
-        dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S")
-        dt: datetime = dt.replace(tzinfo=CHINA_TZ)
+            status: Status = STATUS_CTP2VT.get(data["OrderStatus"], None)
+            if not status:
+                self.gateway.write_log(f"收到不支持的委托状态，委托号：{orderid}")
+                return
 
-        tp: tuple = (data["OrderPriceType"], data["TimeCondition"], data["VolumeCondition"])
-        order_type: OrderType = ORDERTYPE_CTP2VT.get(tp)
-        if not order_type:
-            self.gateway.write_log("收到不支持的委托类型，委托号：{}".format(orderid))
-            return
+            timestamp: str = f"{data['InsertDate']} {data['InsertTime']}"
+            dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S")
+            dt: datetime = dt.replace(tzinfo=CHINA_TZ)
 
-        order: OrderData = OrderData(
-            symbol=symbol,
-            exchange=contract.exchange,
-            orderid=orderid,
-            type=order_type,
-            direction=DIRECTION_CTP2VT[data["Direction"]],
-            offset=OFFSET_CTP2VT[data["CombOffsetFlag"]],
-            price=data["LimitPrice"],
-            volume=data["VolumeTotalOriginal"],
-            traded=data["VolumeTraded"],
-            status=status,
-            datetime=dt,
-            gateway_name=self.gateway_name
-        )
-        self.gateway.on_order(order)
+            tp: tuple = (data["OrderPriceType"], data["TimeCondition"], data["VolumeCondition"])
+            order_type: OrderType = ORDERTYPE_CTP2VT.get(tp)
+            if not order_type:
+                self.gateway.write_log(f"收到不支持的委托类型，委托号：{orderid}")
+                return
 
-        self.sysid_orderid_map[data["OrderSysID"]] = orderid
+            order: OrderData = OrderData(
+                symbol=symbol,
+                exchange=contract.exchange,
+                orderid=orderid,
+                type=order_type,
+                direction=DIRECTION_CTP2VT[data["Direction"]],
+                offset=OFFSET_CTP2VT[data["CombOffsetFlag"]],
+                price=data["LimitPrice"],
+                volume=data["VolumeTotalOriginal"],
+                traded=data["VolumeTraded"],
+                status=status,
+                datetime=dt,
+                gateway_name=self.gateway_name
+            )
+            self.gateway.on_order(order)
+
+            self.sysid_orderid_map[data["OrderSysID"]] = orderid
+            
+        except Exception as e:
+            self.gateway.write_log(f"处理订单更新时发生异常: {e}")
 
     def onRtnTrade(self, data: dict) -> None:
         """
         成交数据推送，报单发出后有成交则通过此接口返回。私有流
+        增强版本：包含合约映射验证和保护逻辑
         :param data:
         :return:
         """
+        # 如果合约信息尚未初始化，缓存数据
         if not self.contract_inited:
             self.trade_data.append(data)
             return
 
+        if not data or "InstrumentID" not in data:
+            self.gateway.write_log("成交回报数据不完整")
+            return
+
         symbol: str = data["InstrumentID"]
-        contract: ContractData = symbol_contract_map[symbol]
+        
+        # 检查合约是否存在
+        if symbol not in symbol_contract_map:
+            self.gateway.write_log(f"成交回报：合约 {symbol} 不在合约映射中")
+            
+            # 如果合约信息尚未就绪，将数据缓存
+            if not self.gateway._is_contracts_ready():
+                self.gateway.write_log(f"合约信息未就绪，缓存成交回报数据: {symbol}")
+                self.gateway._add_pending_trade_data(data)
+                return
+            else:
+                self.gateway.write_log(f"跳过不支持的合约成交回报: {symbol}")
+                return
 
-        orderid: str = self.sysid_orderid_map[data["OrderSysID"]]
+        try:
+            contract: ContractData = symbol_contract_map[symbol]
 
-        timestamp: str = f"{data['TradeDate']} {data['TradeTime']}"
-        dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S")
-        dt = dt.replace(tzinfo=CHINA_TZ)
+            # 验证必要的订单系统ID映射
+            if "OrderSysID" not in data or data["OrderSysID"] not in self.sysid_orderid_map:
+                self.gateway.write_log(f"成交回报缺少订单系统ID映射: {data.get('OrderSysID', 'N/A')}")
+                return
 
-        trade: TradeData = TradeData(
-            symbol=symbol,
-            exchange=contract.exchange,
-            orderid=orderid,
-            trade_id=data["TradeID"],
-            direction=DIRECTION_CTP2VT[data["Direction"]],
-            offset=OFFSET_CTP2VT[data["OffsetFlag"]],
-            price=data["Price"],
-            volume=data["Volume"],
-            datetime=dt,
-            gateway_name=self.gateway_name
-        )
-        self.gateway.on_trade(trade)
+            orderid: str = self.sysid_orderid_map[data["OrderSysID"]]
+
+            timestamp: str = f"{data['TradeDate']} {data['TradeTime']}"
+            dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S")
+            dt = dt.replace(tzinfo=CHINA_TZ)
+
+            trade: TradeData = TradeData(
+                symbol=symbol,
+                exchange=contract.exchange,
+                orderid=orderid,
+                trade_id=data["TradeID"],
+                direction=DIRECTION_CTP2VT[data["Direction"]],
+                offset=OFFSET_CTP2VT[data["OffsetFlag"]],
+                price=data["Price"],
+                volume=data["Volume"],
+                datetime=dt,
+                gateway_name=self.gateway_name
+            )
+            self.gateway.on_trade(trade)
+            
+        except Exception as e:
+            self.gateway.write_log(f"处理成交回报时发生异常: {e}")
 
     def onRspQryInstrumentCommissionRate(self, data: dict, error: dict, reqid: int, last: bool):
         """

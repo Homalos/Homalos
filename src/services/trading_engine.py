@@ -293,7 +293,7 @@ class RiskManager:
         self.strategy_suspend_threshold = config.get("risk.strategy_suspend_threshold", 100)
         
         # 注册事件处理器
-        self.event_bus.subscribe("risk.check", self._handle_risk_check)
+        self.event_bus.subscribe("risk.check", lambda event: asyncio.create_task(self._handle_risk_check(event)))
         self.event_bus.subscribe("strategy.error", self._handle_strategy_error)
         self.event_bus.subscribe("market.tick", self._update_market_prices)
         
@@ -409,7 +409,15 @@ class RiskManager:
         return RiskCheckResult(True, "", [], "low")
     
     def _trading_hours_check(self) -> RiskCheckResult:
-        """交易时间检查"""
+        """交易时间检查（支持测试模式覆盖）"""
+        # 检查是否为测试模式
+        test_mode = self.config.get("system.test_mode", False)
+        test_trading_hours = self.config.get("system.test_trading_hours", True)
+        
+        if test_mode and test_trading_hours:
+            logger.debug("测试模式：跳过交易时间检查")
+            return RiskCheckResult(True, "", ["测试模式：跳过交易时间检查"], "low")
+        
         if not self.trading_hours_check:
             return RiskCheckResult(True, "", [], "low")
         
@@ -552,13 +560,32 @@ class RiskManager:
             logger.error(f"风控检查异常: {e}")
             return RiskCheckResult(False, order_id, [f"风控检查异常: {e}"], "critical")
     
-    def _handle_risk_check(self, event: Event):
-        """处理风控检查请求"""
+    async def _handle_risk_check(self, event: Event):
+        """处理风控检查请求（完整版）"""
         data = event.data
-        asyncio.create_task(self.check_risk(
-            data["order_request"],
-            data["strategy_id"]
-        ))
+        order_request = data["order_request"]
+        strategy_id = data["strategy_id"]
+        
+        # 执行风控检查
+        risk_result = await self.check_risk(order_request, strategy_id)
+        
+        if risk_result.passed:
+            # 风控通过，发布批准事件
+            self.event_bus.publish(Event(EventType.RISK_APPROVED, {
+                "order_request": order_request,
+                "strategy_id": strategy_id,
+                "risk_result": risk_result
+            }))
+            logger.info(f"风控检查通过: {strategy_id} {order_request.symbol}")
+        else:
+            # 风控拒绝，发布拒绝事件
+            self.event_bus.publish(Event("risk.rejected", {
+                "order_request": order_request,
+                "strategy_id": strategy_id,
+                "risk_result": risk_result,
+                "violations": risk_result.reasons
+            }))
+            logger.warning(f"风控检查拒绝: {strategy_id} {order_request.symbol} - {risk_result.reasons}")
 
 
 class OrderManager:

@@ -121,11 +121,12 @@ class MarketDataGateway(BaseGateway):
         }
     
     def _start_heartbeat_monitor(self) -> None:
-        """启动心跳监控"""
+        """启动心跳监控（线程安全版本）"""
         if self.heartbeat_task and not self.heartbeat_task.done():
             return
-            
-        self.heartbeat_task = asyncio.create_task(self._heartbeat_monitor_loop())
+        
+        # 使用线程安全的方式调度异步任务
+        self._schedule_async_task(self._heartbeat_monitor_loop())
         logger.info("心跳监控已启动")
     
     async def _heartbeat_monitor_loop(self) -> None:
@@ -166,25 +167,25 @@ class MarketDataGateway(BaseGateway):
             logger.error(f"处理连接丢失失败: {e}")
     
     def _update_connection_state(self, new_state: ConnectionState) -> None:
-        """更新连接状态"""
+        """更新连接状态（线程安全版本）"""
         if self.connection_state != new_state:
             old_state = self.connection_state
             self.connection_state = new_state
-            
+
             logger.info(f"连接状态变更: {old_state.value} -> {new_state.value}")
-            
-            # 发布状态变更事件
-            self.event_bus.publish(Event("gateway.state_changed", {
+
+            # 使用线程安全的方式发布状态变更事件
+            self._safe_publish_event("gateway.state_changed", {
                 "gateway_name": self.name,
                 "old_state": old_state.value,
                 "new_state": new_state.value
-            }))
-            
+            })
+
             # 记录特殊状态的时间
             if new_state == ConnectionState.CONNECTED:
                 self.connection_start_time = time.time()
                 self.last_heartbeat = time.time()
-                # 启动心跳监控
+                # 启动心跳监控（线程安全）
                 self._start_heartbeat_monitor()
             elif new_state == ConnectionState.DISCONNECTED:
                 self.connection_start_time = None
