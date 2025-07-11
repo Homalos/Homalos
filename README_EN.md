@@ -27,7 +27,7 @@ Homalos_v2/
 ├── 📁 data/                  # Data storage
 ├── 📁 docs/                  # System documentation
 ├── 📁 log/                   # Log storage
-└── 📁 test/                  # Test script directory
+└── 📁 tests/                  # Test script directory
 ```
 
 ## 🏗️ Core Technology Stack
