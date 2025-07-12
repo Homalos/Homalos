@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 
 from src.core.event_bus import EventBus
 from src.config.config_manager import ConfigManager
-from src.core.event import Event, create_log_event
+from src.core.event import Event, create_log_event, EventType
 from src.core.logger import get_logger
 
 logger = get_logger("PerformanceMonitor")
@@ -250,7 +250,7 @@ class PerformanceMonitor:
             
             # 发送告警事件
             alert_event = create_log_event(
-                "performance.alert",
+                EventType.PERFORMANCE_ALERT,
                 {
                     "alert_type": alert_type,
                     "message": message,

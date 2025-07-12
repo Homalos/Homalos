@@ -45,6 +45,7 @@ class StrategyInfo:
 
 @dataclass
 class RiskCheckResult:
+
     """风控检查结果"""
     passed: bool
     order_id: str
@@ -97,7 +98,11 @@ class StrategyManager:
             
         return None
     
-    async def load_strategy(self, strategy_path: str, user_strategy_name: Optional[str] = None, params: Optional[Dict[str, Any]] = None) -> tuple[bool, str]:
+    async def load_strategy(self,
+                            strategy_path: str,
+                            user_strategy_name: Optional[str] = None,
+                            params: Optional[Dict[str, Any]] = None
+                            ) -> tuple[bool, str]:
         """动态加载策略 - 自动生成UUID作为主键"""
         params = params or {}
         
@@ -140,7 +145,7 @@ class StrategyManager:
             
             # 发布策略加载成功事件
             self.event_bus.publish(create_trading_event(
-                "strategy.loaded",
+                EventType.STRATEGY_LOADED,
                 {
                     "strategy_id": display_name,
                     "strategy_uuid": strategy_uuid,
@@ -160,7 +165,7 @@ class StrategyManager:
             
             # 发布策略加载失败事件
             self.event_bus.publish(create_trading_event(
-                "strategy.load_failed",
+                EventType.STRATEGY_LOAD_FAILED,
                 {
                     "strategy_path": strategy_path,
                     "error": str(e),
@@ -197,7 +202,7 @@ class StrategyManager:
             
             # 发布策略启动成功事件
             self.event_bus.publish(create_trading_event(
-                "strategy.started",
+                EventType.STRATEGY_STARTED,
                 {
                     "strategy_id": strategy_info.strategy_id,
                     "strategy_uuid": strategy_uuid,
@@ -217,7 +222,7 @@ class StrategyManager:
             
             # 发布策略启动失败事件
             self.event_bus.publish(create_trading_event(
-                "strategy.start_failed",
+                EventType.STRATEGY_START_FAILED,
                 {
                     "strategy_id": strategy_info.strategy_id,
                     "strategy_uuid": strategy_uuid,
@@ -246,7 +251,7 @@ class StrategyManager:
             
             # 发布策略停止成功事件
             self.event_bus.publish(create_trading_event(
-                "strategy.stopped",
+                EventType.STRATEGY_STOPPED,
                 {
                     "strategy_id": strategy_info.strategy_id,
                     "strategy_uuid": strategy_uuid,
@@ -264,7 +269,7 @@ class StrategyManager:
             
             # 发布策略停止失败事件
             self.event_bus.publish(create_trading_event(
-                "strategy.stop_failed",
+                EventType.STRATEGY_STOP_FAILED,
                 {
                     "strategy_id": strategy_info.strategy_id,
                     "strategy_uuid": strategy_uuid,
@@ -358,7 +363,7 @@ class StrategyManager:
                 # 发布网关状态查询事件
                 if self.event_bus:
                     query_event = create_trading_event(
-                        "gateway.ready_check",
+                        EventType.GATEWAY_READY_CHECK,
                         {
                             "symbols": required_symbols,
                             "strategy_id": strategy.strategy_id,
@@ -383,9 +388,9 @@ class StrategyManager:
         """设置网关监控"""
         try:
             # 订阅网关状态事件
-            self.event_bus.subscribe("gateway.connected", self._handle_gateway_connected)
-            self.event_bus.subscribe("gateway.disconnected", self._handle_gateway_disconnected)
-            self.event_bus.subscribe("gateway.ready", self._handle_gateway_ready)
+            self.event_bus.subscribe(EventType.GATEWAY_CONNECTED, self._handle_gateway_connected)
+            self.event_bus.subscribe(EventType.GATEWAY_DISCONNECTED, self._handle_gateway_disconnected)
+            self.event_bus.subscribe(EventType.GATEWAY_READY, self._handle_gateway_ready)
             
             logger.info("网关监控事件处理器已注册")
             
@@ -553,7 +558,7 @@ class RiskManager:
             if error_count > self.strategy_suspend_threshold:
                 logger.error(f"策略 {strategy_id} 错误次数过多({error_count})，建议暂停")
                 # 发布策略暂停建议事件
-                self.event_bus.publish(Event("risk.strategy_suspend_recommended", {
+                self.event_bus.publish(Event(EventType.RISK_STRATEGY_SUSPEND_RECOMMENDED, {
                     "strategy_id": strategy_id,
                     "error_count": error_count,
                     "reason": "错误次数超过阈值"
@@ -621,7 +626,7 @@ class RiskManager:
             price_deviation = abs(order_price - last_price) / last_price
             if price_deviation > self.price_deviation_threshold:
                 violations.append(f"订单价格 {order_price} 偏离市场价格 {last_price} 超过 {self.price_deviation_threshold*100}%")
-            else:
+        else:
             # 无市场数据时记录警告，但依靠绝对限制
             logger.warning(f"无法获取 {symbol} 的最新价格，使用绝对价格限制检查")
         
@@ -801,7 +806,7 @@ class RiskManager:
             logger.info(f"风控检查通过: {strategy_id} {order_request.symbol}")
         else:
             # 风控拒绝，发布拒绝事件
-            self.event_bus.publish(Event("risk.rejected", {
+            self.event_bus.publish(Event(EventType.RISK_REJECTED, {
                 "order_request": order_request,
                 "strategy_id": strategy_id,
                 "risk_result": risk_result,
@@ -857,7 +862,7 @@ class OrderManager:
         
         # 发布下单事件（将由网关处理）
         self.event_bus.publish(create_trading_event(
-            "gateway.send_order",
+            EventType.GATEWAY_SEND_ORDER,
             {
                 "order_request": order_request,
                 "order_data": order_data
@@ -866,7 +871,7 @@ class OrderManager:
         ))
         
         # 发布订单提交事件（供监控器监听）
-        self.event_bus.publish(Event("order.submitted", order_data))
+        self.event_bus.publish(Event(EventType.ORDER_SUBMITTED, order_data))
         
         logger.info(f"订单已提交: {order_id} ({strategy_id})")
         return order_id
@@ -884,7 +889,7 @@ class OrderManager:
         
         # 发布撤单事件
         self.event_bus.publish(create_trading_event(
-            "gateway.cancel_order",
+            EventType.GATEWAY_CANCEL_ORDER,
             {"cancel_request": cancel_request},
             "OrderManager"
         ))
@@ -941,11 +946,11 @@ class OrderManager:
         self.strategy_orders[strategy_id].add(order_id)
         
         # 发布订单提交事件
-        self.event_bus.publish(Event("order.submitted", order_data))
+        self.event_bus.publish(Event(EventType.ORDER_SUBMITTED, order_data))
         
         # 转发到CTP网关进行真实下单
         self.event_bus.publish(create_trading_event(
-            "gateway.send_order",
+            EventType.GATEWAY_SEND_ORDER,
             {
                 "order_request": order_request,
                 "order_data": order_data
@@ -991,7 +996,7 @@ class OrderManager:
                 logger.info(f"订单状态更新: {system_order_id} -> {order_data.status.value}")
                 
                 # 转发给策略
-                self.event_bus.publish(Event("order.updated", order_info.order_data))
+                self.event_bus.publish(Event(EventType.ORDER_UPDATED, order_info.order_data))
             else:
                 # 可能是其他来源的订单，记录日志
                 logger.debug(f"收到未知CTP订单更新: {ctp_order_id}")
@@ -1010,7 +1015,7 @@ class OrderManager:
                 logger.info(f"订单成交: {system_order_id} - {trade_data.volume}@{trade_data.price}")
                 
                 # 发布成交事件给AccountManager和策略
-                self.event_bus.publish(Event("order.filled", trade_data))
+                self.event_bus.publish(Event(EventType.ORDER_FILLED, trade_data))
                 
                 # 更新订单状态
                 if order_info.order_data.traded >= order_info.order_data.volume:
@@ -1021,7 +1026,7 @@ class OrderManager:
                 order_info.update_time = time.time()
                 
                 # 通知策略
-                self.event_bus.publish(Event("order.updated", order_info.order_data))
+                self.event_bus.publish(Event(EventType.ORDER_UPDATED, order_info.order_data))
             else:
                 logger.debug(f"收到未知CTP成交回报: {ctp_order_id}")
     
@@ -1060,7 +1065,7 @@ class OrderManager:
                 self.orders[system_order_id].update_time = time.time()
                 
                 # 通知策略
-                self.event_bus.publish(Event("order.updated", self.orders[system_order_id].order_data))
+                self.event_bus.publish(Event(EventType.ORDER_UPDATED, self.orders[system_order_id].order_data))
             
             logger.error(f"订单发送失败: {system_order_id} - {reason}")
 
@@ -1077,8 +1082,8 @@ class AccountManager:
         self.strategy_pnl: Dict[str, float] = defaultdict(float)
         
         # 注册事件处理器
-        self.event_bus.subscribe(EventType.ACCOUNT_UPDATE, self._handle_account_update)
-        self.event_bus.subscribe(EventType.POSITION_UPDATE, self._handle_position_update)
+        self.event_bus.subscribe(EventType.ACCOUNT_UPDATED, self._handle_account_update)
+        self.event_bus.subscribe(EventType.POSITION_UPDATED, self._handle_position_update)
         self.event_bus.subscribe(EventType.ORDER_FILLED, self._handle_trade_update)
         
         # 添加定期查询任务
@@ -1097,8 +1102,8 @@ class AccountManager:
                 
                 if current_time - self._last_query_time >= self._query_interval:
                     # 发布查询请求事件
-                    self.event_bus.publish(Event("gateway.query_account", {}))
-                    self.event_bus.publish(Event("gateway.query_position", {}))
+                    self.event_bus.publish(Event(EventType.GATEWAY_QUERY_ACCOUNT, {}))
+                    self.event_bus.publish(Event(EventType.GATEWAY_QUERY_POSITION, {}))
                     self._last_query_time = current_time
                     
             except Exception as e:
@@ -1219,7 +1224,7 @@ class TradingEngine:
         
         # 发布引擎启动事件
         self.event_bus.publish(create_trading_event(
-            "engine.started",
+            EventType.ENGINE_STARTED,
             {"start_time": self.start_time},
             "TradingEngine"
         ))
@@ -1243,7 +1248,7 @@ class TradingEngine:
         
         # 发布引擎停止事件
         self.event_bus.publish(create_trading_event(
-            "engine.stopped",
+            EventType.ENGINE_STOPPED,
             {"stop_time": time.time()},
             "TradingEngine"
         ))
@@ -1262,7 +1267,7 @@ class TradingEngine:
             order_request = data["order_request"]
             
             # 记录订单下达事件
-            self.event_bus.publish(Event("strategy.order_placed", {
+            self.event_bus.publish(Event(EventType.STRATEGY_ORDER_PLACED, {
                 "strategy_id": strategy_id,
                 "order_request": order_request.__dict__ if hasattr(order_request, '__dict__') else str(order_request),
                 "timestamp": process_start_time
@@ -1270,7 +1275,7 @@ class TradingEngine:
             
             # 发布风控检查事件
             self.event_bus.publish(create_trading_event(
-                "risk.check",
+                EventType.RISK_CHECK,
                 {"order_request": order_request, "strategy_id": strategy_id},
                 "TradingEngine"
             ))
@@ -1279,16 +1284,16 @@ class TradingEngine:
             # 策略请求撤单
             order_id = data["order_id"]
             self.event_bus.publish(create_trading_event(
-                "order.cancel",
+                EventType.ORDER_CANCEL,
                 {"order_id": order_id},
                 "TradingEngine"
             ))
     
-    def _handle_engine_start(self, event: Event):
+    def _handle_engine_start(self):
         """处理引擎启动请求"""
         asyncio.create_task(self.start())
     
-    def _handle_engine_stop(self, event: Event):
+    def _handle_engine_stop(self):
         """处理引擎停止请求"""
         asyncio.create_task(self.stop())
     

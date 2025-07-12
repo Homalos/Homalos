@@ -7,7 +7,7 @@
 @Author     : Donny
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: Homalos量化交易系统主程序 - MVP架构启动
+@Description: Homalos量化交易系统主程序
 """
 import asyncio
 import signal
@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Optional, Any, Type, Union
 
 from src.config.config_manager import ConfigManager
-from src.core.event import Event
+from src.core.event import Event, EventType
 from src.services.trading_engine import TradingEngine
 
 # 添加项目根目录到Python路径
@@ -160,13 +160,13 @@ class HomalosSystem:
                 logger.info("初始化CTP行情网关...")
                 if self.event_bus and MarketDataGateway:
                     self.market_gateway = MarketDataGateway(self.event_bus, "CTP_MD")
-                    logger.info(f"行情网关已创建: {self.market_gateway.name}")
+                    logger.info(f"行情网关已创建: {self.market_gateway.gateway_name}")
                 
                 # 初始化交易网关
                 logger.info("初始化CTP交易网关...")
                 if self.event_bus and OrderTradingGateway:
                     self.trading_gateway = OrderTradingGateway(self.event_bus, "CTP_TD")
-                    logger.info(f"交易网关已创建: {self.trading_gateway.name}")
+                    logger.info(f"交易网关已创建: {self.trading_gateway.gateway_name}")
             
                 # 连接网关（带超时控制）
                 await self._connect_gateways_with_timeout(ctp_config)
@@ -184,7 +184,7 @@ class HomalosSystem:
         try:
             # 连接行情网关
             if self.market_gateway:
-                logger.info("🔗 连接行情网关...")
+                logger.info("连接行情网关...")
                 
                 for attempt in range(max_retries):
                     try:
@@ -200,7 +200,7 @@ class HomalosSystem:
                     except asyncio.TimeoutError:
                         logger.warning(f"行情网关连接超时 (尝试 {attempt + 1}/{max_retries})")
                         if attempt == max_retries - 1:
-                            logger.error("❌ 行情网关连接失败，已达最大重试次数")
+                            logger.error("行情网关连接失败，已达最大重试次数")
                     except Exception as e:
                         logger.warning(f"行情网关连接异常: {e} (尝试 {attempt + 1}/{max_retries})")
                         if attempt == max_retries - 1:
@@ -281,7 +281,7 @@ class HomalosSystem:
             
             # 发布网关连接失败事件
             if self.event_bus:
-                self.event_bus.publish(Event("system.gateway_connection_failed", {
+                self.event_bus.publish(Event(EventType.SYSTEM_GATEWAY_CONNECTION_FAILED, {
                     "timestamp": time.time(),
                     "reason": "connection_timeout_or_error"
                 }))
@@ -339,7 +339,7 @@ class HomalosSystem:
             
             # 发布系统启动成功事件
             if self.event_bus:
-                self.event_bus.publish(Event("system.startup_complete", {
+                self.event_bus.publish(Event(EventType.SYSTEM_STARTUP_COMPLETE, {
                     "start_time": self.start_time,
                     "components": self.get_system_status()["components"]
                 }))

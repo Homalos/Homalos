@@ -12,23 +12,22 @@
 import json
 import os
 import sys
+import threading
+import time
 import traceback
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from time import sleep
-from typing import Dict, Any, Optional, Set
-from enum import Enum
-import asyncio
-import time
-import threading
+from typing import Dict, Any, Optional
 
 from src.config import global_var
 from src.config.constant import Status, Exchange, Direction, OrderType
 from src.config.global_var import product_info, instrument_exchange_id_map
 from src.config.path import GlobalPath
+from src.core.event import Event
 from src.core.gateway import BaseGateway
 from src.core.object import ContractData, PositionData, OrderData, AccountData, TradeData, OrderRequest, CancelRequest
-from src.core.event import Event
 from src.ctp.api import TdApi, THOST_FTDC_HF_Speculation, THOST_FTDC_CC_Immediately, THOST_FTDC_FCC_NotForceClose, \
     THOST_FTDC_AF_Delete
 from src.util.utility import ZoneInfo, get_folder_path, del_num
@@ -74,9 +73,9 @@ class OrderTradingGateway(BaseGateway):
 
     exchanges: list[str] = list(EXCHANGE_CTP2VT.values())
 
-    def __init__(self,  event_bus: EventBus, name: str) -> None:
+    def __init__(self,  event_bus: EventBus, gateway_name: str) -> None:
         """初始化网关"""
-        super().__init__(event_bus, name)
+        super().__init__(event_bus, gateway_name)
         
         self.td_api: Optional[CtpTdApi] = None
         
@@ -126,7 +125,7 @@ class OrderTradingGateway(BaseGateway):
             
             # 发布状态变更事件（线程安全）
             self._safe_publish_event("gateway.state_changed", {
-                "gateway_name": self.name,
+                "gateway_name": self.gateway_name,
                 "old_state": old_state.value,
                 "new_state": new_state.value,
                 "timestamp": time.time(),
@@ -206,14 +205,14 @@ class OrderTradingGateway(BaseGateway):
             # 导入logger
             from src.core.logger import get_logger
             logger = get_logger("OrderTradingGateway")
-            logger.info(f"{self.name} 交易网关事件处理器已注册")
+            logger.info(f"{self.gateway_name} 交易网关事件处理器已注册")
         except Exception as e:
             try:
                 from src.core.logger import get_logger
                 logger = get_logger("OrderTradingGateway")
                 logger.error(f"设置交易网关事件处理器失败: {e}")
-            except:
-                self.write_log(f"设置交易网关事件处理器失败: {e}")
+            except Exception as e2:
+                self.write_log(f"设置交易网关事件处理器失败: {e2}")
     
     def _handle_gateway_order(self, event: Event) -> None:
         """处理下单请求"""
@@ -490,7 +489,7 @@ class CtpTdApi(TdApi):
         super().__init__()
 
         self.gateway: OrderTradingGateway = gateway
-        self.gateway_name: str = gateway.name
+        self.gateway_name: str = gateway.gateway_name
 
         self.req_id: int = 0
         self.order_ref: int = 0
@@ -659,24 +658,24 @@ class CtpTdApi(TdApi):
 
         try:
             # 构建订单数据
-        order_ref: str = data["OrderRef"]
-        orderid: str = f"{self.front_id}_{self.session_id}_{order_ref}"
-        contract: ContractData = symbol_contract_map[symbol]
+            order_ref: str = data["OrderRef"]
+            orderid: str = f"{self.front_id}_{self.session_id}_{order_ref}"
+            contract: ContractData = symbol_contract_map[symbol]
 
-        order: OrderData = OrderData(
-            symbol=symbol,
-            exchange=contract.exchange,
-            orderid=orderid,
-            direction=DIRECTION_CTP2VT[data["Direction"]],
-            offset=OFFSET_CTP2VT[data["CombOffsetFlag"]],
-            price=data["LimitPrice"],
-            volume=data["VolumeTotalOriginal"],
-            status=Status.REJECTED,
-            gateway_name=self.gateway_name
-        )
+            order: OrderData = OrderData(
+                symbol=symbol,
+                exchange=contract.exchange,
+                orderid=orderid,
+                direction=DIRECTION_CTP2VT[data["Direction"]],
+                offset=OFFSET_CTP2VT[data["CombOffsetFlag"]],
+                price=data["LimitPrice"],
+                volume=data["VolumeTotalOriginal"],
+                status=Status.REJECTED,
+                gateway_name=self.gateway_name
+            )
             
             # 发布订单状态更新
-        self.gateway.on_order(order)
+            self.gateway.on_order(order)
 
             # 记录详细错误信息
             error_id = error.get("ErrorID", "N/A")
@@ -854,13 +853,13 @@ class CtpTdApi(TdApi):
         # 处理单个合约数据
         if data:
             try:
-        # 合约对象构建
-        contract = ctp_build_contract(data, self.gateway_name)
-        if contract:
-            self.gateway.on_contract(contract)
-            symbol_contract_map[contract.symbol] = contract
+                # 合约对象构建
+                contract = ctp_build_contract(data, self.gateway_name)
+                if contract:
+                    self.gateway.on_contract(contract)
+                    symbol_contract_map[contract.symbol] = contract
 
-        # 更新exchange_id_map，只取非纯数字的合约和6位以内的合约，即只取期货合约
+                # 更新exchange_id_map，只取非纯数字的合约和6位以内的合约，即只取期货合约
                 instrument_id = data.get("InstrumentID", "")
                 if not instrument_id.isdigit() and len(instrument_id) <= 6:
                     self.instrument_exchange_id_map[instrument_id] = data.get("ExchangeID", "")
@@ -880,7 +879,7 @@ class CtpTdApi(TdApi):
                         return
 
                 # 标记合约初始化完成
-            self.contract_inited = True
+                self.contract_inited = True
                 self.gateway._contracts_ready = True
                 
                 # 记录合约加载统计
@@ -890,10 +889,10 @@ class CtpTdApi(TdApi):
                 self.gateway.write_log(f"合约信息查询成功 - 共加载 {contract_count} 个合约，{exchange_count} 个交易所映射")
                 
                 # 保存合约交易所映射文件
-            try:
+                try:
                     write_json_file(str(GlobalPath.instrument_exchange_id_filepath), self.instrument_exchange_id_map)
                     self.gateway.write_log("合约交易所映射文件保存成功")
-            except Exception as e:
+                except Exception as e:
                     self.gateway.write_error(f"写入 instrument_exchange_id.json 失败：{e}", error)
 
                 # 设置网关状态为就绪（同步调用）
@@ -911,13 +910,13 @@ class CtpTdApi(TdApi):
                 self.gateway._process_pending_data()
 
                 # 处理之前缓存的CTP回调数据
-            for data in self.order_data:
-                self.onRtnOrder(data)
-            self.order_data.clear()
+                for data in self.order_data:
+                    self.onRtnOrder(data)
+                self.order_data.clear()
 
-            for data in self.trade_data:
-                self.onRtnTrade(data)
-            self.trade_data.clear()
+                for data in self.trade_data:
+                    self.onRtnTrade(data)
+                self.trade_data.clear()
 
                 self.gateway.write_log("🎉 CTP网关已完全就绪，可以开始交易")
                 
@@ -957,46 +956,46 @@ class CtpTdApi(TdApi):
                 return
 
         try:
-        contract: ContractData = symbol_contract_map[symbol]
+            contract: ContractData = symbol_contract_map[symbol]
 
-        front_id: int = data["FrontID"]
-        session_id: int = data["SessionID"]
-        order_ref: str = data["OrderRef"]
-        orderid: str = f"{front_id}_{session_id}_{order_ref}"
+            front_id: int = data["FrontID"]
+            session_id: int = data["SessionID"]
+            order_ref: str = data["OrderRef"]
+            orderid: str = f"{front_id}_{session_id}_{order_ref}"
 
-        status: Status = STATUS_CTP2VT.get(data["OrderStatus"], None)
-        if not status:
+            status: Status = STATUS_CTP2VT.get(data["OrderStatus"], None)
+            if not status:
                 self.gateway.write_log(f"收到不支持的委托状态，委托号：{orderid}")
-            return
+                return
 
-        timestamp: str = f"{data['InsertDate']} {data['InsertTime']}"
-        dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S")
-        dt: datetime = dt.replace(tzinfo=CHINA_TZ)
+            timestamp: str = f"{data['InsertDate']} {data['InsertTime']}"
+            dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S")
+            dt: datetime = dt.replace(tzinfo=CHINA_TZ)
 
-        tp: tuple = (data["OrderPriceType"], data["TimeCondition"], data["VolumeCondition"])
-        order_type: OrderType = ORDERTYPE_CTP2VT.get(tp)
-        if not order_type:
+            tp: tuple = (data["OrderPriceType"], data["TimeCondition"], data["VolumeCondition"])
+            order_type: OrderType = ORDERTYPE_CTP2VT.get(tp)
+            if not order_type:
                 self.gateway.write_log(f"收到不支持的委托类型，委托号：{orderid}")
-            return
+                return
 
-        order: OrderData = OrderData(
-            symbol=symbol,
-            exchange=contract.exchange,
-            orderid=orderid,
-            type=order_type,
-            direction=DIRECTION_CTP2VT[data["Direction"]],
-            offset=OFFSET_CTP2VT[data["CombOffsetFlag"]],
-            price=data["LimitPrice"],
-            volume=data["VolumeTotalOriginal"],
-            traded=data["VolumeTraded"],
-            status=status,
-            datetime=dt,
-            gateway_name=self.gateway_name
-        )
-        self.gateway.on_order(order)
+            order: OrderData = OrderData(
+                symbol=symbol,
+                exchange=contract.exchange,
+                orderid=orderid,
+                type=order_type,
+                direction=DIRECTION_CTP2VT[data["Direction"]],
+                offset=OFFSET_CTP2VT[data["CombOffsetFlag"]],
+                price=data["LimitPrice"],
+                volume=data["VolumeTotalOriginal"],
+                traded=data["VolumeTraded"],
+                status=status,
+                datetime=dt,
+                gateway_name=self.gateway_name
+            )
+            self.gateway.on_order(order)
 
-        self.sysid_orderid_map[data["OrderSysID"]] = orderid
-            
+            self.sysid_orderid_map[data["OrderSysID"]] = orderid
+                
         except Exception as e:
             self.gateway.write_log(f"处理订单更新时发生异常: {e}")
 
@@ -1032,32 +1031,32 @@ class CtpTdApi(TdApi):
                 return
 
         try:
-        contract: ContractData = symbol_contract_map[symbol]
+            contract: ContractData = symbol_contract_map[symbol]
 
             # 验证必要的订单系统ID映射
             if "OrderSysID" not in data or data["OrderSysID"] not in self.sysid_orderid_map:
                 self.gateway.write_log(f"成交回报缺少订单系统ID映射: {data.get('OrderSysID', 'N/A')}")
                 return
 
-        orderid: str = self.sysid_orderid_map[data["OrderSysID"]]
+            orderid: str = self.sysid_orderid_map[data["OrderSysID"]]
 
-        timestamp: str = f"{data['TradeDate']} {data['TradeTime']}"
-        dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S")
-        dt = dt.replace(tzinfo=CHINA_TZ)
+            timestamp: str = f"{data['TradeDate']} {data['TradeTime']}"
+            dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S")
+            dt = dt.replace(tzinfo=CHINA_TZ)
 
-        trade: TradeData = TradeData(
-            symbol=symbol,
-            exchange=contract.exchange,
-            orderid=orderid,
-            trade_id=data["TradeID"],
-            direction=DIRECTION_CTP2VT[data["Direction"]],
-            offset=OFFSET_CTP2VT[data["OffsetFlag"]],
-            price=data["Price"],
-            volume=data["Volume"],
-            datetime=dt,
-            gateway_name=self.gateway_name
-        )
-        self.gateway.on_trade(trade)
+            trade: TradeData = TradeData(
+                symbol=symbol,
+                exchange=contract.exchange,
+                orderid=orderid,
+                trade_id=data["TradeID"],
+                direction=DIRECTION_CTP2VT[data["Direction"]],
+                offset=OFFSET_CTP2VT[data["OffsetFlag"]],
+                price=data["Price"],
+                volume=data["Volume"],
+                datetime=dt,
+                gateway_name=self.gateway_name
+            )
+            self.gateway.on_trade(trade)
             
         except Exception as e:
             self.gateway.write_log(f"处理成交回报时发生异常: {e}")

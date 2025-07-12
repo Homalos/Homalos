@@ -14,10 +14,11 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any, Optional, Callable, Coroutine
 
-from src.core.event import Event
+from src.config.constant import Exchange
+from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.logger import get_logger
-
+from src.core.object import TickData
 
 logger = get_logger("BaseGateway")
 
@@ -53,7 +54,7 @@ class ThreadSafeCallback:
                 
                 if self.event_loop.is_running():
                     # 事件循环正在运行，使用run_coroutine_threadsafe
-                    future = asyncio.run_coroutine_threadsafe(coro, self.event_loop)
+                    asyncio.run_coroutine_threadsafe(coro, self.event_loop)
                     # 不等待结果，避免阻塞CTP回调线程
                     self.success_count += 1
                     if attempt > 0:
@@ -133,11 +134,13 @@ class BaseGateway(ABC):
     """
     default_name: str = ""
     default_setting: Dict[str, Any] = {}
+    # Exchanges supported in the gateway.
+    exchanges: list[Exchange] = []
 
-    def __init__(self, event_bus: EventBus, name: str) -> None:
+    def __init__(self, event_bus: EventBus, gateway_name: str) -> None:
         """初始化网关"""
         self.event_bus = event_bus  # 事件总线对象
-        self.name = name  # 网关名称
+        self.gateway_name = gateway_name  # 网关名称
         
         # 线程安全回调处理器
         self._callback_handler: Optional[ThreadSafeCallback] = None
@@ -157,7 +160,7 @@ class BaseGateway(ABC):
                 loop = asyncio.get_event_loop()
             
             self._callback_handler = ThreadSafeCallback(loop)
-            logger.debug(f"网关 {self.name} 线程安全回调处理器已初始化")
+            logger.debug(f"网关 {self.gateway_name} 线程安全回调处理器已初始化")
         except Exception as e:
             logger.error(f"初始化线程安全回调处理器失败: {e}")
             self._callback_handler = None
@@ -167,14 +170,14 @@ class BaseGateway(ABC):
         if self._callback_handler:
             self._callback_handler.schedule_async_task(coro)
         else:
-            logger.error(f"网关 {self.name} 回调处理器未初始化，无法调度任务")
+            logger.error(f"网关 {self.gateway_name} 回调处理器未初始化，无法调度任务")
 
     def _schedule_callback(self, callback: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
         """线程安全地调度同步回调（供子类使用）"""
         if self._callback_handler:
             self._callback_handler.schedule_callback(callback, *args, **kwargs)
         else:
-            logger.error(f"网关 {self.name} 回调处理器未初始化，无法调度回调")
+            logger.error(f"网关 {self.gateway_name} 回调处理器未初始化，无法调度回调")
 
     def _safe_publish_event(self, event_type: str, data: Any) -> None:
         """线程安全地发布事件"""
@@ -184,78 +187,90 @@ class BaseGateway(ABC):
             
             self._schedule_callback(publish_event)
         except Exception as e:
-            logger.error(f"网关 {self.name} 发布事件失败: {e}")
+            logger.error(f"网关 {self.gateway_name} 发布事件失败: {e}")
+
+    def on_tick(self, tick: TickData) -> None:
+        """处理行情数据回调"""
+        try:
+            self._safe_publish_event(EventType.TICK_UPDATED, {
+                "tick": tick,
+                "gateway_name": self.gateway_name,
+                "timestamp": __import__('time').time()
+            })
+            logger.debug(f"[{self.gateway_name}] tick行情信息已发布: {getattr(tick, 'symbol', 'unknown')}")
+        except Exception as e:
+            logger.error(f"[{self.gateway_name}] 处理行情数据失败: {e}")
+
+    # 核心回调方法 - CTP网关兼容性接口
+    def on_contract(self, contract: Any) -> None:
+        """处理合约信息回调"""
+        try:
+            self._safe_publish_event(EventType.CONTRACT_UPDATED, {
+                "contract": contract,
+                "gateway_name": self.gateway_name,
+                "timestamp": __import__('time').time()
+            })
+            logger.debug(f"[{self.gateway_name}] 合约信息已发布: {getattr(contract, 'symbol', 'unknown')}")
+        except Exception as e:
+            logger.error(f"[{self.gateway_name}] 处理合约信息失败: {e}")
+
+    def on_order(self, order: Any) -> None:
+        """处理订单状态回调"""
+        try:
+            self._safe_publish_event(EventType.ORDER_UPDATED, order)
+            order_id = getattr(order, 'orderid', 'unknown')
+            status = getattr(order, 'status', 'unknown')
+            logger.debug(f"[{self.gateway_name}] 订单状态已更新: {order_id} -> {status}")
+        except Exception as e:
+            logger.error(f"[{self.gateway_name}] 处理订单状态失败: {e}")
+
+    def on_trade(self, trade: Any) -> None:
+        """处理成交回报回调"""
+        try:
+            self._safe_publish_event(EventType.TRADE_UPDATED, trade)
+            trade_id = getattr(trade, 'trade_id', 'unknown')
+            symbol = getattr(trade, 'symbol', 'unknown')
+            volume = getattr(trade, 'volume', 0)
+            price = getattr(trade, 'price', 0)
+            logger.info(f"[{self.gateway_name}] 成交回报: {trade_id} {symbol} {volume}@{price}")
+        except Exception as e:
+            logger.error(f"[{self.gateway_name}] 处理成交回报失败: {e}")
+
+    def on_account(self, account: Any) -> None:
+        """处理账户信息回调"""
+        try:
+            self._safe_publish_event(EventType.ACCOUNT_UPDATED, account)
+            account_id = getattr(account, 'account_id', 'unknown')
+            balance = getattr(account, 'balance', 0)
+            logger.debug(f"[{self.gateway_name}] 账户信息已更新: {account_id} 余额:{balance}")
+        except Exception as e:
+            logger.error(f"[{self.gateway_name}] 处理账户信息失败: {e}")
+
+    def on_position(self, position: Any) -> None:
+        """处理持仓信息回调"""
+        try:
+            self._safe_publish_event(EventType.POSITION_UPDATED, position)
+            symbol = getattr(position, 'symbol', 'unknown')
+            volume = getattr(position, 'volume', 0)
+            direction = getattr(position, 'direction', 'unknown')
+            logger.debug(f"[{self.gateway_name}] 持仓信息已更新: {symbol} {direction} {volume}")
+        except Exception as e:
+            logger.error(f"[{self.gateway_name}] 处理持仓信息失败: {e}")
 
     def write_log(self, msg: str) -> None:
         """写日志（兼容性方法）"""
-        logger.info(f"[{self.name}] {msg}")
+        logger.info(f"[{self.gateway_name}] {msg}")
 
     def write_error(self, msg: str, error: Dict[str, Any]) -> None:
         """写错误日志（兼容性方法）"""
         error_id = error.get("ErrorID", "N/A")
         error_msg = error.get("ErrorMsg", str(error))
         log_msg = f"{msg}，代码：{error_id}，信息：{error_msg}"
-        logger.error(f"[{self.name}] {log_msg}")
-
-    # 核心回调方法 - CTP网关兼容性接口
-    def on_contract(self, contract: Any) -> None:
-        """处理合约信息回调"""
-        try:
-            self._safe_publish_event("contract.updated", {
-                "contract": contract,
-                "gateway_name": self.name,
-                "timestamp": __import__('time').time()
-            })
-            logger.debug(f"[{self.name}] 合约信息已发布: {getattr(contract, 'symbol', 'unknown')}")
-        except Exception as e:
-            logger.error(f"[{self.name}] 处理合约信息失败: {e}")
-
-    def on_order(self, order: Any) -> None:
-        """处理订单状态回调"""
-        try:
-            self._safe_publish_event("order.updated", order)
-            order_id = getattr(order, 'orderid', 'unknown')
-            status = getattr(order, 'status', 'unknown')
-            logger.debug(f"[{self.name}] 订单状态已更新: {order_id} -> {status}")
-        except Exception as e:
-            logger.error(f"[{self.name}] 处理订单状态失败: {e}")
-
-    def on_trade(self, trade: Any) -> None:
-        """处理成交回报回调"""
-        try:
-            self._safe_publish_event("trade.updated", trade)
-            trade_id = getattr(trade, 'trade_id', 'unknown')
-            symbol = getattr(trade, 'symbol', 'unknown')
-            volume = getattr(trade, 'volume', 0)
-            price = getattr(trade, 'price', 0)
-            logger.info(f"[{self.name}] 成交回报: {trade_id} {symbol} {volume}@{price}")
-        except Exception as e:
-            logger.error(f"[{self.name}] 处理成交回报失败: {e}")
-
-    def on_account(self, account: Any) -> None:
-        """处理账户信息回调"""
-        try:
-            self._safe_publish_event("account.updated", account)
-            account_id = getattr(account, 'account_id', 'unknown')
-            balance = getattr(account, 'balance', 0)
-            logger.debug(f"[{self.name}] 账户信息已更新: {account_id} 余额:{balance}")
-        except Exception as e:
-            logger.error(f"[{self.name}] 处理账户信息失败: {e}")
-
-    def on_position(self, position: Any) -> None:
-        """处理持仓信息回调"""
-        try:
-            self._safe_publish_event("position.updated", position)
-            symbol = getattr(position, 'symbol', 'unknown')
-            volume = getattr(position, 'volume', 0)
-            direction = getattr(position, 'direction', 'unknown')
-            logger.debug(f"[{self.name}] 持仓信息已更新: {symbol} {direction} {volume}")
-        except Exception as e:
-            logger.error(f"[{self.name}] 处理持仓信息失败: {e}")
+        logger.error(f"[{self.gateway_name}] {log_msg}")
 
     @abstractmethod
     def connect(self, setting: Dict[str, Any]) -> None:
-        """连接外部系统"""
+        """连接网关"""
         pass
 
     @abstractmethod
@@ -273,7 +288,7 @@ class BaseGateway(ABC):
     def get_connection_status(self) -> Dict[str, Any]:
         """获取连接状态"""
         return {
-            "name": self.name,
+            "name": self.gateway_name,
             "connected": False,
             "callback_handler_ready": self._callback_handler is not None
         }

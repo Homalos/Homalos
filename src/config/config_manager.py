@@ -12,10 +12,10 @@
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
-
 import yaml
 
 from src.core.logger import get_logger
+
 
 logger = get_logger("ConfigManager")
 
@@ -198,4 +198,4 @@ def set_config(key: str, value: Any) -> None:
 
 def watch_config(key_pattern: str, callback: Callable[[str, Any, Any], None]) -> None:
     """快捷方式：监听配置变更"""
-    get_config_manager().watch(key_pattern, callback) 
+    get_config_manager().watch(key_pattern, callback)

@@ -19,6 +19,7 @@ import time
 
 from src.config import global_var
 from src.config.constant import Exchange
+from src.config.setting import get_instrument_exchange_id
 from src.core.event_bus import EventBus
 from src.core.gateway import BaseGateway
 from src.core.object import TickData, SubscribeRequest, ContractData
@@ -26,7 +27,8 @@ from src.ctp.api import MdApi
 from src.ctp.gateway.ctp_mapping import EXCHANGE_CTP2VT
 from src.util.utility import ZoneInfo, get_folder_path
 from src.core.logger import get_logger
-from src.core.event import Event
+from src.core.event import Event, EventType
+
 logger = get_logger("MarketDataGateway")
 
 # 其他常量
@@ -59,8 +61,6 @@ class MarketDataGateway(BaseGateway):
     """
     CTP行情网关 - 专门负责行情数据处理
     """
-    default_name: str = "CTP_MD"
-
     default_setting: dict[str, str] = {
         "userid": "",
         "password": "",
@@ -70,20 +70,20 @@ class MarketDataGateway(BaseGateway):
         "auth_code": ""
     }
 
-    exchanges: list[str] = list(EXCHANGE_CTP2VT.values())
+    exchanges: list[str] = [exchange.value for exchange in EXCHANGE_CTP2VT.values()]
 
-    def __init__(self, event_bus: EventBus, name: str = "CTP_MD"):
+    def __init__(self, event_bus: EventBus, gateway_name: str = "CTP_MD"):
         """
         初始化行情网关
 
         Args:
             event_bus: 事件总线
-            name: 网关名称，默认为"CTP_MD"
+            gateway_name: 网关名称，默认为"CTP_MD"
         """
-        super().__init__(event_bus, name)
+        super().__init__(event_bus, gateway_name)
         
         # CTP API相关
-        self.md_api: Optional[MdApi] = None
+        self.md_api: CtpMdApi | None = None
         self.connection_state = ConnectionState.DISCONNECTED
         self.login_state = LoginState.LOGGED_OUT
         
@@ -104,6 +104,13 @@ class MarketDataGateway(BaseGateway):
         # 连接配置缓存（用于重连）
         self._last_connection_config: Optional[dict] = None
         
+        # 重连相关属性
+        self._enable_auto_reconnect: bool = True
+        self._reconnect_task: Optional[asyncio.Task] = None
+        self._current_reconnect_attempts: int = 0
+        self._max_reconnect_attempts: int = 10
+        self._reconnect_interval: float = 5.0
+        
         # 设置网关事件处理器
         self._setup_gateway_event_handlers()
 
@@ -120,18 +127,12 @@ class MarketDataGateway(BaseGateway):
         logger.debug(f"网关就绪检查: connection={connection_ready}, login={login_ready}, api={api_ready}, result={is_ready}")
         return is_ready
 
-    def _get_symbol_exchange(self, symbol: str) -> Exchange:
+    @staticmethod
+    def _get_symbol_exchange(symbol: str) -> Exchange:
         """根据合约代码获取交易所"""
-        # 简化的交易所映射逻辑
-        symbol_upper = symbol.upper()
-        if any(symbol_upper.endswith(suffix) for suffix in ['509', '510', '511', '512']):
-            return Exchange.CZCE
-        elif any(prefix in symbol_upper for prefix in ['RB', 'HC', 'AL', 'CU', 'ZN']):
-            return Exchange.SHFE
-        elif any(prefix in symbol_upper for prefix in ['I', 'J', 'JM', 'A', 'B', 'M']):
-            return Exchange.DCE
-        else:
-            return Exchange.CZCE  # 默认
+        # 从配置文件中读取合约交易所映射关系
+        instrument_exchange_json = get_instrument_exchange_id()
+        return Exchange(instrument_exchange_json.get(symbol, None))
 
     def _queue_pending_subscription(self, strategy_id: str, symbols: list) -> None:
         """将订阅请求加入待处理队列"""
@@ -191,7 +192,7 @@ class MarketDataGateway(BaseGateway):
             try:
                 # 重新发送订阅事件
                 from src.core.event import Event
-                event = Event("gateway.subscribe", sub_request)
+                event = Event(EventType.GATEWAY_SUBSCRIBE, sub_request)
                 self._handle_gateway_subscribe(event)
             except Exception as e:
                 logger.error(f"处理待订阅请求失败: {e}")
@@ -205,8 +206,8 @@ class MarketDataGateway(BaseGateway):
         return {
             "state": self.connection_state.value,
             "is_connected": self.connection_state in [ConnectionState.CONNECTED, ConnectionState.AUTHENTICATED, ConnectionState.LOGGED_IN],
-            "reconnect_attempts": self.reconnect_attempts,
-            "max_reconnect_attempts": self.max_reconnect_attempts,
+            "reconnect_attempts": self._current_reconnect_attempts,
+            "max_reconnect_attempts": self._max_reconnect_attempts,
             "last_heartbeat": self.last_heartbeat,
             "connection_duration": time.time() - self.connection_start_time if self.connection_start_time else 0,
             "subscriptions": self.get_subscription_status()
@@ -244,17 +245,17 @@ class MarketDataGateway(BaseGateway):
             logger.warning("处理连接丢失事件")
             self.connection_state = ConnectionState.DISCONNECTED
             self.last_heartbeat = 0.0
-            
+
             # 清空订阅状态，等待重连后重新订阅
             self.pending_subscriptions.update(self.active_subscriptions)
             self.active_subscriptions.clear()
-            
+
             # 发布连接断开事件
-            self.event_bus.publish(Event("gateway.disconnected", {
-                "gateway_name": self.name,
+            self.event_bus.publish(Event(EventType.GATEWAY_DISCONNECTED, {
+                "gateway_name": self.gateway_name,
                 "reason": "connection_lost"
             }))
-            
+
         except Exception as e:
             logger.error(f"处理连接丢失失败: {e}")
     
@@ -267,8 +268,8 @@ class MarketDataGateway(BaseGateway):
             logger.info(f"连接状态变更: {old_state.value} -> {new_state.value}")
 
             # 使用线程安全的方式发布状态变更事件
-            self._safe_publish_event("gateway.state_changed", {
-                "gateway_name": self.name,
+            self._safe_publish_event(EventType.GATEWAY_STATE_CHANGED, {
+                "gateway_name": self.gateway_name,
                 "old_state": old_state.value,
                 "new_state": new_state.value
             })
@@ -287,9 +288,11 @@ class MarketDataGateway(BaseGateway):
         """设置网关事件处理器"""
         try:
             # 订阅网关订阅/取消订阅事件
-            self.event_bus.subscribe("gateway.subscribe", self._handle_gateway_subscribe)
-            self.event_bus.subscribe("gateway.unsubscribe", self._handle_gateway_unsubscribe)
-            logger.info(f"{self.name} 网关事件处理器已注册")
+            self.event_bus.subscribe(EventType.GATEWAY_SUBSCRIBE, self._handle_gateway_subscribe)
+            self.event_bus.subscribe(EventType.GATEWAY_UNSUBSCRIBE, self._handle_gateway_unsubscribe)
+            self.event_bus.subscribe(EventType.GATEWAY_CONNECTED, self._on_gateway_connected)
+            self.event_bus.subscribe(EventType.GATEWAY_DISCONNECTED, self._on_gateway_disconnected)
+            logger.info(f"{self.gateway_name} 网关事件处理器已注册")
         except Exception as e:
             logger.error(f"设置网关事件处理器失败: {e}")
 
@@ -352,6 +355,14 @@ class MarketDataGateway(BaseGateway):
         except Exception as e:
             logger.error(f"处理取消订阅请求失败: {e}")
 
+    def _on_gateway_connected(self) -> None:
+        """处理网关连接成功事件"""
+        self._update_connection_state(ConnectionState.CONNECTED)
+
+    def _on_gateway_disconnected(self) -> None:
+        """处理网关连接断开事件"""
+        self._update_connection_state(ConnectionState.DISCONNECTED)
+
     def get_subscription_status(self) -> dict:
         """获取订阅状态"""
         return {
@@ -383,49 +394,30 @@ class MarketDataGateway(BaseGateway):
             # 兼容性配置字段处理
             userid = setting.get("user_id") or setting.get("userid", "")
             password = setting.get("password", "")
-            brokerid = setting.get("broker_id", "")
+            broker_id = setting.get("broker_id", "")
             md_address = setting.get("md_address", "")
-            app_id = setting.get("app_id", "")
-            auth_code = setting.get("auth_code", "")
-            
+
             # 参数验证
-            if not all([userid, password, brokerid, md_address]):
+            if not all([userid, password, broker_id, md_address]):
                 raise ValueError("缺少必要的连接参数")
             
             # 创建API实例
-        if not self.md_api:
-                self.md_api = MdApi()
-                if hasattr(self.md_api, 'gateway'):
-                    self.md_api.gateway = self
+            if not self.md_api:
+                self.md_api = CtpMdApi(self)
+                # 设置网关引用（如果API支持）
+                try:
+                    setattr(self.md_api, 'gateway', self)
+                except AttributeError:
+                    pass  # 如果API不支持gateway属性，忽略
             
             # 启动心跳监控
             self._start_heartbeat_monitor()
-            
-            # CTP标准行情API初始化流程
-            # 1. 创建API目录（如有必要）
-            from pathlib import Path
-            api_path = str(Path.home() / ".Homalos_v2" / "ctp_md")
-            if hasattr(self.md_api, 'createFtdcMdApi'):
-                self.md_api.createFtdcMdApi(api_path.encode("GBK").decode("utf-8"))
-                logger.info(f"MdApi：createFtdcMdApi调用成功，路径：{api_path}")
-            # 2. 注册前置机地址
-            if hasattr(self.md_api, 'registerFront'):
-                self.md_api.registerFront(md_address)
-                logger.info(f"MdApi：registerFront调用成功，地址：{md_address}")
-            # 3. 初始化API
-            if hasattr(self.md_api, 'init'):
-                self.md_api.init()
-                logger.info("MdApi：init调用成功。")
+
+            md_address: str = self._prepare_address(setting["md_address"])
+            self.md_api.connect(md_address, userid, password, broker_id)
             
             self.connection_state = ConnectionState.CONNECTING
             logger.info(f"正在连接到 {md_address}...")
-            
-            # 用户名、密码、brokerid等参数应在onFrontConnected后通过login流程传递
-            self._md_userid = userid
-            self._md_password = password
-            self._md_brokerid = brokerid
-            self._md_app_id = app_id
-            self._md_auth_code = auth_code
             
         except Exception as e:
             logger.error(f"连接失败: {e}")
@@ -441,8 +433,8 @@ class MarketDataGateway(BaseGateway):
             self.last_heartbeat = 0.0
             # 发布连接失败事件
             if self.event_bus:
-                self.event_bus.publish(Event("gateway.connection_failed", {
-                    "gateway_name": self.name,
+                self.event_bus.publish(Event(EventType.GATEWAY_DISCONNECTED, {
+                    "gateway_name": self.gateway_name,
                     "reason": reason
                 }))
         except Exception as e:
@@ -473,7 +465,8 @@ class MarketDataGateway(BaseGateway):
                 
                 try:
                     self.write_log(f"尝试自动重连 ({self._current_reconnect_attempts}/{self._max_reconnect_attempts})")
-                    self.connect(self._last_connection_config)
+                    if self._last_connection_config:
+                        self.connect(self._last_connection_config)
                     
                     # 等待连接结果（最多等待30秒）
                     for _ in range(30):
@@ -487,8 +480,8 @@ class MarketDataGateway(BaseGateway):
             
             if self._current_reconnect_attempts >= self._max_reconnect_attempts:
                 logger.error(f"已达到最大重连次数 ({self._max_reconnect_attempts})，停止自动重连")
-                self.event_bus.publish(Event("gateway.reconnect_failed", {
-                    "gateway_name": self.name,
+                self.event_bus.publish(Event(EventType.GATEWAY_RECONNECT_FAILED, {
+                    "gateway_name": self.gateway_name,
                     "attempts": self._current_reconnect_attempts
                 }))
                 
@@ -503,19 +496,24 @@ class MarketDataGateway(BaseGateway):
         :param req:
         :return:
         """
-        if not self.md_api or not self.md_api.connect_status:
+        if not self.md_api or not getattr(self.md_api, 'connect_status', False):
             self.write_log("无法订阅行情：行情接口未连接或未初始化。")
             return
-        self.md_api.subscribe(req)
-
+        if hasattr(self.md_api, 'subscribe'):
+            self.md_api.subscribe(req)
+        else:
+            self.write_log("行情API不支持subscribe方法")
 
     def close(self) -> None:
         """
         关闭接口
         :return:
         """
-        if self.md_api and self.md_api.connect_status:
-            self.md_api.close()
+        if self.md_api and getattr(self.md_api, 'connect_status', False):
+            if hasattr(self.md_api, 'close'):
+                self.md_api.close()
+            else:
+                self.write_log("行情API不支持close方法")
 
     def write_error(self, msg: str, error: dict) -> None:
         """
@@ -540,8 +538,10 @@ class MarketDataGateway(BaseGateway):
     def on_tick(self, tick: TickData) -> None:
         logger.debug(f"MarketDataGateway.on_tick: 收到tick {tick.symbol} {tick.datetime} {tick.last_price}")
         # 补充：将tick事件发布到事件总线，供DataService消费
-        self.event_bus.publish(Event("market.tick.raw", tick))
-        super().on_tick(tick)
+        self.event_bus.publish(Event(EventType.MARKET_TICK_RAW, tick))
+        # 调用父类的on_tick方法（如果存在）
+        if hasattr(super(), 'on_tick'):
+            super().on_tick(tick)
 
 
 class CtpMdApi(MdApi):
@@ -552,31 +552,36 @@ class CtpMdApi(MdApi):
     def __init__(self, gateway: MarketDataGateway) -> None:
         super().__init__()
 
-        self.gateway: MarketDataGateway = gateway
-        self.gateway_name: str = gateway.name
+        self.gateway: MarketDataGateway = gateway  # 行情网关
+        self.gateway_name: str = gateway.gateway_name  # 行情网关名称
 
-        self.req_id: int = 0
+        self.req_id: int = 0  # 请求ID
 
-        self.connect_status: bool = False
-        self.login_status: bool = False
-        self.subscribed: set = set()
+        self.connect_status: bool = False  # 连接状态
+        self.login_status: bool = False  # 登录状态
+        self.subscribed: set = set()  # 已订阅的合约
 
-        self.userid: str = ""
-        self.password: str = ""
-        self.broker_id: str = ""
+        self.userid: str = ""  # 用户名
+        self.password: str = ""  # 密码
+        self.broker_id: str = ""  # 经纪公司代码
 
-        self.current_date: str = datetime.now().strftime("%Y%m%d")
-        self.last_disconnect_time = 0
+        self.current_date: str = datetime.now().strftime("%Y%m%d")  # 当前交易日
+        self.last_disconnect_time = 0  # 最后一次断开连接的时间
 
     def onFrontConnected(self) -> None:
         """
         服务器连接成功回报
         :return:
         """
-        logger.info("🔗 CTP行情API回调: onFrontConnected - 服务器连接成功")
+        logger.info("CTP行情API回调: onFrontConnected - 服务器连接成功")
         self.gateway.write_log("行情服务器连接成功")
-        self.gateway._update_connection_state(ConnectionState.CONNECTED)
-        logger.info("✅ 连接状态已更新为CONNECTED，开始登录流程")
+        # self.gateway._update_connection_state(ConnectionState.CONNECTED)
+        # 发布事件代替直接调用 protected 方法
+        self.gateway.event_bus.publish(Event(
+            EventType.GATEWAY_CONNECTED,
+            {"gateway_name": self.gateway.gateway_name}
+        ))
+        logger.info("连接状态已更新为CONNECTED，开始登录流程")
         self.login()
 
     def onFrontDisconnected(self, reason: int) -> None:
@@ -596,10 +601,15 @@ class CtpMdApi(MdApi):
         :param reason:
         :return:
         """
-        logger.warning(f"❌ CTP行情API回调: onFrontDisconnected - 连接断开，原因代码={reason}")
+        logger.warning(f"CTP行情API回调: onFrontDisconnected - 连接断开，原因代码={reason}")
         self.login_status = False
-        self.gateway._update_connection_state(ConnectionState.DISCONNECTED)
-        
+        # self.gateway._update_connection_state(ConnectionState.DISCONNECTED)
+        # 发布事件代替直接调用 protected 方法
+        self.gateway.event_bus.publish(Event(
+            EventType.GATEWAY_DISCONNECTED,
+            {"gateway_name": self.gateway.gateway_name}
+        ))
+
         # 解析断开原因
         reason_hex = hex(reason)
         reason_msg = {
@@ -630,7 +640,7 @@ class CtpMdApi(MdApi):
         """
         logger.info(f"🔐 CTP行情API回调: onRspUserLogin - 登录回报, ErrorID={error.get('ErrorID', 'N/A')}")
         if not error["ErrorID"]:
-            logger.info("✅ 行情服务器登录成功，开始更新状态并处理pending订阅")
+            logger.info("行情服务器登录成功，开始更新状态并处理pending订阅")
             self.login_status = True
             global_var.md_login_success = True
             self.gateway._update_connection_state(ConnectionState.LOGGED_IN)
@@ -646,7 +656,6 @@ class CtpMdApi(MdApi):
             # 登录成功后自动处理pending订阅队列
             try:
                 logger.info("🚀 登录成功，开始处理pending订阅队列")
-                import asyncio
                 if hasattr(self.gateway, '_process_pending_subscriptions'):
                     # 兼容异步/同步实现
                     coro = self.gateway._process_pending_subscriptions()
@@ -655,13 +664,13 @@ class CtpMdApi(MdApi):
                     else:
                         # 同步直接调用
                         pass
-                logger.info("✅ pending订阅队列处理任务已创建")
+                logger.info("pending订阅队列处理任务已创建")
                 self.gateway.write_log("登录成功后已触发pending订阅队列处理")
             except Exception as e:
-                logger.error(f"❌ 处理pending订阅队列异常: {e}")
+                logger.error(f"处理pending订阅队列异常: {e}")
                 self.gateway.write_log(f"处理pending订阅队列异常: {e}")
         else:
-            logger.error(f"❌ 行情服务器登录失败: {error}")
+            logger.error(f"行情服务器登录失败: {error}")
             self.gateway._update_connection_state(ConnectionState.ERROR)
             self.gateway.login_state = LoginState.LOGIN_FAILED
             self.gateway.write_error("行情服务器登录失败", error)
@@ -674,7 +683,7 @@ class CtpMdApi(MdApi):
         :param last:
         :return:
         """
-        logger.error(f"❌ CTP行情API回调: onRspError - 请求报错, ErrorID={error.get('ErrorID', 'N/A')}, ErrorMsg={error.get('ErrorMsg', 'N/A')}")
+        logger.error(f"CTP行情API回调: onRspError - 请求报错, ErrorID={error.get('ErrorID', 'N/A')}, ErrorMsg={error.get('ErrorMsg', 'N/A')}")
         self.gateway.write_error("行情接口报错", error)
 
     def onRspSubMarketData(self, data: dict, error: dict, reqid: int, last: bool) -> None:
@@ -687,7 +696,7 @@ class CtpMdApi(MdApi):
         :return:
         """
         symbol = data.get("InstrumentID", "UNKNOWN") if data else "UNKNOWN"
-        logger.info(f"📊 CTP行情API回调: onRspSubMarketData - 订阅回报, 合约={symbol}, ErrorID={error.get('ErrorID', 'N/A') if error else 'None'}")
+        logger.info(f"CTP行情API回调: onRspSubMarketData - 订阅回报, 合约={symbol}, ErrorID={error.get('ErrorID', 'N/A') if error else 'None'}")
         if not error or not error["ErrorID"]:
             # 订阅成功
             if data and "InstrumentID" in data:
@@ -699,10 +708,10 @@ class CtpMdApi(MdApi):
                     logger.info(f"✅ 行情订阅成功并更新状态: {symbol}")
                     self.gateway.write_log(f"行情订阅成功: {symbol}")
                 else:
-                    logger.warning(f"⚠️ 订阅成功但合约不在pending列表: {symbol}")
+                    logger.warning(f"订阅成功但合约不在pending列表: {symbol}")
             return
 
-        logger.error(f"❌ 行情订阅失败: {error}")
+        logger.error(f"行情订阅失败: {error}")
         self.gateway.write_error("行情订阅失败", error)
 
     def onRtnDepthMarketData(self, data: dict) -> None:
@@ -722,10 +731,10 @@ class CtpMdApi(MdApi):
         # 过滤还没有收到合约数据前的行情推送
         symbol: str = data["InstrumentID"]
         # 添加行情数据接收日志（调试级别）
-        logger.debug(f"📈 CTP行情API回调: onRtnDepthMarketData - 收到行情数据: {symbol} @ {data.get('LastPrice', 'N/A')}")
-        contract: ContractData = symbol_contract_map.get(symbol, None)
+        logger.debug(f"CTP行情API回调: onRtnDepthMarketData - 收到行情数据: {symbol} @ {data.get('LastPrice', 'N/A')}")
+        contract: Optional[ContractData] = symbol_contract_map.get(symbol, None)
         if not contract:
-            logger.debug(f"⚠️ 跳过行情推送，合约信息不存在: {symbol}")
+            logger.debug(f"跳过行情推送，合约信息不存在: {symbol}")
             return
 
         # 对大商所的交易日字段取本地日期
@@ -735,13 +744,13 @@ class CtpMdApi(MdApi):
             date_str = data["ActionDay"]
 
         timestamp: str = f"{date_str} {data['UpdateTime']}.{data['UpdateMillisec']}"
-        dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f")
-        dt: datetime = dt.replace(tzinfo=CHINA_TZ)
+        dt_obj: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f")
+        dt_obj: datetime = dt_obj.replace(tzinfo=CHINA_TZ)
 
         tick: TickData = TickData(
             symbol=symbol,
             exchange=contract.exchange,
-            datetime=dt,
+            datetime=dt_obj,
             name=contract.name,
             volume=data["Volume"],
             turnover=data["Turnover"],

@@ -513,7 +513,7 @@ class DataService:
         self.bar_manager = BarManager([1, 5, 10])  # 支持1m/5m/10m
         
         # 性能统计
-        self.stats = {
+        self.stats: Dict[str, Any] = {
             "tick_count": 0,
             "bar_count": 0,
             "last_tick_time": 0,
@@ -528,19 +528,19 @@ class DataService:
     def _setup_event_handlers(self):
         """设置事件处理器"""
         # 行情数据处理
-        self.event_bus.subscribe("market.tick.raw", self._handle_raw_tick)
-        self.event_bus.subscribe("market.bar.raw", self._handle_raw_bar)
+        self.event_bus.subscribe(EventType.MARKET_TICK_RAW, self._handle_raw_tick)
+        self.event_bus.subscribe(EventType.MARKET_BAR_RAW, self._handle_raw_bar)
         
         # 订阅管理
-        self.event_bus.subscribe("data.subscribe", self._handle_data_subscribe)
-        self.event_bus.subscribe("data.unsubscribe", self._handle_data_unsubscribe)
+        self.event_bus.subscribe(EventType.DATA_SUBSCRIBE, self._handle_data_subscribe)
+        self.event_bus.subscribe(EventType.DATA_UNSUBSCRIBE, self._handle_data_unsubscribe)
         
         # 数据查询
-        self.event_bus.subscribe("data.query.tick", self._handle_query_tick)
-        self.event_bus.subscribe("data.query.bar", self._handle_query_bar)
+        self.event_bus.subscribe(EventType.DATA_QUERY_TICK, self._handle_query_tick)
+        self.event_bus.subscribe(EventType.DATA_QUERY_BAR, self._handle_query_bar)
         
         # 持久化控制
-        self.event_bus.subscribe("data.persist", self._handle_persist_data)
+        self.event_bus.subscribe(EventType.DATA_PERSIST, self._handle_persist_data)
     
     async def initialize(self):
         """初始化数据服务"""
@@ -592,7 +592,7 @@ class DataService:
                 from src.core.event import create_trading_event
                 
                 gateway_event = create_trading_event(
-                    "gateway.subscribe",
+                    EventType.GATEWAY_SUBSCRIBE,
                     {
                         "symbols": symbols,
                         "strategy_id": strategy_id
@@ -669,7 +669,7 @@ class DataService:
                 from src.core.event import create_trading_event
                 
                 gateway_event = create_trading_event(
-                    "gateway.subscribe",
+                    EventType.GATEWAY_SUBSCRIBE,
                     {
                         "symbols": [symbol],
                         "strategy_id": strategy_id
@@ -758,7 +758,7 @@ class DataService:
             bars = self.bar_manager.on_tick(tick_data)
             for bar in bars:
                 logger.info(f"分发MARKET_BAR: {bar.symbol} {bar.datetime} O:{bar.open_price} H:{bar.high_price} L:{bar.low_price} C:{bar.close_price}")
-                self.event_bus.publish(Event("market.bar", bar))
+                self.event_bus.publish(Event(EventType.MARKET_BAR, bar))
                 
         except Exception as e:
             logger.error(f"处理tick数据失败: {e}")
@@ -826,7 +826,7 @@ class DataService:
                     from src.core.event import create_trading_event
                     
                     success_event = create_trading_event(
-                        "data.subscribe.success",
+                        EventType.DATA_SUBSCRIBE_SUCCESS,
                         {
                             "symbols": symbols,
                             "strategy_id": strategy_id,
@@ -844,7 +844,7 @@ class DataService:
                     from src.core.event import create_trading_event
                     
                     failure_event = create_trading_event(
-                        "data.subscribe.failed",
+                        EventType.DATA_SUBSCRIBE_FAILED,
                         {
                             "symbols": symbols,
                             "strategy_id": strategy_id,
@@ -877,7 +877,7 @@ class DataService:
                 from src.core.event import create_trading_event
                 
                 gateway_event = create_trading_event(
-                    "gateway.unsubscribe",
+                    EventType.GATEWAY_UNSUBSCRIBE,
                     {
                         "symbols": symbols,
                         "strategy_id": strategy_id
@@ -914,12 +914,12 @@ class DataService:
         """设置数据服务事件处理器"""
         try:
             # 订阅数据相关事件
-            self.event_bus.subscribe("data.subscribe", self._handle_data_subscribe)
-            self.event_bus.subscribe("data.unsubscribe", self._handle_data_unsubscribe)
+            self.event_bus.subscribe(EventType.DATA_SUBSCRIBE, self._handle_data_subscribe)
+            self.event_bus.subscribe(EventType.DATA_UNSUBSCRIBE, self._handle_data_unsubscribe)
             
             # 订阅网关相关事件
-            self.event_bus.subscribe("gateway.subscription.success", self._handle_gateway_subscription_success)
-            self.event_bus.subscribe("gateway.subscription.failed", self._handle_gateway_subscription_failed)
+            self.event_bus.subscribe(EventType.GATEWAY_SUBSCRIPTION_SUCCESS, self._handle_gateway_subscription_success)
+            self.event_bus.subscribe(EventType.GATEWAY_SUBSCRIPTION_FAILED, self._handle_gateway_subscription_failed)
             
             logger.info("数据服务事件处理器已注册")
             
@@ -977,7 +977,7 @@ class DataService:
             
             # 发布查询结果
             self.event_bus.publish(create_market_event(
-                "data.query.tick.result",
+                EventType.DATA_QUERY_TICK_RESULT,
                 {"query_params": query_params, "result": result},
                 "DataService"
             ))
@@ -991,7 +991,7 @@ class DataService:
             
             # 发布查询结果
             self.event_bus.publish(create_market_event(
-                "data.query.bar.result",
+                EventType.DATA_QUERY_BAR_RESULT,
                 {"query_params": query_params, "result": result},
                 "DataService"
             ))

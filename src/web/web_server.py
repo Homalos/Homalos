@@ -548,7 +548,7 @@ class WebServer:
                 return static_index_path.read_text(encoding='utf-8')
             else:
                 # 如果静态文件不存在，返回简单的错误页面
-        return '''
+                return '''
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>

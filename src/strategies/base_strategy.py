@@ -69,7 +69,7 @@ class BaseStrategy(ABC):
         self.bar_cache: Dict[str, Dict[str, BarData]] = defaultdict(dict)  # symbol -> {interval: BarData}
         
         # 统计信息
-        self.stats = {
+        self.stats: Dict[str, Optional[float | int]] = {
             "total_orders": 0,
             "filled_orders": 0,
             "cancelled_orders": 0,
@@ -452,7 +452,7 @@ class BaseStrategy(ABC):
                 from src.core.event import create_trading_event
                 
                 subscribe_event = create_trading_event(
-                    "data.subscribe",
+                    EventType.DATA_SUBSCRIBE,
                     {
                         "symbols": symbols,
                         "strategy_id": self.strategy_id

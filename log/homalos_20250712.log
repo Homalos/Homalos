@@ -2915,3 +2915,547 @@
 2025-07-12 22:13:03.967 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
 2025-07-12 22:14:03.967 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
 2025-07-12 22:14:03.967 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:14:33.979 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:14:33.979 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:15:33.958 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:15:33.958 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:16:03.967 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:16:03.967 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:16:33.968 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:16:33.968 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:17:33.976 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:17:33.977 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:18:03.999 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:18:03.999 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:18:34.010 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:18:34.010 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:19:04.025 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:19:04.026 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:20:04.026 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:20:04.026 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:21:04.028 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:21:04.028 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:21:34.030 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:21:34.030 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:22:04.041 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:22:04.041 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:23:04.047 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:23:04.047 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:23:34.063 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:23:34.063 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:24:04.074 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:24:04.074 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:24:34.078 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:24:34.078 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:25:34.054 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:25:34.054 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:26:34.076 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:26:34.077 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:27:34.065 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:27:34.065 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:28:34.064 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:28:34.064 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:29:04.089 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:29:04.090 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:29:34.092 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:29:34.092 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:30:34.093 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:30:34.093 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:31:04.097 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:31:04.097 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:31:34.108 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:31:34.108 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:32:34.099 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:32:34.099 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:33:04.106 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:33:04.106 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:33:34.123 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:33:34.124 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:34:04.135 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:34:04.135 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:34:34.137 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:34:34.137 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:35:04.155 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:35:04.156 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:36:04.139 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:36:04.140 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:36:34.145 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:36:34.146 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:37:04.147 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:37:04.148 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:37:34.172 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:37:34.172 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:38:04.185 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:38:04.186 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:38:34.198 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:38:34.199 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:39:04.213 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:39:04.213 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:39:34.232 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:39:34.233 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:40:04.252 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:40:04.253 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:40:34.280 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:40:34.281 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:41:34.280 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:41:34.280 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:42:34.296 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:42:34.298 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:43:04.305 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:43:04.305 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:43:34.316 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:43:34.318 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:44:04.338 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:44:04.338 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:44:34.341 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:44:34.341 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:45:04.349 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:45:04.350 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:45:34.354 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:45:34.355 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:46:04.373 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:46:04.374 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:46:34.380 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:46:34.381 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:47:04.403 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:47:04.405 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:48:04.409 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:48:04.410 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:48:34.421 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:48:34.422 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:49:04.437 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:49:04.438 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:49:34.453 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:49:34.453 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:50:34.444 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:50:34.445 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:51:04.456 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:51:04.457 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:51:34.462 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:51:34.463 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:52:04.470 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:52:04.470 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:52:34.475 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:52:34.476 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:53:34.473 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:53:34.474 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:54:04.477 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:54:04.478 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:55:04.478 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:55:04.479 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:55:34.485 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:55:34.486 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:56:04.502 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:56:04.503 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:56:34.507 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:56:34.507 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:57:04.526 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:57:04.526 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:57:34.544 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:57:34.545 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:58:04.561 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:58:04.562 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:58:34.572 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:58:34.572 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:59:04.576 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:59:04.577 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 22:59:34.580 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 22:59:34.581 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:00:04.602 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:00:04.602 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:00:34.606 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:00:34.606 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:01:04.625 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:01:04.626 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:01:34.631 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:01:34.632 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:02:04.634 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:02:04.634 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:02:34.634 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:02:34.634 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:03:04.655 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:03:04.656 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:03:34.676 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:03:34.677 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:04:04.701 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:04:04.702 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:04:34.709 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:04:34.709 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:05:04.728 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:05:04.728 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:06:04.743 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:06:04.744 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:06:34.763 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:06:34.763 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:07:04.771 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:07:04.772 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:07:34.795 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:07:34.795 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:08:34.814 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:08:34.815 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:09:04.820 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:09:04.820 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:09:34.834 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:09:34.835 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:10:04.858 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:10:04.859 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:10:34.866 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:10:34.868 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:11:04.889 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:11:04.890 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:11:34.902 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:11:34.903 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:12:04.902 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:12:04.902 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:13:04.879 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:13:04.880 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:13:34.903 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:13:34.904 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:14:34.911 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:14:34.912 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:15:04.925 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:15:04.926 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:15:34.944 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:15:34.945 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:16:34.931 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:16:34.932 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:17:04.947 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:17:04.947 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:17:34.965 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:17:34.965 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:18:04.970 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:18:04.971 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:19:04.977 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:19:04.978 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:19:34.978 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:19:34.979 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:20:04.980 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:20:04.980 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:20:34.990 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:20:34.990 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:21:05.015 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:21:05.015 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:21:35.026 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:21:35.026 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:22:05.030 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:22:05.030 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:23:05.025 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:23:05.027 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:24:05.047 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:24:05.049 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:24:35.072 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:24:35.072 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:25:05.082 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:25:05.083 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:25:35.103 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:25:35.105 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:26:35.111 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:26:35.113 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:27:05.123 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:27:05.123 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:27:35.140 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:27:35.141 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:28:05.156 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:28:05.156 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:29:05.142 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:29:05.143 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:29:35.162 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:29:35.164 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:30:05.181 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:30:05.182 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:30:35.191 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:30:35.192 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:31:05.206 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:31:05.208 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:31:35.228 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:31:35.228 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:32:35.231 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:32:35.232 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:33:35.222 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:33:35.222 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:34:05.229 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:34:05.232 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:34:35.246 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:34:35.247 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:35:05.258 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:35:05.259 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:36:05.272 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:36:05.273 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:36:35.292 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:36:35.293 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:37:05.314 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:37:05.314 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:38:05.327 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:38:05.328 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:38:35.334 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:38:35.335 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:39:05.342 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:39:05.342 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:40:05.343 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:40:05.345 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:41:05.331 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:41:05.331 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:41:35.339 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:41:35.340 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:42:05.360 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:42:05.360 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:43:05.360 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:43:05.360 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:43:35.366 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:43:35.367 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:44:05.386 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:44:05.387 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:44:35.396 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:44:35.398 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:45:05.418 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:45:05.418 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:46:05.410 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:46:05.410 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:46:35.435 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:46:35.435 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:47:05.447 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:47:05.447 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:47:35.455 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:47:35.456 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:48:05.455 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:48:05.456 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:48:35.484 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:48:35.485 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:49:05.495 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:49:05.496 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:49:35.515 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:49:35.516 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:50:05.533 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:50:05.534 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:50:35.537 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:50:35.538 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:51:05.556 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:51:05.557 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:51:35.563 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:51:35.563 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:52:05.578 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:52:05.578 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:52:35.590 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:52:35.591 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:53:05.590 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:53:05.590 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:54:05.595 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:54:05.595 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:54:35.611 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:54:35.612 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:55:05.635 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:55:05.635 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:55:35.645 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:55:35.646 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:55:43.209 | INFO | HomalosSystem | start:304 | 开始系统初始化...
+2025-07-12 23:55:43.210 | INFO | HomalosSystem | initialize:87 | Homalos量化交易系统启动中...
+2025-07-12 23:55:43.210 | INFO | HomalosSystem | initialize:90 | 初始化配置管理器...
+2025-07-12 23:55:43.223 | INFO | ConfigManager | load_config:41 | 配置文件已加载: config\system.yaml
+2025-07-12 23:55:43.224 | INFO | HomalosSystem | initialize:94 | 初始化事件总线...
+2025-07-12 23:55:43.226 | INFO | EventBus | start:77 | EventBus 'trading_system' engines started
+2025-07-12 23:55:43.226 | INFO | HomalosSystem | initialize:102 | 初始化服务注册中心...
+2025-07-12 23:55:43.227 | INFO | HomalosSystem | initialize:106 | 初始化数据服务...
+2025-07-12 23:55:43.230 | INFO | DataService | _init_database:170 | 数据库初始化成功: data\trading.db
+2025-07-12 23:55:43.230 | INFO | DataService | __init__:526 | 数据服务初始化完成
+2025-07-12 23:55:43.232 | INFO | DataService | start:184 | 数据库写入线程已启动
+2025-07-12 23:55:43.233 | INFO | DataService | initialize:551 | 数据服务初始化成功
+2025-07-12 23:55:43.233 | INFO | HomalosSystem | initialize:111 | 初始化交易引擎核心...
+2025-07-12 23:55:43.234 | INFO | PerformanceMonitor | _setup_event_handlers:141 | 性能监控事件处理器已注册
+2025-07-12 23:55:43.234 | INFO | PerformanceMonitor | __init__:125 | 性能监控器初始化完成
+2025-07-12 23:55:43.235 | INFO | TradingEngine | __init__:1186 | 交易引擎核心初始化完成
+2025-07-12 23:55:43.235 | INFO | TradingEngine | initialize:1200 | 正在初始化交易引擎...
+2025-07-12 23:55:43.235 | INFO | TradingEngine | initialize:1205 | 交易引擎初始化完成
+2025-07-12 23:55:43.235 | INFO | HomalosSystem | _initialize_gateways:157 | CTP网关配置验证通过
+2025-07-12 23:55:43.235 | INFO | HomalosSystem | _initialize_gateways:160 | 初始化CTP行情网关...
+2025-07-12 23:55:43.235 | INFO | MarketDataGateway | _setup_gateway_event_handlers:295 | CTP_MD 网关事件处理器已注册
+2025-07-12 23:55:43.235 | ERROR | HomalosSystem | _initialize_gateways:175 | 网关初始化失败: 'MarketDataGateway' object has no attribute 'name'
+2025-07-12 23:55:43.235 | WARNING | HomalosSystem | _initialize_gateways:177 | 系统将在无网关模式下运行
+2025-07-12 23:55:43.236 | INFO | HomalosSystem | initialize:120 | 初始化Web管理界面...
+2025-07-12 23:55:43.240 | INFO | WebServer | _setup_event_listeners:447 | WebSocket事件监控器已注册
+2025-07-12 23:55:43.240 | INFO | WebServer | __init__:137 | Web服务器初始化完成
+2025-07-12 23:55:43.240 | INFO | HomalosSystem | initialize:123 | 系统组件初始化完成
+2025-07-12 23:55:43.240 | INFO | HomalosSystem | start:320 | 启动事件总线...
+2025-07-12 23:55:43.240 | INFO | EventBus | start:77 | EventBus 'trading_system' engines started
+2025-07-12 23:55:43.240 | INFO | HomalosSystem | start:322 | 启动事件总线成功
+2025-07-12 23:55:43.240 | INFO | HomalosSystem | start:320 | 启动服务注册中心...
+2025-07-12 23:55:43.241 | INFO | ServiceRegistry | start:47 | ServiceRegistry 已启动
+2025-07-12 23:55:43.241 | INFO | HomalosSystem | start:322 | 启动服务注册中心成功
+2025-07-12 23:55:43.241 | INFO | HomalosSystem | start:320 | 启动交易引擎...
+2025-07-12 23:55:43.241 | INFO | PerformanceMonitor | start_monitoring:152 | 性能监控已启动
+2025-07-12 23:55:43.241 | INFO | TradingEngine | start:1223 | 交易引擎已启动
+2025-07-12 23:55:43.242 | INFO | WebServer | event_monitor:424 | WebSocket推送事件: engine.started -> 0 个连接
+2025-07-12 23:55:43.242 | INFO | HomalosSystem | start:322 | 启动交易引擎成功
+2025-07-12 23:55:43.242 | INFO | HomalosSystem | start:320 | 启动Web服务器...
+2025-07-12 23:55:43.242 | INFO | HomalosSystem | start:322 | 启动Web服务器成功
+2025-07-12 23:55:43.243 | INFO | HomalosSystem | start:334 | 🎉 Homalos量化交易系统启动成功!
+2025-07-12 23:55:43.243 | INFO | HomalosSystem | start:335 | 启动时间: 2025-07-12 23:55:43
+2025-07-12 23:55:43.243 | INFO | HomalosSystem | _print_system_info:481 | 
+============================================================
+🎯 Homalos量化交易系统 v2.0
+📁 配置文件: config/system.yaml
+🌐 Web界面: 启用
+🔌 CTP网关: 可用
+⚙️ 事件总线: trading_system
+💾 数据库: data/trading.db
+🎛️ 风控系统: 启用
+🌐 Web地址: http://127.0.0.1:8000
+============================================================
+2025-07-12 23:55:43.387 | INFO | WebServer | start:579 | Web服务器启动: http://127.0.0.1:8000
+2025-07-12 23:55:43.403 | INFO | PerformanceMonitor | _monitoring_loop:185 | 性能监控循环已停止
+2025-07-12 23:55:43.403 | INFO | HomalosSystem | shutdown:418 | 正在关闭Homalos量化交易系统...
+2025-07-12 23:55:43.403 | INFO | HomalosSystem | shutdown:423 | 停止交易引擎...
+2025-07-12 23:55:43.404 | INFO | PerformanceMonitor | stop_monitoring:163 | 性能监控已停止
+2025-07-12 23:55:43.404 | INFO | TradingEngine | stop:1247 | 交易引擎已停止
+2025-07-12 23:55:43.404 | INFO | WebServer | event_monitor:424 | WebSocket推送事件: engine.stopped -> 0 个连接
+2025-07-12 23:55:43.404 | INFO | HomalosSystem | shutdown:428 | 关闭数据服务...
+2025-07-12 23:55:43.404 | INFO | DataService | stop:200 | 数据库写入线程已停止
+2025-07-12 23:55:43.404 | INFO | DataService | shutdown:563 | 数据服务已关闭
+2025-07-12 23:55:43.405 | INFO | HomalosSystem | shutdown:433 | 断开行情网关...
+2025-07-12 23:55:43.405 | INFO | HomalosSystem | shutdown:442 | 停止服务注册中心...
+2025-07-12 23:55:48.242 | INFO | ServiceRegistry | stop:53 | ServiceRegistry 已停止
+2025-07-12 23:55:48.242 | INFO | HomalosSystem | shutdown:447 | 停止事件总线...
+2025-07-12 23:55:49.228 | INFO | EventBus | _stop_sync:136 | Sync engine stopped for trading_system
+2025-07-12 23:55:49.230 | INFO | EventBus | _stop_async:220 | Async engine stopped for trading_system
+2025-07-12 23:55:49.230 | INFO | EventBus | stop:83 | EventBus 'trading_system' engines stopped
+2025-07-12 23:55:49.231 | INFO | HomalosSystem | shutdown:455 | 系统运行时长: 5.99 秒
+2025-07-12 23:55:49.231 | INFO | HomalosSystem | shutdown:457 | Homalos量化交易系统已安全关闭
+2025-07-12 23:56:05.646 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:56:05.646 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:57:08.095 | INFO | HomalosSystem | start:304 | 开始系统初始化...
+2025-07-12 23:57:08.095 | INFO | HomalosSystem | initialize:87 | Homalos量化交易系统启动中...
+2025-07-12 23:57:08.095 | INFO | HomalosSystem | initialize:90 | 初始化配置管理器...
+2025-07-12 23:57:08.095 | INFO | ConfigManager | load_config:41 | 配置文件已加载: config\system.yaml
+2025-07-12 23:57:08.095 | INFO | HomalosSystem | initialize:94 | 初始化事件总线...
+2025-07-12 23:57:08.110 | INFO | EventBus | start:77 | EventBus 'trading_system' engines started
+2025-07-12 23:57:08.110 | INFO | HomalosSystem | initialize:102 | 初始化服务注册中心...
+2025-07-12 23:57:08.110 | INFO | HomalosSystem | initialize:106 | 初始化数据服务...
+2025-07-12 23:57:08.112 | INFO | DataService | _init_database:170 | 数据库初始化成功: data\trading.db
+2025-07-12 23:57:08.112 | INFO | DataService | __init__:526 | 数据服务初始化完成
+2025-07-12 23:57:08.112 | INFO | DataService | start:184 | 数据库写入线程已启动
+2025-07-12 23:57:08.112 | INFO | DataService | initialize:551 | 数据服务初始化成功
+2025-07-12 23:57:08.112 | INFO | HomalosSystem | initialize:111 | 初始化交易引擎核心...
+2025-07-12 23:57:08.112 | INFO | PerformanceMonitor | _setup_event_handlers:141 | 性能监控事件处理器已注册
+2025-07-12 23:57:08.112 | INFO | PerformanceMonitor | __init__:125 | 性能监控器初始化完成
+2025-07-12 23:57:08.112 | INFO | TradingEngine | __init__:1186 | 交易引擎核心初始化完成
+2025-07-12 23:57:08.112 | INFO | TradingEngine | initialize:1200 | 正在初始化交易引擎...
+2025-07-12 23:57:08.112 | INFO | TradingEngine | initialize:1205 | 交易引擎初始化完成
+2025-07-12 23:57:08.112 | INFO | HomalosSystem | _initialize_gateways:157 | CTP网关配置验证通过
+2025-07-12 23:57:08.112 | INFO | HomalosSystem | _initialize_gateways:160 | 初始化CTP行情网关...
+2025-07-12 23:57:08.112 | INFO | MarketDataGateway | _setup_gateway_event_handlers:295 | CTP_MD 网关事件处理器已注册
+2025-07-12 23:57:08.112 | ERROR | HomalosSystem | _initialize_gateways:175 | 网关初始化失败: 'MarketDataGateway' object has no attribute 'name'
+2025-07-12 23:57:08.112 | WARNING | HomalosSystem | _initialize_gateways:177 | 系统将在无网关模式下运行
+2025-07-12 23:57:08.112 | INFO | HomalosSystem | initialize:120 | 初始化Web管理界面...
+2025-07-12 23:57:08.112 | INFO | WebServer | _setup_event_listeners:447 | WebSocket事件监控器已注册
+2025-07-12 23:57:08.112 | INFO | WebServer | __init__:137 | Web服务器初始化完成
+2025-07-12 23:57:08.112 | INFO | HomalosSystem | initialize:123 | 系统组件初始化完成
+2025-07-12 23:57:08.112 | INFO | HomalosSystem | start:320 | 启动事件总线...
+2025-07-12 23:57:08.112 | INFO | EventBus | start:77 | EventBus 'trading_system' engines started
+2025-07-12 23:57:08.112 | INFO | HomalosSystem | start:322 | 启动事件总线成功
+2025-07-12 23:57:08.112 | INFO | HomalosSystem | start:320 | 启动服务注册中心...
+2025-07-12 23:57:08.112 | INFO | ServiceRegistry | start:47 | ServiceRegistry 已启动
+2025-07-12 23:57:08.112 | INFO | HomalosSystem | start:322 | 启动服务注册中心成功
+2025-07-12 23:57:08.112 | INFO | HomalosSystem | start:320 | 启动交易引擎...
+2025-07-12 23:57:08.126 | INFO | PerformanceMonitor | start_monitoring:152 | 性能监控已启动
+2025-07-12 23:57:08.126 | INFO | TradingEngine | start:1223 | 交易引擎已启动
+2025-07-12 23:57:08.126 | INFO | WebServer | event_monitor:424 | WebSocket推送事件: engine.started -> 0 个连接
+2025-07-12 23:57:08.126 | INFO | HomalosSystem | start:322 | 启动交易引擎成功
+2025-07-12 23:57:08.126 | INFO | HomalosSystem | start:320 | 启动Web服务器...
+2025-07-12 23:57:08.126 | INFO | HomalosSystem | start:322 | 启动Web服务器成功
+2025-07-12 23:57:08.126 | INFO | HomalosSystem | start:334 | 🎉 Homalos量化交易系统启动成功!
+2025-07-12 23:57:08.126 | INFO | HomalosSystem | start:335 | 启动时间: 2025-07-12 23:57:08
+2025-07-12 23:57:08.126 | INFO | HomalosSystem | _print_system_info:481 | 
+============================================================
+🎯 Homalos量化交易系统 v2.0
+📁 配置文件: config/system.yaml
+🌐 Web界面: 启用
+🔌 CTP网关: 可用
+⚙️ 事件总线: trading_system
+💾 数据库: data/trading.db
+🎛️ 风控系统: 启用
+🌐 Web地址: http://127.0.0.1:8000
+============================================================
+2025-07-12 23:57:08.252 | INFO | WebServer | start:579 | Web服务器启动: http://127.0.0.1:8000
+2025-07-12 23:58:42.701 | INFO | HomalosSystem | start:304 | 开始系统初始化...
+2025-07-12 23:58:42.701 | INFO | HomalosSystem | initialize:87 | Homalos量化交易系统启动中...
+2025-07-12 23:58:42.701 | INFO | HomalosSystem | initialize:90 | 初始化配置管理器...
+2025-07-12 23:58:42.707 | INFO | ConfigManager | load_config:41 | 配置文件已加载: config\system.yaml
+2025-07-12 23:58:42.707 | INFO | HomalosSystem | initialize:94 | 初始化事件总线...
+2025-07-12 23:58:42.710 | INFO | EventBus | start:77 | EventBus 'trading_system' engines started
+2025-07-12 23:58:42.710 | INFO | HomalosSystem | initialize:102 | 初始化服务注册中心...
+2025-07-12 23:58:42.710 | INFO | HomalosSystem | initialize:106 | 初始化数据服务...
+2025-07-12 23:58:42.710 | INFO | DataService | _init_database:170 | 数据库初始化成功: data\trading.db
+2025-07-12 23:58:42.710 | INFO | DataService | __init__:526 | 数据服务初始化完成
+2025-07-12 23:58:42.711 | INFO | DataService | start:184 | 数据库写入线程已启动
+2025-07-12 23:58:42.711 | INFO | DataService | initialize:551 | 数据服务初始化成功
+2025-07-12 23:58:42.711 | INFO | HomalosSystem | initialize:111 | 初始化交易引擎核心...
+2025-07-12 23:58:42.711 | INFO | PerformanceMonitor | _setup_event_handlers:141 | 性能监控事件处理器已注册
+2025-07-12 23:58:42.712 | INFO | PerformanceMonitor | __init__:125 | 性能监控器初始化完成
+2025-07-12 23:58:42.712 | INFO | TradingEngine | __init__:1186 | 交易引擎核心初始化完成
+2025-07-12 23:58:42.712 | INFO | TradingEngine | initialize:1200 | 正在初始化交易引擎...
+2025-07-12 23:58:42.712 | INFO | TradingEngine | initialize:1205 | 交易引擎初始化完成
+2025-07-12 23:58:42.712 | INFO | HomalosSystem | _initialize_gateways:157 | CTP网关配置验证通过
+2025-07-12 23:58:42.712 | INFO | HomalosSystem | _initialize_gateways:160 | 初始化CTP行情网关...
+2025-07-12 23:58:42.712 | INFO | MarketDataGateway | _setup_gateway_event_handlers:295 | CTP_MD 网关事件处理器已注册
+2025-07-12 23:58:42.712 | INFO | HomalosSystem | _initialize_gateways:163 | 行情网关已创建: CTP_MD
+2025-07-12 23:58:42.712 | INFO | HomalosSystem | _initialize_gateways:166 | 初始化CTP交易网关...
+2025-07-12 23:58:42.714 | INFO | BaseGateway | write_log:262 | [CTP_TD] 成功从 D:\Project\PycharmProjects\Homalos_v2\config\instrument_exchange_id.json 加载合约交易所映射。
+2025-07-12 23:58:42.714 | ERROR | OrderTradingGateway | _setup_gateway_event_handlers:213 | 设置交易网关事件处理器失败: 'OrderTradingGateway' object has no attribute 'name'
+2025-07-12 23:58:42.714 | INFO | HomalosSystem | _initialize_gateways:169 | 交易网关已创建: CTP_TD
+2025-07-12 23:58:42.714 | INFO | HomalosSystem | _connect_gateways_with_timeout:187 | 🔗 连接行情网关...
+2025-07-12 23:58:42.714 | INFO | MarketDataGateway | connect:389 | 开始连接CTP行情服务器...
+2025-07-12 23:58:42.714 | INFO | MarketDataGateway | _start_heartbeat_monitor:223 | 心跳监控已启动
+2025-07-12 23:58:42.716 | INFO | MarketDataGateway | connect:420 | 正在连接到 tcp://182.254.243.31:30011...
+2025-07-12 23:58:45.728 | INFO | HomalosSystem | _connect_gateways_with_timeout:197 | 行情网关连接成功
+2025-07-12 23:58:45.729 | INFO | HomalosSystem | _connect_gateways_with_timeout:215 | 🔗 连接交易网关...
+2025-07-12 23:58:45.729 | WARNING | HomalosSystem | _connect_gateways_with_timeout:233 | 交易网关连接异常: 'OrderTradingGateway' object has no attribute 'name' (尝试 1/3)
+2025-07-12 23:58:47.743 | WARNING | HomalosSystem | _connect_gateways_with_timeout:233 | 交易网关连接异常: 'OrderTradingGateway' object has no attribute 'name' (尝试 2/3)
+2025-07-12 23:58:49.747 | WARNING | HomalosSystem | _connect_gateways_with_timeout:233 | 交易网关连接异常: 'OrderTradingGateway' object has no attribute 'name' (尝试 3/3)
+2025-07-12 23:58:49.748 | ERROR | HomalosSystem | _connect_gateways_with_timeout:235 | 交易网关连接失败
+2025-07-12 23:58:49.748 | INFO | HomalosSystem | _connect_gateways_with_timeout:241 | 网关连接流程完成
+2025-07-12 23:58:49.751 | INFO | HomalosSystem | initialize:120 | 初始化Web管理界面...
+2025-07-12 23:58:49.762 | INFO | WebServer | _setup_event_listeners:447 | WebSocket事件监控器已注册
+2025-07-12 23:58:49.762 | INFO | WebServer | __init__:137 | Web服务器初始化完成
+2025-07-12 23:58:49.762 | INFO | HomalosSystem | initialize:123 | 系统组件初始化完成
+2025-07-12 23:58:49.763 | INFO | HomalosSystem | start:320 | 启动事件总线...
+2025-07-12 23:58:49.763 | INFO | EventBus | start:77 | EventBus 'trading_system' engines started
+2025-07-12 23:58:49.763 | INFO | HomalosSystem | start:322 | 启动事件总线成功
+2025-07-12 23:58:49.763 | INFO | HomalosSystem | start:320 | 启动服务注册中心...
+2025-07-12 23:58:49.763 | INFO | ServiceRegistry | start:47 | ServiceRegistry 已启动
+2025-07-12 23:58:49.763 | INFO | HomalosSystem | start:322 | 启动服务注册中心成功
+2025-07-12 23:58:49.763 | INFO | HomalosSystem | start:320 | 启动交易引擎...
+2025-07-12 23:58:49.763 | INFO | PerformanceMonitor | start_monitoring:152 | 性能监控已启动
+2025-07-12 23:58:49.763 | INFO | TradingEngine | start:1223 | 交易引擎已启动
+2025-07-12 23:58:49.764 | INFO | WebServer | event_monitor:424 | WebSocket推送事件: engine.started -> 0 个连接
+2025-07-12 23:58:49.764 | INFO | HomalosSystem | start:322 | 启动交易引擎成功
+2025-07-12 23:58:49.764 | INFO | HomalosSystem | start:320 | 启动Web服务器...
+2025-07-12 23:58:49.764 | INFO | HomalosSystem | start:322 | 启动Web服务器成功
+2025-07-12 23:58:49.765 | INFO | HomalosSystem | start:334 | 🎉 Homalos量化交易系统启动成功!
+2025-07-12 23:58:49.765 | INFO | HomalosSystem | start:335 | 启动时间: 2025-07-12 23:58:49
+2025-07-12 23:58:49.765 | INFO | HomalosSystem | _print_system_info:481 | 
+============================================================
+🎯 Homalos量化交易系统 v2.0
+📁 配置文件: config/system.yaml
+🌐 Web界面: 启用
+🔌 CTP网关: 可用
+⚙️ 事件总线: trading_system
+💾 数据库: data/trading.db
+🎛️ 风控系统: 启用
+🌐 Web地址: http://127.0.0.1:8000
+============================================================
+2025-07-12 23:58:49.912 | INFO | WebServer | start:579 | Web服务器启动: http://127.0.0.1:8000
+2025-07-12 23:59:12.727 | INFO | BaseGateway | write_log:262 | [CTP_TD] 收到账户查询请求
+2025-07-12 23:59:12.728 | INFO | BaseGateway | write_log:262 | [CTP_TD] 无法查询资金：交易接口未连接或未初始化。
+2025-07-12 23:59:12.728 | INFO | BaseGateway | write_log:262 | [CTP_TD] 收到持仓查询请求
+2025-07-12 23:59:12.728 | INFO | BaseGateway | write_log:262 | [CTP_TD] 无法查询持仓：交易接口未连接或未初始化。
+2025-07-13 00:00:11.085 | INFO | HomalosSystem | signal_handler:78 | 接收到退出信号 2，正在关闭系统...
+2025-07-13 00:00:11.085 | INFO | HomalosSystem | shutdown:418 | 正在关闭Homalos量化交易系统...
+2025-07-13 00:00:11.086 | INFO | HomalosSystem | shutdown:423 | 停止交易引擎...
+2025-07-13 00:00:11.086 | INFO | PerformanceMonitor | stop_monitoring:163 | 性能监控已停止
+2025-07-13 00:00:11.086 | INFO | TradingEngine | stop:1247 | 交易引擎已停止
+2025-07-13 00:00:11.086 | INFO | WebServer | event_monitor:424 | WebSocket推送事件: engine.stopped -> 0 个连接
+2025-07-13 00:00:11.086 | INFO | HomalosSystem | shutdown:428 | 关闭数据服务...
+2025-07-13 00:00:11.086 | INFO | DataService | stop:200 | 数据库写入线程已停止
+2025-07-13 00:00:11.086 | INFO | DataService | shutdown:563 | 数据服务已关闭
+2025-07-13 00:00:11.086 | INFO | HomalosSystem | shutdown:433 | 断开行情网关...
+2025-07-13 00:00:11.086 | INFO | HomalosSystem | shutdown:437 | 断开交易网关...
+2025-07-13 00:00:11.088 | INFO | HomalosSystem | shutdown:442 | 停止服务注册中心...
