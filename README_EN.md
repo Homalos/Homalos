@@ -4,7 +4,7 @@ ENGLISH | [中文](README.md)
 
 ## 📊 Project Overview
 
-**Current Status**: The system has evolved from MVP stage to **production-ready state**, with completion rate improved from **~75%** to **~98%**
+**Current Status**:  **Development status**, with completion rate improved from **~75%** to **~98%**
 
 **Technical Architecture**: Event-driven quantitative trading system based on Python, adopting modular monolithic architecture
 **Deployment Mode**: Single-machine deployment, minimizing external dependencies
@@ -64,9 +64,11 @@ Homalos_v2/
 
 #### 3. **Strategy Module** (`src/strategies/`)
 - **base_strategy.py**: Strategy base class
-- **strategy_template.py**: Strategy development template
-- **moving_average_strategy.py**: Moving average strategy
 - **grid_trading_strategy.py**: Grid trading strategy
+- **minimal_strategy.py**: Minimal strategy example
+- **moving_average_strategy.py**: Moving average strategy
+- **strategy_factory.py**: Strategy Factory
+- **strategy_template.py**: Strategy development template
 
 #### 4. **Trading Interface Module**
 - **CTP Module** (`src/ctp/`): Shanghai Futures Technology CTP interface
@@ -98,8 +100,7 @@ Both modules contain:
 3. **Strategy Framework**: Complete strategy lifecycle management
 4. **Configuration-based Design**: Flexible configuration file system
 5. **Modern Tool Chain**: Use the latest Python build and development tools
-6. **Enterprise-grade Monitoring**: Real-time performance monitoring and intelligent alerting system
-7. **Production Ready**: Stable system after comprehensive testing and optimization
+6. **Smart Monitoring**: Real-time performance monitoring and smart alarm system
 
 ## 📈 System Performance
 
@@ -133,23 +134,15 @@ meson compile -C build
 
 This project uses `meson-python` as the build backend, and I need to make sure the build system is configured correctly:
 
-## Summary
+## Build Commands
 
-Use the `hatch build` command to build your project. Recommended for future builds:
+Use the `hatch build` command to build the project, which is recommended for future builds:
 - `hatch build` - Normal build
 - `hatch build --clean` - Clean and rebuild
 - `hatch build -t wheel` - Build only wheel packages
 - `hatch build -t sdist` - Build only source packages
 
 ## 🏆 Main Achievements
-
-**✅ Key Issues Solved:**
-1. **Compiler Parameter Conflict**: Removed the `/MT` parameter to avoid conflict with Python's default `/MD`
-2. **Header File Path Error**: Adjust the include path from `api/include/ctp` and `api/include/tts` to `api/include`
-3. **C++17 Deprecation Warning**: Added the `-D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING` parameter
-4. **CTP Configuration Field Mismatch**: Fixed userid/user_id field compatibility issues
-5. **Monitoring Thresholds Too Strict**: Adjusted memory and CPU thresholds to adapt to development environment
-6. **Type Annotation Errors**: Fixed code type safety issues
 
 **✅ Successfully Generated Extension Modules:**
 - `ctpmd.cp312-win_amd64.pyd` (256KB)
@@ -452,17 +445,17 @@ curl -X POST http://127.0.0.1:8000/api/v1/strategies \
 ## 📚 Reference Resources
 
 ### Technical Documentation
-- [System Planning Document](docs/SYSTEM_PLAN.md)
+- [System Planning Document](docs/system_plan.md)
 - [Strategy Development Guide](docs/strategy_development_guide.md)
 - [API Interface Documentation](http://127.0.0.1:8000/docs)
 
 ### Community Support
-- **GitHub Repository**: [Homalos_v2](https://github.com/your-repo/Homalos_v2)
+- **GitHub Repository**: [Homalos](https://github.com/Homalos/Homalos)
 - **Project Manual**: [homalos.github.io](https://homalos.github.io/)
 - **Technical Exchange(QQ group)**:  `446042777` (Chengming Futures Research)
 - **Issue Feedback**: GitHub Issues
 
 ---
 
-*Homalos v2 Quantitative Trading System - Complete Implementation from Concept to Production*  
-*Project Status: Production Ready | Completion Rate: 98% | Last Updated: 2025-01-14*
+*Homalos Quantitative Trading System - Complete Implementation from Concept to Production*  
+*Project Status: Under development | Completion Rate: 98% | Last Updated: 2025-07-12*

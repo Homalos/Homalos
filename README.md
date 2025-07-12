@@ -4,7 +4,7 @@
 
 ## 📊 项目概述
 
-**当前状态**: 系统已从MVP阶段发展到**生产就绪状态**，完成度从 **~75%** 提升到 **~98%**
+**当前状态**: **开发中状态**，完成度从 **~75%** 提升到 **~98%**
 
 **技术架构**: 基于Python的事件驱动型量化交易系统，采用模块化单体架构
 **部署模式**: 单机部署，最小化外部依赖
@@ -64,9 +64,11 @@ Homalos_v2/
 
 #### 3. **策略模块** (`src/strategies/`)
 - **base_strategy.py**: 策略基类
-- **strategy_template.py**: 策略开发模板
-- **moving_average_strategy.py**: 移动平均策略
 - **grid_trading_strategy.py**: 网格交易策略
+- **minimal_strategy.py**: 最小策略示例
+- **moving_average_strategy.py**: 移动平均策略
+- **strategy_factory.py**: 策略工厂
+- **strategy_template.py**: 策略开发模板
 
 #### 4. **交易接口模块**
 - **CTP模块** (`src/ctp/`): 上期技术CTP接口
@@ -98,8 +100,7 @@ Homalos_v2/
 3. **策略框架**: 完整的策略生命周期管理
 4. **配置化设计**: 灵活的配置文件系统
 5. **现代化工具链**: 使用最新的Python构建和开发工具
-6. **企业级监控**: 实时性能监控和智能告警系统
-7. **生产就绪**: 经过全面测试和优化的稳定系统
+6. **智能监控**: 实时性能监控和智能告警系统
 
 ## 📈 系统性能表现
 
@@ -133,25 +134,18 @@ meson compile -C build
 
 这个项目使用了`meson-python`作为构建后端，我需要确保构建系统配置正确：
 
-## 总结
+## 构建命令
 
-使用 `hatch build` 命令来构建您的项目。建议在将来的构建中使用：
+使用 `hatch build` 命令来构建项目，建议在将来的构建中使用：
 - `hatch build` - 正常构建
 - `hatch build --clean` - 清理并重新构建  
 - `hatch build -t wheel` - 只构建wheel包
 - `hatch build -t sdist` - 只构建源码包
 
-## 🏆 主要成就
-
-**✅ 解决的关键问题:**
-1. **编译器参数冲突**: 移除了`/MT`参数，避免与Python默认的`/MD`冲突
-2. **头文件路径错误**: 将include路径从`api/include/ctp`和`api/include/tts`调整为`api/include`
-3. **C++17废弃警告**: 添加了`-D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING`参数
-4. **CTP配置字段不匹配**: 修复了userid/user_id字段兼容性问题
-5. **监控阈值过严**: 调整了内存和CPU阈值适应开发环境
-6. **类型注解错误**: 修复了代码类型安全问题
+## 🏆 主要工作
 
 **✅ 成功生成的扩展模块:**
+
 - `ctpmd.cp312-win_amd64.pyd` (256KB)
 - `ctptd.cp312-win_amd64.pyd` (1.2MB)  
 - `ttsmd.cp312-win_amd64.pyd` (255KB)
@@ -452,17 +446,17 @@ curl -X POST http://127.0.0.1:8000/api/v1/strategies \
 ## 📚 参考资源
 
 ### 技术文档
-- [系统规划文档](docs/SYSTEM_PLAN.md)
+- [系统规划文档](docs/system_plan.md)
 - [策略开发指南](docs/strategy_development_guide.md)
 - [API接口文档](http://127.0.0.1:8000/docs)
 
 ### 社区支持
-- **GitHub仓库**: [Homalos_v2](https://github.com/your-repo/Homalos_v2)
+- **GitHub仓库**: [Homalos](https://github.com/Homalos/Homalos)
 - **项目手册**: [homalos.github.io](https://homalos.github.io/)
 - **技术交流(QQ群)**: `446042777`(澄明期货研究)
 - **问题反馈**: GitHub Issues
 
 ---
 
-*Homalos v2 量化交易系统 - 从概念到生产的完整实现*  
-*项目状态: 生产就绪 | 完成度: 98% | 最后更新: 2025-01-14*
+*Homalos 量化交易系统 - 从概念到生产的完整实现*  
+*项目状态: 开发中 | 完成度: 98% | 最后更新: 2025-07-12*

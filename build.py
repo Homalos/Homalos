@@ -44,7 +44,11 @@ def copy_module_files(module_name: str, module_names: list[str]) -> None:
         try:
             shutil.copy2(src_path, dst_path)
             print(f'已复制 {src_path} 到 {dst_path}')
-        except Exception as e:
+        except FileNotFoundError as e:
+            print(f'文件不存在: {src_path}: {e}')
+        except PermissionError as e:
+            print(f'权限不足: {e}')
+        except OSError as e:
             print(f'复制 {src_path} 失败: {e}')
 
 def generate_stub_files(module_name: str, module_names: list[str]) -> None:
