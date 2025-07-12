@@ -30,7 +30,7 @@ def compile_modules() -> None:
 
 def copy_module_files(module_name: str, module_names: list[str]) -> None:
     """复制指定模块的编译产物到目标目录"""
-    ext_suffix = sysconfig.get_config_var('EXT_SUFFIX')
+    ext_suffix = sysconfig.get_config_vars().get('EXT_SUFFIX')
     pyd_files = [f'{mod_name}{ext_suffix}' for mod_name in module_names]
     
     build_dir = os.path.join('build', 'src', module_name)
