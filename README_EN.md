@@ -459,7 +459,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/strategies \
 ### Community Support
 - **GitHub Repository**: [Homalos_v2](https://github.com/your-repo/Homalos_v2)
 - **Project Manual**: [homalos.github.io](https://homalos.github.io/)
-- **Technical Exchange**: Quantitative Trading Technology Group
+- **Technical Exchange(QQ group)**:  `446042777` (Chengming Futures Research)
 - **Issue Feedback**: GitHub Issues
 
 ---
