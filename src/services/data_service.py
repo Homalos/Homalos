@@ -274,80 +274,6 @@ class DatabaseManager:
         
         self._write_queue.put({"type": "bar", "data": bar_dict})
     
-    def _add_tick_to_batch(self, tick_dict: Dict[str, Any]):
-        """添加tick到批次"""
-        with self._batch_lock:
-            self._tick_batch.append(tick_dict)
-            if len(self._tick_batch) >= self.batch_size:
-                self._flush_tick_batch()
-    
-    def _add_bar_to_batch(self, bar_dict: Dict[str, Any]):
-        """添加bar到批次"""
-        with self._batch_lock:
-            self._bar_batch.append(bar_dict)
-            if len(self._bar_batch) >= self.batch_size:
-                self._flush_bar_batch()
-    
-    def _flush_all_batches(self):
-        """刷新所有批次"""
-        with self._batch_lock:
-            self._flush_tick_batch()
-            self._flush_bar_batch()
-    
-    def _flush_tick_batch(self):
-        """刷新tick批次"""
-        if not self._tick_batch:
-            return
-        
-        try:
-            with sqlite3.connect(str(self.db_path)) as conn:
-                conn.executemany('''
-                    INSERT OR REPLACE INTO tick_data 
-                    (symbol, exchange, datetime, last_price, volume, turnover, open_interest,
-                     bid_price_1, ask_price_1, bid_volume_1, ask_volume_1)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', [
-                    (t['symbol'], t['exchange'], t['datetime'], t['last_price'],
-                     t['volume'], t['turnover'], t['open_interest'],
-                     t['bid_price_1'], t['ask_price_1'], t['bid_volume_1'], t['ask_volume_1'])
-                    for t in self._tick_batch
-                ])
-                conn.commit()
-            
-            count = len(self._tick_batch)
-            self._tick_batch.clear()
-            logger.debug(f"已写入 {count} 条tick数据")
-            
-        except Exception as e:
-            logger.error(f"刷新tick批次失败: {e}")
-    
-    def _flush_bar_batch(self):
-        """刷新bar批次"""
-        if not self._bar_batch:
-            return
-        
-        try:
-            with sqlite3.connect(str(self.db_path)) as conn:
-                conn.executemany('''
-                    INSERT OR REPLACE INTO bar_data 
-                    (symbol, exchange, interval, datetime, open_price, high_price, 
-                     low_price, close_price, volume, turnover, open_interest)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', [
-                    (b['symbol'], b['exchange'], b['interval'], b['datetime'],
-                     b['open_price'], b['high_price'], b['low_price'], b['close_price'],
-                     b['volume'], b['turnover'], b['open_interest'])
-                    for b in self._bar_batch
-                ])
-                conn.commit()
-            
-            count = len(self._bar_batch)
-            self._bar_batch.clear()
-            logger.debug(f"已写入 {count} 条bar数据")
-            
-        except Exception as e:
-            logger.error(f"刷新bar批次失败: {e}")
-    
     async def query_tick_data(self, symbol: str, exchange: str, 
                               start_time: Optional[datetime] = None,
                               end_time: Optional[datetime] = None,
@@ -415,6 +341,80 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"查询bar数据失败: {e}")
             return []
+
+    def _flush_all_batches(self):
+        """批量刷新所有缓存到数据库"""
+        with self._batch_lock:
+            try:
+                if self._tick_batch:
+                    self._flush_tick_batch()
+                if self._bar_batch:
+                    self._flush_bar_batch()
+            except Exception as e:
+                logger.error(f"批量刷新失败: {e}")
+
+    def _flush_tick_batch(self):
+        if not self._tick_batch:
+            return
+        try:
+            with sqlite3.connect(str(self.db_path)) as conn:
+                conn.executemany('''
+                    INSERT OR REPLACE INTO tick_data (
+                        symbol, exchange, datetime, last_price, volume, turnover, open_interest,
+                        bid_price_1, ask_price_1, bid_volume_1, ask_volume_1
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', [(
+                    d['symbol'], d['exchange'], d['datetime'], d['last_price'], d['volume'], d['turnover'],
+                    d['open_interest'], d['bid_price_1'], d['ask_price_1'], d['bid_volume_1'], d['ask_volume_1']
+                ) for d in self._tick_batch])
+                conn.commit()
+            self._tick_batch.clear()
+        except Exception as e:
+            logger.error(f"Tick批量写入失败: {e}")
+
+    def _flush_bar_batch(self):
+        if not self._bar_batch:
+            return
+        try:
+            with sqlite3.connect(str(self.db_path)) as conn:
+                conn.executemany('''
+                    INSERT OR REPLACE INTO bar_data (
+                        symbol, exchange, interval, datetime, open_price, high_price, low_price, close_price,
+                        volume, turnover, open_interest
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', [(
+                    d['symbol'], d['exchange'], d['interval'], d['datetime'], d['open_price'], d['high_price'],
+                    d['low_price'], d['close_price'], d['volume'], d['turnover'], d['open_interest']
+                ) for d in self._bar_batch])
+                conn.commit()
+            self._bar_batch.clear()
+        except Exception as e:
+            logger.error(f"Bar批量写入失败: {e}")
+
+    def _add_tick_to_batch(self, data):
+        with self._batch_lock:
+            self._tick_batch.append(data)
+            if len(self._tick_batch) >= self.batch_size:
+                self._flush_tick_batch()
+
+    def _add_bar_to_batch(self, data):
+        with self._batch_lock:
+            self._bar_batch.append(data)
+            if len(self._bar_batch) >= self.batch_size:
+                self._flush_bar_batch()
+
+    def _execute_direct_sql(self, sql_data):
+        try:
+            sql = sql_data.get('sql')
+            params = sql_data.get('params', [])
+            if not sql:
+                logger.error("未提供SQL语句")
+                return
+            with sqlite3.connect(str(self.db_path)) as conn:
+                conn.execute(sql, params)
+                conn.commit()
+        except Exception as e:
+            logger.error(f"执行直接SQL失败: {e}")
 
 
 class BarGenerator:
@@ -502,6 +502,9 @@ class DataService:
         self.subscribers: Dict[str, Set[str]] = defaultdict(set)  # symbol -> set(strategy_ids)
         self.strategy_subscriptions: Dict[str, Set[str]] = defaultdict(set)  # strategy_id -> symbols
         
+        # 订阅状态跟踪
+        self.subscription_states: Dict[str, Dict] = {}
+        
         # 配置参数
         self.buffer_size = config.get("data.market.buffer_size", 1000)
         self.enable_persistence = config.get("data.market.enable_persistence", True)
@@ -529,8 +532,8 @@ class DataService:
         self.event_bus.subscribe("market.bar.raw", self._handle_raw_bar)
         
         # 订阅管理
-        self.event_bus.subscribe("data.subscribe", self._handle_subscribe)
-        self.event_bus.subscribe("data.unsubscribe", self._handle_unsubscribe)
+        self.event_bus.subscribe("data.subscribe", self._handle_data_subscribe)
+        self.event_bus.subscribe("data.unsubscribe", self._handle_data_unsubscribe)
         
         # 数据查询
         self.event_bus.subscribe("data.query.tick", self._handle_query_tick)
@@ -561,35 +564,146 @@ class DataService:
         except Exception as e:
             logger.error(f"数据服务关闭失败: {e}")
     
-    async def subscribe_market_data(self, symbols: List[str], strategy_id: str):
-        """订阅行情数据"""
-        for symbol in symbols:
-            self.subscribers[symbol].add(strategy_id)
-            self.strategy_subscriptions[strategy_id].add(symbol)
+    def subscribe_market_data(self, symbols: List[str], strategy_id: str) -> bool:
+        """
+        订阅行情数据 - 增强状态管理
         
-        # 发布订阅事件到网关
-        self.event_bus.publish(create_market_event(
-            "gateway.subscribe",
-            {"symbols": symbols, "strategy_id": strategy_id},
-            "DataService"
-        ))
-        
-        logger.info(f"策略 {strategy_id} 订阅行情: {symbols}")
-    
-    async def unsubscribe_market_data(self, symbols: List[str], strategy_id: str):
-        """取消订阅行情数据"""
-        for symbol in symbols:
-            self.subscribers[symbol].discard(strategy_id)
-            self.strategy_subscriptions[strategy_id].discard(symbol)
-        
-        # 发布取消订阅事件到网关
-        self.event_bus.publish(create_market_event(
-            "gateway.unsubscribe",
-            {"symbols": symbols, "strategy_id": strategy_id},
-            "DataService"
-        ))
-        
-        logger.info(f"策略 {strategy_id} 取消订阅行情: {symbols}")
+        Args:
+            symbols: 合约代码列表
+            strategy_id: 策略ID
+            
+        Returns:
+            bool: 订阅是否成功
+        """
+        try:
+            logger.info(f"策略 {strategy_id} 订阅行情: {symbols}")
+            
+            # 记录订阅关系
+            for symbol in symbols:
+                if symbol not in self.subscribers:
+                    self.subscribers[symbol] = set()
+                self.subscribers[symbol].add(strategy_id)
+                
+                # 记录到订阅状态表
+                self._record_subscription_state(symbol, strategy_id, "requested")
+            
+            # 发布网关订阅事件
+            if self.event_bus:
+                from src.core.event import create_trading_event
+                
+                gateway_event = create_trading_event(
+                    "gateway.subscribe",
+                    {
+                        "symbols": symbols,
+                        "strategy_id": strategy_id
+                    },
+                    source="DataService"
+                )
+                
+                self.event_bus.publish(gateway_event)
+                logger.debug(f"已发布网关订阅事件: {symbols}")
+                
+                # 设置订阅超时检查
+                asyncio.create_task(self._check_subscription_timeout(symbols, strategy_id))
+                
+            return True
+            
+        except Exception as e:
+            logger.error(f"订阅行情失败: {e}")
+            return False
+
+    def _record_subscription_state(self, symbol: str, strategy_id: str, state: str) -> None:
+        """记录订阅状态"""
+        try:
+            if not hasattr(self, 'subscription_states'):
+                self.subscription_states = {}
+            
+            key = f"{symbol}_{strategy_id}"
+            self.subscription_states[key] = {
+                "symbol": symbol,
+                "strategy_id": strategy_id,
+                "state": state,
+                "timestamp": time.time(),
+                "retry_count": 0
+            }
+            
+            logger.debug(f"记录订阅状态: {key} -> {state}")
+            
+        except Exception as e:
+            logger.error(f"记录订阅状态失败: {e}")
+
+    async def _check_subscription_timeout(self, symbols: List[str], strategy_id: str) -> None:
+        """检查订阅超时"""
+        try:
+            await asyncio.sleep(10)  # 等待10秒
+            
+            for symbol in symbols:
+                key = f"{symbol}_{strategy_id}"
+                if hasattr(self, 'subscription_states') and key in self.subscription_states:
+                    state_info = self.subscription_states[key]
+                    
+                    if state_info["state"] == "requested":
+                        logger.warning(f"订阅超时: {symbol} (策略: {strategy_id})")
+                        
+                        # 标记为超时并重试
+                        state_info["state"] = "timeout"
+                        state_info["retry_count"] += 1
+                        
+                        if state_info["retry_count"] < 3:
+                            logger.info(f"重试订阅: {symbol} (第{state_info['retry_count']}次)")
+                            self._retry_subscription(symbol, strategy_id)
+                        else:
+                            logger.error(f"订阅重试次数超限: {symbol}")
+                            state_info["state"] = "failed"
+                            
+        except Exception as e:
+            logger.error(f"检查订阅超时失败: {e}")
+
+    def _retry_subscription(self, symbol: str, strategy_id: str) -> None:
+        """重试订阅"""
+        try:
+            logger.info(f"重试订阅: {symbol} (策略: {strategy_id})")
+            
+            # 重新发布订阅事件
+            if self.event_bus:
+                from src.core.event import create_trading_event
+                
+                gateway_event = create_trading_event(
+                    "gateway.subscribe",
+                    {
+                        "symbols": [symbol],
+                        "strategy_id": strategy_id
+                    },
+                    source="DataService.Retry"
+                )
+                
+                self.event_bus.publish(gateway_event)
+                
+                # 更新状态
+                self._record_subscription_state(symbol, strategy_id, "retry")
+                
+        except Exception as e:
+            logger.error(f"重试订阅失败: {e}")
+
+    def on_subscription_success(self, symbol: str, strategy_id: str) -> None:
+        """订阅成功回调"""
+        try:
+            logger.info(f"订阅成功确认: {symbol} (策略: {strategy_id})")
+            self._record_subscription_state(symbol, strategy_id, "active")
+            
+        except Exception as e:
+            logger.error(f"处理订阅成功回调失败: {e}")
+
+    def get_subscription_status(self) -> Dict[str, Dict]:
+        """获取订阅状态"""
+        try:
+            if hasattr(self, 'subscription_states'):
+                return dict(self.subscription_states)
+            return {}
+            
+        except Exception as e:
+            logger.error(f"获取订阅状态失败: {e}")
+            return {}
     
     def _handle_raw_tick(self, event: Event):
         """处理原始tick数据"""
@@ -603,11 +717,16 @@ class DataService:
             self.stats["tick_count"] += 1
             self.stats["last_tick_time"] = time.time()
             
+            # 定期输出数据流统计 (每100个tick输出一次)
+            if self.stats["tick_count"] % 100 == 0:
+                logger.info(f"📊 数据流统计: 已处理{self.stats['tick_count']}个tick, 当前合约={tick_data.symbol}, 订阅策略数={len(self.subscribers.get(tick_data.symbol, set()))}")
+            
             # 更新内存缓存
             symbol = tick_data.symbol
             self.tick_buffer[symbol] = tick_data
             
             # 分发给订阅的策略 - 发布策略专用事件
+            subscriber_count = 0
             for strategy_id in self.subscribers.get(symbol, set()):
                 # 发布策略专用事件：market.tick.{strategy_id}
                 self.event_bus.publish(create_market_event(
@@ -616,6 +735,13 @@ class DataService:
                     "DataService"
                 ))
                 logger.debug(f"为策略 {strategy_id} 发布tick事件: {symbol}")
+                subscriber_count += 1
+
+            # 输出分发统计
+            if subscriber_count > 0:
+                logger.info(f"📤 Tick分发: {symbol} @ {tick_data.last_price} → {subscriber_count}个策略")
+            else:
+                logger.debug(f"⚠️ 无订阅策略: {symbol} tick数据未分发")
 
             # 同时保持通用事件的发布，用于全局监听器
             self.event_bus.publish(create_market_event(
@@ -676,21 +802,163 @@ class DataService:
         except Exception as e:
             logger.error(f"处理bar数据失败: {e}")
     
-    def _handle_subscribe(self, event: Event):
-        """处理订阅请求"""
-        data = event.data
-        symbols = data.get("symbols", [])
-        strategy_id = data.get("strategy_id", "unknown")
-        
-        asyncio.create_task(self.subscribe_market_data(symbols, strategy_id))
-    
-    def _handle_unsubscribe(self, event: Event):
+    def _handle_data_subscribe(self, event: Event):
+        """处理订阅请求 - 增强版本"""
+        try:
+            data = event.data
+            symbols = data.get("symbols", [])
+            strategy_id = data.get("strategy_id", "unknown")
+            
+            if not symbols:
+                logger.warning(f"收到空的订阅请求: {strategy_id}")
+                return
+            
+            logger.info(f"处理数据订阅请求: 策略={strategy_id}, 合约={symbols}")
+            
+            # 调用增强的订阅方法
+            success = self.subscribe_market_data(symbols, strategy_id)
+            
+            if success:
+                logger.info(f"订阅处理成功: 策略={strategy_id}, 合约={symbols}")
+                
+                # 发布订阅成功事件
+                if self.event_bus:
+                    from src.core.event import create_trading_event
+                    
+                    success_event = create_trading_event(
+                        "data.subscribe.success",
+                        {
+                            "symbols": symbols,
+                            "strategy_id": strategy_id,
+                            "timestamp": time.time()
+                        },
+                        source="DataService"
+                    )
+                    
+                    self.event_bus.publish(success_event)
+            else:
+                logger.error(f"订阅处理失败: 策略={strategy_id}, 合约={symbols}")
+                
+                # 发布订阅失败事件
+                if self.event_bus:
+                    from src.core.event import create_trading_event
+                    
+                    failure_event = create_trading_event(
+                        "data.subscribe.failed",
+                        {
+                            "symbols": symbols,
+                            "strategy_id": strategy_id,
+                            "timestamp": time.time(),
+                            "reason": "订阅处理失败"
+                        },
+                        source="DataService"
+                    )
+                    
+                    self.event_bus.publish(failure_event)
+                    
+        except Exception as e:
+            logger.error(f"处理订阅请求失败: {e}")
+
+    async def unsubscribe_market_data(self, symbols: List[str], strategy_id: str):
+        """取消订阅行情数据 - 增强版本"""
+        try:
+            for symbol in symbols:
+                self.subscribers[symbol].discard(strategy_id)
+                self.strategy_subscriptions[strategy_id].discard(symbol)
+                
+                # 更新订阅状态
+                key = f"{symbol}_{strategy_id}"
+                if hasattr(self, 'subscription_states') and key in self.subscription_states:
+                    self.subscription_states[key]["state"] = "unsubscribed"
+                    self.subscription_states[key]["timestamp"] = time.time()
+            
+            # 发布取消订阅事件到网关
+            if self.event_bus:
+                from src.core.event import create_trading_event
+                
+                gateway_event = create_trading_event(
+                    "gateway.unsubscribe",
+                    {
+                        "symbols": symbols,
+                        "strategy_id": strategy_id
+                    },
+                    source="DataService"
+                )
+                
+                self.event_bus.publish(gateway_event)
+            
+            logger.info(f"策略 {strategy_id} 取消订阅行情: {symbols}")
+            
+        except Exception as e:
+            logger.error(f"取消订阅失败: {e}")
+
+    def _handle_gateway_subscription_success(self, event: Event):
+        """处理网关订阅成功事件"""
+        try:
+            data = event.data
+            symbol = data.get("symbol")
+            strategy_id = data.get("strategy_id")
+            
+            if symbol and strategy_id:
+                self.on_subscription_success(symbol, strategy_id)
+            else:
+                # 如果没有指定strategy_id，为所有订阅此合约的策略更新状态
+                if symbol and symbol in self.subscribers:
+                    for strategy in self.subscribers[symbol]:
+                        self.on_subscription_success(symbol, strategy)
+                        
+        except Exception as e:
+            logger.error(f"处理网关订阅成功事件失败: {e}")
+
+    def _setup_data_event_handlers(self):
+        """设置数据服务事件处理器"""
+        try:
+            # 订阅数据相关事件
+            self.event_bus.subscribe("data.subscribe", self._handle_data_subscribe)
+            self.event_bus.subscribe("data.unsubscribe", self._handle_data_unsubscribe)
+            
+            # 订阅网关相关事件
+            self.event_bus.subscribe("gateway.subscription.success", self._handle_gateway_subscription_success)
+            self.event_bus.subscribe("gateway.subscription.failed", self._handle_gateway_subscription_failed)
+            
+            logger.info("数据服务事件处理器已注册")
+            
+        except Exception as e:
+            logger.error(f"设置数据服务事件处理器失败: {e}")
+
+    def _handle_data_unsubscribe(self, event: Event):
         """处理取消订阅请求"""
-        data = event.data
-        symbols = data.get("symbols", [])
-        strategy_id = data.get("strategy_id", "unknown")
-        
-        asyncio.create_task(self.unsubscribe_market_data(symbols, strategy_id))
+        try:
+            data = event.data
+            symbols = data.get("symbols", [])
+            strategy_id = data.get("strategy_id", "unknown")
+            
+            logger.info(f"处理取消订阅请求: 策略={strategy_id}, 合约={symbols}")
+            
+            asyncio.create_task(self.unsubscribe_market_data(symbols, strategy_id))
+            
+        except Exception as e:
+            logger.error(f"处理取消订阅请求失败: {e}")
+
+    def _handle_gateway_subscription_failed(self, event: Event):
+        """处理网关订阅失败事件"""
+        try:
+            data = event.data
+            symbol = data.get("symbol")
+            strategy_id = data.get("strategy_id", "unknown")
+            reason = data.get("reason", "未知原因")
+            
+            logger.warning(f"网关订阅失败: {symbol} (策略: {strategy_id}) - {reason}")
+            
+            # 更新订阅状态
+            if symbol and strategy_id:
+                self._record_subscription_state(symbol, strategy_id, "failed")
+                
+                # 尝试重试
+                self._retry_subscription(symbol, strategy_id)
+                
+        except Exception as e:
+            logger.error(f"处理网关订阅失败事件失败: {e}")
     
     def _handle_query_tick(self, event: Event):
         """处理tick数据查询"""

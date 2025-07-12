@@ -10,14 +10,14 @@
 @Description: 交易网关的基本数据结构。
 """
 import asyncio
-import threading
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, Callable, Coroutine
 from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, Any, Optional, Callable, Coroutine
 
-from src.core.event_bus import EventBus
 from src.core.event import Event
+from src.core.event_bus import EventBus
 from src.core.logger import get_logger
+
 
 logger = get_logger("BaseGateway")
 
@@ -26,14 +26,19 @@ class ThreadSafeCallback:
     """线程安全的回调辅助类，用于CTP API回调与Python事件循环的桥接"""
     
     def __init__(self, event_loop: Optional[asyncio.AbstractEventLoop] = None):
-        self.event_loop = event_loop or asyncio.get_event_loop()
-        self.thread_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="callback_")
+        """
+        初始化对象。
+        Args:
+            event_loop (Optional[asyncio.AbstractEventLoop], optional): 事件循环对象。默认为 None。
+        """
+        self.event_loop = event_loop or asyncio.get_event_loop()  # 事件循环对象
+        self.thread_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="callback_")  # 线程池
         
         # 增强监控和统计
-        self.success_count = 0
-        self.failure_count = 0
-        self.retry_count = 0
-        self.max_retries = 3
+        self.success_count = 0  # 成功计数
+        self.failure_count = 0  # 失败计数
+        self.retry_count = 0    # 重试计数
+        self.max_retries = 3    # 最大重试次数
         self.retry_delay = 0.1  # 重试延迟(秒)
     
     def schedule_async_task(self, coro: Coroutine) -> None:
@@ -126,14 +131,13 @@ class BaseGateway(ABC):
     每个网关都应该继承这个类，
     并且应该有一个唯一的网关名称。
     """
-
     default_name: str = ""
     default_setting: Dict[str, Any] = {}
 
     def __init__(self, event_bus: EventBus, name: str) -> None:
         """初始化网关"""
-        self.event_bus = event_bus
-        self.name = name
+        self.event_bus = event_bus  # 事件总线对象
+        self.name = name  # 网关名称
         
         # 线程安全回调处理器
         self._callback_handler: Optional[ThreadSafeCallback] = None

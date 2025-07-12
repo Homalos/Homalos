@@ -172,7 +172,7 @@ class StrategyManager:
             return False, ""
     
     async def start_strategy(self, strategy_uuid: str) -> bool:
-        """启动策略 - 使用UUID作为标识符"""
+        """启动策略 - 使用UUID作为标识符，增强网关状态检查"""
         if strategy_uuid not in self.strategies:
             logger.error(f"策略不存在: {strategy_uuid}")
             return False
@@ -183,6 +183,12 @@ class StrategyManager:
             return True
         
         try:
+            # 检查网关就绪状态
+            gateway_ready = await self._check_gateway_ready_for_strategy(strategy_info.instance)
+            if not gateway_ready:
+                logger.warning(f"网关未就绪，策略启动可能受影响: {strategy_info.strategy_name}")
+                # 继续启动，但发出警告，系统会自动处理重连
+            
             # 修改：调用策略的start()方法，这会自动处理initialize() -> on_init() -> on_start()流程
             await strategy_info.instance.start()
             
@@ -331,6 +337,131 @@ class StrategyManager:
             if status is not None:
                 result[strategy_id] = status
         return result
+
+    async def _check_gateway_ready_for_strategy(self, strategy) -> bool:
+        """
+        检查策略所需的网关是否就绪
+        
+        Args:
+            strategy: 策略实例
+            
+        Returns:
+            bool: 网关是否就绪
+        """
+        try:
+            # 获取策略需要的合约
+            required_symbols = getattr(strategy, 'symbol', None)
+            if required_symbols:
+                if isinstance(required_symbols, str):
+                    required_symbols = [required_symbols]
+                
+                # 发布网关状态查询事件
+                if self.event_bus:
+                    query_event = create_trading_event(
+                        "gateway.ready_check",
+                        {
+                            "symbols": required_symbols,
+                            "strategy_id": strategy.strategy_id,
+                            "check_type": "market_data"
+                        },
+                        source="StrategyManager"
+                    )
+                    
+                    self.event_bus.publish(query_event)
+                    
+                    # 等待一小段时间让网关响应
+                    await asyncio.sleep(0.5)
+            
+            # 暂时返回True，让系统处理连接问题
+            return True
+            
+        except Exception as e:
+            logger.error(f"检查网关状态失败: {e}")
+            return False
+
+    def setup_gateway_monitoring(self):
+        """设置网关监控"""
+        try:
+            # 订阅网关状态事件
+            self.event_bus.subscribe("gateway.connected", self._handle_gateway_connected)
+            self.event_bus.subscribe("gateway.disconnected", self._handle_gateway_disconnected)
+            self.event_bus.subscribe("gateway.ready", self._handle_gateway_ready)
+            
+            logger.info("网关监控事件处理器已注册")
+            
+        except Exception as e:
+            logger.error(f"设置网关监控失败: {e}")
+
+    def _handle_gateway_connected(self, event: Event):
+        """处理网关连接事件"""
+        try:
+            data = event.data
+            gateway_name = data.get("gateway_name", "unknown")
+            
+            logger.info(f"网关已连接: {gateway_name}")
+            
+            # 通知所有运行中的策略网关状态变化
+            self._notify_strategies_gateway_status(gateway_name, "connected")
+            
+        except Exception as e:
+            logger.error(f"处理网关连接事件失败: {e}")
+
+    def _handle_gateway_disconnected(self, event: Event):
+        """处理网关断开事件"""
+        try:
+            data = event.data
+            gateway_name = data.get("gateway_name", "unknown")
+            
+            logger.warning(f"网关已断开: {gateway_name}")
+            
+            # 通知所有运行中的策略网关状态变化
+            self._notify_strategies_gateway_status(gateway_name, "disconnected")
+            
+        except Exception as e:
+            logger.error(f"处理网关断开事件失败: {e}")
+
+    def _handle_gateway_ready(self, event: Event):
+        """处理网关就绪事件"""
+        try:
+            data = event.data
+            gateway_name = data.get("gateway_name", "unknown")
+            
+            logger.info(f"网关已就绪: {gateway_name}")
+            
+            # 重新处理待启动的策略
+            self._retry_pending_strategy_starts()
+            
+        except Exception as e:
+            logger.error(f"处理网关就绪事件失败: {e}")
+
+    def _notify_strategies_gateway_status(self, gateway_name: str, status: str):
+        """通知策略网关状态变化"""
+        try:
+            for strategy_uuid, strategy_info in self.strategies.items():
+                if strategy_info.status == "running":
+                    strategy = strategy_info.instance
+                    
+                    # 通知策略网关状态变化
+                    if hasattr(strategy, 'on_gateway_status_change'):
+                        try:
+                            asyncio.create_task(
+                                strategy.on_gateway_status_change(gateway_name, status)
+                            )
+                        except Exception as e:
+                            logger.error(f"通知策略网关状态变化失败: {e}")
+                            
+        except Exception as e:
+            logger.error(f"通知策略网关状态变化失败: {e}")
+
+    def _retry_pending_strategy_starts(self):
+        """重试待启动的策略"""
+        try:
+            # 这里可以实现重试逻辑
+            # 目前只是记录日志
+            logger.info("检查是否有待重试的策略启动")
+            
+        except Exception as e:
+            logger.error(f"重试策略启动失败: {e}")
 
 
 class RiskManager:

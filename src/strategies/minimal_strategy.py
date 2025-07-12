@@ -97,22 +97,36 @@ class MinimalStrategy(BaseStrategy):
     
     async def on_tick(self, tick: TickData):
         """处理Tick数据"""
+        # 添加tick接收日志
+        self.write_log(f"收到Tick数据: {tick.symbol} 价格={tick.last_price} 时间={tick.datetime}", "INFO")
+        
         if tick.symbol != self.symbol:
+            self.write_log(f"跳过非订阅合约tick: {tick.symbol} (订阅: {self.symbol})", "DEBUG")
             return
         
         current_time = time.time()
         
+        # 添加防刷单检查状态日志
+        time_since_last = current_time - self.last_order_time
+        self.write_log(f"防刷单检查: 距上次下单{time_since_last:.1f}秒, 已下单{self.order_count}笔, 间隔限制{self.order_interval}秒, 数量限制{self.max_orders}笔", "INFO")
+        
         # 防刷单：检查时间间隔和订单数量
         if (current_time - self.last_order_time < self.order_interval or 
             self.order_count >= self.max_orders):
+            if time_since_last < self.order_interval:
+                self.write_log(f"防刷单阻止: 时间间隔不足 ({time_since_last:.1f}s < {self.order_interval}s)", "INFO")
+            if self.order_count >= self.max_orders:
+                self.write_log(f"防刷单阻止: 订单数量达到上限 ({self.order_count} >= {self.max_orders})", "INFO")
             return
         
         # 下单买入
+        self.write_log(f"准备下单: {self.symbol} @ {tick.last_price}", "INFO")
         await self.place_buy_order(tick.last_price)
         
         # 更新状态
         self.last_order_time = current_time
         self.order_count += 1
+        self.write_log(f"状态更新: 下单时间={current_time}, 累计订单={self.order_count}", "INFO")
     
     async def on_bar(self, bar: BarData):
         """处理Bar数据（可选）"""
@@ -147,6 +161,8 @@ class MinimalStrategy(BaseStrategy):
     
     async def place_buy_order(self, price: float):
         """下单买入"""
+        self.write_log(f"开始创建买入订单: 合约={self.symbol}, 价格={price}, 手数={self.volume}", "INFO")
+        
         order_request = OrderRequest(
             symbol=self.symbol,
             exchange=self.exchange,
@@ -158,12 +174,16 @@ class MinimalStrategy(BaseStrategy):
             reference=f"{self.strategy_id}_buy_{self.order_count}"
         )
         
+        self.write_log(f"订单请求已创建: {order_request.reference}", "INFO")
+        self.write_log(f"调用send_order方法...", "INFO")
+        
         order_id = await self.send_order(order_request)
+        
         if order_id:
             self.active_orders[order_id] = order_request
-            self.write_log(f"发送买入订单: {self.volume}@{price} (订单#{self.order_count})")
+            self.write_log(f"✅ 发送买入订单成功: 订单ID={order_id}, {self.volume}@{price} (订单#{self.order_count})", "INFO")
         else:
-            self.write_log("发送订单失败", "ERROR")
+            self.write_log("❌ 发送订单失败: send_order返回None", "ERROR")
     
     def _sync_on_tick(self, tick_data: TickData):
         """同步版本的tick处理 - 应急回退逻辑"""

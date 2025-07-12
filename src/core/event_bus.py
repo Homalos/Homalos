@@ -32,45 +32,40 @@ class EventBus:
     """
 
     # 默认配置参数
-    DEFAULT_SYNC_QUEUE_SIZE = 10000
-    DEFAULT_ASYNC_QUEUE_SIZE = 10000
-    DEFAULT_TIMER_INTERVAL = 1
+    DEFAULT_SYNC_QUEUE_SIZE = 10000  # 默认同步处理队列大小
+    DEFAULT_ASYNC_QUEUE_SIZE = 10000  # 默认异步处理队列大小
+    DEFAULT_TIMER_INTERVAL = 1  # 默认定时器间隔(秒)
 
     def __init__(self,
                  name: str = "EventBus",
                  interval: int = DEFAULT_TIMER_INTERVAL):
-        # 系统标识
-        self._name = name
-        self._interval: int = interval
+        
+        self._name = name  # 事件总线名称
+        self._interval: int = interval  # 定时器间隔
 
         # 事件队列
         self._sync_queue = Queue(maxsize=self.DEFAULT_SYNC_QUEUE_SIZE)  # 同步处理队列
         self._async_queue = Queue(maxsize=self.DEFAULT_ASYNC_QUEUE_SIZE)  # 异步处理队列
 
         # 事件处理器注册表
-        self._sync_handlers: Dict[str, List[Callable]] = defaultdict(list)  # 同步处理器
-        self._async_handlers: Dict[str, List[Callable]] = defaultdict(list)  # 异步处理器
+        self._sync_handlers: Dict[str, List[Callable]] = defaultdict(list)  # 同步处理器注册表。
+        self._async_handlers: Dict[str, List[Callable]] = defaultdict(list)  # 异步处理器注册表。
         self._global_handlers: List[Callable] = []  # 全局处理器(同步)
 
-        # 事件监控
-        self._monitors: List[Callable] = []
-        
-        # 事件统计信息
-        self._event_count = 0
-        self._sync_processed_count = 0
-        self._async_processed_count = 0
-        self._error_count = 0
-        self._event_type_stats: Dict[str, int] = defaultdict(int)
+        self._monitors: List[Callable] = []  # 事件监控
+        self._event_count = 0  # 事件计数
+        self._sync_processed_count = 0  # 同步处理计数
+        self._async_processed_count = 0  # 异步处理计数
+        self._error_count = 0  # 错误计数
+        self._event_type_stats: Dict[str, int] = defaultdict(int)  # 事件类型统计
 
-        # 线程控制标志
-        self._sync_active: bool = False
-        self._async_active: bool = False
+        self._sync_active: bool = False  # 同步处理线程控制标志
+        self._async_active: bool = False  # 异步处理线程控制标志
 
-        # 线程实例
-        self._sync_thread: Optional[Thread] = None
-        self._async_thread: Optional[Thread] = None
-        self._sync_timer: Optional[Thread] = None
-        self._async_timer: Optional[Thread] = None
+        self._sync_thread: Optional[Thread] = None  # 同步处理线程
+        self._async_thread: Optional[Thread] = None  # 异步处理线程
+        self._sync_timer: Optional[Thread] = None  # 异步定时器处理线程
+        self._async_timer: Optional[Thread] = None  # 异步定时器处理线程
 
         # 启动事件处理线程
         self.start()
@@ -157,7 +152,6 @@ class EventBus:
                 self._process_sync_event(event)
                 
             except Empty:
-                # 超时是正常的，不需要记录
                 continue
             except Exception as e:
                 logger.error(
@@ -456,10 +450,26 @@ class EventBus:
 
     # ---------- 上下文管理 ---------- #
     def __enter__(self):
+        """
+        进入上下文管理器时调用。
+        Args:
+            无。
+        Returns:
+            self: 返回实例本身，以便在with语句中继续使用该实例。
+        """
         self.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        上下文管理协议退出方法。
+        Args:
+            exc_type (Exception type, optional): 异常类型。默认为None。
+            exc_val (Exception, optional): 异常对象。默认为None。
+            exc_tb (Traceback, optional): 异常回溯信息。默认为None。
+        Returns:
+            bool: 如果异常被处理，则返回True；否则返回False。
+        """
         self.stop()
         # 处理异常或记录日志
         if exc_type:
@@ -475,6 +485,9 @@ class EventBus:
 
 if __name__ == '__main__':
     def timer_handler():
+        """
+        处理TIMER事件。
+        """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f'[{timestamp}] 处理TIMER事件')
 

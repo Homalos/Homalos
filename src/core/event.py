@@ -30,17 +30,24 @@ class Event:
 
     def __init__(self, event_type: str, data: Any = None, source: Optional[str] = None, 
                  trace_id: Optional[str] = None, priority: EventPriority = EventPriority.NORMAL):
-        self.type = event_type
-        self.data = data
-        self.source = source or "unknown"
-        self.trace_id = trace_id or str(uuid.uuid4())
-        self.timestamp = time.time_ns()
-        self.priority = priority
+        self.type = event_type  # 初始化事件类型
+        self.data = data  # 初始化事件数据
+        self.source = source or "unknown"  # 初始化事件来源，如果没有提供来源，则默认为"unknown"
+        self.trace_id = trace_id or str(uuid.uuid4())  # 初始化事件追踪ID，如果没有提供追踪ID，则生成一个新的UUID
+        self.timestamp = time.time_ns()  # 初始化事件时间戳
+        self.priority = priority  # 初始化事件优先级
 
     def __repr__(self):
+        """
+        返回事件对象的字符串表示形式。
+        Args:
+            无。
+        Returns:
+            str: 事件对象的字符串表示形式，包含事件类型、事件源、优先级和追踪ID。
+        """
         return f"Event(type={self.type}, source={self.source}, priority={self.priority.name}, trace_id={self.trace_id})"
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> bool:
         """支持优先级队列排序（优先级数值越小，优先级越高）"""
         if not isinstance(other, Event):
             return NotImplemented
@@ -52,10 +59,18 @@ class PriorityEvent(Event):
     
     def __init__(self, event_type: str, data: Any = None, source: Optional[str] = None,
                  trace_id: Optional[str] = None, priority: EventPriority = EventPriority.HIGH):
+        """
+        初始化方法。
+        Args:
+            event_type (str): 事件类型。
+            data (Any, optional): 事件数据，默认为None。
+            source (Optional[str], optional): 事件来源，默认为None。
+            trace_id (Optional[str], optional): 跟踪ID，默认为None。
+            priority (EventPriority, optional): 事件优先级，默认为EventPriority.HIGH。
+        """
         super().__init__(event_type, data, source, trace_id, priority)
 
 
-# 事件类型常量定义
 class EventType:
     """事件类型常量，按优先级分类"""
     
@@ -89,6 +104,10 @@ class EventType:
     SERVICE_UNREGISTER = "service.unregister"
     SERVICE_HEART_BEAT = "service.heartbeat"
     SERVICE_DISCOVERY = "service.discovery"
+
+    SERVICE_UPDATED = "service.updated"  # 广播服务更新事件
+    SERVICE_DISCOVERY_RESPONSE = "service.discovery.response"  # 服务发现响应事件
+    SERVICE_FAILED = "service.failed"  # 广播服务失败事件
     
     # 低优先级事件
     LOG_MESSAGE = "log.message"

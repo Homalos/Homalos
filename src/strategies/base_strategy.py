@@ -397,23 +397,93 @@ class BaseStrategy(ABC):
     
     # ============ 行情订阅接口 ============
     
-    async def subscribe_symbols(self, symbols: List[str]):
-        """订阅行情数据"""
+    async def subscribe_symbols(self, symbols: List[str]) -> bool:
+        """
+        订阅行情数据 - 增强网关状态验证
+        
+        Args:
+            symbols: 合约代码列表
+            
+        Returns:
+            bool: 订阅是否成功
+        """
         try:
-            # 发布订阅请求
-            self.event_bus.publish(create_market_event(
-                "data.subscribe",
-                {"symbols": symbols, "strategy_id": self.strategy_id},
-                f"Strategy_{self.strategy_id}"
-            ))
+            if not symbols:
+                self.write_log("订阅合约列表为空", "WARNING")
+                return False
             
-            # 更新订阅列表
-            self.subscribed_symbols.update(symbols)
+            self.write_log(f"订阅行情: {symbols}", "INFO")
             
-            self.write_log(f"订阅行情: {symbols}")
+            # 检查网关连接状态
+            gateway_ready = await self._check_gateway_ready(symbols)
+            if not gateway_ready:
+                self.write_log("网关未就绪，订阅可能失败，系统将自动重试", "WARNING")
+                # 继续尝试订阅，系统会自动重连和重试
             
+            # 发布订阅事件给数据服务
+            if self.event_bus:
+                from src.core.event import create_trading_event
+                
+                subscribe_event = create_trading_event(
+                    "data.subscribe",
+                    {
+                        "symbols": symbols,
+                        "strategy_id": self.strategy_id
+                    },
+                    source=f"Strategy.{self.strategy_id}"
+                )
+                
+                self.event_bus.publish(subscribe_event)
+                self.write_log(f"订阅事件已发布: {symbols}", "DEBUG")
+                
+                # 记录订阅状态
+                self.subscribed_symbols.update(symbols)
+                return True
+            else:
+                self.write_log("事件总线不可用，无法订阅行情", "ERROR")
+                return False
+                
         except Exception as e:
             self.write_log(f"订阅行情失败: {e}", "ERROR")
+            return False
+
+    async def _check_gateway_ready(self, symbols: List[str]) -> bool:
+        """
+        检查网关是否就绪
+        
+        Args:
+            symbols: 需要订阅的合约列表
+            
+        Returns:
+            bool: 网关是否就绪
+        """
+        try:
+            # 通过事件总线查询网关状态
+            if self.event_bus:
+                from src.core.event import create_trading_event
+                
+                # 发布网关状态查询事件
+                query_event = create_trading_event(
+                    "gateway.status_query",
+                    {
+                        "gateway_type": "market_data",
+                        "symbols": symbols,
+                        "strategy_id": self.strategy_id
+                    },
+                    source=f"Strategy.{self.strategy_id}"
+                )
+                
+                self.event_bus.publish(query_event)
+                self.write_log("已发送网关状态查询", "DEBUG")
+                
+                # 简单的延迟检查，实际情况下可以实现更复杂的状态检查
+                await asyncio.sleep(0.1)
+                
+            return True  # 暂时总是返回True，让系统处理重连逻辑
+            
+        except Exception as e:
+            self.write_log(f"检查网关状态失败: {e}", "ERROR")
+            return False
     
     async def unsubscribe_symbols(self, symbols: List[str]):
         """取消订阅行情数据"""

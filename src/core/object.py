@@ -238,7 +238,7 @@ class LogData(BaseData):
     level: int | str = "INFO"
 
     def __post_init__(self) -> None:
-        """"""
+        """在初始化之后执行的函数。"""
         self.time: Datetime = Datetime.now()
 
 
@@ -297,6 +297,13 @@ class QuoteData(BaseData):
     reference: str = ""
 
     def __post_init__(self) -> None:
+        """
+        初始化后处理函数。
+        Args:
+            无参数。
+        Returns:
+            None
+        """
         """"""
         self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
         self.ho_quote_id: str = f"{self.gateway_name}.{self.quote_id}"
@@ -330,6 +337,13 @@ class SubscribeRequest:
     exchange: Exchange
 
     def __post_init__(self) -> None:
+        """
+        初始化后处理函数。
+        Args:
+            无参数。
+        Returns:
+            None
+        """
         """"""
         self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
@@ -351,6 +365,13 @@ class OrderRequest:
     reference: str = ""
 
     def __post_init__(self) -> None:
+        """
+        在对象初始化之后调用此方法，用于对对象进行一些后续处理。
+        Args:
+            无参数。
+        Returns:
+            None
+        """
         """"""
         self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
@@ -386,7 +407,7 @@ class CancelRequest:
     exchange: Exchange
 
     def __post_init__(self) -> None:
-        """"""
+        """在初始化之后执行的函数。"""
         self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
 
@@ -426,7 +447,7 @@ class QuoteRequest:
     reference: str = ""
 
     def __post_init__(self) -> None:
-        """"""
+        """在初始化之后执行的函数。"""
         self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
     def create_quote_data(self, quote_id: str, gateway_name: str) -> QuoteData:

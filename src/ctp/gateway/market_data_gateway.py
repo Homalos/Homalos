@@ -46,6 +46,14 @@ class ConnectionState(Enum):
     LOGGED_IN = "logged_in"
     ERROR = "error"
 
+# 新增：LoginState枚举定义
+class LoginState(Enum):
+    """登录状态枚举"""
+    LOGGED_OUT = "logged_out"
+    LOGGING_IN = "logging_in"
+    LOGGED_IN = "logged_in"
+    LOGIN_FAILED = "login_failed"
+
 
 class MarketDataGateway(BaseGateway):
     """
@@ -64,49 +72,133 @@ class MarketDataGateway(BaseGateway):
 
     exchanges: list[str] = list(EXCHANGE_CTP2VT.values())
 
-    def __init__(self, event_bus: EventBus, name: str) -> None:
-        """CTP行情网关构造函数
-
+    def __init__(self, event_bus: EventBus, name: str = "CTP_MD"):
+        """
+        初始化行情网关
+        
         Args:
-            event_bus: 事件引擎实例
-            name: 名称
+            event_bus: 事件总线
+            name: 网关名称，默认为"CTP_MD"
         """
         super().__init__(event_bus, name)
-        self.event_bus: EventBus = event_bus  # Ensure this line is present
-        self.query_functions = None
-        # 行情API实例
-        self.md_api: CtpMdApi | None = None
-        self.count: int = 0
-
-        # 基础属性
-        self.instrument_exchange_map: dict[str, str] = {}
-        self.setting: dict = {}
-
-        # 连接状态管理
-        self._running: bool = True
-        self.heartbeat_task: Optional[asyncio.Task] = None
         
-        # 连接状态管理增强
-        self.connection_state: ConnectionState = ConnectionState.DISCONNECTED
-        self.reconnect_attempts: int = 0
-        self.max_reconnect_attempts: int = 10
-        self.last_heartbeat: float = 0.0
-        self.connection_start_time: Optional[float] = None
+        # CTP API相关
+        self.md_api: Optional[MdApi] = None
+        self.connection_state = ConnectionState.DISCONNECTED
+        self.login_state = LoginState.LOGGED_OUT
         
-        # 自动重连配置
-        self._enable_auto_reconnect: bool = True
-        self._reconnect_interval: float = 5.0  # 重连间隔（秒）
-        self._max_reconnect_attempts: int = 10  # 最大重连次数
-        self._current_reconnect_attempts: int = 0
-        self._reconnect_task: Optional[asyncio.Task] = None
-        self._last_connection_config: Optional[dict] = None
+        # 新增：心跳监控任务初始化
+        self.heartbeat_task = None
         
-        # 订阅状态管理
+        # 心跳监控
+        self._last_heartbeat = 0
+        self._heartbeat_interval = 30  # 30秒心跳间隔
+        
+        # 订阅管理（增强）
         self.pending_subscriptions: set[str] = set()  # 待订阅合约
         self.active_subscriptions: set[str] = set()   # 已订阅合约
         
+        # 待处理订阅请求队列
+        self.pending_subscription_queue: list[dict] = []
+        
+        # 连接配置缓存（用于重连）
+        self._last_connection_config: Optional[dict] = None
+        
         # 设置网关事件处理器
         self._setup_gateway_event_handlers()
+
+    def _is_gateway_ready(self) -> bool:
+        """检查网关是否就绪"""
+        # 检查连接状态和登录状态
+        connection_ready = self.connection_state == ConnectionState.LOGGED_IN
+        login_ready = self.login_state == LoginState.LOGGED_IN
+        api_ready = (self.md_api is not None and 
+                    getattr(self.md_api, 'connect_status', False) and
+                    getattr(self.md_api, 'login_status', False))
+        
+        is_ready = connection_ready and login_ready and api_ready
+        logger.debug(f"网关就绪检查: connection={connection_ready}, login={login_ready}, api={api_ready}, result={is_ready}")
+        return is_ready
+
+    def _get_symbol_exchange(self, symbol: str) -> Exchange:
+        """根据合约代码获取交易所"""
+        # 简化的交易所映射逻辑
+        symbol_upper = symbol.upper()
+        if any(symbol_upper.endswith(suffix) for suffix in ['509', '510', '511', '512']):
+            return Exchange.CZCE
+        elif any(prefix in symbol_upper for prefix in ['RB', 'HC', 'AL', 'CU', 'ZN']):
+            return Exchange.SHFE
+        elif any(prefix in symbol_upper for prefix in ['I', 'J', 'JM', 'A', 'B', 'M']):
+            return Exchange.DCE
+        else:
+            return Exchange.CZCE  # 默认
+
+    def _queue_pending_subscription(self, strategy_id: str, symbols: list) -> None:
+        """将订阅请求加入待处理队列"""
+        if not hasattr(self, 'pending_subscription_queue'):
+            self.pending_subscription_queue = []
+        
+        self.pending_subscription_queue.append({
+            "strategy_id": strategy_id,
+            "symbols": symbols,
+            "timestamp": time.time()
+        })
+        logger.info(f"订阅请求已加入队列: 策略={strategy_id}, 队列长度={len(self.pending_subscription_queue)}")
+
+    def _trigger_reconnection(self) -> None:
+        """触发网关重连"""
+        if self.connection_state == ConnectionState.DISCONNECTED:
+            logger.info("触发行情网关重连...")
+            # 这里可以实现重连逻辑
+            asyncio.create_task(self._attempt_reconnection())
+
+    async def _attempt_reconnection(self) -> None:
+        """尝试重新连接"""
+        try:
+            max_attempts = 3
+            for attempt in range(max_attempts):
+                logger.info(f"尝试重连行情网关 (第{attempt + 1}次)")
+                
+                if self._last_connection_config:
+                    self.connect(self._last_connection_config)
+                    await asyncio.sleep(5)  # 等待连接建立
+                    
+                    if self._is_gateway_ready():
+                        logger.info("行情网关重连成功")
+                        await self._process_pending_subscriptions()
+                        break
+                else:
+                    logger.error("缺少连接配置，无法重连")
+                    break
+                    
+                await asyncio.sleep(2)  # 重试间隔
+                
+        except Exception as e:
+            logger.error(f"重连过程中发生错误: {e}")
+
+    async def _process_pending_subscriptions(self) -> None:
+        """处理待处理的订阅请求"""
+        if not hasattr(self, 'pending_subscription_queue'):
+            return
+            
+        queue = getattr(self, 'pending_subscription_queue', [])
+        if not queue:
+            return
+            
+        logger.info(f"处理 {len(queue)} 个待处理的订阅请求")
+        
+        for sub_request in queue:
+            try:
+                # 重新发送订阅事件
+                from src.core.event import Event
+                event = Event("gateway.subscribe", sub_request)
+                self._handle_gateway_subscribe(event)
+            except Exception as e:
+                logger.error(f"处理待订阅请求失败: {e}")
+        
+        # 清空队列
+        self.pending_subscription_queue.clear()
+        logger.info("待处理订阅队列已清空")
     
     def get_connection_status(self) -> dict[str, Any]:
         """获取详细连接状态"""
@@ -202,7 +294,7 @@ class MarketDataGateway(BaseGateway):
             logger.error(f"设置网关事件处理器失败: {e}")
 
     def _handle_gateway_subscribe(self, event: Event) -> None:
-        """处理动态订阅请求"""
+        """处理动态订阅请求 - 增强连接状态验证"""
         try:
             data = event.data
             symbols = data.get("symbols", [])
@@ -210,12 +302,19 @@ class MarketDataGateway(BaseGateway):
 
             logger.info(f"网关收到订阅请求: 策略={strategy_id}, 合约={symbols}")
 
+            # 检查网关连接状态
+            if not self._is_gateway_ready():
+                logger.warning(f"网关未就绪，延迟处理订阅请求: 策略={strategy_id}, 合约={symbols}")
+                self._queue_pending_subscription(strategy_id, symbols)
+                self._trigger_reconnection()
+                return
+
             for symbol in symbols:
                 if symbol not in self.active_subscriptions:
                     # 创建订阅请求
                     subscribe_req = SubscribeRequest(
                         symbol=symbol,
-                        exchange=Exchange.CZCE  # 默认交易所，实际应根据合约解析
+                        exchange=self._get_symbol_exchange(symbol)
                     )
 
                     # 添加到待订阅列表
@@ -273,38 +372,82 @@ class MarketDataGateway(BaseGateway):
             return "tcp://" + address
         return address
 
-    def connect(self, setting: dict) -> None:
-        """
-        连接行情服务器
-        :param setting:
-        :return:
-        """
-        if not self.md_api:
-            self.md_api = CtpMdApi(self)
+    def connect(self, setting: dict[str, Any]) -> None:
+        """连接CTP服务器"""
+        try:
+            logger.info("开始连接CTP行情服务器...")
+            
+            # 保存连接配置用于重连
+            self._last_connection_config = setting.copy()
+            
+            # 兼容性配置字段处理
+            userid = setting.get("user_id") or setting.get("userid", "")
+            password = setting.get("password", "")
+            brokerid = setting.get("broker_id", "")
+            md_address = setting.get("md_address", "")
+            app_id = setting.get("app_id", "")
+            auth_code = setting.get("auth_code", "")
+            
+            # 参数验证
+            if not all([userid, password, brokerid, md_address]):
+                raise ValueError("缺少必要的连接参数")
+            
+            # 创建API实例
+            if not self.md_api:
+                self.md_api = MdApi()
+                if hasattr(self.md_api, 'gateway'):
+                    self.md_api.gateway = self
+            
+            # 启动心跳监控
+            self._start_heartbeat_monitor()
+            
+            # CTP标准行情API初始化流程
+            # 1. 创建API目录（如有必要）
+            from pathlib import Path
+            api_path = str(Path.home() / ".Homalos_v2" / "ctp_md")
+            if hasattr(self.md_api, 'createFtdcMdApi'):
+                self.md_api.createFtdcMdApi(api_path.encode("GBK").decode("utf-8"))
+                logger.info(f"MdApi：createFtdcMdApi调用成功，路径：{api_path}")
+            # 2. 注册前置机地址
+            if hasattr(self.md_api, 'registerFront'):
+                self.md_api.registerFront(md_address)
+                logger.info(f"MdApi：registerFront调用成功，地址：{md_address}")
+            # 3. 初始化API
+            if hasattr(self.md_api, 'init'):
+                self.md_api.init()
+                logger.info("MdApi：init调用成功。")
+            
+            self.connection_state = ConnectionState.CONNECTING
+            logger.info(f"正在连接到 {md_address}...")
+            
+            # 用户名、密码、brokerid等参数应在onFrontConnected后通过login流程传递
+            self._md_userid = userid
+            self._md_password = password
+            self._md_brokerid = brokerid
+            self._md_app_id = app_id
+            self._md_auth_code = auth_code
+            
+        except Exception as e:
+            logger.error(f"连接失败: {e}")
+            self.connection_state = ConnectionState.DISCONNECTED
+            self._handle_connection_failed(str(e))
 
-        # 兼容性配置字段处理 - 支持userid和user_id两种字段名
-        userid: str = setting.get("userid", setting.get("user_id", ""))
-        password: str = setting.get("password", "")
-        broker_id: str = setting.get("broker_id", "")
-        md_address: str = self._prepare_address(setting.get("md_address", ""))
-        
-        # 验证必需字段
-        if not all([userid, password, broker_id, md_address]):
-            missing_fields = []
-            if not userid: missing_fields.append("userid/user_id")
-            if not password: missing_fields.append("password") 
-            if not broker_id: missing_fields.append("broker_id")
-            if not md_address: missing_fields.append("md_address")
-            raise ValueError(f"CTP行情网关连接参数不完整，缺少字段: {missing_fields}")
+    def _handle_connection_failed(self, reason: str) -> None:
+        """处理连接失败异常"""
+        try:
+            logger.error(f"行情网关连接失败: {reason}")
+            self.connection_state = ConnectionState.DISCONNECTED
+            self.login_state = LoginState.LOGGED_OUT
+            self.last_heartbeat = 0.0
+            # 发布连接失败事件
+            if self.event_bus:
+                self.event_bus.publish(Event("gateway.connection_failed", {
+                    "gateway_name": self.name,
+                    "reason": reason
+                }))
+        except Exception as e:
+            logger.error(f"_handle_connection_failed处理异常: {e}")
 
-        # 保存连接配置以供重连使用
-        self._last_connection_config = setting.copy()
-        
-        # 重置重连计数器
-        self._current_reconnect_attempts = 0
-
-        self.md_api.connect(md_address, userid, password, broker_id)
-    
     async def _start_auto_reconnect(self) -> None:
         """启动智能自动重连"""
         if not self._enable_auto_reconnect or not self._last_connection_config:
@@ -430,8 +573,10 @@ class CtpMdApi(MdApi):
         服务器连接成功回报
         :return:
         """
+        logger.info("🔗 CTP行情API回调: onFrontConnected - 服务器连接成功")
         self.gateway.write_log("行情服务器连接成功")
         self.gateway._update_connection_state(ConnectionState.CONNECTED)
+        logger.info("✅ 连接状态已更新为CONNECTED，开始登录流程")
         self.login()
 
     def onFrontDisconnected(self, reason: int) -> None:
@@ -451,6 +596,7 @@ class CtpMdApi(MdApi):
         :param reason:
         :return:
         """
+        logger.warning(f"❌ CTP行情API回调: onFrontDisconnected - 连接断开，原因代码={reason}")
         self.login_status = False
         self.gateway._update_connection_state(ConnectionState.DISCONNECTED)
         
@@ -482,10 +628,13 @@ class CtpMdApi(MdApi):
         :param last:
         :return:
         """
+        logger.info(f"🔐 CTP行情API回调: onRspUserLogin - 登录回报, ErrorID={error.get('ErrorID', 'N/A')}")
         if not error["ErrorID"]:
+            logger.info("✅ 行情服务器登录成功，开始更新状态并处理pending订阅")
             self.login_status = True
             global_var.md_login_success = True
             self.gateway._update_connection_state(ConnectionState.LOGGED_IN)
+            self.gateway.login_state = LoginState.LOGGED_IN
             self.gateway.write_log("行情服务器登录成功")
             
             # 更新心跳时间
@@ -493,8 +642,28 @@ class CtpMdApi(MdApi):
 
             for symbol in self.subscribed:
                 self.subscribeMarketData(symbol)
+
+            # 登录成功后自动处理pending订阅队列
+            try:
+                logger.info("🚀 登录成功，开始处理pending订阅队列")
+                import asyncio
+                if hasattr(self.gateway, '_process_pending_subscriptions'):
+                    # 兼容异步/同步实现
+                    coro = self.gateway._process_pending_subscriptions()
+                    if asyncio.iscoroutine(coro):
+                        asyncio.create_task(coro)
+                    else:
+                        # 同步直接调用
+                        pass
+                logger.info("✅ pending订阅队列处理任务已创建")
+                self.gateway.write_log("登录成功后已触发pending订阅队列处理")
+            except Exception as e:
+                logger.error(f"❌ 处理pending订阅队列异常: {e}")
+                self.gateway.write_log(f"处理pending订阅队列异常: {e}")
         else:
+            logger.error(f"❌ 行情服务器登录失败: {error}")
             self.gateway._update_connection_state(ConnectionState.ERROR)
+            self.gateway.login_state = LoginState.LOGIN_FAILED
             self.gateway.write_error("行情服务器登录失败", error)
 
     def onRspError(self, error: dict, reqid: int, last: bool) -> None:
@@ -505,6 +674,7 @@ class CtpMdApi(MdApi):
         :param last:
         :return:
         """
+        logger.error(f"❌ CTP行情API回调: onRspError - 请求报错, ErrorID={error.get('ErrorID', 'N/A')}, ErrorMsg={error.get('ErrorMsg', 'N/A')}")
         self.gateway.write_error("行情接口报错", error)
 
     def onRspSubMarketData(self, data: dict, error: dict, reqid: int, last: bool) -> None:
@@ -516,6 +686,8 @@ class CtpMdApi(MdApi):
         :param last:
         :return:
         """
+        symbol = data.get("InstrumentID", "UNKNOWN") if data else "UNKNOWN"
+        logger.info(f"📊 CTP行情API回调: onRspSubMarketData - 订阅回报, 合约={symbol}, ErrorID={error.get('ErrorID', 'N/A') if error else 'None'}")
         if not error or not error["ErrorID"]:
             # 订阅成功
             if data and "InstrumentID" in data:
@@ -524,9 +696,13 @@ class CtpMdApi(MdApi):
                 if symbol in self.gateway.pending_subscriptions:
                     self.gateway.pending_subscriptions.discard(symbol)
                     self.gateway.active_subscriptions.add(symbol)
+                    logger.info(f"✅ 行情订阅成功并更新状态: {symbol}")
                     self.gateway.write_log(f"行情订阅成功: {symbol}")
+                else:
+                    logger.warning(f"⚠️ 订阅成功但合约不在pending列表: {symbol}")
             return
 
+        logger.error(f"❌ 行情订阅失败: {error}")
         self.gateway.write_error("行情订阅失败", error)
 
     def onRtnDepthMarketData(self, data: dict) -> None:
@@ -545,8 +721,11 @@ class CtpMdApi(MdApi):
 
         # 过滤还没有收到合约数据前的行情推送
         symbol: str = data["InstrumentID"]
+        # 添加行情数据接收日志（调试级别）
+        logger.debug(f"📈 CTP行情API回调: onRtnDepthMarketData - 收到行情数据: {symbol} @ {data.get('LastPrice', 'N/A')}")
         contract: ContractData = symbol_contract_map.get(symbol, None)
         if not contract:
+            logger.debug(f"⚠️ 跳过行情推送，合约信息不存在: {symbol}")
             return
 
         # 对大商所的交易日字段取本地日期
@@ -603,6 +782,8 @@ class CtpMdApi(MdApi):
             tick.ask_volume_5 = data["AskVolume5"]
 
         self.gateway.on_tick(tick)
+        # 关键日志：确保行情数据被推送到网关
+        logger.info(f"📈 行情数据已推送到网关: {tick.symbol} @ {tick.last_price}")
         logger.debug(f"CtpMdApi.onRtnDepthMarketData: 推送tick {tick.symbol} {tick.datetime} {tick.last_price}")
 
     def onRspUserLogout(self, data: dict, error: dict, reqid: int, last: bool):

@@ -7,7 +7,7 @@
 @Author     : Donny
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: description
+@Description: 服务注册中心
 """
 from threading import Thread
 from time import time_ns, sleep
@@ -31,7 +31,7 @@ class ServiceRegistry:
     def __init__(self, event_bus: EventBus):
         self.event_bus = event_bus
         self.services: Dict[str, dict] = {}  # service_name -> service_info
-        self.heartbeat_checker = Thread(target=self._check_heartbeats, daemon=True)
+        self.heartbeat_checker = Thread(target=self._check_heartbeats, daemon=True)  # 心跳检测线程
         self.running = False
 
         # 注册事件处理器
@@ -44,13 +44,13 @@ class ServiceRegistry:
         """启动服务注册中心"""
         self.running = True
         self.heartbeat_checker.start()
-        logger.info("ServiceRegistry started")
+        logger.info("ServiceRegistry 已启动")
 
     def stop(self):
         """停止服务注册中心"""
         self.running = False
         self.heartbeat_checker.join(timeout=5)
-        logger.info("ServiceRegistry stopped")
+        logger.info("ServiceRegistry 已停止")
 
     def handle_register(self, event: Event):
         """处理服务注册事件"""
@@ -62,10 +62,10 @@ class ServiceRegistry:
 
         # 注册服务
         self.services[service_name] = service_info
-        logger.info(f"Service registered: {service_name}")
+        logger.info(f"已注册服务：{service_name}")
 
-        # 广播服务更新事件
-        self.event_bus.publish(Event("ServiceUpdated", {
+        # 广播服务更新事件(原来是ServiceUpdated)
+        self.event_bus.publish(Event(EventType.SERVICE_UPDATED, {
             "action": "register",
             "service": service_info
         }))
@@ -76,10 +76,10 @@ class ServiceRegistry:
 
         if service_name in self.services:
             service_info = self.services.pop(service_name)
-            logger.info(f"Service unregistered: {service_name}")
+            logger.info(f"服务未注册：{service_name}")
 
-            # 广播服务更新事件
-            self.event_bus.publish(Event("ServiceUpdated", {
+            # 广播服务更新事件(原来是ServiceUpdated)
+            self.event_bus.publish(Event(EventType.SERVICE_UPDATED, {
                 "action": "unregister",
                 "service": service_info
             }))
@@ -90,7 +90,7 @@ class ServiceRegistry:
 
         if service_name in self.services:
             self.services[service_name]["last_heartbeat"] = time_ns()
-            logger.debug(f"Heartbeat received from {service_name}")
+            logger.debug(f"从 {service_name} 收到心跳")
 
     def handle_discovery_request(self, event: Event):
         """处理服务发现请求"""
@@ -121,8 +121,8 @@ class ServiceRegistry:
                     "capabilities": info.get("capabilities", [])
                 }
 
-        # 发送服务发现响应
-        self.event_bus.publish(Event("ServiceDiscoveryResponse", response))
+        # 发送服务发现响应(原来是ServiceDiscoveryResponse)
+        self.event_bus.publish(Event(EventType.SERVICE_DISCOVERY_RESPONSE, response))
 
     def _check_heartbeats(self):
         """定期检查服务心跳"""
@@ -137,13 +137,13 @@ class ServiceRegistry:
                 last_heartbeat = service_info.get("last_heartbeat", 0)
 
                 if last_heartbeat < threshold:
-                    logger.warning(f"Service {service_name} heartbeat timeout, unregistering")
+                    logger.warning(f"服务 {service_name} 心跳超时，正在取消注册")
 
                     # 注销服务
                     self.services.pop(service_name, None)
 
-                    # 广播服务失败事件
-                    self.event_bus.publish(Event("ServiceFailed", {
+                    # 广播服务失败事件(原来是ServiceFailed)
+                    self.event_bus.publish(Event(EventType.SERVICE_FAILED, {
                         "service": service_info,
                         "reason": "heartbeat_timeout"
                     }))

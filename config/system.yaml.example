@@ -28,7 +28,6 @@ database:
   flush_interval: 5
   connection_pool_size: 10
   enable_wal: true  # 启用WAL模式提高并发性能
-  timezone: "UTC"
 
 # 交易网关配置
 gateway:
@@ -189,7 +188,11 @@ trading_hours:
       - ["10:30", "11:30"]   # 早盘
       - ["13:30", "15:00"]   # 午盘
       - ["21:00", "02:30"]   # 夜盘
-      - ["21:00", "23:00"]   # 某些品种
+    
+    # 股票交易时段
+    stocks:
+      - ["09:30", "11:30"]   # 早盘
+      - ["13:00", "15:00"]   # 午盘
 
 # 邮件通知配置（可选）
 email:
