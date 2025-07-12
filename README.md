@@ -21,6 +21,7 @@ Homalos_v2/
 ├── 📁 config/                # Configuration file
 ├── 📁 data/                  # Data storage
 ├── 📁 docs/                  # System documentation
+├── 📁 log/                   # Log storage
 ├── 📁 src/                   # Core source code directory
 │   ├── 📁 config/            # Configuration management
 │   ├── 📁 core/              # System core module
@@ -30,7 +31,7 @@ Homalos_v2/
 │   ├── 📁 tts/               # TTS interface module
 │   ├── 📁 util/              # Utility module
 │   └── 📁 web/               # Web interface
-├── 📁 log/                   # Log storage
+├── 📁 test_data/             # Test data storage
 └── 📁 tests/                 # Test script directory
 ```
 

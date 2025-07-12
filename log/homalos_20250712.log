@@ -2796,3 +2796,5 @@
 2025-07-12 21:35:33.506 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
 2025-07-12 21:36:03.528 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
 2025-07-12 21:36:03.529 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 21:37:03.515 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 21:37:03.515 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求

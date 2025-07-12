@@ -12,5 +12,6 @@ wheels/
 .venv
 .idea
 # Cursor
-.cursor
+.cursor/
 data/
+log/
