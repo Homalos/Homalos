@@ -44,7 +44,7 @@ except ImportError:
     MarketDataGatewayType = None  # type: ignore
     OrderTradingGatewayType = None  # type: ignore
 
-logger = get_logger("Main")
+logger = get_logger("HomalosSystem")
 
 
 class HomalosSystem:
@@ -84,14 +84,14 @@ class HomalosSystem:
     async def initialize(self) -> bool:
         """初始化系统组件"""
         try:
-            logger.info("🚀 Homalos量化交易系统启动中...")
+            logger.info("Homalos量化交易系统启动中...")
             
             # 1. 初始化配置管理器
-            logger.info("📋 初始化配置管理器...")
+            logger.info("初始化配置管理器...")
             self.config = ConfigManager(self.config_file)
             
             # 2. 初始化事件总线
-            logger.info("🔄 初始化事件总线...")
+            logger.info("初始化事件总线...")
             event_bus_config = {
                 "name": self.config.get("event_bus.name", "trading_system"),
                 "interval": self.config.get("event_bus.timer_interval", 1.0)
@@ -99,16 +99,16 @@ class HomalosSystem:
             self.event_bus = EventBus(**event_bus_config)
             
             # 3. 初始化服务注册中心
-            logger.info("📝 初始化服务注册中心...")
+            logger.info("初始化服务注册中心...")
             self.service_registry = ServiceRegistry(self.event_bus)
             
             # 4. 初始化数据服务
-            logger.info("💾 初始化数据服务...")
+            logger.info("初始化数据服务...")
             self.data_service = DataService(self.event_bus, self.config)
             await self.data_service.initialize()
             
             # 5. 初始化交易引擎核心
-            logger.info("⚙️ 初始化交易引擎核心...")
+            logger.info("初始化交易引擎核心...")
             self.trading_engine = TradingEngine(self.event_bus, self.config)
             await self.trading_engine.initialize()
             
@@ -117,21 +117,21 @@ class HomalosSystem:
             
             # 7. 初始化Web管理界面
             if self.config.get("web.enabled", True):
-                logger.info("🌐 初始化Web管理界面...")
+                logger.info("初始化Web管理界面...")
                 self.web_server = WebServer(self.trading_engine, self.event_bus, self.config)
             
-            logger.info("✅ 系统组件初始化完成")
+            logger.info("系统组件初始化完成")
             return True
             
         except Exception as e:
-            logger.error(f"❌ 系统初始化失败: {e}")
+            logger.error(f"系统初始化失败: {e}")
             return False
     
     async def _initialize_gateways(self) -> None:
         """初始化交易网关"""
         try:
             if not CTP_AVAILABLE:
-                logger.warning("⚠️ CTP网关不可用，跳过网关初始化")
+                logger.warning("CTP网关不可用，跳过网关初始化")
                 return
             
             # CTP网关配置验证
@@ -143,8 +143,8 @@ class HomalosSystem:
                 missing_fields = [field for field in required_fields if not ctp_config.get(field)]
                 
                 if missing_fields:
-                    logger.error(f"❌ CTP网关配置不完整，缺少字段: {missing_fields}")
-                    logger.warning("⚠️ 系统将在无网关模式下运行")
+                    logger.error(f"CTP网关配置不完整，缺少字段: {missing_fields}")
+                    logger.warning("系统将在无网关模式下运行")
                     return
                 
                 # 验证网络地址格式
@@ -154,16 +154,16 @@ class HomalosSystem:
                         if not address.startswith("tcp://"):
                             ctp_config[addr_field] = "tcp://" + address
                 
-                logger.info("✅ CTP网关配置验证通过")
+                logger.info("CTP网关配置验证通过")
                 
                 # 初始化行情网关
-                logger.info("📊 初始化CTP行情网关...")
+                logger.info("初始化CTP行情网关...")
                 if self.event_bus and MarketDataGateway:
                     self.market_gateway = MarketDataGateway(self.event_bus, "CTP_MD")
                     logger.info(f"行情网关已创建: {self.market_gateway.name}")
                 
                 # 初始化交易网关
-                logger.info("💰 初始化CTP交易网关...")
+                logger.info("初始化CTP交易网关...")
                 if self.event_bus and OrderTradingGateway:
                     self.trading_gateway = OrderTradingGateway(self.event_bus, "CTP_TD")
                     logger.info(f"交易网关已创建: {self.trading_gateway.name}")
@@ -172,9 +172,9 @@ class HomalosSystem:
                 await self._connect_gateways_with_timeout(ctp_config)
             
         except Exception as e:
-            logger.error(f"❌ 网关初始化失败: {e}")
+            logger.error(f"网关初始化失败: {e}")
             # 继续运行，不因网关初始化失败而退出
-            logger.warning("⚠️ 系统将在无网关模式下运行")
+            logger.warning("系统将在无网关模式下运行")
     
     async def _connect_gateways_with_timeout(self, ctp_config: dict) -> None:
         """带超时控制的网关连接"""
@@ -194,17 +194,17 @@ class HomalosSystem:
                         )
                         await asyncio.wait_for(connection_task, timeout=connection_timeout)
                         
-                        logger.info("✅ 行情网关连接成功")
+                        logger.info("行情网关连接成功")
                         break
                         
                     except asyncio.TimeoutError:
-                        logger.warning(f"⚠️ 行情网关连接超时 (尝试 {attempt + 1}/{max_retries})")
+                        logger.warning(f"行情网关连接超时 (尝试 {attempt + 1}/{max_retries})")
                         if attempt == max_retries - 1:
                             logger.error("❌ 行情网关连接失败，已达最大重试次数")
                     except Exception as e:
-                        logger.warning(f"⚠️ 行情网关连接异常: {e} (尝试 {attempt + 1}/{max_retries})")
+                        logger.warning(f"行情网关连接异常: {e} (尝试 {attempt + 1}/{max_retries})")
                         if attempt == max_retries - 1:
-                            logger.error("❌ 行情网关连接失败")
+                            logger.error("行情网关连接失败")
                     
                     # 重试前等待
                     if attempt < max_retries - 1:
@@ -222,26 +222,26 @@ class HomalosSystem:
                         )
                         await asyncio.wait_for(connection_task, timeout=connection_timeout)
                         
-                        logger.info("✅ 交易网关连接成功")
+                        logger.info("交易网关连接成功")
                         break
                         
                     except asyncio.TimeoutError:
-                        logger.warning(f"⚠️ 交易网关连接超时 (尝试 {attempt + 1}/{max_retries})")
+                        logger.warning(f"交易网关连接超时 (尝试 {attempt + 1}/{max_retries})")
                         if attempt == max_retries - 1:
-                            logger.error("❌ 交易网关连接失败，已达最大重试次数")
+                            logger.error("交易网关连接失败，已达最大重试次数")
                     except Exception as e:
-                        logger.warning(f"⚠️ 交易网关连接异常: {e} (尝试 {attempt + 1}/{max_retries})")
+                        logger.warning(f"交易网关连接异常: {e} (尝试 {attempt + 1}/{max_retries})")
                         if attempt == max_retries - 1:
-                            logger.error("❌ 交易网关连接失败")
+                            logger.error("交易网关连接失败")
                     
                     # 重试前等待
                     if attempt < max_retries - 1:
                         await asyncio.sleep(2)
             
-            logger.info("✅ 网关连接流程完成")
+            logger.info("网关连接流程完成")
             
         except Exception as e:
-            logger.error(f"❌ 网关连接过程中发生严重错误: {e}")
+            logger.error(f"网关连接过程中发生严重错误: {e}")
             # 实施回退策略
             await self._handle_gateway_connection_failure()
     
@@ -262,7 +262,7 @@ class HomalosSystem:
     async def _handle_gateway_connection_failure(self) -> None:
         """处理网关连接失败的回退策略"""
         try:
-            logger.warning("🔄 实施网关连接失败回退策略...")
+            logger.warning("实施网关连接失败回退策略...")
             
             # 清理失败的网关连接
             if self.market_gateway:
@@ -286,10 +286,10 @@ class HomalosSystem:
                     "reason": "connection_timeout_or_error"
                 }))
             
-            logger.info("📝 网关连接失败处理完成，系统将在模拟模式下运行")
+            logger.info("网关连接失败处理完成，系统将在模拟模式下运行")
             
         except Exception as e:
-            logger.error(f"❌ 处理网关连接失败时发生错误: {e}")
+            logger.error(f"处理网关连接失败时发生错误: {e}")
     
     async def start(self) -> None:
         """启动系统（增强错误处理）"""
@@ -301,7 +301,7 @@ class HomalosSystem:
         
         try:
             # 初始化系统
-            logger.info("📋 开始系统初始化...")
+            logger.info("开始系统初始化...")
             if not await self.initialize():
                 logger.error("系统初始化失败，退出")
                 await self._graceful_shutdown_on_failure()
@@ -317,22 +317,22 @@ class HomalosSystem:
             
             for step_name, step_func in startup_steps:
                 try:
-                    logger.info(f"🚀 {step_name}...")
+                    logger.info(f"{step_name}...")
                     await step_func()
-                    logger.info(f"✅ {step_name}成功")
+                    logger.info(f"{step_name}成功")
                 except Exception as e:
-                    logger.error(f"❌ {step_name}失败: {e}")
+                    logger.error(f"{step_name}失败: {e}")
                     if step_name in ["启动事件总线", "启动交易引擎"]:  # 关键组件失败
                         raise
                     else:  # 非关键组件失败，继续启动
-                        logger.warning(f"⚠️ {step_name}失败，但系统将继续启动")
+                        logger.warning(f"{step_name}失败，但系统将继续启动")
             
             # 标记系统运行状态
             self.is_running = True
             self.start_time = time.time()
             
             logger.info("🎉 Homalos量化交易系统启动成功!")
-            logger.info(f"⏰ 启动时间: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            logger.info(f"启动时间: {time.strftime('%Y-%m-%d %H:%M:%S')}")
             
             # 显示系统信息
             self._print_system_info()
@@ -348,7 +348,7 @@ class HomalosSystem:
             await self._main_loop()
                 
         except Exception as e:
-            logger.error(f"❌ 系统启动失败: {e}")
+            logger.error(f"系统启动失败: {e}")
             logger.error(f"错误详情: {traceback.format_exc()}")
             await self._graceful_shutdown_on_failure()
     
@@ -375,7 +375,7 @@ class HomalosSystem:
     
     async def _graceful_shutdown_on_failure(self) -> None:
         """启动失败时的优雅关闭"""
-        logger.info("🛑 启动失败，执行优雅关闭...")
+        logger.info("启动失败，执行优雅关闭...")
         try:
             await self.shutdown()
         except Exception as e:
@@ -415,36 +415,36 @@ class HomalosSystem:
         if not self.is_running:
             return
         
-        logger.info("🛑 正在关闭Homalos量化交易系统...")
+        logger.info("正在关闭Homalos量化交易系统...")
         
         try:
             # 停止交易引擎
             if self.trading_engine:
-                logger.info("🛑 停止交易引擎...")
+                logger.info("停止交易引擎...")
                 await self.trading_engine.stop()
             
             # 关闭数据服务
             if self.data_service:
-                logger.info("🛑 关闭数据服务...")
+                logger.info("关闭数据服务...")
                 await self.data_service.shutdown()
             
             # 断开网关连接
             if self.market_gateway:
-                logger.info("🛑 断开行情网关...")
+                logger.info("断开行情网关...")
                 # market_gateway.disconnect()  # 根据实际API调用
             
             if self.trading_gateway:
-                logger.info("🛑 断开交易网关...")
+                logger.info("断开交易网关...")
                 # trading_gateway.disconnect()  # 根据实际API调用
             
             # 停止服务注册中心
             if self.service_registry:
-                logger.info("🛑 停止服务注册中心...")
+                logger.info("停止服务注册中心...")
                 self.service_registry.stop()
             
             # 停止事件总线
             if self.event_bus:
-                logger.info("🛑 停止事件总线...")
+                logger.info("停止事件总线...")
                 self.event_bus.stop()
             
             self.is_running = False
@@ -452,12 +452,12 @@ class HomalosSystem:
             # 计算运行时间
             if self.start_time:
                 runtime = time.time() - self.start_time
-                logger.info(f"⏱️ 系统运行时长: {runtime:.2f} 秒")
+                logger.info(f"系统运行时长: {runtime:.2f} 秒")
             
-            logger.info("✅ Homalos量化交易系统已安全关闭")
+            logger.info("Homalos量化交易系统已安全关闭")
             
         except Exception as e:
-            logger.error(f"❌ 系统关闭过程中发生错误: {e}")
+            logger.error(f"系统关闭过程中发生错误: {e}")
     
     def _print_system_info(self):
         """打印系统信息"""
@@ -473,7 +473,7 @@ class HomalosSystem:
 """
         
         if self.web_server:
-            host = self.config.get("web.host", "0.0.0.0")
+            host = self.config.get("web.host", "127.0.0.1")
             port = self.config.get("web.port", 8000)
             info += f"🌐 Web地址: http://{host}:{port}\n"
         
@@ -530,16 +530,15 @@ def run_system():
 if __name__ == "__main__":
     # 检查Python版本
     if sys.version_info < (3, 10):
-        print("❌ 需要Python 3.10或更高版本")
+        print("需要Python 3.10或更高版本")
         sys.exit(1)
     
     # 检查配置文件
     system_config_file = "config/system.yaml"
     if not Path(system_config_file).exists():
-        print(f"❌ 配置文件不存在: {system_config_file}")
+        print(f"配置文件不存在: {system_config_file}")
         print("请复制config/system.yaml.example为config/system.yaml并进行配置")
         sys.exit(1)
-    
     print("""
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
