@@ -457,7 +457,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/strategies \
 ### 社区支持
 - **GitHub仓库**: [Homalos](https://github.com/Homalos/Homalos)
 - **项目手册**: [homalos.github.io](https://homalos.github.io/)
-- **技术交流(QQ群)**: `446042777`(澄明期货研究)
+- **技术交流(QQ群)**: `446042777`
 - **问题反馈**: GitHub Issues
 
 ---

@@ -456,7 +456,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/strategies \
 ### Community Support
 - **GitHub Repository**: [Homalos](https://github.com/Homalos/Homalos)
 - **Project Manual**: [homalos.github.io](https://homalos.github.io/)
-- **Technical Exchange(QQ group)**:  `446042777` (Chengming Futures Research)
+- **Technical Exchange(QQ group)**:  `446042777` 
 - **Issue Feedback**: GitHub Issues
 
 ---
