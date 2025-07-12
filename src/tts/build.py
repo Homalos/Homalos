@@ -18,7 +18,7 @@ if ret != 0:
 
 # Dynamically determine .pyd filenames
 # The following lines replace the original hardcoded pyd_files list
-ext_suffix = sysconfig.get_config_var('EXT_SUFFIX')
+ext_suffix = sysconfig.get_config_vars().get('EXT_SUFFIX')
 # Example ext_suffix: '.cp312-win_amd64.pyd' on Windows with Python 3.12
 pyd_files = [f'ttsmd{ext_suffix}', f'ttstd{ext_suffix}']
 
