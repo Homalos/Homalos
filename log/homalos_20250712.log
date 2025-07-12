@@ -2004,3 +2004,11 @@
 2025-07-12 19:48:56.560 | WARNING | TradingEngine | _check_market_conditions:582 | 当前非交易时间 19:00，暂停接受新订单
 2025-07-12 19:49:06.557 | WARNING | TradingEngine | _check_market_conditions:582 | 当前非交易时间 19:00，暂停接受新订单
 2025-07-12 19:49:16.557 | WARNING | TradingEngine | _check_market_conditions:582 | 当前非交易时间 19:00，暂停接受新订单
+2025-07-12 19:49:26.569 | WARNING | TradingEngine | _check_market_conditions:582 | 当前非交易时间 19:00，暂停接受新订单
+2025-07-12 19:49:31.080 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 19:49:31.080 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
+2025-07-12 19:49:36.592 | WARNING | TradingEngine | _check_market_conditions:582 | 当前非交易时间 19:00，暂停接受新订单
+2025-07-12 19:49:46.598 | WARNING | TradingEngine | _check_market_conditions:582 | 当前非交易时间 19:00，暂停接受新订单
+2025-07-12 19:49:56.608 | WARNING | TradingEngine | _check_market_conditions:582 | 当前非交易时间 19:00，暂停接受新订单
+2025-07-12 19:50:01.099 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到账户查询请求
+2025-07-12 19:50:01.099 | INFO | BaseGateway | write_log:187 | [CTP_TD] 收到持仓查询请求
