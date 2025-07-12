@@ -548,7 +548,7 @@ class WebServer:
                 return static_index_path.read_text(encoding='utf-8')
             else:
                 # 如果静态文件不存在，返回简单的错误页面
-                return '''
+        return '''
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -558,7 +558,7 @@ class WebServer:
 </head>
 <body>
     <div style="text-align: center; padding: 2rem;">
-        <h1>🚀 Homalos量化交易系统</h1>
+            <h1>🚀 Homalos量化交易系统</h1>
         <p>静态文件正在加载中...</p>
         <p><a href="/docs">查看API文档</a></p>
     </div>

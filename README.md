@@ -151,7 +151,7 @@ Use the `hatch build` command to build the project, which is recommended for fut
 
 **✅ Successfully Generated Extension Modules:**
 - `ctpmd.cp312-win_amd64.pyd` (256KB)
-- `ctptd.cp312-win_amd64.pyd` (1.2MB)
+- `ctptd.cp312-win_amd64.pyd` (1.2MB)  
 - `ttsmd.cp312-win_amd64.pyd` (255KB)
 - `ttstd.cp312-win_amd64.pyd` (1.1MB)
 

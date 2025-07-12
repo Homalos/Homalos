@@ -75,17 +75,19 @@ class BaseStrategy(ABC):
             "cancelled_orders": 0,
             "rejected_orders": 0,
             "total_trades": 0,
-            "last_trade_time": None
+            "last_trade_time": None,
+            "win_count": 0,
+            "loss_count": 0
         }
         
         # 线程安全相关
-        self.main_loop = None
-        self.main_thread_id = None
+        self.main_loop: Optional[asyncio.AbstractEventLoop] = None
+        self.main_thread_id: Optional[int] = None
         
         # 设置事件处理器
         self._setup_event_handlers()
     
-    def _setup_event_handlers(self):
+    def _setup_event_handlers(self) -> None:
         """设置事件处理器"""
         # 订阅与策略相关的事件
         self.event_bus.subscribe(f"market.tick.{self.strategy_id}", self._handle_tick_event)
@@ -94,7 +96,7 @@ class BaseStrategy(ABC):
         self.event_bus.subscribe(EventType.ORDER_CANCELLED, self._handle_order_event)
         self.event_bus.subscribe(EventType.RISK_REJECTED, self._handle_risk_rejected)
     
-    def _handle_tick_event(self, event: Event):
+    def _handle_tick_event(self, event: Event) -> None:
         """处理Tick事件"""
         tick_data = event.data
         if isinstance(tick_data, TickData):
@@ -107,7 +109,7 @@ class BaseStrategy(ABC):
             # 安全地调用策略的tick处理
             self._safe_call_async(self.on_tick(tick_data))
     
-    def _handle_bar_event(self, event: Event):
+    def _handle_bar_event(self, event: Event) -> None:
         """处理Bar事件"""
         bar_data = event.data
         if isinstance(bar_data, BarData):
@@ -118,7 +120,7 @@ class BaseStrategy(ABC):
             # 安全地调用策略的bar处理
             self._safe_call_async(self.on_bar(bar_data))
     
-    def _handle_trade_event(self, event: Event):
+    def _handle_trade_event(self, event: Event) -> None:
         """处理成交事件"""
         trade_data = event.data
         if isinstance(trade_data, TradeData):
@@ -145,7 +147,7 @@ class BaseStrategy(ABC):
                 # 调用策略的成交处理
                 self._safe_call_async(self.on_trade(trade_data))
     
-    def _handle_order_event(self, event: Event):
+    def _handle_order_event(self, event: Event) -> None:
         """处理订单事件"""
         order_data = event.data
         if isinstance(order_data, OrderData):
@@ -172,13 +174,13 @@ class BaseStrategy(ABC):
                 # 调用策略的订单处理
                 self._safe_call_async(self.on_order(order_data))
     
-    def _handle_risk_rejected(self, event: Event):
+    def _handle_risk_rejected(self, event: Event) -> None:
         """处理风控拒绝事件"""
         data = event.data
         # 可以在这里添加风控拒绝的处理逻辑
         self.write_log(f"订单被风控拒绝: {data.get('reasons', [])}", "WARNING")
 
-    def _safe_call_async(self, coro):
+    def _safe_call_async(self, coro: Any) -> None:
         """安全地调用异步方法 - 改进的线程安全版本"""
         try:
             # 方法1: 优先尝试获取当前线程的事件循环
@@ -192,13 +194,14 @@ class BaseStrategy(ABC):
         if self.main_loop and not self.main_loop.is_closed():
             try:
                 current_thread_id = threading.get_ident()
-                if current_thread_id == self.main_thread_id:
+                if current_thread_id == self.main_thread_id and self.main_loop:
                     # 同一线程，直接创建任务
                     self.main_loop.create_task(coro)
-                else:
+                elif self.main_loop:
                     # 不同线程，使用线程安全方式
                     self.main_loop.call_soon_threadsafe(
-                        lambda: self.main_loop.create_task(coro)
+                        lambda *args: self.main_loop.create_task(coro) if self.main_loop else None,
+                        ()
                     )
                 return
             except Exception as e:
@@ -211,7 +214,7 @@ class BaseStrategy(ABC):
         except Exception as e:
                          self.write_log(f"同步回退失败: {e}", "ERROR")
     
-    def _sync_fallback_handler(self, coro):
+    def _sync_fallback_handler(self, coro: Any) -> None:
         """同步回退处理器 - 当无法使用异步时的备用方案"""
 
         # 检查协程的实际方法
@@ -230,17 +233,17 @@ class BaseStrategy(ABC):
                     if tick_data:
                         self._sync_on_tick(tick_data)
                         return
-                except Exception as e:
+                except (KeyError, AttributeError, TypeError) as e:
                     self.write_log(f"提取tick_data失败: {e}", "DEBUG")
         
         # 如果无法识别或提取参数，关闭协程
         try:
             coro.close()
-        except:
+        except (AttributeError, RuntimeError):
             pass
         self.write_log("使用同步回退但无法处理该协程类型", "WARNING")
     
-    def _sync_on_tick(self, tick_data: TickData):
+    def _sync_on_tick(self, tick_data: TickData) -> None:
         """同步版本的tick处理 - 子类可重写提供同步逻辑"""
         # 默认实现：记录日志
         self.write_log(f"同步处理tick: {tick_data.symbol} @ {tick_data.last_price}", "DEBUG")
@@ -250,7 +253,7 @@ class BaseStrategy(ABC):
     
     # ============ 生命周期方法 ============
     
-    async def initialize(self):
+    async def initialize(self) -> None:
         """策略初始化"""
         if self.initialized:
             return
@@ -271,7 +274,7 @@ class BaseStrategy(ABC):
             self.write_log(f"策略初始化失败: {e}", "ERROR")
             raise
     
-    async def start(self):
+    async def start(self) -> None:
         """启动策略"""
         if not self.initialized:
             await self.initialize()
@@ -289,7 +292,7 @@ class BaseStrategy(ABC):
             self.write_log(f"策略启动失败: {e}", "ERROR")
             raise
     
-    async def stop(self):
+    async def stop(self) -> None:
         """停止策略"""
         if not self.active:
             self.write_log("策略未在运行", "WARNING")
@@ -317,29 +320,29 @@ class BaseStrategy(ABC):
         pass
     
     @abstractmethod
-    async def on_start(self):
+    async def on_start(self) -> None:
         """策略启动时调用"""
         pass
     
     @abstractmethod
-    async def on_stop(self):
+    async def on_stop(self) -> None:
         """策略停止时调用"""
         pass
     
     @abstractmethod
-    async def on_tick(self, tick: TickData):
+    async def on_tick(self, tick: TickData) -> None:
         """处理Tick行情事件"""
         pass
     
-    async def on_bar(self, bar: BarData):
+    async def on_bar(self, bar: BarData) -> None:
         """处理Bar行情事件（可选实现）"""
         pass
     
-    async def on_order(self, order: OrderData):
+    async def on_order(self, order: OrderData) -> None:
         """处理订单回报事件（可选实现）"""
         pass
     
-    async def on_trade(self, trade: TradeData):
+    async def on_trade(self, trade: TradeData) -> None:
         """处理成交回报事件（可选实现）"""
         pass
     
@@ -376,7 +379,7 @@ class BaseStrategy(ABC):
             self.write_log(f"发送订单失败: {e}", "ERROR")
             return None
     
-    async def cancel_order(self, order_id: str):
+    async def cancel_order(self, order_id: str) -> None:
         """取消指定订单"""
         try:
             # 发布撤单信号给交易引擎
@@ -394,6 +397,30 @@ class BaseStrategy(ABC):
             
         except Exception as e:
             self.write_log(f"撤单失败: {e}", "ERROR")
+    
+    async def _send_order_via_eventbus(self, order_request: OrderRequest) -> Optional[str]:
+        """通过事件总线发送订单"""
+        try:
+            # 生成订单ID
+            order_id = f"{self.strategy_id}_{int(time.time() * 1000)}"
+            
+            # 发布策略信号事件
+            self.event_bus.publish(create_trading_event(
+                EventType.STRATEGY_SIGNAL,
+                {
+                    "action": "place_order",
+                    "order_request": order_request,
+                    "strategy_id": self.strategy_id
+                },
+                f"Strategy_{self.strategy_id}"
+            ))
+            
+            self.write_log(f"订单信号已发送: {order_id}", "DEBUG")
+            return order_id
+            
+        except Exception as e:
+            self.write_log(f"发送订单信号失败: {e}", "ERROR")
+            return None
     
     # ============ 行情订阅接口 ============
     
@@ -485,7 +512,7 @@ class BaseStrategy(ABC):
             self.write_log(f"检查网关状态失败: {e}", "ERROR")
             return False
     
-    async def unsubscribe_symbols(self, symbols: List[str]):
+    async def unsubscribe_symbols(self, symbols: List[str]) -> None:
         """取消订阅行情数据"""
         try:
             # 发布取消订阅请求
@@ -517,7 +544,7 @@ class BaseStrategy(ABC):
         """获取策略参数"""
         return self.params.get(key, default)
     
-    def set_parameter(self, key: str, value: Any):
+    def set_parameter(self, key: str, value: Any) -> None:
         """设置策略参数"""
         self.params[key] = value
     
@@ -527,7 +554,7 @@ class BaseStrategy(ABC):
         """获取策略UUID"""
         return self.strategy_uuid
     
-    def write_log(self, msg: str, level: str = "INFO"):
+    def write_log(self, msg: str, level: str = "INFO") -> None:
         """写日志"""
         log_msg = f"[{self.strategy_id}] {msg}"
         

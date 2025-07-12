@@ -109,7 +109,7 @@ select = [
     "UP",  # pyupgrade
     "W",  # pycodestyle warning
 ]
-ignore = ["E501"]
+ignore = ["E501", "W293"]
 
 [tool.mypy]
 python_version = "3.12"

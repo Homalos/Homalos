@@ -75,7 +75,7 @@ class MarketDataGateway(BaseGateway):
     def __init__(self, event_bus: EventBus, name: str = "CTP_MD"):
         """
         初始化行情网关
-        
+
         Args:
             event_bus: 事件总线
             name: 网关名称，默认为"CTP_MD"
@@ -393,7 +393,7 @@ class MarketDataGateway(BaseGateway):
                 raise ValueError("缺少必要的连接参数")
             
             # 创建API实例
-            if not self.md_api:
+        if not self.md_api:
                 self.md_api = MdApi()
                 if hasattr(self.md_api, 'gateway'):
                     self.md_api.gateway = self

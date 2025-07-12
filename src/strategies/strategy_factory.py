@@ -148,11 +148,11 @@ def get_available_strategies() -> Dict[str, Dict[str, Any]]:
 
 # 示例策略配置
 EXAMPLE_STRATEGIES = {
-    "ma_ag2412": {
+    "ma_sa2509": {
         "type": "moving_average",
         "params": {
-            "symbol": "ag2412",
-            "exchange": "SHFE",
+            "symbol": "SA509",
+            "exchange": "CZCE",
             "short_window": 10,
             "long_window": 30,
             "volume": 1,
@@ -160,11 +160,11 @@ EXAMPLE_STRATEGIES = {
             "take_profit": 0.05
         }
     },
-    "grid_au2412": {
+    "grid_fg2509": {
         "type": "grid_trading",
         "params": {
-            "symbol": "au2412",
-            "exchange": "SHFE",
+            "symbol": "FG509",
+            "exchange": "CZCE",
             "grid_spacing": 5.0,
             "grid_count": 3,
             "base_volume": 1

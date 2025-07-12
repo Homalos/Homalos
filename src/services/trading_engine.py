@@ -621,7 +621,7 @@ class RiskManager:
             price_deviation = abs(order_price - last_price) / last_price
             if price_deviation > self.price_deviation_threshold:
                 violations.append(f"订单价格 {order_price} 偏离市场价格 {last_price} 超过 {self.price_deviation_threshold*100}%")
-        else:
+            else:
             # 无市场数据时记录警告，但依靠绝对限制
             logger.warning(f"无法获取 {symbol} 的最新价格，使用绝对价格限制检查")
         
@@ -1299,7 +1299,7 @@ class TradingEngine:
             "start_time": self.start_time,
             "strategies": self.strategy_manager.get_all_strategies(),
             "account_info": self.account_manager.get_total_account_info()
-        }
+        } 
         
         # 集成性能监控数据
         if self.performance_monitor:
