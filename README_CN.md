@@ -18,6 +18,9 @@ _✨ 基于 Python 的期货量化交易系统 ✨_
 
 ```reStructuredText
 Homalos_v2/
+├── 📁 config/                # 配置文件
+├── 📁 data/                  # 数据存储
+├── 📁 docs/                  # 系统文档
 ├── 📁 src/                   # 核心源代码目录
 │   ├── 📁 config/            # 配置管理
 │   ├── 📁 core/              # 系统核心模块
@@ -27,9 +30,7 @@ Homalos_v2/
 │   ├── 📁 tts/               # TTS接口模块
 │   ├── 📁 util/              # 工具模块
 │   └── 📁 web/               # Web界面
-├── 📁 config/                # 配置文件
-├── 📁 data/                  # 数据存储
-├── 📁 docs/                  # 系统文档
+├── 📁 test_data/             # 测试数据存储
 ├── 📁 log/                   # 日志存储
 └── 📁 tests/                 # 测试脚本目录
 ```

@@ -18,6 +18,9 @@ _✨ Futures quantitative trading system based on Python ✨_
 
 ```reStructuredText
 Homalos_v2/
+├── 📁 config/                # Configuration file
+├── 📁 data/                  # Data storage
+├── 📁 docs/                  # System documentation
 ├── 📁 src/                   # Core source code directory
 │   ├── 📁 config/            # Configuration management
 │   ├── 📁 core/              # System core module
@@ -27,9 +30,6 @@ Homalos_v2/
 │   ├── 📁 tts/               # TTS interface module
 │   ├── 📁 util/              # Utility module
 │   └── 📁 web/               # Web interface
-├── 📁 config/                # Configuration file
-├── 📁 data/                  # Data storage
-├── 📁 docs/                  # System documentation
 ├── 📁 log/                   # Log storage
 └── 📁 tests/                 # Test script directory
 ```
