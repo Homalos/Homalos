@@ -2002,3 +2002,5 @@
 2025-07-12 19:48:36.533 | WARNING | TradingEngine | _check_market_conditions:582 | 当前非交易时间 19:00，暂停接受新订单
 2025-07-12 19:48:46.560 | WARNING | TradingEngine | _check_market_conditions:582 | 当前非交易时间 19:00，暂停接受新订单
 2025-07-12 19:48:56.560 | WARNING | TradingEngine | _check_market_conditions:582 | 当前非交易时间 19:00，暂停接受新订单
+2025-07-12 19:49:06.557 | WARNING | TradingEngine | _check_market_conditions:582 | 当前非交易时间 19:00，暂停接受新订单
+2025-07-12 19:49:16.557 | WARNING | TradingEngine | _check_market_conditions:582 | 当前非交易时间 19:00，暂停接受新订单
