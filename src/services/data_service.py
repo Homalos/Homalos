@@ -789,11 +789,11 @@ class DataService:
                 logger.debug(f"为策略 {strategy_id} 发布bar事件: {symbol}")
 
             # 同时保持通用事件的发布
-            self.event_bus.publish(create_market_event(
-                EventType.MARKET_BAR,
-                bar_data,
-                "DataService"
-            ))
+                self.event_bus.publish(create_market_event(
+                    EventType.MARKET_BAR,
+                    bar_data,
+                    "DataService"
+                ))
             
             # 异步持久化
             if self.enable_persistence:
@@ -808,7 +808,7 @@ class DataService:
             data = event.data
             symbols = data.get("symbols", [])
             strategy_id = data.get("strategy_id", "unknown")
-            
+        
             if not symbols:
                 logger.warning(f"收到空的订阅请求: {strategy_id}")
                 return
@@ -1028,4 +1028,4 @@ class DataService:
             "buffer_size": len(self.tick_buffer),
             "subscribers_count": sum(len(subs) for subs in self.subscribers.values()),
             "db_path": str(self.db_manager.db_path)
-        } 
+        }

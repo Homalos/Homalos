@@ -39,7 +39,7 @@ class MarketDataGateway(BaseGateway):
     default_name: str = "TTS_MD"
 
     default_setting: dict[str, str] = {
-        "userid": "",
+        "user_id": "",
         "password": "",
         "broker_id": "",
         "md_address": "",
@@ -84,7 +84,8 @@ class MarketDataGateway(BaseGateway):
         if not self.md_api:
             self.md_api = TtsMdApi(self)
 
-        userid: str = setting["userid"]
+        # 兼容两种字段名：userid（转换后）和user_id（原始）
+        userid: str = setting.get("userid") or setting.get("user_id", "")
         password: str = setting["password"]
         broker_id: str = setting["broker_id"]
         md_address: str = self._prepare_address(setting["md_address"])
@@ -136,7 +137,7 @@ class TtsMdApi(MdApi):
         super().__init__()
 
         self.gateway: MarketDataGateway = gateway
-        self.gateway_name: str = gateway.name
+        self.gateway_name: str = gateway.gateway_name
 
         self.reqid: int = 0
 

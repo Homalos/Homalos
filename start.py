@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-@ProjectName: Homalos_v2
+@ProjectName: Homalos_v2  
 @FileName   : main
 @Date       : 2025/7/6 22:00
 @Author     : Donny
@@ -30,19 +30,52 @@ from src.services.data_service import DataService
 from src.web.web_server import WebServer
 from src.core.logger import get_logger
 
-# 尝试导入CTP网关（如果可用）
+# 网关导入和可用性检测
+from typing import Dict, Any
+
+# 网关类映射
+GATEWAY_CLASSES: Dict[str, Dict[str, Any]] = {}
+
+# 尝试导入CTP网关
 try:
-    from src.ctp.gateway.market_data_gateway import MarketDataGateway
-    from src.ctp.gateway.order_trading_gateway import OrderTradingGateway
+    from src.ctp.gateway.market_data_gateway import MarketDataGateway as CtpMarketDataGateway
+    from src.ctp.gateway.order_trading_gateway import OrderTradingGateway as CtpOrderTradingGateway
     CTP_AVAILABLE = True
-    MarketDataGatewayType: Type[MarketDataGateway] = MarketDataGateway
-    OrderTradingGatewayType: Type[OrderTradingGateway] = OrderTradingGateway
+    GATEWAY_CLASSES['ctp'] = {
+        'market_data': CtpMarketDataGateway,
+        'order_trading': CtpOrderTradingGateway,
+        'available': True
+    }
 except ImportError:
+    CtpMarketDataGateway = None
+    CtpOrderTradingGateway = None
     CTP_AVAILABLE = False
-    MarketDataGateway = None  # type: ignore
-    OrderTradingGateway = None  # type: ignore
-    MarketDataGatewayType = None  # type: ignore
-    OrderTradingGatewayType = None  # type: ignore
+    GATEWAY_CLASSES['ctp'] = {
+        'market_data': None,
+        'order_trading': None,
+        'available': False
+    }
+
+# 尝试导入TTS网关
+try:
+    from src.tts.gateway.market_data_gateway import MarketDataGateway as TtsMarketDataGateway
+    from src.tts.gateway.order_trading_gateway import OrderTradingGateway as TtsOrderTradingGateway
+    TTS_AVAILABLE = True
+    GATEWAY_CLASSES['tts'] = {
+        'market_data': TtsMarketDataGateway,
+        'order_trading': TtsOrderTradingGateway,
+        'available': True
+    }
+except ImportError:
+    TtsMarketDataGateway = None
+    TtsOrderTradingGateway = None
+    TTS_AVAILABLE = False
+    GATEWAY_CLASSES['tts'] = {
+        'market_data': None,
+        'order_trading': None,
+        'available': False
+    }
+
 
 logger = get_logger("HomalosSystem")
 
@@ -61,9 +94,13 @@ class HomalosSystem:
         self.data_service: Optional[DataService] = None
         self.web_server: Optional[WebServer] = None
         
-        # 网关组件
-        self.market_gateway: Optional[Union[MarketDataGateway, Any]] = None
-        self.trading_gateway: Optional[Union[OrderTradingGateway, Any]] = None
+        # 网关组件（支持多个网关）
+        self.market_gateways: Dict[str, Any] = {}
+        self.trading_gateways: Dict[str, Any] = {}
+        
+        # 向后兼容性
+        self.market_gateway: Optional[Any] = None
+        self.trading_gateway: Optional[Any] = None
         
         # 系统状态
         self.is_running = False
@@ -80,6 +117,77 @@ class HomalosSystem:
         
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
+    
+    def _get_enabled_gateways(self) -> Dict[str, Dict[str, Any]]:
+        """获取配置中启用的网关"""
+        enabled_gateways = {}
+        
+        if not self.config:
+            return enabled_gateways
+        
+        # 检查所有可能的网关配置
+        gateway_configs = {
+            'ctp': self.config.get("gateway.ctp", {}),
+            'tts': self.config.get("gateway.tts", {}),
+            'tts7x24': self.config.get("gateway.tts7x24", {})
+        }
+        
+        for gateway_key, gateway_config in gateway_configs.items():
+            if gateway_config.get("enabled", False):
+                # 确定网关类型（tts7x24 使用 tts 类）
+                gateway_type = 'tts' if gateway_key == 'tts7x24' else gateway_key
+                
+                # 检查网关是否可用
+                if GATEWAY_CLASSES.get(gateway_type, {}).get('available', False):
+                    enabled_gateways[gateway_key] = {
+                        'config': gateway_config,
+                        'type': gateway_type,
+                        'classes': GATEWAY_CLASSES[gateway_type]
+                    }
+                    logger.info(f"发现启用的网关: {gateway_key} (类型: {gateway_type})")
+                else:
+                    logger.warning(f"网关 {gateway_key} 已启用但类型 {gateway_type} 不可用")
+        
+        return enabled_gateways
+    
+    def _validate_gateway_config(self, gateway_key: str, gateway_config: Dict[str, Any], gateway_type: str) -> bool:
+        """验证网关配置的完整性"""
+        # 定义不同网关类型的必需字段
+        required_fields_map = {
+            'ctp': ["user_id", "password", "broker_id", "md_address", "td_address"],
+            'tts': ["user_id", "password", "broker_id", "md_address", "td_address"]
+        }
+        
+        required_fields = required_fields_map.get(gateway_type, [])
+        missing_fields = [field for field in required_fields if not gateway_config.get(field)]
+        
+        if missing_fields:
+            logger.error(f"{gateway_key} 网关配置不完整，缺少字段: {missing_fields}")
+            return False
+        
+        # 验证网络地址格式
+        for addr_field in ["md_address", "td_address"]:
+            if addr_field in gateway_config:
+                address = gateway_config.get(addr_field, "")
+                if address and not any(address.startswith(prefix) for prefix in ["tcp://", "ssl://", "socks://"]):
+                    gateway_config[addr_field] = "tcp://" + address
+                    logger.info(f"为 {gateway_key} 的 {addr_field} 添加 tcp:// 前缀")
+        
+        logger.info(f"{gateway_key} 网关配置验证通过")
+        return True
+    
+    def _convert_gateway_config(self, gateway_config: dict, gateway_type: str) -> dict:
+        """根据网关类型转换配置参数格式"""
+        converted_config = gateway_config.copy()
+        
+        if gateway_type == 'tts':
+            if 'user_id' in converted_config:
+                converted_config['userid'] = converted_config.pop('user_id')
+            
+            if 'app_id' in converted_config:
+                converted_config['appid'] = converted_config.pop('app_id')
+        
+        return converted_config
     
     async def initialize(self) -> bool:
         """初始化系统组件"""
@@ -128,136 +236,155 @@ class HomalosSystem:
             return False
     
     async def _initialize_gateways(self) -> None:
-        """初始化交易网关"""
+        """初始化交易网关（支持动态选择）"""
         try:
-            if not CTP_AVAILABLE:
-                logger.warning("CTP网关不可用，跳过网关初始化")
+            # 获取启用的网关
+            enabled_gateways = self._get_enabled_gateways()
+            
+            if not enabled_gateways:
+                logger.warning("未发现启用的网关，系统将在无网关模式下运行")
                 return
             
-            # CTP网关配置验证
-            if self.config:
-                ctp_config = self.config.get("gateway.ctp", {})
+            # 初始化每个启用的网关
+            for gateway_key, gateway_info in enabled_gateways.items():
+                gateway_config = gateway_info['config']
+                gateway_type = gateway_info['type']
+                gateway_classes = gateway_info['classes']
                 
-                # 详细配置验证
-                required_fields = ["user_id", "password", "broker_id", "md_address", "td_address"]
-                missing_fields = [field for field in required_fields if not ctp_config.get(field)]
-                
-                if missing_fields:
-                    logger.error(f"CTP网关配置不完整，缺少字段: {missing_fields}")
-                    logger.warning("系统将在无网关模式下运行")
-                    return
-                
-                # 验证网络地址格式
-                for addr_field in ["md_address", "td_address"]:
-                    address = ctp_config.get(addr_field, "")
-                    if not address or not any(address.startswith(prefix) for prefix in ["tcp://", "ssl://", "socks://"]):
-                        if not address.startswith("tcp://"):
-                            ctp_config[addr_field] = "tcp://" + address
-                
-                logger.info("CTP网关配置验证通过")
+                # 验证网关配置
+                if not self._validate_gateway_config(gateway_key, gateway_config, gateway_type):
+                    logger.warning(f"跳过网关 {gateway_key}，配置验证失败")
+                    continue
                 
                 # 初始化行情网关
-                logger.info("初始化CTP行情网关...")
-                if self.event_bus and MarketDataGateway:
-                    self.market_gateway = MarketDataGateway(self.event_bus, "CTP_MD")
-                    logger.info(f"行情网关已创建: {self.market_gateway.gateway_name}")
+                if gateway_classes['market_data'] and self.event_bus:
+                    logger.info(f"初始化 {gateway_key} 行情网关...")
+                    market_gateway_name = f"{gateway_type.upper()}_MD_{gateway_key}"
+                    market_gateway = gateway_classes['market_data'](self.event_bus, market_gateway_name)
+                    self.market_gateways[gateway_key] = market_gateway
+                    logger.info(f"行情网关已创建: {market_gateway.gateway_name}")
+                    
+                    # 设置主要网关（向后兼容）
+                    if not self.market_gateway:
+                        self.market_gateway = market_gateway
                 
                 # 初始化交易网关
-                logger.info("初始化CTP交易网关...")
-                if self.event_bus and OrderTradingGateway:
-                    self.trading_gateway = OrderTradingGateway(self.event_bus, "CTP_TD")
-                    logger.info(f"交易网关已创建: {self.trading_gateway.gateway_name}")
+                if gateway_classes['order_trading'] and self.event_bus:
+                    logger.info(f"初始化 {gateway_key} 交易网关...")
+                    trading_gateway_name = f"{gateway_type.upper()}_TD_{gateway_key}"
+                    trading_gateway = gateway_classes['order_trading'](self.event_bus, trading_gateway_name)
+                    self.trading_gateways[gateway_key] = trading_gateway
+                    logger.info(f"交易网关已创建: {trading_gateway.gateway_name}")
+                    
+                    # 设置主要网关（向后兼容）
+                    if not self.trading_gateway:
+                        self.trading_gateway = trading_gateway
+                
+                # 连接网关
+                await self._connect_gateway_with_timeout(gateway_key, gateway_config, gateway_type)
             
-                # 连接网关（带超时控制）
-                await self._connect_gateways_with_timeout(ctp_config)
+            if self.market_gateways or self.trading_gateways:
+                logger.info(f"网关初始化完成，已启用 {len(self.market_gateways)} 个行情网关和 {len(self.trading_gateways)} 个交易网关")
             
         except Exception as e:
             logger.error(f"网关初始化失败: {e}")
             # 继续运行，不因网关初始化失败而退出
             logger.warning("系统将在无网关模式下运行")
     
-    async def _connect_gateways_with_timeout(self, ctp_config: dict) -> None:
-        """带超时控制的网关连接"""
-        connection_timeout = 30  # 30秒连接超时
+    async def _connect_gateway_with_timeout(self, gateway_key: str, gateway_config: dict, gateway_type: str) -> None:
+        """带超时控制的单个网关连接"""
+        connection_timeout = 30  # 30秒超时
         max_retries = 3
         
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"尝试连接 {gateway_key} 网关 (第 {attempt + 1}/{max_retries} 次)...")
+                
+                # 并行连接行情和交易网关
+                tasks = []
+                
+                # 连接行情网关
+                if gateway_key in self.market_gateways:
+                    market_gateway = self.market_gateways[gateway_key]
+                    tasks.append(self._connect_single_market_gateway(
+                        market_gateway, gateway_config, connection_timeout, gateway_type
+                    ))
+                
+                # 连接交易网关
+                if gateway_key in self.trading_gateways:
+                    trading_gateway = self.trading_gateways[gateway_key]
+                    tasks.append(self._connect_single_trading_gateway(
+                        trading_gateway, gateway_config, connection_timeout, gateway_type
+                    ))
+                
+                if tasks:
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    
+                    # 检查连接结果
+                    success_count = sum(1 for result in results if not isinstance(result, Exception))
+                    if success_count > 0:
+                        logger.info(f"{gateway_key} 网关连接完成，成功连接 {success_count}/{len(tasks)} 个组件")
+                    else:
+                        logger.warning(f"{gateway_key} 网关所有组件连接失败")
+                    break
+                    
+            except asyncio.TimeoutError:
+                logger.warning(f"{gateway_key} 网关连接超时 (第 {attempt + 1} 次尝试)")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(5)  # 重试前等待5秒
+                else:
+                    logger.error(f"{gateway_key} 网关连接最终失败，已达到最大重试次数")
+            except Exception as e:
+                logger.error(f"{gateway_key} 网关连接异常 (第 {attempt + 1} 次尝试): {e}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(5)
+                else:
+                    logger.error(f"{gateway_key} 网关连接最终失败")
+                    break
+    
+    async def _connect_single_market_gateway(self, market_gateway: Any, gateway_config: dict, timeout: int, gateway_type: str) -> None:
+        """连接单个行情网关"""
         try:
-            # 连接行情网关
-            if self.market_gateway:
-                logger.info("连接行情网关...")
-                
-                for attempt in range(max_retries):
-                    try:
-                        # 使用超时控制连接
-                        connection_task = asyncio.create_task(
-                            self._connect_market_gateway(ctp_config)
-                        )
-                        await asyncio.wait_for(connection_task, timeout=connection_timeout)
-                        
-                        logger.info("行情网关连接成功")
-                        break
-                        
-                    except asyncio.TimeoutError:
-                        logger.warning(f"行情网关连接超时 (尝试 {attempt + 1}/{max_retries})")
-                        if attempt == max_retries - 1:
-                            logger.error("行情网关连接失败，已达最大重试次数")
-                    except Exception as e:
-                        logger.warning(f"行情网关连接异常: {e} (尝试 {attempt + 1}/{max_retries})")
-                        if attempt == max_retries - 1:
-                            logger.error("行情网关连接失败")
-                    
-                    # 重试前等待
-                    if attempt < max_retries - 1:
-                        await asyncio.sleep(2)
+            gateway_name = getattr(market_gateway, 'gateway_name', 'Unknown')
             
-            # 连接交易网关  
-            if self.trading_gateway:
-                logger.info("🔗 连接交易网关...")
-                
-                for attempt in range(max_retries):
-                    try:
-                        # 使用超时控制连接
-                        connection_task = asyncio.create_task(
-                            self._connect_trading_gateway(ctp_config)
-                        )
-                        await asyncio.wait_for(connection_task, timeout=connection_timeout)
-                        
-                        logger.info("交易网关连接成功")
-                        break
-                        
-                    except asyncio.TimeoutError:
-                        logger.warning(f"交易网关连接超时 (尝试 {attempt + 1}/{max_retries})")
-                        if attempt == max_retries - 1:
-                            logger.error("交易网关连接失败，已达最大重试次数")
-                    except Exception as e:
-                        logger.warning(f"交易网关连接异常: {e} (尝试 {attempt + 1}/{max_retries})")
-                        if attempt == max_retries - 1:
-                            logger.error("交易网关连接失败")
-                    
-                    # 重试前等待
-                    if attempt < max_retries - 1:
-                        await asyncio.sleep(2)
+            # 根据网关类型转换配置参数
+            converted_config = self._convert_gateway_config(gateway_config, gateway_type)
             
-            logger.info("网关连接流程完成")
-            
+            connection_task = asyncio.create_task(
+                asyncio.to_thread(market_gateway.connect, converted_config)
+            )
+            await asyncio.wait_for(connection_task, timeout=timeout)
+            logger.info(f"行情网关 {gateway_name} 连接成功")
+        except asyncio.TimeoutError:
+            gateway_name = getattr(market_gateway, 'gateway_name', 'Unknown')
+            logger.error(f"行情网关 {gateway_name} 连接超时")
+            raise
         except Exception as e:
-            logger.error(f"网关连接过程中发生严重错误: {e}")
-            # 实施回退策略
-            await self._handle_gateway_connection_failure()
+            gateway_name = getattr(market_gateway, 'gateway_name', 'Unknown')
+            logger.error(f"行情网关 {gateway_name} 连接失败: {e}")
+            raise
     
-    async def _connect_market_gateway(self, ctp_config: dict) -> None:
-        """连接行情网关"""
-        if self.market_gateway:
-            self.market_gateway.connect(ctp_config)
-            # 等待连接建立（可以根据实际API调整）
-            await asyncio.sleep(3)
-    
-    async def _connect_trading_gateway(self, ctp_config: dict) -> None:
-        """连接交易网关"""
-        if self.trading_gateway:
-            self.trading_gateway.connect(ctp_config)
-            # 等待连接建立（可以根据实际API调整）
-            await asyncio.sleep(3)
+    async def _connect_single_trading_gateway(self, trading_gateway: Any, gateway_config: dict, timeout: int, gateway_type: str) -> None:
+        """连接单个交易网关"""
+        try:
+            gateway_name = getattr(trading_gateway, 'gateway_name', 'Unknown')
+            
+            # 根据网关类型转换配置参数
+            converted_config = self._convert_gateway_config(gateway_config, gateway_type)
+            
+            connection_task = asyncio.create_task(
+                asyncio.to_thread(trading_gateway.connect, converted_config)
+            )
+            await asyncio.wait_for(connection_task, timeout=timeout)
+            logger.info(f"交易网关 {gateway_name} 连接成功")
+        except asyncio.TimeoutError:
+            gateway_name = getattr(trading_gateway, 'gateway_name', 'Unknown')
+            logger.error(f"交易网关 {gateway_name} 连接超时")
+            raise
+        except Exception as e:
+            gateway_name = getattr(trading_gateway, 'gateway_name', 'Unknown')
+            logger.error(f"交易网关 {gateway_name} 连接失败: {e}")
+            raise
     
     async def _handle_gateway_connection_failure(self) -> None:
         """处理网关连接失败的回退策略"""
@@ -331,7 +458,7 @@ class HomalosSystem:
             self.is_running = True
             self.start_time = time.time()
             
-            logger.info("🎉 Homalos量化交易系统启动成功!")
+            logger.info("Homalos量化交易系统启动成功!")
             logger.info(f"启动时间: {time.strftime('%Y-%m-%d %H:%M:%S')}")
             
             # 显示系统信息
@@ -343,9 +470,9 @@ class HomalosSystem:
                     "start_time": self.start_time,
                     "components": self.get_system_status()["components"]
                 }))
-            
-            # 主循环保持系统运行
-            await self._main_loop()
+                
+                # 主循环保持系统运行
+                await self._main_loop()
                 
         except Exception as e:
             logger.error(f"系统启动失败: {e}")
@@ -428,14 +555,25 @@ class HomalosSystem:
                 logger.info("关闭数据服务...")
                 await self.data_service.shutdown()
             
-            # 断开网关连接
-            if self.market_gateway:
-                logger.info("断开行情网关...")
-                # market_gateway.disconnect()  # 根据实际API调用
+            # 关闭所有行情网关
+            if self.market_gateways:
+                logger.info(f"关闭 {len(self.market_gateways)} 个行情网关...")
+                for gateway_key, market_gateway in self.market_gateways.items():
+                    try:
+                        logger.info(f"关闭行情网关: {gateway_key}")
+                        market_gateway.close()
+                    except Exception as e:
+                        logger.error(f"关闭行情网关 {gateway_key} 时发生错误: {e}")
             
-            if self.trading_gateway:
-                logger.info("断开交易网关...")
-                # trading_gateway.disconnect()  # 根据实际API调用
+            # 关闭所有交易网关
+            if self.trading_gateways:
+                logger.info(f"关闭 {len(self.trading_gateways)} 个交易网关...")
+                for gateway_key, trading_gateway in self.trading_gateways.items():
+                    try:
+                        logger.info(f"关闭交易网关: {gateway_key}")
+                        trading_gateway.close()
+                    except Exception as e:
+                        logger.error(f"关闭交易网关 {gateway_key} 时发生错误: {e}")
             
             # 停止服务注册中心
             if self.service_registry:

@@ -103,19 +103,33 @@ class StrategyManager:
                             user_strategy_name: Optional[str] = None,
                             params: Optional[Dict[str, Any]] = None
                             ) -> tuple[bool, str]:
-        """动态加载策略 - 自动生成UUID作为主键"""
+        """动态加载策略 - 自动生成UUID作为主键，增强异常处理"""
         params = params or {}
         
         try:
             import importlib.util
+            import os
+            
+            # 验证策略文件存在性
+            if not os.path.exists(strategy_path):
+                raise FileNotFoundError(f"策略文件不存在: {strategy_path}")
+            
+            if not strategy_path.endswith('.py'):
+                raise ValueError(f"策略文件必须是Python文件: {strategy_path}")
             
             # 动态导入策略模块
             spec = importlib.util.spec_from_file_location("strategy", strategy_path)
             if spec is None or spec.loader is None:
-                raise ValueError(f"无法加载策略文件: {strategy_path}")
+                raise ImportError(f"无法创建模块规范: {strategy_path}")
             
             module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+            
+            try:
+                spec.loader.exec_module(module)
+            except SyntaxError as e:
+                raise SyntaxError(f"策略文件语法错误: {e}")
+            except ImportError as e:
+                raise ImportError(f"策略文件依赖导入失败: {e}")
             
             # 创建策略实例 - 自动发现策略类
             strategy_class = self._find_strategy_class(module)
@@ -124,10 +138,20 @@ class StrategyManager:
             
             # 创建策略实例，传入用户提供的策略名称或自动生成
             display_name = user_strategy_name or strategy_class.__name__
-            strategy_instance = strategy_class(display_name, self.event_bus, params)
+            
+            try:
+                strategy_instance = strategy_class(display_name, self.event_bus, params)
+            except TypeError as e:
+                raise TypeError(f"策略类初始化参数错误: {e}")
+            except Exception as e:
+                raise RuntimeError(f"策略实例创建失败: {e}")
             
             # 获取策略自动生成的UUID
             strategy_uuid = strategy_instance.get_strategy_uuid()
+            
+            # 检查UUID冲突
+            if strategy_uuid in self.strategies:
+                raise ValueError(f"策略UUID冲突: {strategy_uuid}")
             
             # 注册策略信息，使用UUID作为主键
             strategy_info = StrategyInfo(
@@ -159,9 +183,10 @@ class StrategyManager:
             logger.info(f"策略加载成功: {display_name} (UUID: {strategy_uuid})")
             return True, strategy_uuid
             
-        except Exception as e:
+        except (FileNotFoundError, ValueError, ImportError, SyntaxError, TypeError, RuntimeError) as e:
+            # 分类处理已知异常类型
             error_msg = f"策略加载失败: {e}"
-            logger.error(error_msg)
+            logger.error(error_msg, exc_info=True)
             
             # 发布策略加载失败事件
             self.event_bus.publish(create_trading_event(
@@ -169,6 +194,25 @@ class StrategyManager:
                 {
                     "strategy_path": strategy_path,
                     "error": str(e),
+                    "error_type": type(e).__name__,
+                    "message": error_msg
+                },
+                "StrategyManager"
+            ))
+            
+            return False, ""
+        except Exception as e:
+            # 处理未预期的异常
+            error_msg = f"策略加载遇到未预期错误: {e}"
+            logger.error(error_msg, exc_info=True)
+            
+            # 发布策略加载失败事件
+            self.event_bus.publish(create_trading_event(
+                EventType.STRATEGY_LOAD_FAILED,
+                {
+                    "strategy_path": strategy_path,
+                    "error": str(e),
+                    "error_type": "UnexpectedError",
                     "message": error_msg
                 },
                 "StrategyManager"
@@ -177,7 +221,7 @@ class StrategyManager:
             return False, ""
     
     async def start_strategy(self, strategy_uuid: str) -> bool:
-        """启动策略 - 使用UUID作为标识符，增强网关状态检查"""
+        """启动策略 - 使用UUID作为标识符，增强网关状态检查和异常处理"""
         if strategy_uuid not in self.strategies:
             logger.error(f"策略不存在: {strategy_uuid}")
             return False
@@ -189,16 +233,27 @@ class StrategyManager:
         
         try:
             # 检查网关就绪状态
-            gateway_ready = await self._check_gateway_ready_for_strategy(strategy_info.instance)
-            if not gateway_ready:
-                logger.warning(f"网关未就绪，策略启动可能受影响: {strategy_info.strategy_name}")
-                # 继续启动，但发出警告，系统会自动处理重连
+            try:
+                gateway_ready = await self._check_gateway_ready_for_strategy(strategy_info.instance)
+                if not gateway_ready:
+                    logger.warning(f"网关未就绪，策略启动可能受影响: {strategy_info.strategy_name}")
+                    # 继续启动，但发出警告，系统会自动处理重连
+            except Exception as e:
+                logger.warning(f"网关状态检查失败: {e}，继续启动策略")
             
-            # 修改：调用策略的start()方法，这会自动处理initialize() -> on_init() -> on_start()流程
-            await strategy_info.instance.start()
+            # 调用策略的start()方法，这会自动处理initialize() -> on_init() -> on_start()流程
+            try:
+                await strategy_info.instance.start()
+            except AttributeError as e:
+                raise RuntimeError(f"策略实例缺少必要方法: {e}")
+            except asyncio.TimeoutError as e:
+                raise TimeoutError(f"策略启动超时: {e}")
+            except Exception as e:
+                raise RuntimeError(f"策略启动过程中发生错误: {e}")
             
             strategy_info.status = "running"
             strategy_info.start_time = time.time()
+            strategy_info.error_message = None  # 清除之前的错误信息
             
             # 发布策略启动成功事件
             self.event_bus.publish(create_trading_event(
@@ -215,8 +270,9 @@ class StrategyManager:
             logger.info(f"策略启动成功: {strategy_info.strategy_name} (UUID: {strategy_uuid})")
             return True
             
-        except Exception as e:
-            logger.error(f"策略启动失败 {strategy_info.strategy_name}: {e}")
+        except (RuntimeError, TimeoutError) as e:
+            # 处理已知的启动异常
+            logger.error(f"策略启动失败 {strategy_info.strategy_name}: {e}", exc_info=True)
             strategy_info.status = "error"
             strategy_info.error_message = str(e)
             
@@ -227,7 +283,28 @@ class StrategyManager:
                     "strategy_id": strategy_info.strategy_id,
                     "strategy_uuid": strategy_uuid,
                     "error": str(e),
+                    "error_type": type(e).__name__,
                     "message": f"策略 {strategy_info.strategy_name} 启动失败: {e}"
+                },
+                "StrategyManager"
+            ))
+            
+            return False
+        except Exception as e:
+            # 处理未预期的异常
+            logger.error(f"策略启动遇到未预期错误 {strategy_info.strategy_name}: {e}", exc_info=True)
+            strategy_info.status = "error"
+            strategy_info.error_message = str(e)
+            
+            # 发布策略启动失败事件
+            self.event_bus.publish(create_trading_event(
+                EventType.STRATEGY_START_FAILED,
+                {
+                    "strategy_id": strategy_info.strategy_id,
+                    "strategy_uuid": strategy_uuid,
+                    "error": str(e),
+                    "error_type": "UnexpectedError",
+                    "message": f"策略 {strategy_info.strategy_name} 启动遇到未预期错误: {e}"
                 },
                 "StrategyManager"
             ))
@@ -235,19 +312,32 @@ class StrategyManager:
             return False
     
     async def stop_strategy(self, strategy_uuid: str) -> bool:
-        """停止策略 - 使用UUID作为标识符"""
+        """停止策略 - 使用UUID作为标识符，增强异常处理"""
         if strategy_uuid not in self.strategies:
             logger.error(f"策略不存在: {strategy_uuid}")
             return False
         
         strategy_info = self.strategies[strategy_uuid]
         
+        # 检查策略状态
+        if strategy_info.status == "stopped":
+            logger.warning(f"策略已停止: {strategy_info.strategy_name} ({strategy_uuid})")
+            return True
+        
         try:
-            # 修改：调用策略的stop()方法
-            await strategy_info.instance.stop()
+            # 调用策略的stop()方法
+            try:
+                await strategy_info.instance.stop()
+            except AttributeError as e:
+                raise RuntimeError(f"策略实例缺少stop方法: {e}")
+            except asyncio.TimeoutError as e:
+                raise TimeoutError(f"策略停止超时: {e}")
+            except Exception as e:
+                raise RuntimeError(f"策略停止过程中发生错误: {e}")
             
             strategy_info.status = "stopped"
             strategy_info.stop_time = time.time()
+            strategy_info.error_message = None  # 清除错误信息
             
             # 发布策略停止成功事件
             self.event_bus.publish(create_trading_event(
@@ -264,8 +354,10 @@ class StrategyManager:
             logger.info(f"策略停止成功: {strategy_info.strategy_name} (UUID: {strategy_uuid})")
             return True
             
-        except Exception as e:
-            logger.error(f"策略停止失败 {strategy_info.strategy_name}: {e}")
+        except (RuntimeError, TimeoutError) as e:
+            # 处理已知的停止异常
+            logger.error(f"策略停止失败 {strategy_info.strategy_name}: {e}", exc_info=True)
+            strategy_info.error_message = str(e)
             
             # 发布策略停止失败事件
             self.event_bus.publish(create_trading_event(
@@ -274,7 +366,27 @@ class StrategyManager:
                     "strategy_id": strategy_info.strategy_id,
                     "strategy_uuid": strategy_uuid,
                     "error": str(e),
+                    "error_type": type(e).__name__,
                     "message": f"策略 {strategy_info.strategy_name} 停止失败: {e}"
+                },
+                "StrategyManager"
+            ))
+            
+            return False
+        except Exception as e:
+            # 处理未预期的异常
+            logger.error(f"策略停止遇到未预期错误 {strategy_info.strategy_name}: {e}", exc_info=True)
+            strategy_info.error_message = str(e)
+            
+            # 发布策略停止失败事件
+            self.event_bus.publish(create_trading_event(
+                EventType.STRATEGY_STOP_FAILED,
+                {
+                    "strategy_id": strategy_info.strategy_id,
+                    "strategy_uuid": strategy_uuid,
+                    "error": str(e),
+                    "error_type": "UnexpectedError",
+                    "message": f"策略 {strategy_info.strategy_name} 停止遇到未预期错误: {e}"
                 },
                 "StrategyManager"
             ))
@@ -1328,4 +1440,4 @@ class TradingEngine:
         """获取系统性能指标"""
         if self.performance_monitor:
             return self.performance_monitor.get_system_metrics()
-        return {} 
+        return {}

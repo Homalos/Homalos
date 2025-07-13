@@ -54,7 +54,7 @@ gateway:
     broker_id: "9999"
     md_address: "tcp://180.166.37.178:41215"
     td_address: "tcp://121.37.90.193:20002"
-    app_id: ""
+    app_id: "tts_client_test"
     auth_code: "0000000000000000"
     user_id: "12396"  # 在实际使用时填写
     password: "123456"  # 在实际使用时填写
@@ -68,7 +68,7 @@ gateway:
     broker_id: "9999"
     md_address: "tcp://121.37.80.177:20004"
     td_address: "tcp://121.37.80.177:20002"
-    app_id: ""
+    app_id: "tts_client_test"
     auth_code: "0000000000000000"
     user_id: "12396"  # 在实际使用时填写
     password: "123456"  # 在实际使用时填写

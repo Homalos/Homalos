@@ -62,7 +62,7 @@ class MarketDataGateway(BaseGateway):
     CTP行情网关 - 专门负责行情数据处理
     """
     default_setting: dict[str, str] = {
-        "userid": "",
+        "user_id": "",
         "password": "",
         "broker_id": "",
         "md_address": "",
@@ -392,7 +392,7 @@ class MarketDataGateway(BaseGateway):
             self._last_connection_config = setting.copy()
             
             # 兼容性配置字段处理
-            userid = setting.get("user_id") or setting.get("userid", "")
+            userid = setting.get("user_id", "")
             password = setting.get("password", "")
             broker_id = setting.get("broker_id", "")
             md_address = setting.get("md_address", "")

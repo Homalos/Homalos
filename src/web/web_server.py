@@ -540,30 +540,15 @@ class WebServer:
             logger.error(f"策略发现失败: {e}")
             return []
 
-    def _get_static_html(self) -> str:
+    @staticmethod
+    def _get_static_html() -> str:
         """获取静态HTML页面"""
         try:
             static_index_path = Path(__file__).parent / "static" / "index.html"
             if static_index_path.exists():
                 return static_index_path.read_text(encoding='utf-8')
             else:
-                # 如果静态文件不存在，返回简单的错误页面
-                return '''
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Homalos量化交易系统</title>
-</head>
-<body>
-    <div style="text-align: center; padding: 2rem;">
-            <h1>🚀 Homalos量化交易系统</h1>
-        <p>静态文件正在加载中...</p>
-        <p><a href="/docs">查看API文档</a></p>
-    </div>
-</body>
-</html>'''
+                return f"<html><body><h1>页面加载错误</h1><p>静态HTML文件不存在</p></body></html>"
         except Exception as e:
             logger.error(f"读取静态HTML文件失败: {e}")
             return f"<html><body><h1>页面加载错误</h1><p>{str(e)}</p></body></html>"
@@ -603,4 +588,4 @@ class WebServer:
             host=actual_host,
             port=actual_port,
             log_level="info" if not debug else "debug"
-        ) 
+        )

@@ -181,67 +181,138 @@ class BaseStrategy(ABC):
         self.write_log(f"订单被风控拒绝: {data.get('reasons', [])}", "WARNING")
 
     def _safe_call_async(self, coro: Any) -> None:
-        """安全地调用异步方法 - 改进的线程安全版本"""
+        """安全地调用异步方法 - 增强的线程安全版本"""
+        if coro is None:
+            return
+            
         try:
             # 方法1: 优先尝试获取当前线程的事件循环
-            current_loop = asyncio.get_running_loop()
-            current_loop.create_task(coro)
-            return
-        except RuntimeError:
-            pass
-        
-        # 方法2: 如果有保存的主线程事件循环，使用线程安全调用
-        if self.main_loop and not self.main_loop.is_closed():
             try:
-                current_thread_id = threading.get_ident()
-                if current_thread_id == self.main_thread_id and self.main_loop:
-                    # 同一线程，直接创建任务
-                    self.main_loop.create_task(coro)
-                elif self.main_loop:
-                    # 不同线程，使用线程安全方式
-                    self.main_loop.call_soon_threadsafe(
-                        lambda *args: self.main_loop.create_task(coro) if self.main_loop else None,
-                        ()
-                    )
-                return
+                current_loop = asyncio.get_running_loop()
+                if not current_loop.is_closed():
+                    current_loop.create_task(coro)
+                    return
+            except RuntimeError:
+                # 当前线程没有运行的事件循环
+                pass
             except Exception as e:
-                self.write_log(f"主线程事件循环调用失败: {e}", "WARNING")
+                self.write_log(f"当前事件循环调用失败: {e}", "DEBUG")
         
-        # 方法3: 同步回退 - 使用同步版本的处理器
-        try:
+            # 方法2: 如果有保存的主线程事件循环，使用线程安全调用
+            if self.main_loop and not self.main_loop.is_closed():
+                try:
+                    current_thread_id = threading.get_ident()
+                    if current_thread_id == self.main_thread_id:
+                        # 同一线程，直接创建任务
+                        self.main_loop.create_task(coro)
+                        return
+                    else:
+                        # 不同线程，使用线程安全方式
+                        def create_task_safe():
+                            try:
+                                if self.main_loop and not self.main_loop.is_closed():
+                                    self.main_loop.create_task(coro)
+                            except Exception as e:
+                                self.write_log(f"跨线程任务创建失败: {e}", "WARNING")
+                                # 如果失败，尝试同步回退
+                                self._sync_fallback_handler(coro)
+                        
+                        self.main_loop.call_soon_threadsafe(create_task_safe)
+                        return
+                except Exception as e:
+                    self.write_log(f"主线程事件循环调用失败: {e}", "WARNING")
+        
+            # 方法3: 同步回退 - 使用同步版本的处理器
             self.write_log("使用同步回退处理事件", "DEBUG")
             self._sync_fallback_handler(coro)
+            
         except Exception as e:
-                         self.write_log(f"同步回退失败: {e}", "ERROR")
+            self.write_log(f"异步调用完全失败: {e}", "ERROR")
+            # 最后的安全措施：关闭协程避免资源泄露
+            try:
+                if hasattr(coro, 'close'):
+                    coro.close()
+            except Exception:
+                pass
     
     def _sync_fallback_handler(self, coro: Any) -> None:
-        """同步回退处理器 - 当无法使用异步时的备用方案"""
-
-        # 检查协程的实际方法
-        if hasattr(coro, 'cr_frame') and coro.cr_frame:
-            func_name = coro.cr_frame.f_code.co_name
-            if func_name == 'on_tick' and hasattr(coro, 'cr_frame'):
-                # 提取tick_data参数
-                tick_data = None
-                try:
-                    # 从协程的局部变量中获取tick_data
-                    if 'tick' in coro.cr_frame.f_locals:
-                        tick_data = coro.cr_frame.f_locals['tick']
-                    elif 'tick_data' in coro.cr_frame.f_locals:
-                        tick_data = coro.cr_frame.f_locals['tick_data']
-                    
-                    if tick_data:
-                        self._sync_on_tick(tick_data)
-                        return
-                except (KeyError, AttributeError, TypeError) as e:
-                    self.write_log(f"提取tick_data失败: {e}", "DEBUG")
-        
-        # 如果无法识别或提取参数，关闭协程
+        """同步回退处理器 - 当无法使用异步时的备用方案，增强错误处理"""
+        if coro is None:
+            return
+            
         try:
-            coro.close()
-        except (AttributeError, RuntimeError):
+            # 检查协程的实际方法
+            if hasattr(coro, 'cr_frame') and coro.cr_frame:
+                try:
+                    func_name = coro.cr_frame.f_code.co_name
+                    
+                    # 处理on_tick方法
+                    if func_name == 'on_tick':
+                        tick_data = self._extract_tick_data_from_coro(coro)
+                        if tick_data:
+                            self._sync_on_tick(tick_data)
+                            return
+                    
+                    # 处理on_bar方法
+                    elif func_name == 'on_bar':
+                        bar_data = self._extract_bar_data_from_coro(coro)
+                        if bar_data:
+                            self._sync_on_bar(bar_data)
+                            return
+                    
+                    # 处理其他方法
+                    elif func_name in ['on_trade', 'on_order']:
+                        self.write_log(f"同步回退暂不支持 {func_name} 方法", "DEBUG")
+                        return
+                        
+                except (AttributeError, TypeError) as e:
+                    self.write_log(f"协程方法识别失败: {e}", "DEBUG")
+            
+            # 如果无法识别协程类型，记录警告
+            self.write_log("使用同步回退但无法处理该协程类型", "WARNING")
+            
+        except Exception as e:
+            self.write_log(f"同步回退处理异常: {e}", "ERROR")
+        finally:
+            # 确保协程被正确关闭，避免资源泄露
+            self._safe_close_coro(coro)
+    
+    def _extract_tick_data_from_coro(self, coro: Any) -> Optional[Any]:
+        """从协程中提取tick_data参数"""
+        try:
+            if hasattr(coro, 'cr_frame') and coro.cr_frame:
+                locals_dict = coro.cr_frame.f_locals
+                # 尝试多种可能的参数名
+                for param_name in ['tick', 'tick_data', 'data']:
+                    if param_name in locals_dict:
+                        return locals_dict[param_name]
+        except (AttributeError, TypeError) as e:
+            self.write_log(f"提取tick_data失败: {e}", "DEBUG")
+        return None
+    
+    def _extract_bar_data_from_coro(self, coro: Any) -> Optional[Any]:
+        """从协程中提取bar_data参数"""
+        try:
+            if hasattr(coro, 'cr_frame') and coro.cr_frame:
+                locals_dict = coro.cr_frame.f_locals
+                # 尝试多种可能的参数名
+                for param_name in ['bar', 'bar_data', 'data']:
+                    if param_name in locals_dict:
+                        return locals_dict[param_name]
+        except (AttributeError, TypeError) as e:
+            self.write_log(f"提取bar_data失败: {e}", "DEBUG")
+        return None
+    
+    def _safe_close_coro(self, coro: Any) -> None:
+        """安全地关闭协程"""
+        try:
+            if hasattr(coro, 'close'):
+                coro.close()
+        except (AttributeError, RuntimeError, GeneratorExit) as e:
+            # 这些异常是正常的，不需要记录
             pass
-        self.write_log("使用同步回退但无法处理该协程类型", "WARNING")
+        except Exception as e:
+            self.write_log(f"关闭协程时发生异常: {e}", "DEBUG")
     
     def _sync_on_tick(self, tick_data: TickData) -> None:
         """同步版本的tick处理 - 子类可重写提供同步逻辑"""
@@ -250,6 +321,13 @@ class BaseStrategy(ABC):
         
         # 这里可以添加基本的交易逻辑，比如检查条件并下单
         # 子类应该重写这个方法来实现具体的同步交易逻辑
+    
+    def _sync_on_bar(self, bar_data) -> None:
+        """同步版本的bar处理 - 子类可重写提供同步逻辑"""
+        # 默认实现：记录日志
+        self.write_log(f"同步处理bar: {bar_data.symbol} @ {bar_data.close_price if hasattr(bar_data, 'close_price') else 'N/A'}", "DEBUG")
+        
+        # 子类应该重写这个方法来实现具体的同步bar处理逻辑
     
     # ============ 生命周期方法 ============
     
@@ -469,7 +547,7 @@ class BaseStrategy(ABC):
             else:
                 self.write_log("事件总线不可用，无法订阅行情", "ERROR")
                 return False
-                
+            
         except Exception as e:
             self.write_log(f"订阅行情失败: {e}", "ERROR")
             return False

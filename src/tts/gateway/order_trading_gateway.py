@@ -103,7 +103,7 @@ class TtsTdApi(TdApi):
         super().__init__()
 
         self.gateway: OrderTradingGateway = gateway
-        self.gateway_name: str = gateway.name
+        self.gateway_name: str = gateway.gateway_name
 
         self.req_id: int = 0
         self.order_ref: int = 0
