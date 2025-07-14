@@ -28,12 +28,13 @@ database:
   flush_interval: 5
   connection_pool_size: 10
   enable_wal: true  # 启用WAL模式提高并发性能
+  timezone: "UTC"
 
 # 交易网关配置
 gateway:
   # CTP配置
   ctp:
-    enabled: false
+    enabled: true
     broker_id: "9999"
     md_address: "tcp://182.254.243.31:30011"
     td_address: "tcp://182.254.243.31:30001"
@@ -53,7 +54,7 @@ gateway:
     broker_id: "9999"
     md_address: "tcp://180.166.37.178:41215"
     td_address: "tcp://121.37.90.193:20002"
-    app_id: ""
+    app_id: "tts_client_test"
     auth_code: "0000000000000000"
     user_id: "12396"  # 在实际使用时填写
     password: "123456"  # 在实际使用时填写
@@ -63,11 +64,11 @@ gateway:
     reconnect_interval: 5
     max_reconnect_attempts: 10
   tts7x24:
-    enabled: true
+    enabled: false
     broker_id: "9999"
     md_address: "tcp://121.37.80.177:20004"
     td_address: "tcp://121.37.80.177:20002"
-    app_id: ""
+    app_id: "tts_client_test"
     auth_code: "0000000000000000"
     user_id: "12396"  # 在实际使用时填写
     password: "123456"  # 在实际使用时填写
@@ -98,6 +99,83 @@ strategy:
   default_params:
     initial_capital: 100000
     max_drawdown: 0.1
+
+# 策略增强管理配置
+strategy_management:
+  # 依赖检查配置
+  dependency_check:
+    enabled: true
+    cache_ttl: 300  # 缓存时间（秒）
+    timeout: 30     # 检查超时时间（秒）
+    retry_attempts: 3
+    checks:
+      gateway_connection: true
+      contract_info: true
+      account_balance: true
+      market_hours: true
+      risk_limits: true
+      data_feed: true
+  
+  # 策略验证配置
+  strategy_validation:
+    enabled: true
+    cache_ttl: 600  # 缓存时间（秒）
+    timeout: 60     # 验证超时时间（秒）
+    validations:
+      syntax_check: true
+      required_methods: true
+      parameter_validation: true
+      risk_rules: true
+      compatibility_check: true
+    # 代码复杂度限制
+    complexity_limits:
+      max_cyclomatic_complexity: 10
+      max_method_lines: 100
+      max_class_methods: 20
+  
+  # 健康监控配置
+  health_monitoring:
+    enabled: true
+    check_interval: 30      # 健康检查间隔（秒）
+    metrics_window: 300     # 指标统计窗口（秒）
+    auto_recovery: true     # 启用自动恢复
+    max_recovery_attempts: 3
+    
+    # 健康阈值
+    thresholds:
+      max_error_rate: 0.05        # 最大错误率（5%）
+      max_latency_ms: 1000        # 最大延迟（毫秒）
+      min_success_rate: 0.95      # 最小成功率（95%）
+      max_memory_usage_mb: 500    # 最大内存使用（MB）
+      max_cpu_usage_percent: 80   # 最大CPU使用率（%）
+    
+    # 异常检测配置
+    anomaly_detection:
+      enabled: true
+      sensitivity: 0.8  # 敏感度（0-1）
+      min_samples: 10   # 最小样本数
+  
+  # 事件处理配置
+  event_handling:
+    enabled: true
+    persistence: true
+    database_path: "data/strategy_events.db"
+    
+    # 事件过滤配置
+    filters:
+      min_priority: "INFO"  # 最小事件优先级
+      max_age_hours: 168    # 事件最大保存时间（小时，7天）
+    
+    # 事件聚合配置
+    aggregation:
+      enabled: true
+      window_size: 60       # 聚合窗口（秒）
+      max_events: 1000      # 最大事件数
+    
+    # 定时任务配置
+    scheduled_tasks:
+      flush_interval: 30    # 刷新到数据库间隔（秒）
+      cleanup_interval: 3600 # 清理旧事件间隔（秒）
     
 # 数据服务配置
 data:
@@ -136,29 +214,6 @@ web:
     enable_swagger: true
     api_prefix: "/api/v1"
 
-# 日志配置
-logging:
-  level: "DEBUG"
-  console:
-    enabled: true
-    format: "{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} | {message}"
-  file:
-    enabled: true
-    path: "log/homalos_{time:YYYY-MM-DD}.log"
-    rotation: "1 day"
-    retention: "30 days"
-    compression: "zip"
-  
-  # 特定模块日志级别
-  modules:
-    event_bus: "DEBUG"
-    trading_engine: "DEBUG"
-    strategy_manager: "DEBUG"
-    risk_manager: "WARNING"
-    order_manager: "DEBUG"
-    data_service: "DEBUG"
-    ctp_gateway: "DEBUG"
-
 # 性能监控配置 - 测试环境优化
 monitoring:
   enabled: true
@@ -187,12 +242,8 @@ trading_hours:
       - ["09:00", "10:15"]   # 早盘
       - ["10:30", "11:30"]   # 早盘
       - ["13:30", "15:00"]   # 午盘
-      - ["21:00", "02:30"]   # 夜盘
-    
-    # 股票交易时段
-    stocks:
-      - ["09:30", "11:30"]   # 早盘
-      - ["13:00", "15:00"]   # 午盘
+      - ["21:00", "02:30"]   # 夜盘(某些品种)
+      - ["21:00", "23:00"]   # 夜盘(大部分品种)
 
 # 邮件通知配置（可选）
 email:
@@ -220,4 +271,4 @@ external_data:
     enabled: false
     
   wind:
-    enabled: false 
+    enabled: false
