@@ -92,11 +92,15 @@ Both modules contain:
 - `meson.build`: Build configuration
 
 #### 5. **Configuration System** (`config/`)
+- **2024/2025_holidays.json**: Trading calendar
+- **brokers.json**: Broker configuration
+- **instrument_exchange_id.json**: Contract exchange mapping
+- **log_config.yaml**: Log global configuration
+- **product_info.ini**: Product information
 - **system.yaml**: Global system configuration
 - **global_config.yaml**: Global system configuration
-- **brokers.json**: Broker configuration
-- **2024/2025_holidays.json**: Trading calendar
-- **instrument_exchange_id.json**: Contract exchange mapping
+- **system.yaml.example**: Global system configuration template
+- **test_system.yaml**: Test mode global system configuration
 
 ### 🚀 Build System Features
 

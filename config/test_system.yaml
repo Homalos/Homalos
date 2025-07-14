@@ -100,29 +100,6 @@ web:
     enable_swagger: false
     api_prefix: "/api/v1"
 
-# 日志配置 - 测试环境
-logging:
-  level: "DEBUG"
-  console:
-    enabled: true
-    format: "{time:HH:mm:ss} | {level} | {name} | {message}"
-  file:
-    enabled: false               # 测试时关闭文件日志
-    path: "test_logs/homalos_test_{time:YYYY-MM-DD}.log"
-    rotation: "1 day"
-    retention: "7 days"
-    compression: "zip"
-  
-  # 特定模块日志级别
-  modules:
-    event_bus: "INFO"
-    trading_engine: "DEBUG"
-    strategy_manager: "DEBUG"
-    risk_manager: "INFO"
-    order_manager: "DEBUG"
-    data_service: "INFO"
-    ctp_gateway: "INFO"
-
 # 性能监控配置 - 测试环境极度宽松
 monitoring:
   enabled: true

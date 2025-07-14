@@ -92,11 +92,15 @@ Homalos_v2/
 - `meson.build`: 构建配置
 
 #### 5. **配置系统** (`config/`)
+- **2024/2025_holidays.json**: 交易日历
+- **brokers.json**: 券商配置
+- **instrument_exchange_id.json**: 合约交易所映射
+- **log_config.yaml**: 日志全局配置
+- **product_info.ini**: 产品信息
 - **system.yaml**: 全局系统配置
 - **global_config.yaml**: 全局系统配置
-- **brokers.json**: 券商配置
-- **2024/2025_holidays.json**: 交易日历
-- **instrument_exchange_id.json**: 合约交易所映射
+- **system.yaml.example**: 全局系统配置模板
+- **test_system.yaml**: 测试模式全局系统配置
 
 ### 🚀 构建系统特点
 
