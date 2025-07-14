@@ -23,6 +23,8 @@ from src.core.event_bus import EventBus
 from src.core.logger import get_logger
 from src.core.object import OrderRequest, OrderData, TradeData, TickData, PositionData, AccountData, Status
 from src.services.performance_monitor import PerformanceMonitor
+from src.strategies.strategy_health_monitor import StrategyHealthMonitor
+from src.strategies.strategy_event_handler import StrategyEventHandler
 
 
 logger = get_logger("TradingEngine")
@@ -72,11 +74,34 @@ class StrategyManager:
         self.strategies: Dict[str, StrategyInfo] = {}
         self.strategy_subscriptions: Dict[str, set] = defaultdict(set)  # strategy_id -> symbols
         
+        # 初始化健康监控器
+        self.health_monitor = StrategyHealthMonitor(event_bus, config)
+        
+        # 初始化事件处理器
+        self.event_handler = StrategyEventHandler(event_bus, config)
+        
+        # 策略恢复配置
+        self.auto_recovery_enabled = config.get("strategy_management.health_monitoring.auto_recovery", True)
+        self.max_recovery_attempts = config.get("strategy_management.health_monitoring.max_recovery_attempts", 3)
+        self.recovery_attempts: Dict[str, int] = {}  # 记录每个策略的恢复尝试次数
+        
         # 注册事件处理器
+        self._register_event_handlers()
+        
+        # 启动健康监控
+        asyncio.create_task(self._start_health_monitoring())
+    
+    def _register_event_handlers(self):
+        """注册事件处理器"""
         self.event_bus.subscribe("market.tick", self._handle_market_tick)
         self.event_bus.subscribe("strategy.load", self._handle_load_strategy)
         self.event_bus.subscribe("strategy.start", self._handle_start_strategy)
         self.event_bus.subscribe("strategy.stop", self._handle_stop_strategy)
+        
+        # 注册策略健康和恢复相关事件
+        self.event_bus.subscribe(EventType.STRATEGY_ANOMALY_DETECTED, self._handle_strategy_anomaly)
+        self.event_bus.subscribe(EventType.STRATEGY_RECOVERY_FAILED, self._handle_recovery_failed)
+        self.event_bus.subscribe(EventType.STRATEGY_ERROR, self._handle_strategy_error)
     
     def _find_strategy_class(self, module):
         """自动发现策略类 - 查找继承自BaseStrategy的类"""
@@ -267,6 +292,12 @@ class StrategyManager:
                 "StrategyManager"
             ))
             
+            # 将策略添加到健康监控
+            self.health_monitor.add_strategy(strategy_info.instance)
+            
+            # 重置恢复尝试计数
+            self.recovery_attempts[strategy_uuid] = 0
+            
             logger.info(f"策略启动成功: {strategy_info.strategy_name} (UUID: {strategy_uuid})")
             return True
             
@@ -350,6 +381,12 @@ class StrategyManager:
                 },
                 "StrategyManager"
             ))
+            
+            # 从健康监控中移除策略
+            self.health_monitor.remove_strategy(strategy_info.instance.strategy_id)
+            
+            # 清除恢复尝试计数
+            self.recovery_attempts.pop(strategy_uuid, None)
             
             logger.info(f"策略停止成功: {strategy_info.strategy_name} (UUID: {strategy_uuid})")
             return True
@@ -579,6 +616,182 @@ class StrategyManager:
             
         except Exception as e:
             logger.error(f"重试策略启动失败: {e}")
+    
+    async def _start_health_monitoring(self):
+        """启动健康监控"""
+        try:
+            await self.health_monitor.start_monitoring()
+            logger.info("策略健康监控已启动")
+        except Exception as e:
+            logger.error(f"启动健康监控失败: {e}")
+    
+    def _handle_strategy_anomaly(self, event: Event):
+        """处理策略异常检测事件"""
+        try:
+            data = event.data
+            strategy_uuid = data.get("strategy_uuid")
+            anomaly_type = data.get("anomaly_type")
+            
+            if not strategy_uuid or strategy_uuid not in self.strategies:
+                return
+            
+            strategy_info = self.strategies[strategy_uuid]
+            logger.warning(f"检测到策略异常: {strategy_info.strategy_name} - {anomaly_type}")
+            
+            # 如果启用了自动恢复
+            if self.auto_recovery_enabled:
+                asyncio.create_task(self._attempt_strategy_recovery(strategy_uuid, anomaly_type))
+            
+        except Exception as e:
+            logger.error(f"处理策略异常事件失败: {e}")
+    
+    def _handle_recovery_failed(self, event: Event):
+        """处理策略恢复失败事件"""
+        try:
+            data = event.data
+            strategy_uuid = data.get("strategy_uuid")
+            
+            if not strategy_uuid or strategy_uuid not in self.strategies:
+                return
+            
+            strategy_info = self.strategies[strategy_uuid]
+            attempts = self.recovery_attempts.get(strategy_uuid, 0)
+            
+            logger.error(f"策略恢复失败: {strategy_info.strategy_name}, 尝试次数: {attempts}")
+            
+            # 如果超过最大恢复尝试次数，停止策略
+            if attempts >= self.max_recovery_attempts:
+                logger.error(f"策略 {strategy_info.strategy_name} 恢复尝试次数超限，停止策略")
+                asyncio.create_task(self.stop_strategy(strategy_uuid))
+                
+                # 发布策略恢复放弃事件
+                self.event_bus.publish(create_trading_event(
+                    EventType.STRATEGY_RECOVERY_FAILED,
+                    {
+                        "strategy_uuid": strategy_uuid,
+                        "strategy_name": strategy_info.strategy_name,
+                        "reason": "超过最大恢复尝试次数",
+                        "attempts": attempts
+                    },
+                    "StrategyManager"
+                ))
+            
+        except Exception as e:
+            logger.error(f"处理策略恢复失败事件失败: {e}")
+    
+    def _handle_strategy_error(self, event: Event):
+        """处理策略错误事件"""
+        try:
+            data = event.data
+            strategy_uuid = data.get("strategy_uuid")
+            error_type = data.get("error_type")
+            
+            if not strategy_uuid or strategy_uuid not in self.strategies:
+                return
+            
+            strategy_info = self.strategies[strategy_uuid]
+            logger.error(f"策略错误: {strategy_info.strategy_name} - {error_type}")
+            
+            # 更新策略状态
+            strategy_info.status = "error"
+            strategy_info.error_message = data.get("error", "未知错误")
+            
+            # 如果是严重错误，考虑自动恢复
+            if error_type in ["RuntimeError", "ConnectionError", "TimeoutError"]:
+                if self.auto_recovery_enabled:
+                    asyncio.create_task(self._attempt_strategy_recovery(strategy_uuid, error_type))
+            
+        except Exception as e:
+            logger.error(f"处理策略错误事件失败: {e}")
+    
+    async def _attempt_strategy_recovery(self, strategy_uuid: str, issue_type: str):
+        """尝试策略恢复"""
+        try:
+            if strategy_uuid not in self.strategies:
+                return
+            
+            strategy_info = self.strategies[strategy_uuid]
+            current_attempts = self.recovery_attempts.get(strategy_uuid, 0)
+            
+            if current_attempts >= self.max_recovery_attempts:
+                logger.error(f"策略 {strategy_info.strategy_name} 已达到最大恢复尝试次数")
+                return
+            
+            # 增加恢复尝试计数
+            self.recovery_attempts[strategy_uuid] = current_attempts + 1
+            
+            logger.info(f"开始恢复策略: {strategy_info.strategy_name}, 尝试次数: {current_attempts + 1}")
+            
+            # 发布恢复开始事件
+            self.event_bus.publish(create_trading_event(
+                EventType.STRATEGY_RECOVERY_STARTED,
+                {
+                    "strategy_uuid": strategy_uuid,
+                    "strategy_name": strategy_info.strategy_name,
+                    "issue_type": issue_type,
+                    "attempt": current_attempts + 1
+                },
+                "StrategyManager"
+            ))
+            
+            # 尝试恢复策略
+            recovery_success = await self.health_monitor.attempt_recovery(strategy_uuid)
+            
+            if recovery_success:
+                logger.info(f"策略恢复成功: {strategy_info.strategy_name}")
+                
+                # 发布恢复成功事件
+                self.event_bus.publish(create_trading_event(
+                    EventType.STRATEGY_RECOVERY_COMPLETED,
+                    {
+                        "strategy_uuid": strategy_uuid,
+                        "strategy_name": strategy_info.strategy_name,
+                        "attempt": current_attempts + 1
+                    },
+                    "StrategyManager"
+                ))
+                
+                # 重置恢复尝试计数
+                self.recovery_attempts[strategy_uuid] = 0
+            else:
+                logger.warning(f"策略恢复失败: {strategy_info.strategy_name}")
+                
+                # 发布恢复失败事件
+                self.event_bus.publish(create_trading_event(
+                    EventType.STRATEGY_RECOVERY_FAILED,
+                    {
+                        "strategy_uuid": strategy_uuid,
+                        "strategy_name": strategy_info.strategy_name,
+                        "attempt": current_attempts + 1
+                    },
+                    "StrategyManager"
+                ))
+            
+        except Exception as e:
+            logger.error(f"策略恢复过程中发生异常: {e}")
+    
+    async def get_strategy_health_report(self, strategy_uuid: str) -> Optional[Dict[str, Any]]:
+        """获取策略健康报告"""
+        try:
+            if strategy_uuid not in self.strategies:
+                return None
+            
+            return await self.health_monitor.check_strategy_health(strategy_uuid)
+        except Exception as e:
+            logger.error(f"获取策略健康报告失败: {e}")
+            return None
+    
+    def get_all_strategy_health(self) -> Dict[str, Any]:
+        """获取所有策略的健康状态"""
+        try:
+            health_reports = {}
+            for strategy_uuid in self.strategies:
+                health_report = asyncio.create_task(self.get_strategy_health_report(strategy_uuid))
+                health_reports[strategy_uuid] = health_report
+            return health_reports
+        except Exception as e:
+            logger.error(f"获取所有策略健康状态失败: {e}")
+            return {}
 
 
 class RiskManager:

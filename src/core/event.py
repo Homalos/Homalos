@@ -132,6 +132,18 @@ class EventType:
     STRATEGY_STOPPED = "strategy.stopped"           # 策略停止事件
     STRATEGY_STOP_FAILED = "strategy.stop_failed"   # 策略停止失败事件
     STRATEGY_ORDER_PLACED = "strategy.order_placed"  # 策略下单事件
+    STRATEGY_ERROR = "strategy.error"               # 策略错误事件
+    
+    # 策略生命周期事件
+    STRATEGY_DEPENDENCY_CHECK = "strategy.dependency_check"
+    STRATEGY_VALIDATION_PASSED = "strategy.validation_passed"
+    STRATEGY_VALIDATION_FAILED = "strategy.validation_failed"
+    STRATEGY_HEALTH_CHECK = "strategy.health_check"
+    STRATEGY_ANOMALY_DETECTED = "strategy.anomaly_detected"
+    STRATEGY_RECOVERY_STARTED = "strategy.recovery_started"
+    STRATEGY_RECOVERY_COMPLETED = "strategy.recovery_completed"
+    STRATEGY_RECOVERY_FAILED = "strategy.recovery_failed"
+    STRATEGY_PERFORMANCE_UPDATE = "strategy.performance_update"
 
     ENGINE_STOPPED = "engine.stopped"   # 引擎停止事件
     ENGINE_STARTED = "engine.started"   # 引擎启动事件

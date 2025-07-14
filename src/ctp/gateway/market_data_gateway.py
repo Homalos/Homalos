@@ -657,10 +657,10 @@ class CtpMdApi(MdApi):
             try:
                 logger.info("🚀 登录成功，开始处理pending订阅队列")
                 if hasattr(self.gateway, '_process_pending_subscriptions'):
-                    # 兼容异步/同步实现
+                    # 使用线程安全的方式调度异步任务
                     coro = self.gateway._process_pending_subscriptions()
                     if asyncio.iscoroutine(coro):
-                        asyncio.create_task(coro)
+                        self.gateway._schedule_async_task(coro)
                     else:
                         # 同步直接调用
                         pass

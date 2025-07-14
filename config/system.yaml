@@ -99,6 +99,83 @@ strategy:
   default_params:
     initial_capital: 100000
     max_drawdown: 0.1
+
+# 策略增强管理配置
+strategy_management:
+  # 依赖检查配置
+  dependency_check:
+    enabled: true
+    cache_ttl: 300  # 缓存时间（秒）
+    timeout: 30     # 检查超时时间（秒）
+    retry_attempts: 3
+    checks:
+      gateway_connection: true
+      contract_info: true
+      account_balance: true
+      market_hours: true
+      risk_limits: true
+      data_feed: true
+  
+  # 策略验证配置
+  strategy_validation:
+    enabled: true
+    cache_ttl: 600  # 缓存时间（秒）
+    timeout: 60     # 验证超时时间（秒）
+    validations:
+      syntax_check: true
+      required_methods: true
+      parameter_validation: true
+      risk_rules: true
+      compatibility_check: true
+    # 代码复杂度限制
+    complexity_limits:
+      max_cyclomatic_complexity: 10
+      max_method_lines: 100
+      max_class_methods: 20
+  
+  # 健康监控配置
+  health_monitoring:
+    enabled: true
+    check_interval: 30      # 健康检查间隔（秒）
+    metrics_window: 300     # 指标统计窗口（秒）
+    auto_recovery: true     # 启用自动恢复
+    max_recovery_attempts: 3
+    
+    # 健康阈值
+    thresholds:
+      max_error_rate: 0.05        # 最大错误率（5%）
+      max_latency_ms: 1000        # 最大延迟（毫秒）
+      min_success_rate: 0.95      # 最小成功率（95%）
+      max_memory_usage_mb: 500    # 最大内存使用（MB）
+      max_cpu_usage_percent: 80   # 最大CPU使用率（%）
+    
+    # 异常检测配置
+    anomaly_detection:
+      enabled: true
+      sensitivity: 0.8  # 敏感度（0-1）
+      min_samples: 10   # 最小样本数
+  
+  # 事件处理配置
+  event_handling:
+    enabled: true
+    persistence: true
+    database_path: "data/strategy_events.db"
+    
+    # 事件过滤配置
+    filters:
+      min_priority: "INFO"  # 最小事件优先级
+      max_age_hours: 168    # 事件最大保存时间（小时，7天）
+    
+    # 事件聚合配置
+    aggregation:
+      enabled: true
+      window_size: 60       # 聚合窗口（秒）
+      max_events: 1000      # 最大事件数
+    
+    # 定时任务配置
+    scheduled_tasks:
+      flush_interval: 30    # 刷新到数据库间隔（秒）
+      cleanup_interval: 3600 # 清理旧事件间隔（秒）
     
 # 数据服务配置
 data:
@@ -217,4 +294,4 @@ external_data:
     enabled: false
     
   wind:
-    enabled: false 
+    enabled: false
