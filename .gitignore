@@ -4,15 +4,16 @@ __pycache__/
 build/
 dist/
 wheels/
-*.egg-info
 .mypy_cache/
 .pytest_cache/
-
 # Virtual environments
-.venv
-.idea
+.venv/
+.idea/
 # Cursor
 .cursor/
 data/
 log/
 .trae/
+config/system.yaml
+config/test_system.yaml
+config/brokers.json
