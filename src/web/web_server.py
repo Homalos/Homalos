@@ -449,12 +449,50 @@ class WebServer:
     def _serialize_event_data(self, data: Any) -> Any:
         """序列化事件数据"""
         try:
-            if hasattr(data, '__dict__'):
-                # 对象转换为字典
-                return {k: v for k, v in data.__dict__.items() if not k.startswith('_')}
-            else:
+            from enum import Enum
+            from dataclasses import is_dataclass, asdict
+            import datetime
+            
+            # 处理None值
+            if data is None:
+                return None
+            
+            # 处理基本类型
+            if isinstance(data, (str, int, float, bool)):
                 return data
-        except Exception:
+            
+            # 处理枚举类型
+            if isinstance(data, Enum):
+                return data.value
+            
+            # 处理datetime对象
+            if isinstance(data, datetime.datetime):
+                return data.isoformat()
+            
+            # 处理列表和元组
+            if isinstance(data, (list, tuple)):
+                return [self._serialize_event_data(item) for item in data]
+            
+            # 处理字典
+            if isinstance(data, dict):
+                return {k: self._serialize_event_data(v) for k, v in data.items()}
+            
+            # 处理dataclass对象
+            if is_dataclass(data):
+                # 使用asdict转换dataclass，然后递归序列化
+                data_dict = asdict(data)
+                return self._serialize_event_data(data_dict)
+            
+            # 处理其他有__dict__属性的对象
+            if hasattr(data, '__dict__'):
+                obj_dict = {k: v for k, v in data.__dict__.items() if not k.startswith('_')}
+                return self._serialize_event_data(obj_dict)
+            
+            # 其他情况转换为字符串
+            return str(data)
+            
+        except Exception as e:
+            logger.error(f"序列化事件数据失败: {e}, 数据类型: {type(data)}")
             return str(data)
     
     async def _discover_available_strategies(self) -> List[Dict[str, Any]]:

@@ -377,9 +377,9 @@ class MarketDataGateway(BaseGateway):
                 symbol_contract_map[contract.symbol] = contract
                 logger.debug(f"已同步合约数据: {contract.symbol} (来自 {gateway_name})")
                 
-                # 如果是FG509等关键合约，记录详细信息
-                if contract.symbol.startswith('FG'):
-                    logger.info(f"已同步FG系列合约: {contract.symbol}, price_tick={contract.price_tick}, exchange={contract.exchange}")
+                # # 如果是FG509等关键合约，记录详细信息
+                # if contract.symbol.startswith('FG'):
+                #     logger.info(f"已同步FG系列合约: {contract.symbol}, price_tick={contract.price_tick}, exchange={contract.exchange}")
             else:
                 logger.warning(f"收到无效的合约更新事件: {data}")
                 
