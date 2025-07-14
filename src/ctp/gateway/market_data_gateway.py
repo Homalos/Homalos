@@ -355,11 +355,11 @@ class MarketDataGateway(BaseGateway):
         except Exception as e:
             logger.error(f"处理取消订阅请求失败: {e}")
 
-    def _on_gateway_connected(self) -> None:
+    def _on_gateway_connected(self, event: Event) -> None:
         """处理网关连接成功事件"""
         self._update_connection_state(ConnectionState.CONNECTED)
 
-    def _on_gateway_disconnected(self) -> None:
+    def _on_gateway_disconnected(self, event: Event) -> None:
         """处理网关连接断开事件"""
         self._update_connection_state(ConnectionState.DISCONNECTED)
 

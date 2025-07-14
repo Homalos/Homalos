@@ -34,7 +34,7 @@ database:
 gateway:
   # CTP配置
   ctp:
-    enabled: false
+    enabled: true
     broker_id: "9999"
     md_address: "tcp://182.254.243.31:30011"
     td_address: "tcp://182.254.243.31:30001"
@@ -64,7 +64,7 @@ gateway:
     reconnect_interval: 5
     max_reconnect_attempts: 10
   tts7x24:
-    enabled: true
+    enabled: false
     broker_id: "9999"
     md_address: "tcp://121.37.80.177:20004"
     td_address: "tcp://121.37.80.177:20002"
