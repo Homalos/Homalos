@@ -19,7 +19,7 @@ class Params(object):
 
     # ----------------------------项目参数配置文件----------------------------
     broker_config_filename = "brokers.json"  # 多源服务器节点配置文件名
-    global_config_filename = "global_config.yaml"  # 全局配置文件名
+    log_config_filename = "log_config.yaml"  # 全局日志配置文件名
     # ----------------------------项目参数配置文件----------------------------
 
     # ----------------------------项目信息文件名----------------------------

@@ -214,29 +214,6 @@ web:
     enable_swagger: true
     api_prefix: "/api/v1"
 
-# 日志配置
-logging:
-  level: "DEBUG"
-  console:
-    enabled: true
-    format: "{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} | {message}"
-  file:
-    enabled: true
-    path: "log/homalos_{time:YYYY-MM-DD}.log"
-    rotation: "1 day"
-    retention: "30 days"
-    compression: "zip"
-  
-  # 特定模块日志级别
-  modules:
-    event_bus: "DEBUG"
-    trading_engine: "DEBUG"
-    strategy_manager: "DEBUG"
-    risk_manager: "WARNING"
-    order_manager: "DEBUG"
-    data_service: "DEBUG"
-    ctp_gateway: "DEBUG"
-
 # 性能监控配置 - 测试环境优化
 monitoring:
   enabled: true
@@ -265,8 +242,8 @@ trading_hours:
       - ["09:00", "10:15"]   # 早盘
       - ["10:30", "11:30"]   # 早盘
       - ["13:30", "15:00"]   # 午盘
-      - ["21:00", "02:30"]   # 夜盘
-      - ["21:00", "23:00"]   # 某些品种
+      - ["21:00", "02:30"]   # 夜盘(某些品种)
+      - ["21:00", "23:00"]   # 夜盘(大部分品种)
 
 # 邮件通知配置（可选）
 email:

@@ -18,7 +18,7 @@ from typing import Optional, Any, Callable, Dict, TypeVar, cast
 
 from loguru import logger
 
-from src.config.global_config import config_settings
+from src.config.global_config import log_config_settings
 from src.config.path import GlobalPath
 
 
@@ -31,32 +31,6 @@ __all__ = [
     "get_logger",
     "logger"
 ]
-
-
-def _get_log_format(record: Any) -> str:
-    """动态获取日志格式，根据是否有网关名决定格式"""
-    # 检查是否有有效的网关名
-    has_gateway = "gateway_name" in record["extra"] and record["extra"]["gateway_name"]
-
-    if has_gateway:
-        # 带网关名的格式
-        return (
-            "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-            "<level>{level}</level> | "
-            "<magenta>{extra[gateway_name]}</magenta> | "
-            "<cyan>{extra[module_name]}</cyan> | "
-            "<cyan>{function}:{line}</cyan> | "
-            "<level>{message}</level>\n"
-        )
-    else:
-        # 不带网关名的格式
-        return (
-            "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-            "<level>{level}</level> | "
-            "<cyan>{extra[module_name]}</cyan> | "
-            "<cyan>{function}:{line}</cyan> | "
-            "<level>{message}</level>\n"
-        )
 
 
 class Logger:
@@ -76,7 +50,7 @@ class Logger:
     def __init__(self) -> None:
         self.logger = logger
         # 从全局设置中读取日志设置
-        self.log_settings: dict = config_settings.get("log", {})
+        self.log_settings: dict = log_config_settings.get("log", {})
         # 输出的最低日志级别（例如，"DEBUG"、"INFO"）。
         self.level: str = self.log_settings.get("level", "INFO")
         self.log_rotation: str = "100 MB"  # 当文件超过 100MB 时(Rotate when file exceeds 100MB)
@@ -85,6 +59,18 @@ class Logger:
         self._configure_logger()
         self.module_loggers: Dict[str, Dict[str, Any]] = {}
         self.gateway_loggers: Dict[str, Dict[str, Any]] = {}
+
+    def _get_log_format(self, record: Any) -> str:
+        """动态获取日志格式，根据是否有网关名决定格式"""
+        # 检查是否有有效的网关名
+        has_gateway = "gateway_name" in record["extra"] and record["extra"]["gateway_name"]
+
+        if has_gateway:
+            # 带网关名的格式
+            return self.log_settings.get("has_gateway_format", "")
+        else:
+            # 不带网关名的格式
+            return self.log_settings.get("no_gateway_format", "")
 
     def _configure_logger(self) -> None:
         """配置基础日志器"""
@@ -96,27 +82,27 @@ class Logger:
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # 控制台日志配置
-        if self.log_settings.get("console", True):
+        if self.log_settings.get("console", {}).get("enabled", True):
             self.logger.add(
                 sink=sys.stdout,
                 level=self.level,
-                format=_get_log_format,
+                format=self._get_log_format,
                 colorize=True,
                 filter=self._log_filter  # 添加过滤器
             )
         # 文件日志配置
-        if self.log_settings.get("file", False):
-            # 获取当前日期用于日志文件名
-            current_date = datetime.now().strftime("%Y%m%d")
+        if self.log_settings.get("file", {}).get("enabled", True):
+            # 获取日志文件名格式
+            log_file_name = self.log_settings.get("file", {}).get("name_format", "{time:YYYYMMDD}.log")
             log_path: Path = GlobalPath.log_dir_path
-            file_sink = log_path.joinpath(f"{self.module_name}_{current_date}.log")
+            file_sink = log_path.joinpath(f"{self.module_name}_{log_file_name}")
             # 信息日志（按天轮转）
             logger.add(
                 sink=file_sink,
                 level=self.level,
-                format=_get_log_format,
-                rotation=self.log_settings.get("log_rotation", "100 MB"),
-                retention=self.log_settings.get("log_retention", "7 days"),
+                format=self._get_log_format,
+                rotation=self.log_settings.get("rotation", "100 MB"),
+                retention=self.log_settings.get("retention", "7 days"),
                 encoding="utf-8",
                 enqueue=True,
                 filter=self._log_filter
@@ -310,3 +296,8 @@ def log_exceptions(module_name: Optional[str] = None) -> Callable[[Callable[...,
 
 def log(*args: Any, **kwargs: Any) -> Any:
     return default_logger.log(*args, **kwargs)
+
+
+if __name__ == '__main__':
+    log_settings = log_config_settings.get("log", {})
+    print(log_settings.get("file", {}).get("name_format", ""))

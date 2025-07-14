@@ -7,7 +7,7 @@
 @Author     : Donny
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 获取全局配置
+@Description: 获取日志全局配置
 """
 import os
 import yaml
@@ -15,16 +15,16 @@ import yaml
 from src.config.path import GlobalPath
 
 
-def get_global_config():
+def get_log_config():
     """
-    加载全局 YAML 文件配置。
+    加载全局日志 YAML 文件配置。
     Loads a YAML file.
     """
-    global_config_file_path = GlobalPath.global_config_filepath
-    if not os.path.exists(global_config_file_path):
+    log_config_file_path = GlobalPath.log_config_filepath
+    if not os.path.exists(log_config_file_path):
         return {}
     try:
-        with open(global_config_file_path, 'r', encoding='utf-8') as f:
+        with open(log_config_file_path, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
         return data if data else {}
     except yaml.YAMLError as e:
@@ -35,4 +35,4 @@ def get_global_config():
         return {}
 
 
-config_settings = get_global_config()
+log_config_settings = get_log_config()

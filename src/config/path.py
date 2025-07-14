@@ -42,8 +42,8 @@ class GlobalPath(object):
     # ------------------产品信息文件完整路径------------------------------------------------------
 
     # ------------------运行及回测配置文件完整路径-------------------------------------------------
-    # config_files/global_config.yaml，全局配置文件完整路径
-    global_config_filepath = project_files_path / Params.global_config_filename
+    # config_files/log_config.yaml，全局日志配置文件完整路径
+    log_config_filepath = project_files_path / Params.log_config_filename
 
     broker_config_filepath = project_files_path / Params.broker_config_filename
     # ------------------运行及回测配置文件完整路径-------------------------------------------------
