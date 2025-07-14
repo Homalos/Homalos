@@ -522,6 +522,7 @@ class DataService:
         
         # 注册事件处理器
         self._setup_event_handlers()
+        self._setup_data_event_handlers()
         
         logger.info("数据服务初始化完成")
     
@@ -633,9 +634,12 @@ class DataService:
             logger.error(f"记录订阅状态失败: {e}")
 
     async def _check_subscription_timeout(self, symbols: List[str], strategy_id: str) -> None:
-        """检查订阅超时"""
+        """检查订阅超时 - 增强版本，支持交易时间判断"""
         try:
             await asyncio.sleep(10)  # 等待10秒
+            
+            # 检查是否为交易时间
+            is_trading_time = self._is_trading_hours()
             
             for symbol in symbols:
                 key = f"{symbol}_{strategy_id}"
@@ -643,21 +647,66 @@ class DataService:
                     state_info = self.subscription_states[key]
                     
                     if state_info["state"] == "requested":
-                        logger.warning(f"订阅超时: {symbol} (策略: {strategy_id})")
+                        # 根据交易时间调整超时处理策略
+                        if is_trading_time:
+                            logger.warning(f"📈 交易时间订阅超时: {symbol} (策略: {strategy_id}) - 可能存在行情数据问题")
+                            # 特别关注FG509合约的超时情况
+                            if symbol == "FG509":
+                                logger.error(f"🚨 FG509合约在交易时间订阅超时！这可能表明行情数据接收存在问题")
+                        else:
+                            logger.info(f"🌙 非交易时间订阅超时: {symbol} (策略: {strategy_id}) - 属于正常现象")
                         
                         # 标记为超时并重试
                         state_info["state"] = "timeout"
                         state_info["retry_count"] += 1
+                        state_info["is_trading_time"] = is_trading_time
                         
-                        if state_info["retry_count"] < 3:
-                            logger.info(f"重试订阅: {symbol} (第{state_info['retry_count']}次)")
+                        # 只在交易时间或重试次数较少时进行重试
+                        if (is_trading_time and state_info["retry_count"] < 5) or (not is_trading_time and state_info["retry_count"] < 2):
+                            logger.info(f"重试订阅: {symbol} (第{state_info['retry_count']}次, 交易时间={is_trading_time})")
                             self._retry_subscription(symbol, strategy_id)
                         else:
-                            logger.error(f"订阅重试次数超限: {symbol}")
+                            logger.error(f"订阅重试次数超限: {symbol} (交易时间={is_trading_time})")
                             state_info["state"] = "failed"
                             
         except Exception as e:
             logger.error(f"检查订阅超时失败: {e}")
+
+    def _is_trading_hours(self) -> bool:
+        """判断当前是否为交易时间"""
+        try:
+            import datetime
+            now = datetime.datetime.now()
+            hour = now.hour
+            minute = now.minute
+            weekday = now.weekday()  # 0=Monday, 6=Sunday
+            
+            # 检查是否为工作日（周一到周五）
+            if weekday >= 5:  # 周六、周日
+                return False
+            
+            # 期货交易时间段
+            # 日盘：9:00-11:30, 13:30-15:00
+            # 夜盘：21:00-次日2:30（部分品种到1:00或23:30）
+            
+            # 日盘时间
+            morning_session = (9 <= hour < 11) or (hour == 11 and minute <= 30)
+            afternoon_session = (13 <= hour < 15) or (hour == 13 and minute >= 30)
+            
+            # 夜盘时间（简化处理，大部分品种到2:30）
+            night_session = (21 <= hour <= 23) or (0 <= hour <= 2) or (hour == 2 and minute <= 30)
+            
+            is_trading = morning_session or afternoon_session or night_session
+            
+            # 特别记录FG509相关的交易时间判断
+            if hour in [9, 13, 21, 2]:  # 关键时间点
+                logger.debug(f"交易时间判断: {now.strftime('%H:%M')} 工作日={weekday < 5} 交易时间={is_trading}")
+            
+            return is_trading
+            
+        except Exception as e:
+            logger.error(f"判断交易时间失败: {e}")
+            return True  # 出错时默认认为是交易时间，避免误判
 
     def _retry_subscription(self, symbol: str, strategy_id: str) -> None:
         """重试订阅"""
@@ -752,7 +801,14 @@ class DataService:
             
             # 异步持久化
             if self.enable_persistence:
-                asyncio.create_task(self.db_manager.save_tick_data(tick_data))
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(self.db_manager.save_tick_data(tick_data))
+                except RuntimeError:
+                    # 没有运行的事件循环，使用线程池执行
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        executor.submit(self._save_tick_data_sync, tick_data)
                 
             # K线合成
             bars = self.bar_manager.on_tick(tick_data)
@@ -797,7 +853,14 @@ class DataService:
             
             # 异步持久化
             if self.enable_persistence:
-                asyncio.create_task(self.db_manager.save_bar_data(bar_data))
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(self.db_manager.save_bar_data(bar_data))
+                except RuntimeError:
+                    # 没有运行的事件循环，使用线程池执行
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        executor.submit(self._save_bar_data_sync, bar_data)
                 
         except Exception as e:
             logger.error(f"处理bar数据失败: {e}")
@@ -899,13 +962,21 @@ class DataService:
             symbol = data.get("symbol")
             strategy_id = data.get("strategy_id")
             
+            logger.info(f"🎯 DataService收到网关订阅成功事件: symbol={symbol}, strategy_id={strategy_id}")
+            
             if symbol and strategy_id:
+                logger.info(f"为特定策略更新订阅状态: {symbol} -> {strategy_id}")
                 self.on_subscription_success(symbol, strategy_id)
             else:
                 # 如果没有指定strategy_id，为所有订阅此合约的策略更新状态
                 if symbol and symbol in self.subscribers:
-                    for strategy in self.subscribers[symbol]:
+                    strategies = list(self.subscribers[symbol])
+                    logger.info(f"为所有订阅策略更新状态: {symbol} -> {strategies}")
+                    for strategy in strategies:
                         self.on_subscription_success(symbol, strategy)
+                        logger.info(f"✅ 已更新策略 {strategy} 的订阅状态: {symbol}")
+                else:
+                    logger.warning(f"合约 {symbol} 没有找到订阅的策略")
                         
         except Exception as e:
             logger.error(f"处理网关订阅成功事件失败: {e}")
@@ -935,10 +1006,90 @@ class DataService:
             
             logger.info(f"处理取消订阅请求: 策略={strategy_id}, 合约={symbols}")
             
-            asyncio.create_task(self.unsubscribe_market_data(symbols, strategy_id))
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self.unsubscribe_market_data(symbols, strategy_id))
+            except RuntimeError:
+                # 没有运行的事件循环，直接调用同步版本
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    executor.submit(self._unsubscribe_market_data_sync, symbols, strategy_id)
             
         except Exception as e:
             logger.error(f"处理取消订阅请求失败: {e}")
+    
+    def _save_tick_data_sync(self, tick_data: TickData):
+        """同步保存tick数据"""
+        try:
+            data = {
+                "symbol": tick_data.symbol,
+                "exchange": tick_data.exchange.value,
+                "datetime": tick_data.datetime.isoformat(),
+                "last_price": tick_data.last_price,
+                "volume": tick_data.volume,
+                "turnover": tick_data.turnover,
+                "open_interest": tick_data.open_interest,
+                "bid_price_1": tick_data.bid_price_1,
+                "ask_price_1": tick_data.ask_price_1,
+                "bid_volume_1": tick_data.bid_volume_1,
+                "ask_volume_1": tick_data.ask_volume_1
+            }
+            self.db_manager._add_tick_to_batch(data)
+        except Exception as e:
+            logger.error(f"同步保存tick数据失败: {e}")
+    
+    def _save_bar_data_sync(self, bar_data: BarData):
+        """同步保存bar数据"""
+        try:
+            data = {
+                "symbol": bar_data.symbol,
+                "exchange": bar_data.exchange.value,
+                "interval": bar_data.interval.value,
+                "datetime": bar_data.datetime.isoformat(),
+                "open_price": bar_data.open_price,
+                "high_price": bar_data.high_price,
+                "low_price": bar_data.low_price,
+                "close_price": bar_data.close_price,
+                "volume": bar_data.volume,
+                "turnover": bar_data.turnover,
+                "open_interest": bar_data.open_interest
+            }
+            self.db_manager._add_bar_to_batch(data)
+        except Exception as e:
+            logger.error(f"同步保存bar数据失败: {e}")
+    
+    def _unsubscribe_market_data_sync(self, symbols: List[str], strategy_id: str):
+        """同步取消订阅行情数据"""
+        try:
+            for symbol in symbols:
+                self.subscribers[symbol].discard(strategy_id)
+                self.strategy_subscriptions[strategy_id].discard(symbol)
+                
+                # 更新订阅状态
+                key = f"{symbol}_{strategy_id}"
+                if hasattr(self, 'subscription_states') and key in self.subscription_states:
+                    self.subscription_states[key]["state"] = "unsubscribed"
+                    self.subscription_states[key]["timestamp"] = time.time()
+            
+            # 发布取消订阅事件到网关
+            if self.event_bus:
+                from src.core.event import create_trading_event
+                
+                gateway_event = create_trading_event(
+                    EventType.GATEWAY_UNSUBSCRIBE,
+                    {
+                        "symbols": symbols,
+                        "strategy_id": strategy_id
+                    },
+                    source="DataService"
+                )
+                
+                self.event_bus.publish(gateway_event)
+            
+            logger.info(f"策略 {strategy_id} 取消订阅行情: {symbols}")
+            
+        except Exception as e:
+            logger.error(f"同步取消订阅失败: {e}")
 
     def _handle_gateway_subscription_failed(self, event: Event):
         """处理网关订阅失败事件"""

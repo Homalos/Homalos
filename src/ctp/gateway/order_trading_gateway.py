@@ -858,14 +858,26 @@ class CtpTdApi(TdApi):
                 if contract:
                     self.gateway.on_contract(contract)
                     symbol_contract_map[contract.symbol] = contract
+                    
+                    # 特别记录FG509合约的加载状态
+                    if contract.symbol == "FG509":
+                        self.gateway.write_log(f"🎯 FG509合约已成功加载到symbol_contract_map: {contract.symbol} @ {contract.exchange.value}")
+                        self.gateway.write_log(f"🎯 FG509合约详情: name={contract.name}, size={contract.size}, price_tick={contract.price_tick}")
 
                 # 更新exchange_id_map，只取非纯数字的合约和6位以内的合约，即只取期货合约
                 instrument_id = data.get("InstrumentID", "")
                 if not instrument_id.isdigit() and len(instrument_id) <= 6:
                     self.instrument_exchange_id_map[instrument_id] = data.get("ExchangeID", "")
+                    
+                    # 特别记录FG509的交易所映射
+                    if instrument_id == "FG509":
+                        self.gateway.write_log(f"🎯 FG509交易所映射已更新: {instrument_id} -> {data.get('ExchangeID', '')}")
 
             except Exception as e:
                 self.gateway.write_log(f"处理合约数据失败: {e}")
+                # 特别记录FG509合约处理失败的情况
+                if data.get("InstrumentID") == "FG509":
+                    self.gateway.write_log(f"🚨 FG509合约处理失败: {e}")
 
         # 最后一次回报时的处理
         if last:
@@ -887,6 +899,20 @@ class CtpTdApi(TdApi):
                 exchange_count = len(self.instrument_exchange_id_map)
                 
                 self.gateway.write_log(f"合约信息查询成功 - 共加载 {contract_count} 个合约，{exchange_count} 个交易所映射")
+                
+                # 特别验证FG509合约加载状态
+                fg509_in_map = "FG509" in symbol_contract_map
+                fg509_in_exchange_map = "FG509" in self.instrument_exchange_id_map
+                fg_contracts = [k for k in symbol_contract_map.keys() if k.startswith('FG')]
+                
+                self.gateway.write_log(f"🔍 FG509合约验证: symbol_contract_map中存在={fg509_in_map}, exchange_map中存在={fg509_in_exchange_map}")
+                self.gateway.write_log(f"🔍 所有FG系列合约: {fg_contracts[:10]}{'...' if len(fg_contracts) > 10 else ''}")
+                
+                if not fg509_in_map:
+                    self.gateway.write_log(f"⚠️ 警告: FG509合约未在symbol_contract_map中找到！")
+                else:
+                    fg509_contract = symbol_contract_map["FG509"]
+                    self.gateway.write_log(f"✅ FG509合约加载成功: {fg509_contract.symbol} @ {fg509_contract.exchange.value}")
                 
                 # 保存合约交易所映射文件
                 try:

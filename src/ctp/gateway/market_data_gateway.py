@@ -292,6 +292,8 @@ class MarketDataGateway(BaseGateway):
             self.event_bus.subscribe(EventType.GATEWAY_UNSUBSCRIBE, self._handle_gateway_unsubscribe)
             self.event_bus.subscribe(EventType.GATEWAY_CONNECTED, self._on_gateway_connected)
             self.event_bus.subscribe(EventType.GATEWAY_DISCONNECTED, self._on_gateway_disconnected)
+            # 订阅合约更新事件，用于同步交易网关的合约数据
+            self.event_bus.subscribe(EventType.CONTRACT_UPDATED, self._handle_contract_updated)
             logger.info(f"{self.gateway_name} 网关事件处理器已注册")
         except Exception as e:
             logger.error(f"设置网关事件处理器失败: {e}")
@@ -362,6 +364,27 @@ class MarketDataGateway(BaseGateway):
     def _on_gateway_disconnected(self, event: Event) -> None:
         """处理网关连接断开事件"""
         self._update_connection_state(ConnectionState.DISCONNECTED)
+    
+    def _handle_contract_updated(self, event: Event) -> None:
+        """处理合约更新事件，同步交易网关的合约数据"""
+        try:
+            data = event.data
+            contract = data.get("contract")
+            gateway_name = data.get("gateway_name", "unknown")
+            
+            if contract and hasattr(contract, 'symbol'):
+                # 将合约数据同步到行情网关的symbol_contract_map中
+                symbol_contract_map[contract.symbol] = contract
+                logger.debug(f"已同步合约数据: {contract.symbol} (来自 {gateway_name})")
+                
+                # 如果是FG509等关键合约，记录详细信息
+                if contract.symbol.startswith('FG'):
+                    logger.info(f"已同步FG系列合约: {contract.symbol}, price_tick={contract.price_tick}, exchange={contract.exchange}")
+            else:
+                logger.warning(f"收到无效的合约更新事件: {data}")
+                
+        except Exception as e:
+            logger.error(f"处理合约更新事件失败: {e}")
 
     def get_subscription_status(self) -> dict:
         """获取订阅状态"""
@@ -707,6 +730,20 @@ class CtpMdApi(MdApi):
                     self.gateway.active_subscriptions.add(symbol)
                     logger.info(f"✅ 行情订阅成功并更新状态: {symbol}")
                     self.gateway.write_log(f"行情订阅成功: {symbol}")
+                    
+                    # 发布订阅成功事件，通知DataService更新状态
+                    from src.core.event import create_trading_event, EventType
+                    success_event = create_trading_event(
+                        EventType.GATEWAY_SUBSCRIPTION_SUCCESS,
+                        {
+                            "symbol": symbol,
+                            "gateway_name": self.gateway.gateway_name,
+                            "timestamp": time.time()
+                        },
+                        source="MarketDataGateway"
+                    )
+                    self.gateway.event_bus.publish(success_event)
+                    logger.info(f"📢 已发布订阅成功事件: {symbol}")
                 else:
                     logger.warning(f"订阅成功但合约不在pending列表: {symbol}")
             return
@@ -724,17 +761,28 @@ class CtpMdApi(MdApi):
         # 更新心跳时间
         self.gateway.last_heartbeat = time.time()
         
+        # 获取合约代码用于日志记录
+        symbol: str = data.get("InstrumentID", "UNKNOWN")
+        
+        # 增强日志记录 - 记录所有接收到的行情数据
+        logger.info(f"📥 CTP行情数据接收: {symbol} @ {data.get('UpdateTime', 'N/A')} 价格={data.get('LastPrice', 'N/A')}")
+        
+        # 特别关注FG509合约的行情数据
+        if symbol == "FG509":
+            logger.warning(f"🎯 FG509行情数据详情: UpdateTime={data.get('UpdateTime')}, LastPrice={data.get('LastPrice')}, Volume={data.get('Volume')}, ActionDay={data.get('ActionDay')}")
+        
         # 过滤没有时间戳的异常行情数据
         if not data["UpdateTime"]:
+            logger.warning(f"⚠️ 跳过无时间戳的行情数据: {symbol}")
             return
 
         # 过滤还没有收到合约数据前的行情推送
-        symbol: str = data["InstrumentID"]
-        # 添加行情数据接收日志（调试级别）
-        logger.debug(f"CTP行情API回调: onRtnDepthMarketData - 收到行情数据: {symbol} @ {data.get('LastPrice', 'N/A')}")
         contract: Optional[ContractData] = symbol_contract_map.get(symbol, None)
         if not contract:
-            logger.debug(f"跳过行情推送，合约信息不存在: {symbol}")
+            logger.warning(f"⚠️ 跳过行情推送，合约信息不存在: {symbol} (symbol_contract_map中共有{len(symbol_contract_map)}个合约)")
+            # 特别记录FG509合约映射缺失的情况
+            if symbol == "FG509":
+                logger.error(f"🚨 FG509合约未在symbol_contract_map中找到！当前映射表包含的FG合约: {[k for k in symbol_contract_map.keys() if k.startswith('FG')]}")
             return
 
         # 对大商所的交易日字段取本地日期
@@ -850,13 +898,19 @@ class CtpMdApi(MdApi):
         :return:
         """
         symbol: str = req.symbol
+        logger.info(f"🔔 CTP行情API: 准备订阅合约 {symbol}")
 
         # 过滤重复的订阅
         if symbol in self.subscribed:
+            logger.warning(f"⚠️ 合约 {symbol} 已在订阅列表中，跳过重复订阅")
             return
 
         if self.login_status:
-            self.subscribeMarketData(req.symbol)
+            logger.info(f"📡 CTP行情API: 发送订阅请求 {symbol}")
+            result = self.subscribeMarketData(req.symbol)
+            logger.info(f"📤 CTP行情API: 订阅请求已发送 {symbol}, 返回值={result}")
+        else:
+            logger.warning(f"⚠️ CTP行情API: 未登录，无法订阅 {symbol}")
         self.subscribed.add(req.symbol)
 
     def close(self) -> None:
