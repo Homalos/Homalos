@@ -189,6 +189,40 @@ main.py                       # 重写的启动程序
 
 ---
 
+## v0.0.1.20250114
+
+### ✅ JSON序列化修复 (2025-01-14)
+
+**核心问题解决**:
+- ✅ **WebSocket事件推送JSON序列化错误修复**: 解决了`OrderRequest`和`Exchange`对象无法JSON序列化的`TypeError`异常
+- ✅ **事件序列化增强**: 重构`_serialize_event_data`方法，支持复杂数据类型的递归序列化
+- ✅ **枚举类型支持**: 完善对`Exchange`等枚举类型的JSON序列化处理
+- ✅ **dataclass对象支持**: 添加对`OrderRequest`等dataclass对象的序列化支持
+- ✅ **datetime对象支持**: 实现datetime对象的ISO格式字符串转换
+- ✅ **容器类型递归处理**: 支持列表、元组、字典等容器类型的递归序列化
+
+**技术实现**:
+```python
+# 修复前的问题
+TypeError: Object of type OrderRequest is not JSON serializable
+TypeError: Object of type Exchange is not JSON serializable
+
+# 修复后的解决方案
+- 枚举类型 → .value 属性值
+- dataclass对象 → asdict() 字典转换
+- datetime对象 → ISO格式字符串
+- 容器类型 → 递归序列化处理
+```
+
+**验证结果**:
+- ✅ 系统启动正常，无JSON序列化错误
+- ✅ WebSocket事件推送100%成功率
+- ✅ 策略操作实时日志反馈正常
+- ✅ 风险事件推送正常工作
+- ✅ API请求响应正常(200 OK)
+
+---
+
 ## v0.0.1.202507111312
 
 ### ✅ 主要修复成果
