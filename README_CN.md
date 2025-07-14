@@ -24,7 +24,7 @@ _✨ 基于 Python 的期货量化交易系统 ✨_
 ## 项目整体架构
 
 ```reStructuredText
-Homalos_v2/
+Homalos/
 ├── 📁 config/                # 配置文件
 ├── 📁 data/                  # 数据存储
 ├── 📁 docs/                  # 系统文档

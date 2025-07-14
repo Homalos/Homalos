@@ -24,7 +24,7 @@ _✨ Futures quantitative trading system based on Python ✨_
 ## Overall Architecture of the Project
 
 ```reStructuredText
-Homalos_v2/
+Homalos/
 ├── 📁 config/                # Configuration file
 ├── 📁 data/                  # Data storage
 ├── 📁 docs/                  # System documentation
