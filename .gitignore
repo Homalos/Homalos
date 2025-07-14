@@ -16,3 +16,5 @@ wheels/
 data/
 log/
 .trae/
+config/brokers.json
+config/system.yaml

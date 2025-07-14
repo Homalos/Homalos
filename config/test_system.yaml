@@ -35,8 +35,8 @@ gateway:
     td_address: "tcp://182.254.243.31:30001"
     app_id: "simnow_client_test"
     auth_code: "0000000000000000"
-    user_id: "160219"
-    password: "donny@103010"
+    user_id: ""
+    password: ""
     product_info: ""
     md_timeout: 10
     td_timeout: 10

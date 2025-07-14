@@ -40,8 +40,8 @@ gateway:
     td_address: "tcp://182.254.243.31:30001"
     app_id: "simnow_client_test"
     auth_code: "0000000000000000"
-    user_id: ""  # 在实际使用时填写
-    password: ""  # 在实际使用时填写
+    user_id: "160219"  # 在实际使用时填写
+    password: "donny@103010"  # 在实际使用时填写
     product_info: ""
     md_timeout: 30
     td_timeout: 30
@@ -56,8 +56,8 @@ gateway:
     td_address: "tcp://121.37.90.193:20002"
     app_id: "tts_client_test"
     auth_code: "0000000000000000"
-    user_id: ""  # 在实际使用时填写
-    password: ""  # 在实际使用时填写
+    user_id: "12396"  # 在实际使用时填写
+    password: "123456"  # 在实际使用时填写
     product_info: ""
     md_timeout: 30
     td_timeout: 30
@@ -70,8 +70,8 @@ gateway:
     td_address: "tcp://121.37.80.177:20002"
     app_id: "tts_client_test"
     auth_code: "0000000000000000"
-    user_id: ""  # 在实际使用时填写
-    password: ""  # 在实际使用时填写
+    user_id: "12396"  # 在实际使用时填写
+    password: "123456"  # 在实际使用时填写
     product_info: ""
     md_timeout: 30
     td_timeout: 30
