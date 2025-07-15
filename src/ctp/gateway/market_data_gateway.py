@@ -11,6 +11,7 @@
 """
 import asyncio
 import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Any
@@ -859,7 +860,15 @@ class CtpMdApi(MdApi):
         # 禁止重复发起连接，会导致异常崩溃
         if not self.connect_status:
             path: Path = get_folder_path(self.gateway_name.lower())
-            self.createFtdcMdApi((str(path) + "\\md").encode("GBK").decode("utf-8"))  # 加上utf-8编码，否则中文路径会乱码
+            api_path_str = str(path) + "\\md"
+            self.gateway.write_log("CtpMdApi：尝试创建路径为 {} 的 API".format(api_path_str))
+            try:
+                self.createFtdcMdApi(api_path_str.encode("GBK").decode("utf-8"))  # 加上utf-8编码，否则中文路径会乱码
+                self.gateway.write_log("CtpMdApi：createFtdcMdApi调用成功。")
+            except Exception as e_create:
+                self.gateway.write_log("CtpMdApi：createFtdcMdApi 失败！错误：{}".format(e_create))
+                self.gateway.write_log("CtpMdApi：createFtdcMdApi 回溯：{}".format(traceback.format_exc()))
+                return
 
             self.registerFront(address)
             self.init()

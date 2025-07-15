@@ -68,8 +68,8 @@ class OrderTradingGateway(BaseGateway):
         """初始化网关"""
         super().__init__(event_bus, gateway_name)
 
-        self.count = 0
         self.td_api: Optional[CtpTdApi] = None
+        self.count: int = 0
         
         # 网关状态管理
         self._gateway_state: GatewayState = GatewayState.DISCONNECTED
@@ -90,7 +90,8 @@ class OrderTradingGateway(BaseGateway):
         try:
             current_dir = os.path.dirname(os.path.abspath(__file__))
             # 构建到 instrument_exchange_id.json 的相对路径
-            map_file_path = os.path.join(current_dir, "..", "..", "..", "config", "instrument_exchange_id.json")
+            # map_file_path = os.path.join(current_dir, "..", "..", "..", "config", instrument_exchange_id_filename)
+            map_file_path = GlobalPath.instrument_exchange_id_filepath
             map_file_path = os.path.normpath(map_file_path) # 规范化路径
 
             if os.path.exists(map_file_path):
@@ -316,8 +317,6 @@ class OrderTradingGateway(BaseGateway):
             self.write_log(f"处理下单请求失败: {e}")
             # 使用线程安全的方式发布订单发送失败事件
             self._safe_publish_event("order.send_failed", {
-                "order_request": data.get("order_request"),
-                "order_data": data.get("order_data"),
                 "reason": f"异常: {e}"
             })
 
@@ -1171,7 +1170,7 @@ class CtpTdApi(TdApi):
 
         if not self.connect_status:
             path: Path = get_folder_path(self.gateway_name.lower())
-            api_path_str = str(path) + "\\md"
+            api_path_str = str(path) + "\\td"
             self.gateway.write_log("CtpTdApi：尝试创建路径为 {} 的 API".format(api_path_str))
             try:
                 self.createFtdcTraderApi(api_path_str.encode("GBK").decode("utf-8"))
