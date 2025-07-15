@@ -30,6 +30,7 @@ from src.ctp.api import MdApi
 from src.ctp.gateway.ctp_mapping import EXCHANGE_CTP2VT
 from src.util.utility import ZoneInfo, get_folder_path
 
+
 logger = get_logger("MarketDataGateway")
 
 # 其他常量
@@ -66,6 +67,7 @@ class MarketDataGateway(BaseGateway):
             None
         """
         super().__init__(event_bus, gateway_name)
+        self.gateway_name = gateway_name
         
         # CTP API相关
         self.md_api: CtpMdApi | None = None
@@ -468,7 +470,7 @@ class MarketDataGateway(BaseGateway):
                 await asyncio.sleep(wait_time)
                 
                 try:
-                    self.write_log(f"尝试自动重连 ({self._current_reconnect_attempts}/{self._max_reconnect_attempts})")
+                    logger.info(f"尝试自动重连 ({self._current_reconnect_attempts}/{self._max_reconnect_attempts})")
                     if self._last_connection_config:
                         self.connect(self._last_connection_config)
                     
@@ -501,12 +503,12 @@ class MarketDataGateway(BaseGateway):
         :return:
         """
         if not self.md_api or not getattr(self.md_api, 'connect_status', False):
-            self.write_log("无法订阅行情：行情接口未连接或未初始化。")
+            logger.info("无法订阅行情：行情接口未连接或未初始化。")
             return
         if hasattr(self.md_api, 'subscribe'):
             self.md_api.subscribe(req)
         else:
-            self.write_log("行情API不支持subscribe方法")
+            logger.info("行情API不支持subscribe方法")
 
     def close(self) -> None:
         """
@@ -517,19 +519,7 @@ class MarketDataGateway(BaseGateway):
             if hasattr(self.md_api, 'close'):
                 self.md_api.close()
             else:
-                self.write_log("行情API不支持close方法")
-
-    def write_error(self, msg: str, error: dict) -> None:
-        """
-        输出错误信息日志
-        :param msg:
-        :param error:
-        :return:
-        """
-        error_id = error.get("ErrorID", "N/A")
-        error_msg = error.get("ErrorMsg", str(error))
-        log_msg = f"{msg}，{'代码'}：{error_id}，{'信息'}：{error_msg}"
-        self.write_log(log_msg)
+                logger.warning("行情API不支持close方法")
 
     def process_timer_event(self) -> None:
         """
@@ -577,8 +567,7 @@ class CtpMdApi(MdApi):
         服务器连接成功回报
         :return:
         """
-        logger.info("CTP行情API回调: onFrontConnected - 服务器连接成功")
-        self.gateway.write_log("行情服务器连接成功")
+        logger.info("CTP行情API回调: onFrontConnected - 行情服务器连接成功")
         # self.gateway._update_connection_state(ConnectionState.CONNECTED)
         # 发布事件代替直接调用 protected 方法
         self.gateway.event_bus.publish(Event(
@@ -624,7 +613,7 @@ class CtpMdApi(MdApi):
             0x2003: "收到错误报文"
         }.get(reason, f"未知原因({reason_hex})")
         
-        self.gateway.write_log(f"行情服务器连接断开，原因：{reason_msg} ({reason_hex})")
+        logger.info(f"行情服务器连接断开，原因：{reason_msg} ({reason_hex})")
         
         # 触发连接丢失处理
         asyncio.create_task(self.gateway._handle_connection_lost())
@@ -649,7 +638,7 @@ class CtpMdApi(MdApi):
             global_var.md_login_success = True
             self.gateway._update_connection_state(ConnectionState.LOGGED_IN)
             self.gateway.login_state = LoginState.LOGGED_IN
-            self.gateway.write_log("行情服务器登录成功")
+            logger.info("行情服务器登录成功")
             
             # 更新心跳时间
             self.gateway.last_heartbeat = time.time()
@@ -669,10 +658,9 @@ class CtpMdApi(MdApi):
                         # 同步直接调用
                         pass
                 logger.info("pending订阅队列处理任务已创建")
-                self.gateway.write_log("登录成功后已触发pending订阅队列处理")
+                logger.info("登录成功后已触发pending订阅队列处理")
             except Exception as e:
                 logger.error(f"处理pending订阅队列异常: {e}")
-                self.gateway.write_log(f"处理pending订阅队列异常: {e}")
         else:
             logger.error(f"行情服务器登录失败: {error}")
             self.gateway._update_connection_state(ConnectionState.ERROR)
@@ -709,9 +697,8 @@ class CtpMdApi(MdApi):
                 if symbol in self.gateway.pending_subscriptions:
                     self.gateway.pending_subscriptions.discard(symbol)
                     self.gateway.active_subscriptions.add(symbol)
-                    logger.info(f"✅ 行情订阅成功并更新状态: {symbol}")
-                    self.gateway.write_log(f"行情订阅成功: {symbol}")
-                    
+                    logger.info(f"行情订阅成功并更新状态: {symbol}")
+
                     # 发布订阅成功事件，通知DataService更新状态
                     from src.core.event import create_trading_event, EventType
                     success_event = create_trading_event(
@@ -826,7 +813,7 @@ class CtpMdApi(MdApi):
         :param last: 指示该次返回是否为针对 reqid 的最后一次返回。
         :return: 无
         """
-        self.gateway.write_log("行情账户：{} 已登出".format(data['UserID']))
+        logger.info("行情账户：{} 已登出".format(data['UserID']))
 
     def connect(self, address: str, userid: str, password: str, brokerid: str) -> None:
         """
@@ -845,23 +832,23 @@ class CtpMdApi(MdApi):
         if not self.connect_status:
             path: Path = get_folder_path(self.gateway_name.lower())
             api_path_str = str(path) + "\\md"
-            self.gateway.write_log("CtpMdApi：尝试创建路径为 {} 的 API".format(api_path_str))
+            logger.info("CtpMdApi：尝试创建路径为 {} 的 API".format(api_path_str))
             try:
                 self.createFtdcMdApi(api_path_str.encode("GBK").decode("utf-8"))  # 加上utf-8编码，否则中文路径会乱码
-                self.gateway.write_log("CtpMdApi：createFtdcMdApi调用成功。")
+                logger.info("CtpMdApi：createFtdcMdApi调用成功。")
             except Exception as e_create:
-                self.gateway.write_log("CtpMdApi：createFtdcMdApi 失败！错误：{}".format(e_create))
-                self.gateway.write_log("CtpMdApi：createFtdcMdApi 回溯：{}".format(traceback.format_exc()))
+                logger.error("CtpMdApi：createFtdcMdApi 失败！错误：{}".format(e_create))
+                logger.error("CtpMdApi：createFtdcMdApi 回溯：{}".format(traceback.format_exc()))
                 return
 
             self.registerFront(address)
-            self.gateway.write_log("CtpMdApi：尝试使用地址初始化 API：{}...".format(address))
+            logger.info("CtpMdApi：尝试使用地址初始化 API：{}...".format(address))
             try:
                 self.init()
-                self.gateway.write_log("CtpMdApi：init 调用成功。")
+                logger.info("CtpMdApi：init 调用成功。")
             except Exception as e_init:
-                self.gateway.write_log("CtpMdApi：初始化失败！错误：{}".format(e_init))
-                self.gateway.write_log("CtpMdApi：初始化回溯：{}".format(traceback.format_exc()))
+                logger.error("CtpMdApi：初始化失败！错误：{}".format(e_init))
+                logger.error("CtpMdApi：初始化回溯：{}".format(traceback.format_exc()))
                 return
 
             self.connect_status = True

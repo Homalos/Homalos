@@ -23,6 +23,7 @@ class TradingMonitor:
         self.trades = []
         self.accounts = []
         self.positions = []
+        self.balance: float = 0.0
         
     def __call__(self, event):
         if event.type.startswith("market.tick"):
@@ -38,8 +39,11 @@ class TradingMonitor:
             
         elif event.type == "account.updated":
             self.accounts.append(event.data)
-            print(f"[ACCOUNT] 账户更新: 余额={event.data.balance:.2f} 可用={event.data.available:.2f} 冻结={event.data.frozen:.2f}")
-            
+            new_balance = event.data.balance
+            if new_balance != self.balance:
+                print(f"[ACCOUNT] 账户更新: 余额={event.data.balance:.2f} 可用={event.data.available:.2f} 冻结={event.data.frozen:.2f}")
+            self.balance = new_balance
+
         elif event.type == "position.updated":
             self.positions.append(event.data)
             print(f"[POSITION] 持仓更新: {event.data.symbol} {event.data.direction.value} 数量={event.data.volume} 价格={event.data.price:.2f} 盈亏={event.data.pnl:.2f}")

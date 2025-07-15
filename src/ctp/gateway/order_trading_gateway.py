@@ -24,7 +24,7 @@ from src.config import global_var
 from src.config.constant import Status, Exchange, Direction, OrderType
 from src.config.global_var import product_info, instrument_exchange_id_map
 from src.config.path import GlobalPath
-from src.core.event import Event
+from src.core.event import Event, EventType
 from src.core.gateway import BaseGateway
 from src.core.object import ContractData, PositionData, OrderData, AccountData, TradeData, OrderRequest, CancelRequest
 from src.ctp.api import TdApi, THOST_FTDC_HF_Speculation, THOST_FTDC_CC_Immediately, THOST_FTDC_FCC_NotForceClose, \
@@ -75,6 +75,7 @@ class OrderTradingGateway(BaseGateway):
             None
         """
         super().__init__(event_bus, gateway_name)
+        self.gateway_name = gateway_name
 
         # CTP API相关
         # self.td_api: Optional[CtpTdApi] = None
@@ -127,7 +128,7 @@ class OrderTradingGateway(BaseGateway):
             thread_info = f"[线程:{current_thread.name}]"
             
             # 发布状态变更事件（线程安全）
-            self._safe_publish_event("gateway.state_changed", {
+            self._safe_publish_event(EventType.GATEWAY_STATE_CHANGED, {
                 "gateway_name": self.gateway_name,
                 "old_state": old_state.value,
                 "new_state": new_state.value,
@@ -205,14 +206,9 @@ class OrderTradingGateway(BaseGateway):
             self.event_bus.subscribe("gateway.query_account", self._handle_query_account)
             self.event_bus.subscribe("gateway.query_position", self._handle_query_position)
             
-            # 导入logger
-            from src.core.logger import get_logger
-            logger = get_logger("OrderTradingGateway")
             logger.info(f"{self.gateway_name} 交易网关事件处理器已注册")
         except Exception as e:
             try:
-                from src.core.logger import get_logger
-                logger = get_logger("OrderTradingGateway")
                 logger.error(f"设置交易网关事件处理器失败: {e}")
             except Exception as e2:
                 self.write_log(f"设置交易网关事件处理器失败: {e2}")
