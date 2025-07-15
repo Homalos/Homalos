@@ -15,13 +15,14 @@ import time
 import uuid
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Optional, Dict, List, Any, Set
+from typing import Optional, Dict, List, Any, Set, Union
 from datetime import datetime
 
 from src.core.event import Event, EventType, create_trading_event, create_market_event
 from src.core.event_bus import EventBus
 from src.core.logger import get_logger
 from src.core.object import OrderRequest, TickData, OrderData, TradeData, BarData, Status
+
 
 logger = get_logger("BaseStrategy")
 
@@ -41,7 +42,7 @@ class BaseStrategy(ABC):
     # 策略元信息
     strategy_name: str = "BaseStrategy"
     authors: List[str] = []
-    version: str = "1.0.0"
+    version: str = "0.0.1"
     description: str = ""
     
     def __init__(self, strategy_id: str, event_bus: EventBus, params: Optional[Dict[str, Any]] = None):
@@ -69,13 +70,13 @@ class BaseStrategy(ABC):
         self.bar_cache: Dict[str, Dict[str, BarData]] = defaultdict(dict)  # symbol -> {interval: BarData}
         
         # 统计信息
-        self.stats: Dict[str, Optional[float | int]] = {
+        self.stats: Dict[str, Union[float, int]] = {
             "total_orders": 0,
             "filled_orders": 0,
             "cancelled_orders": 0,
             "rejected_orders": 0,
             "total_trades": 0,
-            "last_trade_time": None,
+            "last_trade_time": 0.0,
             "win_count": 0,
             "loss_count": 0
         }
@@ -212,8 +213,8 @@ class BaseStrategy(ABC):
                             try:
                                 if self.main_loop and not self.main_loop.is_closed():
                                     self.main_loop.create_task(coro)
-                            except Exception as e:
-                                self.write_log(f"跨线程任务创建失败: {e}", "WARNING")
+                            except Exception as err:
+                                self.write_log(f"跨线程任务创建失败: {err}", "WARNING")
                                 # 如果失败，尝试同步回退
                                 self._sync_fallback_handler(coro)
 

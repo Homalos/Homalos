@@ -788,9 +788,9 @@ class DataService:
 
             # 输出分发统计
             if subscriber_count > 0:
-                logger.info(f"📤 Tick分发: {symbol} @ {tick_data.last_price} → {subscriber_count}个策略")
+                logger.info(f"Tick分发: {symbol} @ {tick_data.last_price} → {subscriber_count}个策略")
             else:
-                logger.debug(f"⚠️ 无订阅策略: {symbol} tick数据未分发")
+                logger.debug(f"无订阅策略: {symbol} tick数据未分发")
 
             # 同时保持通用事件的发布，用于全局监听器
             self.event_bus.publish(create_market_event(
