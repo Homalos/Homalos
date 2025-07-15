@@ -8,8 +8,8 @@
 
 Homalos is a Python-based event-driven futures trading platform designed for standalone deployment with minimal external dependencies.
 
-**Current Status**: **Under development**
-**Core Features**: Real-time market data processing, intelligent risk control, strategy management, Web interface, performance monitoring
+- **Current Status**: Under development
+- **Core Features**: Real-time market data processing, intelligent risk control, strategy management, Web interface, performance monitoring
 
 ## Purpose
 
