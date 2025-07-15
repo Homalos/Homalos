@@ -11,24 +11,24 @@
 """
 import asyncio
 import sys
+import time
 import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Any
-from enum import Enum
-import time
 
 from src.config import global_var
 from src.config.constant import Exchange
 from src.config.setting import get_instrument_exchange_id
+from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.gateway import BaseGateway
+from src.core.gateway_state import LoginState, ConnectionState
+from src.core.logger import get_logger
 from src.core.object import TickData, SubscribeRequest, ContractData
 from src.ctp.api import MdApi
 from src.ctp.gateway.ctp_mapping import EXCHANGE_CTP2VT
 from src.util.utility import ZoneInfo, get_folder_path
-from src.core.logger import get_logger
-from src.core.event import Event, EventType
 
 logger = get_logger("MarketDataGateway")
 
@@ -38,24 +38,6 @@ CHINA_TZ = ZoneInfo("Asia/Shanghai")       # 中国时区
 
 # 合约数据全局缓存字典
 symbol_contract_map: dict[str, ContractData] = {}
-
-
-class ConnectionState(Enum):
-    """连接状态枚举"""
-    DISCONNECTED = "disconnected"
-    CONNECTING = "connecting"
-    CONNECTED = "connected"
-    AUTHENTICATED = "authenticated"
-    LOGGED_IN = "logged_in"
-    ERROR = "error"
-
-# 新增：LoginState枚举定义
-class LoginState(Enum):
-    """登录状态枚举"""
-    LOGGED_OUT = "logged_out"
-    LOGGING_IN = "logging_in"
-    LOGGED_IN = "logged_in"
-    LOGIN_FAILED = "login_failed"
 
 
 class MarketDataGateway(BaseGateway):
@@ -80,12 +62,14 @@ class MarketDataGateway(BaseGateway):
         Args:
             event_bus: 事件总线
             gateway_name: 网关名称，默认为"CTP_MD"
+        Returns:
+            None
         """
         super().__init__(event_bus, gateway_name)
         
         # CTP API相关
         self.md_api: CtpMdApi | None = None
-        self.connection_state = ConnectionState.DISCONNECTED
+        self._connection_state: ConnectionState = ConnectionState.DISCONNECTED
         self.login_state = LoginState.LOGGED_OUT
         
         # 新增：心跳监控任务初始化
@@ -118,7 +102,7 @@ class MarketDataGateway(BaseGateway):
     def _is_gateway_ready(self) -> bool:
         """检查网关是否就绪"""
         # 检查连接状态和登录状态
-        connection_ready = self.connection_state == ConnectionState.LOGGED_IN
+        connection_ready = self._connection_state == ConnectionState.LOGGED_IN
         login_ready = self.login_state == LoginState.LOGGED_IN
         api_ready = (self.md_api is not None and 
                     getattr(self.md_api, 'connect_status', False) and
@@ -149,7 +133,7 @@ class MarketDataGateway(BaseGateway):
 
     def _trigger_reconnection(self) -> None:
         """触发网关重连"""
-        if self.connection_state == ConnectionState.DISCONNECTED:
+        if self._connection_state == ConnectionState.DISCONNECTED:
             logger.info("触发行情网关重连...")
             # 这里可以实现重连逻辑
             asyncio.create_task(self._attempt_reconnection())
@@ -205,8 +189,8 @@ class MarketDataGateway(BaseGateway):
     def get_connection_status(self) -> dict[str, Any]:
         """获取详细连接状态"""
         return {
-            "state": self.connection_state.value,
-            "is_connected": self.connection_state in [ConnectionState.CONNECTED, ConnectionState.AUTHENTICATED, ConnectionState.LOGGED_IN],
+            "state": self._connection_state.value,
+            "is_connected": self._connection_state in [ConnectionState.CONNECTED, ConnectionState.AUTHENTICATED, ConnectionState.LOGGED_IN],
             "reconnect_attempts": self._current_reconnect_attempts,
             "max_reconnect_attempts": self._max_reconnect_attempts,
             "last_heartbeat": self.last_heartbeat,
@@ -226,7 +210,7 @@ class MarketDataGateway(BaseGateway):
     async def _heartbeat_monitor_loop(self) -> None:
         """心跳监控循环"""
         try:
-            while self._running and self.connection_state != ConnectionState.DISCONNECTED:
+            while self._running and self._connection_state != ConnectionState.DISCONNECTED:
                 await asyncio.sleep(30)  # 每30秒检查一次
                 
                 current_time = time.time()
@@ -244,7 +228,7 @@ class MarketDataGateway(BaseGateway):
         """处理连接丢失"""
         try:
             logger.warning("处理连接丢失事件")
-            self.connection_state = ConnectionState.DISCONNECTED
+            self._connection_state = ConnectionState.DISCONNECTED
             self.last_heartbeat = 0.0
 
             # 清空订阅状态，等待重连后重新订阅
@@ -262,9 +246,9 @@ class MarketDataGateway(BaseGateway):
     
     def _update_connection_state(self, new_state: ConnectionState) -> None:
         """更新连接状态（线程安全版本）"""
-        if self.connection_state != new_state:
-            old_state = self.connection_state
-            self.connection_state = new_state
+        if self._connection_state != new_state:
+            old_state = self._connection_state
+            self._connection_state = new_state
 
             logger.info(f"连接状态变更: {old_state.value} -> {new_state.value}")
 
@@ -436,19 +420,19 @@ class MarketDataGateway(BaseGateway):
             md_address: str = self._prepare_address(setting["md_address"])
             self.md_api.connect(md_address, userid, password, broker_id)
             
-            self.connection_state = ConnectionState.CONNECTING
+            self._connection_state = ConnectionState.CONNECTING
             logger.info(f"正在连接到 {md_address}...")
             
         except Exception as e:
             logger.error(f"连接失败: {e}")
-            self.connection_state = ConnectionState.DISCONNECTED
+            self._connection_state = ConnectionState.DISCONNECTED
             self._handle_connection_failed(str(e))
 
     def _handle_connection_failed(self, reason: str) -> None:
         """处理连接失败异常"""
         try:
             logger.error(f"行情网关连接失败: {reason}")
-            self.connection_state = ConnectionState.DISCONNECTED
+            self._connection_state = ConnectionState.DISCONNECTED
             self.login_state = LoginState.LOGGED_OUT
             self.last_heartbeat = 0.0
             # 发布连接失败事件
@@ -474,7 +458,7 @@ class MarketDataGateway(BaseGateway):
         """自动重连循环"""
         try:
             while (self._current_reconnect_attempts < self._max_reconnect_attempts and 
-                   self.connection_state == ConnectionState.DISCONNECTED and
+                   self._connection_state == ConnectionState.DISCONNECTED and
                    self._enable_auto_reconnect):
                 
                 self._current_reconnect_attempts += 1
@@ -490,7 +474,7 @@ class MarketDataGateway(BaseGateway):
                     
                     # 等待连接结果（最多等待30秒）
                     for _ in range(30):
-                        if self.connection_state != ConnectionState.DISCONNECTED:
+                        if self._connection_state != ConnectionState.DISCONNECTED:
                             logger.info("自动重连成功")
                             return
                         await asyncio.sleep(1)
@@ -658,7 +642,7 @@ class CtpMdApi(MdApi):
         :param last:
         :return:
         """
-        logger.info(f"🔐 CTP行情API回调: onRspUserLogin - 登录回报, ErrorID={error.get('ErrorID', 'N/A')}")
+        logger.info(f"CTP行情API回调: onRspUserLogin - 登录回报, ErrorID={error.get('ErrorID', 'N/A')}")
         if not error["ErrorID"]:
             logger.info("行情服务器登录成功，开始更新状态并处理pending订阅")
             self.login_status = True
@@ -871,7 +855,14 @@ class CtpMdApi(MdApi):
                 return
 
             self.registerFront(address)
-            self.init()
+            self.gateway.write_log("CtpMdApi：尝试使用地址初始化 API：{}...".format(address))
+            try:
+                self.init()
+                self.gateway.write_log("CtpMdApi：init 调用成功。")
+            except Exception as e_init:
+                self.gateway.write_log("CtpMdApi：初始化失败！错误：{}".format(e_init))
+                self.gateway.write_log("CtpMdApi：初始化回溯：{}".format(traceback.format_exc()))
+                return
 
             self.connect_status = True
 

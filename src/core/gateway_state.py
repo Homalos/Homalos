@@ -12,11 +12,21 @@
 from enum import Enum
 
 
-class GatewayState(Enum):
+class ConnectionState(Enum):
     """网关状态枚举"""
     DISCONNECTED = "disconnected"
     CONNECTING = "connecting"
+    CONNECTED = "connected"
     AUTHENTICATED = "authenticated"
     QUERYING_CONTRACTS = "querying_contracts"
     READY = "ready"
     ERROR = "error"
+    LOGGED_IN = "logged_in"
+
+
+class LoginState(Enum):
+    """登录状态枚举"""
+    LOGGED_OUT = "logged_out"
+    LOGGING_IN = "logging_in"
+    LOGGED_IN = "logged_in"
+    LOGIN_FAILED = "login_failed"

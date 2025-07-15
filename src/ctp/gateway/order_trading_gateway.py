@@ -34,8 +34,11 @@ from .ctp_gateway_helper import ctp_build_contract
 from .ctp_mapping import STATUS_CTP2VT, DIRECTION_VT2CTP, DIRECTION_CTP2VT, ORDERTYPE_VT2CTP, ORDERTYPE_CTP2VT, \
     OFFSET_VT2CTP, OFFSET_CTP2VT, EXCHANGE_CTP2VT
 from ...core.event_bus import EventBus
-from ...core.gateway_state import GatewayState
+from ...core.gateway_state import ConnectionState, LoginState
+from ...core.logger import get_logger
 from ...util.file_helper import write_json_file
+
+logger = get_logger("OrderTradingGateway")
 
 # 其他常量
 MAX_FLOAT = sys.float_info.max
@@ -49,9 +52,6 @@ class OrderTradingGateway(BaseGateway):
     """
     用于对接期货CTP柜台的交易接口。
     """
-
-    default_name: str = "CTP_TD"
-
     default_setting: dict[str, str] = {
         "userid": "",
         "password": "",
@@ -64,15 +64,25 @@ class OrderTradingGateway(BaseGateway):
 
     exchanges: list[str] = list(EXCHANGE_CTP2VT.values())
 
-    def __init__(self,  event_bus: EventBus, gateway_name: str) -> None:
-        """初始化网关"""
+    def __init__(self,  event_bus: EventBus, gateway_name: str = "CTP_TD") -> None:
+        """
+        初始化CTP交易网关。
+
+        Args:
+            event_bus (EventBus): 事件总线对象。
+            gateway_name (str, optional): 网关名称，默认为 "CTP_TD"。
+        Returns:
+            None
+        """
         super().__init__(event_bus, gateway_name)
 
-        self.td_api: Optional[CtpTdApi] = None
+        # CTP API相关
+        # self.td_api: Optional[CtpTdApi] = None
+        self.td_api: CtpTdApi | None = None
         self.count: int = 0
         
         # 网关状态管理
-        self._gateway_state: GatewayState = GatewayState.DISCONNECTED
+        self._gateway_state: ConnectionState = ConnectionState.DISCONNECTED
         self._contract_query_timeout: int = 60  # 合约查询超时时间(秒)
         self._state_lock = threading.Lock()  # 状态变更锁（改为同步锁）
         
@@ -106,7 +116,7 @@ class OrderTradingGateway(BaseGateway):
         # 设置网关事件处理器
         self._setup_gateway_event_handlers()
 
-    def _set_gateway_state(self, new_state: GatewayState) -> None:
+    def _set_gateway_state(self, new_state: ConnectionState) -> None:
         """设置网关状态（线程安全，同步版本）"""
         with self._state_lock:
             old_state = self._gateway_state
@@ -127,7 +137,7 @@ class OrderTradingGateway(BaseGateway):
             
             self.write_log(f"网关状态变更: {old_state.value} -> {new_state.value} {thread_info}")
 
-    def _get_gateway_state(self) -> GatewayState:
+    def _get_gateway_state(self) -> ConnectionState:
         """获取当前网关状态"""
         return self._gateway_state
 
@@ -253,7 +263,7 @@ class OrderTradingGateway(BaseGateway):
                 return
             
             # 检查网关状态和合约信息就绪状态
-            if self._gateway_state != GatewayState.READY:
+            if self._gateway_state != ConnectionState.READY:
                 self.write_log(f"网关状态未就绪: {self._gateway_state.value}，拒绝下单请求")
                 self._safe_publish_event("order.send_failed", {
                     "order_request": order_request,
@@ -514,6 +524,7 @@ class CtpTdApi(TdApi):
         本方法在完成初始化后调用，可以在其中完成用户登录任务。
         :return: 无
         """
+        logger.info("CTP行情API回调: onFrontConnected - 服务器连接成功")
         self.gateway.write_log("交易服务器连接成功")
 
         if self.auth_code:
@@ -566,11 +577,14 @@ class CtpTdApi(TdApi):
         :param last: 指示该次返回是否为针对 reqid 的最后一次返回。
         :return: 无
         """
+        logger.info(f"CTP交易API回调: onRspUserLogin - 登录回报, ErrorID={error.get('ErrorID', 'N/A')}")
         if not error.get("ErrorID"):
+            logger.info("交易服务器登录成功")
+            global_var.td_login_success = True
+            self.login_status = True
             self.front_id = data["FrontID"]
             self.session_id = data["SessionID"]
-            self.login_status = True
-            global_var.td_login_success = True
+            self.gateway.login_state = LoginState.LOGGED_IN
             self.gateway.write_log("交易服务器登录成功")
 
             # 自动确认结算单
@@ -833,7 +847,7 @@ class CtpTdApi(TdApi):
             self.gateway.write_log(f"CtpTdApi：onRspQryInstrument 出错。最后：{last}，错误 ID：{error.get('ErrorID', 'N/A')}")
             if last:
                 # 合约查询失败，设置错误状态（同步调用）
-                self.gateway._set_gateway_state(GatewayState.ERROR)
+                self.gateway._set_gateway_state(ConnectionState.ERROR)
             return
 
         # 如果是第一次回报，记录开始时间
@@ -866,7 +880,7 @@ class CtpTdApi(TdApi):
                     query_duration = time.time() - self.gateway._contract_query_start_time
                     if query_duration > self.gateway._contract_query_timeout:
                         self.gateway.write_log(f"合约查询超时: {query_duration:.2f}秒")
-                        self.gateway._set_gateway_state(GatewayState.ERROR)
+                        self.gateway._set_gateway_state(ConnectionState.ERROR)
                         return
 
                 # 标记合约初始化完成
@@ -887,7 +901,7 @@ class CtpTdApi(TdApi):
                     self.gateway.write_error(f"写入 instrument_exchange_id.json 失败：{e}", error)
 
                 # 设置网关状态为就绪（同步调用）
-                self.gateway._set_gateway_state(GatewayState.READY)
+                self.gateway._set_gateway_state(ConnectionState.READY)
                 
                 # 发布合约就绪事件
                 self.gateway._safe_publish_event("gateway.contracts_ready", {
@@ -913,7 +927,7 @@ class CtpTdApi(TdApi):
                 
             except Exception as e:
                 self.gateway.write_log(f"完成合约初始化时发生错误: {e}")
-                self.gateway._set_gateway_state(GatewayState.ERROR)
+                self.gateway._set_gateway_state(ConnectionState.ERROR)
 
     def onRtnOrder(self, data: dict) -> None:
         """
