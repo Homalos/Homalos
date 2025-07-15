@@ -381,7 +381,7 @@ class MyStrategy(BaseStrategy):
 
 - [System Planning Document](docs/system_plan.md)
 - [Strategy Development Guide](docs/strategy_development_guide.md)
-- [Strategy Enhancement Features Documentation](docs/STRATEGY_ENHANCEMENT_README.md)
+- [Strategy Enhancement Features Documentation](docs/strategy_enhancement_plan.md)
 - [API Interface Documentation](http://127.0.0.1:8000/docs)
 - [Project Progress Overview](docs/project_completion_summary.md)
 - [Issue Fix History](CHANGELOG.md)
