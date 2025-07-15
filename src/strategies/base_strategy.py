@@ -216,7 +216,7 @@ class BaseStrategy(ABC):
                                 self.write_log(f"跨线程任务创建失败: {e}", "WARNING")
                                 # 如果失败，尝试同步回退
                                 self._sync_fallback_handler(coro)
-                        
+
                         self.main_loop.call_soon_threadsafe(create_task_safe)
                         return
                 except Exception as e:
@@ -232,7 +232,7 @@ class BaseStrategy(ABC):
             try:
                 if hasattr(coro, 'close'):
                     coro.close()
-            except Exception:
+            except (RuntimeError, TypeError, AttributeError):
                 pass
     
     def _sync_fallback_handler(self, coro: Any) -> None:
@@ -308,7 +308,7 @@ class BaseStrategy(ABC):
         try:
             if hasattr(coro, 'close'):
                 coro.close()
-        except (AttributeError, RuntimeError, GeneratorExit) as e:
+        except (AttributeError, RuntimeError, GeneratorExit):
             # 这些异常是正常的，不需要记录
             pass
         except Exception as e:

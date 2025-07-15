@@ -376,10 +376,6 @@ class MarketDataGateway(BaseGateway):
                 # 将合约数据同步到行情网关的symbol_contract_map中
                 symbol_contract_map[contract.symbol] = contract
                 logger.debug(f"已同步合约数据: {contract.symbol} (来自 {gateway_name})")
-                
-                # # 如果是FG509等关键合约，记录详细信息
-                # if contract.symbol.startswith('FG'):
-                #     logger.info(f"已同步FG系列合约: {contract.symbol}, price_tick={contract.price_tick}, exchange={contract.exchange}")
             else:
                 logger.warning(f"收到无效的合约更新事件: {data}")
                 
@@ -765,24 +761,17 @@ class CtpMdApi(MdApi):
         symbol: str = data.get("InstrumentID", "UNKNOWN")
         
         # 增强日志记录 - 记录所有接收到的行情数据
-        logger.info(f"📥 CTP行情数据接收: {symbol} @ {data.get('UpdateTime', 'N/A')} 价格={data.get('LastPrice', 'N/A')}")
-        
-        # 特别关注FG509合约的行情数据
-        if symbol == "FG509":
-            logger.warning(f"🎯 FG509行情数据详情: UpdateTime={data.get('UpdateTime')}, LastPrice={data.get('LastPrice')}, Volume={data.get('Volume')}, ActionDay={data.get('ActionDay')}")
+        logger.debug(f"CTP行情数据接收: {symbol} @ {data.get('UpdateTime', 'N/A')} 价格={data.get('LastPrice', 'N/A')}")
         
         # 过滤没有时间戳的异常行情数据
         if not data["UpdateTime"]:
-            logger.warning(f"⚠️ 跳过无时间戳的行情数据: {symbol}")
+            logger.warning(f"跳过无时间戳的行情数据: {symbol}")
             return
 
         # 过滤还没有收到合约数据前的行情推送
         contract: Optional[ContractData] = symbol_contract_map.get(symbol, None)
         if not contract:
-            logger.warning(f"⚠️ 跳过行情推送，合约信息不存在: {symbol} (symbol_contract_map中共有{len(symbol_contract_map)}个合约)")
-            # 特别记录FG509合约映射缺失的情况
-            if symbol == "FG509":
-                logger.error(f"🚨 FG509合约未在symbol_contract_map中找到！当前映射表包含的FG合约: {[k for k in symbol_contract_map.keys() if k.startswith('FG')]}")
+            logger.warning(f"跳过行情推送，合约信息不存在: {symbol} (symbol_contract_map中共有{len(symbol_contract_map)}个合约)")
             return
 
         # 对大商所的交易日字段取本地日期
@@ -840,7 +829,7 @@ class CtpMdApi(MdApi):
 
         self.gateway.on_tick(tick)
         # 关键日志：确保行情数据被推送到网关
-        logger.info(f"📈 行情数据已推送到网关: {tick.symbol} @ {tick.last_price}")
+        logger.info(f"行情数据已推送到网关: {tick.symbol} @ {tick.last_price}")
         logger.debug(f"CtpMdApi.onRtnDepthMarketData: 推送tick {tick.symbol} {tick.datetime} {tick.last_price}")
 
     def onRspUserLogout(self, data: dict, error: dict, reqid: int, last: bool):
