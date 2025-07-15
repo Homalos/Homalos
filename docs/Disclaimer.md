@@ -1,6 +1,7 @@
 # Disclaimer
 
 **Last updated**: July 15, 2025
+
 **Effective date**: Effective upon first release
 
 ## Important
