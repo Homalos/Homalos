@@ -1,4 +1,4 @@
-# Homalos v2 量化交易系统 - 系统规划文档
+# Homalos 量化交易系统 - 系统规划文档
 
 ## 📊 项目概述
 
@@ -635,7 +635,7 @@ monitor.add_alert_rule("custom_alert", threshold=100)
 - [项目完成总结](docs/PROJECT_COMPLETION_SUMMARY.md)
 
 ### 代码库
-- **GitHub仓库**: [Homalos_v2](https://github.com/your-repo/Homalos_v2)
+- **GitHub仓库**: [Homalos](https://github.com/your-repo/Homalos)
 - **构建系统**: Meson + Ninja
 - **包管理**: UV + Python 3.10+
 - **依赖管理**: pyproject.toml
@@ -648,5 +648,5 @@ monitor.add_alert_rule("custom_alert", threshold=100)
 
 ---
 
-*Homalos v2 量化交易系统 - 从概念到生产的完整实现*  
-*最后更新: 2025-01-14 (JSON序列化修复)*
+*Homalos 量化交易系统 - 从概念到生产的完整实现*  
+*最后更新: 2025-07-14 (JSON序列化修复)*
