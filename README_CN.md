@@ -395,6 +395,10 @@ class MyStrategy(BaseStrategy):
 - **技术交流(QQ Group)**: `446042777`
 - **问题反馈**: GitHub Issues
 
+## 免责声明
+
+[免责声明内容](docs/免责声明.md)
+
 ---
 
 *Homalos 量化交易系统 - 从概念到生产的实现*  

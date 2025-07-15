@@ -7,7 +7,7 @@
 
 Before using the Homalos quantitative trading system (hereinafter referred to as "this system"), please read carefully and fully understand the following terms. By using this system, you are deemed to have accepted the entire content of this disclaimer.
 
-## Disclaimer
+## Disclaimer Content
 
 ### Article 1 Product Nature
 
@@ -34,6 +34,7 @@ The developer is not responsible for the following situations:
 - Interruptions or errors in third-party data services
 
 - System unavailability caused by force majeure
+
 - Trading problems caused by user operation errors
 
 ### Article 4 Compliance Requirements
@@ -60,5 +61,4 @@ This statement shall be subject to the laws of the People's Republic of China. A
 
 ---
 
-*Please make sure that you have read and understood the above terms in full before using this system. If you have any questions, please consult a professional legal person. *
-
+*Please make sure that you have read and understood the above terms in full before using this system. If you have any questions, please consult a professional legal person.*
