@@ -781,8 +781,8 @@ class CtpMdApi(MdApi):
             date_str = data["ActionDay"]
 
         timestamp: str = f"{date_str} {data['UpdateTime']}.{data['UpdateMillisec']}"
-        dt_obj: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f")
-        dt_obj: datetime = dt_obj.replace(tzinfo=CHINA_TZ)
+        dt_format_obj: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f")
+        dt_obj: datetime = dt_format_obj.replace(tzinfo=CHINA_TZ)
 
         tick: TickData = TickData(
             symbol=symbol,

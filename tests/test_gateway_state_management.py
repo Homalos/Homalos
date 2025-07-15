@@ -11,11 +11,13 @@ import time
 import threading
 from pathlib import Path
 
+from src.core.gateway_state import GatewayState
+
 # 添加项目根目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.core.event_bus import EventBus
-from src.ctp.gateway.order_trading_gateway import OrderTradingGateway, GatewayState
+from src.ctp.gateway.order_trading_gateway import OrderTradingGateway
 from src.core.logger import get_logger
 
 logger = get_logger("GatewayStateTest")

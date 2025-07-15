@@ -296,7 +296,7 @@ class DatabaseManager:
             ORDER BY datetime DESC 
             LIMIT ?
         '''
-        params.append(limit)
+        params.append(str(limit))
         
         try:
             async with aiosqlite.connect(str(self.db_path)) as conn:
@@ -330,7 +330,7 @@ class DatabaseManager:
             ORDER BY datetime DESC 
             LIMIT ?
         '''
-        params.append(limit)
+        params.append(str(limit))
         
         try:
             async with aiosqlite.connect(str(self.db_path)) as conn:
@@ -1044,7 +1044,7 @@ class DataService:
             data = {
                 "symbol": bar_data.symbol,
                 "exchange": bar_data.exchange.value,
-                "interval": bar_data.interval.value,
+                "interval": bar_data.interval.value if bar_data.interval else '1m',
                 "datetime": bar_data.datetime.isoformat(),
                 "open_price": bar_data.open_price,
                 "high_price": bar_data.high_price,

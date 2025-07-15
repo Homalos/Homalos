@@ -243,8 +243,8 @@ class TtsMdApi(MdApi):
             date_str = data["ActionDay"]
         # todo: 这块和CTP有点不同，后期考虑以哪个为准统一
         timestamp: str = f"{date_str} {data['UpdateTime']}.{int(data['UpdateMillisec']/100)}"
-        dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f")
-        dt: datetime = dt.replace(tzinfo=CHINA_TZ)
+        dt_format_obj: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f")
+        dt: datetime = dt_format_obj.replace(tzinfo=CHINA_TZ)
 
         tick: TickData = TickData(
             symbol=symbol,

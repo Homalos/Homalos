@@ -16,7 +16,6 @@ import threading
 import time
 import traceback
 from datetime import datetime
-from enum import Enum
 from pathlib import Path
 from time import sleep
 from typing import Dict, Any, Optional
@@ -35,6 +34,7 @@ from .ctp_gateway_helper import ctp_build_contract
 from .ctp_mapping import STATUS_CTP2VT, DIRECTION_VT2CTP, DIRECTION_CTP2VT, ORDERTYPE_VT2CTP, ORDERTYPE_CTP2VT, \
     OFFSET_VT2CTP, OFFSET_CTP2VT, EXCHANGE_CTP2VT
 from ...core.event_bus import EventBus
+from ...core.gateway_state import GatewayState
 from ...util.file_helper import write_json_file
 
 # 其他常量
@@ -43,15 +43,6 @@ CHINA_TZ = ZoneInfo("Asia/Shanghai")
 
 # 合约数据全局缓存字典
 symbol_contract_map: dict[str, ContractData] = {}
-
-class GatewayState(Enum):
-    """网关状态枚举"""
-    DISCONNECTED = "disconnected"
-    CONNECTING = "connecting"
-    AUTHENTICATED = "authenticated"
-    QUERYING_CONTRACTS = "querying_contracts"
-    READY = "ready"
-    ERROR = "error"
 
 
 class OrderTradingGateway(BaseGateway):
@@ -76,7 +67,8 @@ class OrderTradingGateway(BaseGateway):
     def __init__(self,  event_bus: EventBus, gateway_name: str) -> None:
         """初始化网关"""
         super().__init__(event_bus, gateway_name)
-        
+
+        self.count = 0
         self.td_api: Optional[CtpTdApi] = None
         
         # 网关状态管理
@@ -859,25 +851,13 @@ class CtpTdApi(TdApi):
                     self.gateway.on_contract(contract)
                     symbol_contract_map[contract.symbol] = contract
                     
-                    # 特别记录FG509合约的加载状态
-                    if contract.symbol == "FG509":
-                        self.gateway.write_log(f"🎯 FG509合约已成功加载到symbol_contract_map: {contract.symbol} @ {contract.exchange.value}")
-                        self.gateway.write_log(f"🎯 FG509合约详情: name={contract.name}, size={contract.size}, price_tick={contract.price_tick}")
-
                 # 更新exchange_id_map，只取非纯数字的合约和6位以内的合约，即只取期货合约
                 instrument_id = data.get("InstrumentID", "")
                 if not instrument_id.isdigit() and len(instrument_id) <= 6:
                     self.instrument_exchange_id_map[instrument_id] = data.get("ExchangeID", "")
                     
-                    # 特别记录FG509的交易所映射
-                    if instrument_id == "FG509":
-                        self.gateway.write_log(f"🎯 FG509交易所映射已更新: {instrument_id} -> {data.get('ExchangeID', '')}")
-
             except Exception as e:
                 self.gateway.write_log(f"处理合约数据失败: {e}")
-                # 特别记录FG509合约处理失败的情况
-                if data.get("InstrumentID") == "FG509":
-                    self.gateway.write_log(f"🚨 FG509合约处理失败: {e}")
 
         # 最后一次回报时的处理
         if last:
@@ -899,20 +879,6 @@ class CtpTdApi(TdApi):
                 exchange_count = len(self.instrument_exchange_id_map)
                 
                 self.gateway.write_log(f"合约信息查询成功 - 共加载 {contract_count} 个合约，{exchange_count} 个交易所映射")
-                
-                # 特别验证FG509合约加载状态
-                fg509_in_map = "FG509" in symbol_contract_map
-                fg509_in_exchange_map = "FG509" in self.instrument_exchange_id_map
-                fg_contracts = [k for k in symbol_contract_map.keys() if k.startswith('FG')]
-                
-                self.gateway.write_log(f"🔍 FG509合约验证: symbol_contract_map中存在={fg509_in_map}, exchange_map中存在={fg509_in_exchange_map}")
-                self.gateway.write_log(f"🔍 所有FG系列合约: {fg_contracts[:10]}{'...' if len(fg_contracts) > 10 else ''}")
-                
-                if not fg509_in_map:
-                    self.gateway.write_log(f"⚠️ 警告: FG509合约未在symbol_contract_map中找到！")
-                else:
-                    fg509_contract = symbol_contract_map["FG509"]
-                    self.gateway.write_log(f"✅ FG509合约加载成功: {fg509_contract.symbol} @ {fg509_contract.exchange.value}")
                 
                 # 保存合约交易所映射文件
                 try:
