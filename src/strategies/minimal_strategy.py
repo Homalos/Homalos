@@ -38,7 +38,7 @@ class MinimalStrategy(BaseStrategy):
             "symbol": "FG509",
             "exchange": "CZCE",
             "volume": 1,            # 交易手数
-            "order_interval": 10,   # 下单间隔（秒）
+            "order_interval": 20,   # 下单间隔（秒）
             "max_orders": 5         # 最大订单数
         }
         
@@ -181,9 +181,9 @@ class MinimalStrategy(BaseStrategy):
         
         if order_id:
             self.active_orders[order_id] = order_request
-            self.write_log(f"✅ 发送买入订单成功: 订单ID={order_id}, {self.volume}@{price} (订单#{self.order_count})", "INFO")
+            self.write_log(f"发送买入订单成功: 订单ID={order_id}, {self.volume}@{price} (订单#{self.order_count})", "INFO")
         else:
-            self.write_log("❌ 发送订单失败: send_order返回None", "ERROR")
+            self.write_log("发送订单失败: send_order返回None", "ERROR")
     
     def _sync_on_tick(self, tick_data: TickData):
         """同步版本的tick处理 - 应急回退逻辑"""
