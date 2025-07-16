@@ -1,0 +1,189 @@
+# 数据中心配置文件
+data_center:
+  # 基本配置
+  name: "Homalos数据中心"
+  version: "2.0.0"
+  description: "7x24小时运行的期货行情数据中心"
+  
+  # 运行模式
+  mode: "production"  # production, development, test
+  
+  # 数据库配置
+  database:
+    # SQLite配置
+    sqlite:
+      path: "data/data_center.db"
+      wal_mode: true
+      cache_size: 10000
+      timeout: 30
+      
+    # Parquet配置
+    parquet:
+      base_path: "data/parquet"
+      compression: "snappy"  # snappy, gzip, lz4
+      partition_by: "date"  # date, symbol, none
+      
+  # 批量写入配置
+  batch_write:
+    tick:
+      batch_size: 1000
+      flush_interval: 5  # 秒
+      max_memory_mb: 100
+      
+    bar:
+      batch_size: 500
+      flush_interval: 10  # 秒
+      max_memory_mb: 50
+      
+  # K线合成配置
+  bar_generation:
+    intervals: ["1m", "5m", "15m", "30m", "1h", "4h", "1d"]
+    enable_realtime: true
+    enable_historical: true
+    
+  # 行情订阅配置
+  market_subscription:
+    # 自动订阅全市场
+    auto_subscribe_all: true
+    
+    # 订阅重试配置
+    retry:
+      max_attempts: 5
+      initial_delay: 1  # 秒
+      max_delay: 60  # 秒
+      backoff_factor: 2
+      
+    # 订阅超时配置
+    timeout:
+      subscription: 30  # 秒
+      heartbeat: 60  # 秒
+      
+  # 性能配置
+  performance:
+    # 内存缓存
+    cache:
+      tick_cache_size: 10000
+      bar_cache_size: 5000
+      
+    # 异步处理
+    async:
+      max_workers: 4
+      queue_size: 10000
+      
+    # 监控配置
+    monitoring:
+      enable_stats: true
+      stats_interval: 60  # 秒
+      enable_alerts: true
+      
+  # 数据保留策略
+  retention:
+    tick_data:
+      days: 30  # 内存缓存保留天数
+      archive_days: 365  # 归档保留天数
+      
+    bar_data:
+      days: 90  # 内存缓存保留天数
+      archive_days: 1095  # 归档保留天数（3年）
+      
+  # 数据质量检查
+  data_quality:
+    enable_validation: true
+    
+    # 异常数据检测
+    anomaly_detection:
+      price_change_threshold: 0.1  # 10%价格变动阈值
+      volume_spike_threshold: 5.0  # 5倍成交量异常阈值
+      
+  # 容错配置
+  fault_tolerance:
+    # 自动恢复
+    auto_recovery: true
+    
+    # 健康检查
+    health_check:
+      interval: 30  # 秒
+      timeout: 10  # 秒
+      
+    # 备份配置
+    backup:
+      enable: true
+      interval: 3600  # 秒（1小时）
+      keep_backups: 24  # 保留24个备份
+      
+  # 网络配置
+  network:
+    # 事件总线配置
+    event_bus:
+      max_queue_size: 50000
+      batch_size: 100
+      
+    # 连接配置
+    connection:
+      heartbeat_interval: 30  # 秒
+      reconnect_delay: 5  # 秒
+      max_reconnect_attempts: 10
+      
+  # 日志配置
+  logging:
+    level: "INFO"
+    file_path: "logs/data_center.log"
+    max_file_size: "100MB"
+    backup_count: 10
+    
+    # 性能日志
+    performance_log:
+      enable: true
+      interval: 300  # 秒（5分钟）
+      
+# 市场配置
+market:
+  # 交易时间配置
+  trading_hours:
+    # 日盘
+    day_session:
+      start: "09:00:00"
+      end: "15:00:00"
+      
+    # 夜盘
+    night_session:
+      start: "21:00:00"
+      end: "02:30:00"
+      
+  # 节假日配置
+  holidays:
+    file_path: "config/holidays.json"
+    
+  # 合约配置
+  contracts:
+    config_file: "config/market_symbols.json"
+    auto_update: true
+    update_interval: 3600  # 秒（1小时）
+    
+# 服务发现配置
+service_discovery:
+  enable: true
+  
+  # 服务注册
+  registration:
+    service_name: "data_center"
+    service_id: "data_center_001"
+    tags: ["data", "market", "storage"]
+    
+  # 健康检查
+  health_check:
+    endpoint: "/health"
+    interval: 30  # 秒
+    timeout: 10  # 秒
+    
+# 安全配置
+security:
+  # API访问控制
+  api_access:
+    enable_auth: false  # 内部服务，暂不启用认证
+    rate_limit: 1000  # 每分钟请求限制
+    
+  # 数据加密
+  encryption:
+    enable: false  # 内部数据，暂不加密
+    algorithm: "AES-256"
