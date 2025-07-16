@@ -205,9 +205,15 @@ class MarketDataGateway(BaseGateway):
         if self.heartbeat_task and not self.heartbeat_task.done():
             return
         
-        # 使用线程安全的方式调度异步任务
-        self._schedule_async_task(self._heartbeat_monitor_loop())
-        logger.info("心跳监控已启动")
+        # 检查是否有事件循环运行
+        try:
+            loop = asyncio.get_running_loop()
+            # 使用线程安全的方式调度异步任务
+            self._schedule_async_task(self._heartbeat_monitor_loop())
+            logger.info("心跳监控已启动")
+        except RuntimeError:
+            # 没有事件循环，跳过心跳监控
+            logger.info("没有事件循环运行，跳过心跳监控启动")
     
     async def _heartbeat_monitor_loop(self) -> None:
         """心跳监控循环"""
@@ -650,14 +656,32 @@ class CtpMdApi(MdApi):
             try:
                 logger.info("🚀 登录成功，开始处理pending订阅队列")
                 if hasattr(self.gateway, 'process_pending_subscriptions'):
-                    # 使用线程安全的方式调度异步任务
-                    coro = self.gateway.process_pending_subscriptions()
-                    if asyncio.iscoroutine(coro):
-                        self.gateway._schedule_async_task(coro)
-                    else:
-                        # 同步直接调用
-                        pass
-                logger.info("pending订阅队列处理任务已创建")
+                    # 检查是否有事件循环运行
+                    try:
+                        loop = asyncio.get_running_loop()
+                        # 有事件循环，使用线程安全的方式调度异步任务
+                        coro = self.gateway.process_pending_subscriptions()
+                        if asyncio.iscoroutine(coro):
+                            self.gateway._schedule_async_task(coro)
+                        logger.info("pending订阅队列处理任务已创建")
+                    except RuntimeError:
+                        # 没有事件循环，直接同步处理
+                        logger.info("没有事件循环运行，同步处理pending订阅队列")
+                        # 同步版本的处理逻辑
+                        if hasattr(self.gateway, 'pending_subscription_queue'):
+                            queue = getattr(self.gateway, 'pending_subscription_queue', [])
+                            if queue:
+                                logger.info(f"同步处理 {len(queue)} 个待处理的订阅请求")
+                                for sub_request in queue:
+                                    try:
+                                        from src.core.event import Event
+                                        event = Event(EventType.GATEWAY_SUBSCRIBE, sub_request)
+                                        self.gateway._handle_gateway_subscribe(event)
+                                    except Exception as e:
+                                        logger.error(f"处理待订阅请求失败: {e}")
+                                # 清空队列
+                                self.gateway.pending_subscription_queue.clear()
+                                logger.info("待处理订阅队列已清空")
                 logger.info("登录成功后已触发pending订阅队列处理")
             except Exception as e:
                 logger.error(f"处理pending订阅队列异常: {e}")

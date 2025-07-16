@@ -20,7 +20,6 @@ from src.core.event_bus import EventBus
 from src.core.logger import get_logger
 from src.core.object import TickData, BarData
 from src.function.bar_manager import BarManager
-from src.function.database_manager import DatabaseManager
 
 
 logger = get_logger("DataService")
@@ -33,8 +32,8 @@ class DataService:
         self.event_bus = event_bus
         self.config = config
         
-        # 数据库管理器
-        self.db_manager = DatabaseManager(config)
+        # 数据中心连接（通过事件总线通信）
+        self.data_center_available = False
         
         # 行情数据缓存
         self.tick_buffer: Dict[str, TickData] = {}
@@ -49,7 +48,7 @@ class DataService:
         
         # 配置参数
         self.buffer_size = config.get("data.market.buffer_size", 1000)
-        self.enable_persistence = config.get("data.market.enable_persistence", True)
+        self.enable_data_center = config.get("data.market.enable_data_center", True)
         
         # K线合成管理
         self.bar_manager = BarManager([1, 5, 10])  # 支持1m/5m/10m
@@ -82,14 +81,12 @@ class DataService:
         self.event_bus.subscribe(EventType.DATA_QUERY_TICK, self._handle_query_tick)
         self.event_bus.subscribe(EventType.DATA_QUERY_BAR, self._handle_query_bar)
         
-        # 持久化控制
-        self.event_bus.subscribe(EventType.DATA_PERSIST, self._handle_persist_data)
-    
     async def initialize(self):
         """初始化数据服务"""
         try:
-            # 启动数据库管理器
-            self.db_manager.start()
+            # 检查数据中心连接
+            if self.enable_data_center:
+                self._check_data_center_connection()
             
             logger.info("数据服务初始化成功")
             return True
@@ -100,9 +97,6 @@ class DataService:
     async def shutdown(self):
         """关闭数据服务"""
         try:
-            # 停止数据库管理器
-            self.db_manager.stop()
-            
             logger.info("数据服务已关闭")
         except Exception as e:
             logger.error(f"数据服务关闭失败: {e}")
@@ -192,9 +186,6 @@ class DataService:
                         # 根据交易时间调整超时处理策略
                         if is_trading_time:
                             logger.warning(f"交易时间订阅超时: {symbol} (策略: {strategy_id}) - 可能存在行情数据问题")
-                            # 特别关注FG509合约的超时情况
-                            if symbol == "FG509":
-                                logger.error(f"FG509合约在交易时间订阅超时！这可能表明行情数据接收存在问题")
                         else:
                             logger.info(f"非交易时间订阅超时: {symbol} (策略: {strategy_id}) - 属于正常现象")
                         
@@ -214,7 +205,8 @@ class DataService:
         except Exception as e:
             logger.error(f"检查订阅超时失败: {e}")
 
-    def _is_trading_hours(self) -> bool:
+    @staticmethod
+    def _is_trading_hours() -> bool:
         """判断当前是否为交易时间"""
         try:
             import datetime
@@ -341,16 +333,9 @@ class DataService:
                 "DataService"
             ))
             
-            # 异步持久化
-            if self.enable_persistence:
-                try:
-                    loop = asyncio.get_running_loop()
-                    loop.create_task(self.db_manager.save_tick_data(tick_data))
-                except RuntimeError:
-                    # 没有运行的事件循环，使用线程池执行
-                    import concurrent.futures
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        executor.submit(self._save_tick_data_sync, tick_data)
+            # 如果启用数据中心，发送数据到数据中心
+            if self.enable_data_center and self.data_center_available:
+                self._send_tick_to_data_center(tick_data)
                 
             # K线合成
             bars = self.bar_manager.on_tick(tick_data)
@@ -393,16 +378,9 @@ class DataService:
                     "DataService"
                 ))
             
-            # 异步持久化
-            if self.enable_persistence:
-                try:
-                    loop = asyncio.get_running_loop()
-                    loop.create_task(self.db_manager.save_bar_data(bar_data))
-                except RuntimeError:
-                    # 没有运行的事件循环，使用线程池执行
-                    import concurrent.futures
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        executor.submit(self._save_bar_data_sync, bar_data)
+            # 如果启用数据中心，发送数据到数据中心
+            if self.enable_data_center and self.data_center_available:
+                self._send_bar_to_data_center(bar_data)
                 
         except Exception as e:
             logger.error(f"处理bar数据失败: {e}")
@@ -534,6 +512,10 @@ class DataService:
             self.event_bus.subscribe(EventType.GATEWAY_SUBSCRIPTION_SUCCESS, self._handle_gateway_subscription_success)
             self.event_bus.subscribe(EventType.GATEWAY_SUBSCRIPTION_FAILED, self._handle_gateway_subscription_failed)
             
+            # 数据中心连接事件
+            self.event_bus.subscribe(EventType.DATA_CENTER_CONNECTED, self._handle_data_center_connected)
+            self.event_bus.subscribe(EventType.DATA_CENTER_DISCONNECTED, self._handle_data_center_disconnected)
+            
             logger.info("数据服务事件处理器已注册")
             
         except Exception as e:
@@ -560,8 +542,8 @@ class DataService:
         except Exception as e:
             logger.error(f"处理取消订阅请求失败: {e}")
     
-    def _save_tick_data_sync(self, tick_data: TickData):
-        """同步保存tick数据"""
+    def _send_tick_to_data_center(self, tick_data: TickData):
+        """发送tick数据到数据中心"""
         try:
             data = {
                 "symbol": tick_data.symbol,
@@ -576,12 +558,17 @@ class DataService:
                 "bid_volume_1": tick_data.bid_volume_1,
                 "ask_volume_1": tick_data.ask_volume_1
             }
-            self.db_manager._add_tick_to_batch(data)
+            # 发布数据中心事件
+            self.event_bus.publish(create_market_event(
+                EventType.DATA_CENTER_TICK,
+                data,
+                "DataService"
+            ))
         except Exception as e:
-            logger.error(f"同步保存tick数据失败: {e}")
+            logger.error(f"发送tick数据到数据中心失败: {e}")
     
-    def _save_bar_data_sync(self, bar_data: BarData):
-        """同步保存bar数据"""
+    def _send_bar_to_data_center(self, bar_data: BarData):
+        """发送bar数据到数据中心"""
         try:
             data = {
                 "symbol": bar_data.symbol,
@@ -596,9 +583,14 @@ class DataService:
                 "turnover": bar_data.turnover,
                 "open_interest": bar_data.open_interest
             }
-            self.db_manager._add_bar_to_batch(data)
+            # 发布数据中心事件
+            self.event_bus.publish(create_market_event(
+                EventType.DATA_CENTER_BAR,
+                data,
+                "DataService"
+            ))
         except Exception as e:
-            logger.error(f"同步保存bar数据失败: {e}")
+            logger.error(f"发送bar数据到数据中心失败: {e}")
     
     def _unsubscribe_market_data_sync(self, symbols: List[str], strategy_id: str):
         """同步取消订阅行情数据"""
@@ -655,49 +647,93 @@ class DataService:
     
     def _handle_query_tick(self, event: Event):
         """处理tick数据查询"""
-        data = event.data
-        asyncio.create_task(self._process_tick_query(data))
-    
-    def _handle_query_bar(self, event: Event):
-        """处理bar数据查询"""
-        data = event.data
-        asyncio.create_task(self._process_bar_query(data))
-    
-    async def _process_tick_query(self, query_params: Dict[str, Any]):
-        """处理tick查询请求"""
         try:
-            result = await self.db_manager.query_tick_data(**query_params)
+            query_params = event.data
             
-            # 发布查询结果
-            self.event_bus.publish(create_market_event(
-                EventType.DATA_QUERY_TICK_RESULT,
-                {"query_params": query_params, "result": result},
-                "DataService"
-            ))
+            # 转发查询请求到数据中心
+            if self.data_center_available:
+                self.event_bus.publish(create_market_event(
+                    EventType.DATA_CENTER_QUERY_TICK,
+                    query_params,
+                    "DataService"
+                ))
+            else:
+                # 数据中心不可用，返回错误
+                self.event_bus.publish(create_market_event(
+                    EventType.DATA_QUERY_TICK_RESULT,
+                    {
+                        "symbol": query_params.get("symbol"),
+                        "data": [],
+                        "error": "数据中心不可用",
+                        "query_id": query_params.get("query_id")
+                    },
+                    "DataService"
+                ))
+            
         except Exception as e:
             logger.error(f"tick查询失败: {e}")
     
-    async def _process_bar_query(self, query_params: Dict[str, Any]):
-        """处理bar查询请求"""
+    def _handle_query_bar(self, event: Event):
+        """处理bar数据查询"""
         try:
-            result = await self.db_manager.query_bar_data(**query_params)
+            query_params = event.data
             
-            # 发布查询结果
-            self.event_bus.publish(create_market_event(
-                EventType.DATA_QUERY_BAR_RESULT,
-                {"query_params": query_params, "result": result},
-                "DataService"
-            ))
+            # 转发查询请求到数据中心
+            if self.data_center_available:
+                self.event_bus.publish(create_market_event(
+                    EventType.DATA_CENTER_QUERY_BAR,
+                    query_params,
+                    "DataService"
+                ))
+            else:
+                # 数据中心不可用，返回错误
+                self.event_bus.publish(create_market_event(
+                    EventType.DATA_QUERY_BAR_RESULT,
+                    {
+                        "symbol": query_params.get("symbol"),
+                        "interval": query_params.get("interval"),
+                        "data": [],
+                        "error": "数据中心不可用",
+                        "query_id": query_params.get("query_id")
+                    },
+                    "DataService"
+                ))
+            
         except Exception as e:
             logger.error(f"bar查询失败: {e}")
     
-    def _handle_persist_data(self, event: Event):
-        """处理数据持久化请求"""
-        data = event.data
-        if isinstance(data, TickData):
-            asyncio.create_task(self.db_manager.save_tick_data(data))
-        elif isinstance(data, BarData):
-            asyncio.create_task(self.db_manager.save_bar_data(data))
+
+    
+
+    
+    def _handle_data_center_connected(self, event: Event):
+        """处理数据中心连接事件"""
+        try:
+            self.data_center_available = True
+            logger.info("数据中心连接成功")
+        except Exception as e:
+            logger.error(f"处理数据中心连接事件失败: {e}")
+    
+    def _handle_data_center_disconnected(self, event: Event):
+        """处理数据中心断开事件"""
+        try:
+            self.data_center_available = False
+            logger.warning("数据中心连接断开")
+        except Exception as e:
+            logger.error(f"处理数据中心断开事件失败: {e}")
+    
+    def _check_data_center_connection(self):
+        """检查数据中心连接"""
+        try:
+            # 发布数据中心连接检查事件
+            self.event_bus.publish(create_market_event(
+                EventType.DATA_CENTER_CHECK,
+                {},
+                "DataService"
+            ))
+            logger.info("已发送数据中心连接检查请求")
+        except Exception as e:
+            logger.error(f"检查数据中心连接失败: {e}")
     
     def get_latest_tick(self, symbol: str) -> Optional[TickData]:
         """获取最新tick数据"""
@@ -720,5 +756,5 @@ class DataService:
             "processing_rate": self.stats["processing_rate"],
             "buffer_size": len(self.tick_buffer),
             "subscribers_count": sum(len(subs) for subs in self.subscribers.values()),
-            "db_path": str(self.db_manager.db_path)
+            "data_center_available": self.data_center_available
         }

@@ -61,3 +61,4 @@ git rm --cached logs/debug.log
 git commit -m "Stop tracking debug.log"
 ```
 
+sqlite3 data/market_data.db "SELECT symbol, datetime, last_price, volume FROM tick_data ORDER BY datetime DESC LIMIT 5;"

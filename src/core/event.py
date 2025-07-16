@@ -122,8 +122,31 @@ class EventType:
     DATA_QUERY_TICK_RESULT = "data.query.tick.result"  # 数据查询Tick结果事件
     DATA_QUERY_BAR_RESULT = "data.query.bar.result"  # 数据查询Bar结果事件
     DATA_SUBSCRIBE_SUCCESS = "data.subscribe.success"  # 数据订阅成功事件
-    DATA_SUBSCRIBE_FAILED = "data.subscribe.failed"  # 数据订阅失败事件
+    
+    # 数据中心事件（第一组）
+    DATA_CENTER_QUERY_TICK = "data_center.query.tick"  # 数据中心查询Tick事件
+    DATA_CENTER_QUERY_BAR = "data_center.query.bar"  # 数据中心查询Bar事件
+    DATA_CENTER_TICK_RESULT = "data_center.tick.result"  # 数据中心Tick结果事件
+    DATA_CENTER_BAR_RESULT = "data_center.bar.result"  # 数据中心Bar结果事件
+    
+    # 行情数据事件
+    TICK_DATA = "tick.data"  # Tick数据事件
+    CONTRACT_INFO = "contract.info"  # 合约信息事件
+    MARKET_TICK_RAW = "market.tick.raw"  # 原始Tick数据事件
+    MARKET_BAR_RAW = "market.bar.raw"  # 原始Bar数据事件
     DATA_PERSIST = "data.persist"  # 数据持久化事件
+    DATA_SUBSCRIBE_FAILED = "data.subscribe.failed"  # 数据订阅失败事件
+    
+    # 数据中心事件
+    DATA_CENTER_CONNECTED = "data_center.connected"  # 数据中心连接成功事件
+    DATA_CENTER_DISCONNECTED = "data_center.disconnected"  # 数据中心断开连接事件
+    DATA_CENTER_CHECK = "data_center.check"  # 数据中心连接检查事件
+    DATA_CENTER_TICK = "data_center.tick"  # 数据中心tick数据事件
+    DATA_CENTER_BAR = "data_center.bar"  # 数据中心bar数据事件
+    DATA_CENTER_QUERY_TICK = "data_center.query.tick"  # 数据中心查询tick事件
+    DATA_CENTER_QUERY_BAR = "data_center.query.bar"  # 数据中心查询bar事件
+    DATA_CENTER_QUERY_TICK_RESULT = "data_center.query.tick.result"  # 数据中心查询tick结果事件
+    DATA_CENTER_QUERY_BAR_RESULT = "data_center.query.bar.result"  # 数据中心查询bar结果事件
 
     STRATEGY_SIGNAL = "strategy.signal"
     STRATEGY_LOADED = "strategy.loaded"             # 策略加载事件
