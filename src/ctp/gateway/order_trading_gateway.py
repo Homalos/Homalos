@@ -327,7 +327,7 @@ class OrderTradingGateway(BaseGateway):
                 "reason": f"异常: {e}"
             })
 
-    def _handle_query_account(self) -> None:
+    def _handle_query_account(self, event: Event) -> None:
         """处理账户查询请求"""
         try:
             self.write_log("收到账户查询请求")
@@ -335,7 +335,7 @@ class OrderTradingGateway(BaseGateway):
         except Exception as e:
             self.write_log(f"处理账户查询请求失败: {e}")
     
-    def _handle_query_position(self) -> None:
+    def _handle_query_position(self, event: Event) -> None:
         """处理持仓查询请求"""
         try:
             self.write_log("收到持仓查询请求")
