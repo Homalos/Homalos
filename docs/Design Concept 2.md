@@ -993,3 +993,166 @@ except RuntimeError:
 - 🎨 用户友好 : 优化的Web界面，实时事件推送
 - 🔧 技术先进 : 解决了所有关键技术债务
 所有文档现在准确反映了系统的最新技术实现和生产就绪状态，为用户提供了完整、准确的系统信息。
+
+---
+
+
+我将深入分析data_service.py模块的架构和功能，系统性地梳理其核心组件、数据流转机制和业务逻辑。
+        
+            
+toolName: view_files
+            
+status: success
+          
+            
+filePath: d:/Project/PycharmProjects/Homalos_v2/src/services/data_service.py
+          
+继续查看DatabaseManager的核心方法和BarGenerator、BarManager类的实现。
+        
+            
+toolName: view_files
+            
+status: success
+          
+            
+filePath: d:/Project/PycharmProjects/Homalos_v2/src/services/data_service.py
+          
+查看K线合成器和数据服务主类的实现。
+        
+            
+toolName: view_files
+            
+status: success
+          
+            
+filePath: d:/Project/PycharmProjects/Homalos_v2/src/services/data_service.py
+          
+继续查看数据服务的核心功能实现，包括订阅管理和事件处理。
+        
+            
+toolName: view_files
+            
+status: success
+          
+            
+filePath: d:/Project/PycharmProjects/Homalos_v2/src/services/data_service.py
+          
+查看数据服务的剩余核心功能，包括数据查询、持久化和其他事件处理方法。
+        
+            
+toolName: view_files
+            
+status: success
+          
+            
+filePath: d:/Project/PycharmProjects/Homalos_v2/src/services/data_service.py
+          
+继续查看数据服务的剩余功能，包括数据查询、统计和其他核心方法。
+        
+            
+toolName: view_files
+            
+status: success
+          
+            
+filePath: d:/Project/PycharmProjects/Homalos_v2/src/services/data_service.py
+          
+## 数据服务模块（DataService）功能分析
+
+### 🏗️ 核心架构组件
+
+**1. DatabaseManager（数据库管理器）**
+- 管理SQLite数据库（trading.db），支持WAL模式提高并发性能
+- 创建和维护数据表：tick_data、bar_data、orders、trades、positions
+- 实现批量写入缓存机制和后台异步写入线程
+- 提供数据查询接口，支持按时间范围、合约等条件查询
+
+**2. BarGenerator（K线合成器）**
+- 单合约单周期K线实时合成
+- 根据tick数据生成不同周期的K线数据
+- 支持开盘价、最高价、最低价、收盘价、成交量等完整K线信息
+
+**3. BarManager（K线管理器）**
+- 多合约多周期K线统一管理
+- 支持1分钟、5分钟、10分钟等多种周期
+- 将tick数据智能分发给对应的BarGenerator
+
+### 📊 数据处理功能
+
+**行情数据处理**
+- 处理原始tick数据（<mcsymbol name="_handle_raw_tick" filename="data_service.py" path="d:/Project/PycharmProjects/Homalos_v2/src/services/data_service.py" startline="745" type="function"></mcsymbol>）
+- 处理原始bar数据（<mcsymbol name="_handle_raw_bar" filename="data_service.py" path="d:/Project/PycharmProjects/Homalos_v2/src/services/data_service.py" startline="818" type="function"></mcsymbol>）
+- 实时更新内存缓存（tick_buffer、bar_buffer）
+- 异步数据持久化到数据库
+- K线实时合成和分发
+
+**数据查询服务**
+- 提供tick数据历史查询
+- 提供bar数据历史查询
+- 支持异步查询处理
+- 查询结果通过事件总线返回
+
+### 🔔 订阅管理系统
+
+**订阅功能**
+- 策略级别的行情数据订阅管理
+- 支持多策略订阅同一合约
+- 订阅状态跟踪和超时检测
+- 自动重试机制
+
+**事件分发**
+- 为每个策略发布专用事件：`market.tick.{strategy_id}`、`market.bar.{strategy_id}`
+- 同时保持通用事件发布供全局监听
+- 智能事件路由，确保数据准确送达
+
+### ⚡ 性能优化特性
+
+**异步处理**
+- 支持异步和同步两种数据处理模式
+- 后台线程处理数据库写入，避免阻塞主线程
+- 批量写入机制，提高数据库写入效率
+
+**内存管理**
+- 智能缓存最新的tick和bar数据
+- 订阅状态内存管理
+- 性能统计和监控
+
+### 📈 监控和统计
+
+**实时统计**
+- tick数据处理计数
+- bar数据处理计数
+- 数据处理速率计算
+- 缓冲区大小监控
+- 订阅者数量统计
+
+**服务状态**
+- 提供服务统计信息接口（<mcsymbol name="get_service_stats" filename="data_service.py" path="d:/Project/PycharmProjects/Homalos_v2/src/services/data_service.py" startline="1165" type="function"></mcsymbol>）
+- 支持运行时状态查询
+- 数据库路径和配置信息
+
+### 🔄 事件驱动架构
+
+**事件处理器**
+- 订阅请求处理（DATA_SUBSCRIBE）
+- 取消订阅处理（DATA_UNSUBSCRIBE）
+- 网关订阅成功/失败事件处理
+- 数据查询请求处理
+- 数据持久化请求处理
+
+**容错机制**
+- 完善的异常处理和日志记录
+- 订阅失败自动重试
+- 交易时间判断，避免非交易时间的无效重试
+- 线程安全的数据访问
+
+### 💡 架构亮点
+
+1. **模块化设计**：数据库、K线合成、订阅管理等功能独立封装
+2. **高性能**：异步处理、批量写入、内存缓存等优化措施
+3. **可扩展性**：支持多策略、多合约、多周期的灵活配置
+4. **可靠性**：完善的错误处理、重试机制和状态跟踪
+5. **实时性**：事件驱动架构确保数据实时处理和分发
+
+数据服务模块是整个交易系统的数据中枢，负责行情数据的接收、处理、存储、查询和分发，为策略执行提供了可靠的数据基础设施。
+        
