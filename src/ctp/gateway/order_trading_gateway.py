@@ -77,6 +77,7 @@ class OrderTradingGateway(BaseGateway):
         super().__init__(event_bus, gateway_name)
         self.gateway_name = gateway_name
 
+        self.query_functions = None
         # CTP API相关
         # self.td_api: Optional[CtpTdApi] = None
         self.td_api: CtpTdApi | None = None
@@ -93,13 +94,13 @@ class OrderTradingGateway(BaseGateway):
         
         # 合约就绪标志
         self._contracts_ready: bool = False
-        self._contract_query_start_time: Optional[float] = None
+        self.contract_query_start_time: Optional[float] = None
 
         # 加载合约交易所映射文件
         self.instrument_exchange_map: dict = {}
         map_file_path = ""
         try:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
+            # current_dir = os.path.dirname(os.path.abspath(__file__))
             # 构建到 instrument_exchange_id.json 的相对路径
             # map_file_path = os.path.join(current_dir, "..", "..", "..", "config", instrument_exchange_id_filename)
             map_file_path = GlobalPath.instrument_exchange_id_filepath
@@ -117,7 +118,7 @@ class OrderTradingGateway(BaseGateway):
         # 设置网关事件处理器
         self._setup_gateway_event_handlers()
 
-    def _set_gateway_state(self, new_state: ConnectionState) -> None:
+    def set_gateway_state(self, new_state: ConnectionState) -> None:
         """设置网关状态（线程安全，同步版本）"""
         with self._state_lock:
             old_state = self._gateway_state
@@ -142,11 +143,11 @@ class OrderTradingGateway(BaseGateway):
         """获取当前网关状态"""
         return self._gateway_state
 
-    def _is_contracts_ready(self) -> bool:
+    def is_contracts_ready(self) -> bool:
         """检查合约信息是否就绪"""
         return self._contracts_ready and len(symbol_contract_map) > 0
 
-    def _add_pending_order_data(self, order_data: Dict[str, Any]) -> None:
+    def add_pending_order_data(self, order_data: Dict[str, Any]) -> None:
         """添加待处理的订单数据"""
         self._pending_orders.append({
             "data": order_data,
@@ -155,7 +156,7 @@ class OrderTradingGateway(BaseGateway):
         })
         self.write_log(f"订单数据已缓存，等待合约信息就绪。缓存数量: {len(self._pending_orders)}")
 
-    def _add_pending_trade_data(self, trade_data: Dict[str, Any]) -> None:
+    def add_pending_trade_data(self, trade_data: Dict[str, Any]) -> None:
         """添加待处理的成交数据"""
         self._pending_trades.append({
             "data": trade_data,
@@ -164,7 +165,7 @@ class OrderTradingGateway(BaseGateway):
         })
         self.write_log(f"成交数据已缓存，等待合约信息就绪。缓存数量: {len(self._pending_trades)}")
 
-    def _process_pending_data(self) -> None:
+    def process_pending_data(self) -> None:
         """处理所有待处理的数据"""
         try:
             # 处理待处理的订单数据
@@ -269,7 +270,7 @@ class OrderTradingGateway(BaseGateway):
                 return
             
             # 检查合约信息是否就绪
-            if not self._is_contracts_ready():
+            if not self.is_contracts_ready():
                 self.write_log("合约信息未就绪，拒绝下单请求")
                 self._safe_publish_event("order.send_failed", {
                     "order_request": order_request,
@@ -326,7 +327,7 @@ class OrderTradingGateway(BaseGateway):
                 "reason": f"异常: {e}"
             })
 
-    def _handle_query_account(self, event: Event) -> None:
+    def _handle_query_account(self) -> None:
         """处理账户查询请求"""
         try:
             self.write_log("收到账户查询请求")
@@ -334,7 +335,7 @@ class OrderTradingGateway(BaseGateway):
         except Exception as e:
             self.write_log(f"处理账户查询请求失败: {e}")
     
-    def _handle_query_position(self, event: Event) -> None:
+    def _handle_query_position(self) -> None:
         """处理持仓查询请求"""
         try:
             self.write_log("收到持仓查询请求")
@@ -648,9 +649,9 @@ class CtpTdApi(TdApi):
             self.gateway.write_log(f"订单失败：合约 {symbol} 不在合约映射中，可能合约信息尚未加载完成")
             
             # 如果合约信息尚未就绪，将订单数据缓存
-            if not self.gateway._is_contracts_ready():
+            if not self.gateway.is_contracts_ready():
                 self.gateway.write_log(f"合约信息未就绪，缓存订单失败数据: {symbol}")
-                self.gateway._add_pending_order_data(data)
+                self.gateway.add_pending_order_data(data)
                 return
             else:
                 # 合约就绪但找不到该合约，可能是不支持的合约
@@ -843,12 +844,12 @@ class CtpTdApi(TdApi):
             self.gateway.write_log(f"CtpTdApi：onRspQryInstrument 出错。最后：{last}，错误 ID：{error.get('ErrorID', 'N/A')}")
             if last:
                 # 合约查询失败，设置错误状态（同步调用）
-                self.gateway._set_gateway_state(ConnectionState.ERROR)
+                self.gateway.set_gateway_state(ConnectionState.ERROR)
             return
 
         # 如果是第一次回报，记录开始时间
-        if self.gateway._contract_query_start_time is None:
-            self.gateway._contract_query_start_time = time.time()
+        if self.gateway.contract_query_start_time is None:
+            self.gateway.contract_query_start_time = time.time()
             self.gateway.write_log("开始处理合约信息...")
 
         # 处理单个合约数据
@@ -872,11 +873,11 @@ class CtpTdApi(TdApi):
         if last:
             try:
                 # 检查是否在超时时间内完成
-                if self.gateway._contract_query_start_time:
-                    query_duration = time.time() - self.gateway._contract_query_start_time
+                if self.gateway.contract_query_start_time:
+                    query_duration = time.time() - self.gateway.contract_query_start_time
                     if query_duration > self.gateway._contract_query_timeout:
                         self.gateway.write_log(f"合约查询超时: {query_duration:.2f}秒")
-                        self.gateway._set_gateway_state(ConnectionState.ERROR)
+                        self.gateway.set_gateway_state(ConnectionState.ERROR)
                         return
 
                 # 标记合约初始化完成
@@ -897,18 +898,18 @@ class CtpTdApi(TdApi):
                     self.gateway.write_error(f"写入 instrument_exchange_id.json 失败：{e}", error)
 
                 # 设置网关状态为就绪（同步调用）
-                self.gateway._set_gateway_state(ConnectionState.READY)
+                self.gateway.set_gateway_state(ConnectionState.READY)
                 
                 # 发布合约就绪事件
-                self.gateway._safe_publish_event("gateway.contracts_ready", {
+                self.gateway._safe_publish_event(EventType.GATEWAY_CONTRACTS_READY, {
                     "gateway_name": self.gateway_name,
                     "contract_count": contract_count,
                     "timestamp": time.time(),
-                    "query_duration": time.time() - self.gateway._contract_query_start_time if self.gateway._contract_query_start_time else 0
+                    "query_duration": time.time() - self.gateway.contract_query_start_time if self.gateway.contract_query_start_time else 0
                 })
 
                 # 处理所有缓存的订单和成交数据
-                self.gateway._process_pending_data()
+                self.gateway.process_pending_data()
 
                 # 处理之前缓存的CTP回调数据
                 for data in self.order_data:
@@ -923,7 +924,7 @@ class CtpTdApi(TdApi):
                 
             except Exception as e:
                 self.gateway.write_log(f"完成合约初始化时发生错误: {e}")
-                self.gateway._set_gateway_state(ConnectionState.ERROR)
+                self.gateway.set_gateway_state(ConnectionState.ERROR)
 
     def onRtnOrder(self, data: dict) -> None:
         """
@@ -948,9 +949,9 @@ class CtpTdApi(TdApi):
             self.gateway.write_log(f"订单更新：合约 {symbol} 不在合约映射中")
             
             # 如果合约信息尚未就绪，将数据缓存
-            if not self.gateway._is_contracts_ready():
+            if not self.gateway.is_contracts_ready():
                 self.gateway.write_log(f"合约信息未就绪，缓存订单更新数据: {symbol}")
-                self.gateway._add_pending_order_data(data)
+                self.gateway.add_pending_order_data(data)
                 return
             else:
                 self.gateway.write_log(f"跳过不支持的合约订单更新: {symbol}")
@@ -1023,9 +1024,9 @@ class CtpTdApi(TdApi):
             self.gateway.write_log(f"成交回报：合约 {symbol} 不在合约映射中")
             
             # 如果合约信息尚未就绪，将数据缓存
-            if not self.gateway._is_contracts_ready():
+            if not self.gateway.is_contracts_ready():
                 self.gateway.write_log(f"合约信息未就绪，缓存成交回报数据: {symbol}")
-                self.gateway._add_pending_trade_data(data)
+                self.gateway.add_pending_trade_data(data)
                 return
             else:
                 self.gateway.write_log(f"跳过不支持的合约成交回报: {symbol}")

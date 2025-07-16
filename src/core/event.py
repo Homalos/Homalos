@@ -112,7 +112,8 @@ class EventType:
     GATEWAY_QUERY_POSITION = "gateway.query_position"  # 网关查询持仓事件
 
     GATEWAY_SEND_ORDER = "gateway.send_order"       # 网关发送订单事件
-    GATEWAY_CANCEL_ORDER = "gateway.cancel_order"   # 网关撤单事件
+    GATEWAY_CANCEL_ORDER = "gateway.cancel_order"   #
+    GATEWAY_CONTRACTS_READY = "gateway.contracts_ready"
 
     DATA_SUBSCRIBE = "data.subscribe"  # 数据订阅事件
     DATA_UNSUBSCRIBE = "data.unsubscribe"  # 数据取消订阅事件

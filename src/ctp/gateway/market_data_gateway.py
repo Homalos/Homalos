@@ -92,7 +92,7 @@ class MarketDataGateway(BaseGateway):
         self._last_connection_config: Optional[dict] = None
         
         # 重连相关属性
-        self._enable_auto_reconnect: bool = True
+        self.enable_auto_reconnect: bool = True
         self._reconnect_task: Optional[asyncio.Task] = None
         self._current_reconnect_attempts: int = 0
         self._max_reconnect_attempts: int = 10
@@ -153,7 +153,7 @@ class MarketDataGateway(BaseGateway):
                     
                     if self._is_gateway_ready():
                         logger.info("行情网关重连成功")
-                        await self._process_pending_subscriptions()
+                        await self.process_pending_subscriptions()
                         break
                 else:
                     logger.error("缺少连接配置，无法重连")
@@ -164,7 +164,7 @@ class MarketDataGateway(BaseGateway):
         except Exception as e:
             logger.error(f"重连过程中发生错误: {e}")
 
-    async def _process_pending_subscriptions(self) -> None:
+    async def process_pending_subscriptions(self) -> None:
         """处理待处理的订阅请求"""
         if not hasattr(self, 'pending_subscription_queue'):
             return
@@ -219,14 +219,14 @@ class MarketDataGateway(BaseGateway):
                 if self.last_heartbeat > 0 and current_time - self.last_heartbeat > 60:
                     # 超过60秒没有心跳，认为连接断开
                     logger.warning("心跳超时，检测到连接断开")
-                    await self._handle_connection_lost()
+                    await self.handle_connection_lost()
                     
         except asyncio.CancelledError:
             logger.info("心跳监控已停止")
         except Exception as e:
             logger.error(f"心跳监控异常: {e}")
     
-    async def _handle_connection_lost(self) -> None:
+    async def handle_connection_lost(self) -> None:
         """处理连接丢失"""
         try:
             logger.warning("处理连接丢失事件")
@@ -446,9 +446,9 @@ class MarketDataGateway(BaseGateway):
         except Exception as e:
             logger.error(f"_handle_connection_failed处理异常: {e}")
 
-    async def _start_auto_reconnect(self) -> None:
+    async def start_auto_reconnect(self) -> None:
         """启动智能自动重连"""
-        if not self._enable_auto_reconnect or not self._last_connection_config:
+        if not self.enable_auto_reconnect or not self._last_connection_config:
             return
             
         if self._reconnect_task and not self._reconnect_task.done():
@@ -461,7 +461,7 @@ class MarketDataGateway(BaseGateway):
         try:
             while (self._current_reconnect_attempts < self._max_reconnect_attempts and 
                    self._connection_state == ConnectionState.DISCONNECTED and
-                   self._enable_auto_reconnect):
+                   self.enable_auto_reconnect):
                 
                 self._current_reconnect_attempts += 1
                 wait_time = min(self._reconnect_interval * (2 ** (self._current_reconnect_attempts - 1)), 60)  # 指数退避，最大60秒
@@ -616,11 +616,11 @@ class CtpMdApi(MdApi):
         logger.info(f"行情服务器连接断开，原因：{reason_msg} ({reason_hex})")
         
         # 触发连接丢失处理
-        asyncio.create_task(self.gateway._handle_connection_lost())
+        asyncio.create_task(self.gateway.handle_connection_lost())
         
         # 启动智能重连机制
-        if hasattr(self.gateway, '_enable_auto_reconnect') and self.gateway._enable_auto_reconnect:
-            asyncio.create_task(self.gateway._start_auto_reconnect())
+        if self.gateway.enable_auto_reconnect:
+            asyncio.create_task(self.gateway.start_auto_reconnect())
 
     def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
@@ -649,9 +649,9 @@ class CtpMdApi(MdApi):
             # 登录成功后自动处理pending订阅队列
             try:
                 logger.info("🚀 登录成功，开始处理pending订阅队列")
-                if hasattr(self.gateway, '_process_pending_subscriptions'):
+                if hasattr(self.gateway, 'process_pending_subscriptions'):
                     # 使用线程安全的方式调度异步任务
-                    coro = self.gateway._process_pending_subscriptions()
+                    coro = self.gateway.process_pending_subscriptions()
                     if asyncio.iscoroutine(coro):
                         self.gateway._schedule_async_task(coro)
                     else:

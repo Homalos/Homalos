@@ -15,7 +15,7 @@ import sys
 import time
 import traceback
 from pathlib import Path
-from typing import Optional, Any, Type, Union
+from typing import Optional
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, EventType
@@ -149,8 +149,9 @@ class HomalosSystem:
                     logger.warning(f"网关 {gateway_key} 已启用但类型 {gateway_type} 不可用")
         
         return enabled_gateways
-    
-    def _validate_gateway_config(self, gateway_key: str, gateway_config: Dict[str, Any], gateway_type: str) -> bool:
+
+    @staticmethod
+    def _validate_gateway_config(gateway_key: str, gateway_config: Dict[str, Any], gateway_type: str) -> bool:
         """验证网关配置的完整性"""
         # 定义不同网关类型的必需字段
         required_fields_map = {
@@ -175,8 +176,9 @@ class HomalosSystem:
         
         logger.info(f"{gateway_key} 网关配置验证通过")
         return True
-    
-    def _convert_gateway_config(self, gateway_config: dict, gateway_type: str) -> dict:
+
+    @staticmethod
+    def _convert_gateway_config(gateway_config: dict, gateway_type: str) -> dict:
         """根据网关类型转换配置参数格式"""
         converted_config = gateway_config.copy()
         
@@ -423,9 +425,7 @@ class HomalosSystem:
         if self.is_running:
             logger.warning("系统已在运行")
             return
-        
-        startup_tasks = []
-        
+
         try:
             # 初始化系统
             logger.info("开始系统初始化...")
@@ -493,7 +493,26 @@ class HomalosSystem:
         """启动交易引擎"""
         if self.trading_engine:
             await self.trading_engine.start()
-    
+
+    @staticmethod
+    def _close_gateways(gateways: Dict[str, Any], gateway_type_name: str):
+        """
+        通用的关闭网关函数(行情网关和交易网关)
+        :param gateways: 网关字典 {key: gateway}
+        :param gateway_type_name: 网关类型名称（用于日志）
+        """
+        if not gateways:
+            return
+
+        logger.info(f"关闭 {len(gateways)} 个{gateway_type_name}...")
+        for gateway_key, gateway in gateways.items():
+            try:
+                logger.info(f"关闭{gateway_type_name}: {gateway_key}")
+                gateway.close()
+            except Exception as e:
+                logger.error(f"关闭{gateway_type_name} {gateway_key} 时发生错误: {e}", exc_info=True)
+
+
     async def _start_web_server(self) -> None:
         """启动Web服务器"""
         if self.web_server:
@@ -554,27 +573,33 @@ class HomalosSystem:
             if self.data_service:
                 logger.info("关闭数据服务...")
                 await self.data_service.shutdown()
-            
+
             # 关闭所有行情网关
-            if self.market_gateways:
-                logger.info(f"关闭 {len(self.market_gateways)} 个行情网关...")
-                for gateway_key, market_gateway in self.market_gateways.items():
-                    try:
-                        logger.info(f"关闭行情网关: {gateway_key}")
-                        market_gateway.close()
-                    except Exception as e:
-                        logger.error(f"关闭行情网关 {gateway_key} 时发生错误: {e}")
-            
+            self._close_gateways(self.market_gateways, "行情网关")
+
             # 关闭所有交易网关
-            if self.trading_gateways:
-                logger.info(f"关闭 {len(self.trading_gateways)} 个交易网关...")
-                for gateway_key, trading_gateway in self.trading_gateways.items():
-                    try:
-                        logger.info(f"关闭交易网关: {gateway_key}")
-                        trading_gateway.close()
-                    except Exception as e:
-                        logger.error(f"关闭交易网关 {gateway_key} 时发生错误: {e}")
-            
+            self._close_gateways(self.trading_gateways, "交易网关")
+
+            # # 关闭所有行情网关
+            # if self.market_gateways:
+            #     logger.info(f"关闭 {len(self.market_gateways)} 个行情网关...")
+            #     for gateway_key, market_gateway in self.market_gateways.items():
+            #         try:
+            #             logger.info(f"关闭行情网关: {gateway_key}")
+            #             market_gateway.close()
+            #         except Exception as e:
+            #             logger.error(f"关闭行情网关 {gateway_key} 时发生错误: {e}")
+            #
+            # # 关闭所有交易网关
+            # if self.trading_gateways:
+            #     logger.info(f"关闭 {len(self.trading_gateways)} 个交易网关...")
+            #     for gateway_key, trading_gateway in self.trading_gateways.items():
+            #         try:
+            #             logger.info(f"关闭交易网关: {gateway_key}")
+            #             trading_gateway.close()
+            #         except Exception as e:
+            #             logger.error(f"关闭交易网关 {gateway_key} 时发生错误: {e}")
+
             # 停止服务注册中心
             if self.service_registry:
                 logger.info("停止服务注册中心...")
@@ -595,7 +620,7 @@ class HomalosSystem:
             logger.info("Homalos量化交易系统已安全关闭")
             
         except Exception as e:
-            logger.error(f"系统关闭过程中发生错误: {e}")
+            logger.error(f"系统关闭过程中发生错误: {e}", exc_info=True)
     
     def _print_system_info(self):
         """打印系统信息"""
@@ -613,7 +638,7 @@ class HomalosSystem:
         if self.web_server:
             host = self.config.get("web.host", "127.0.0.1")
             port = self.config.get("web.port", 8000)
-            info += f"🌐 Web地址: http://{host}:{port}\n"
+            info += "Web地址: http:" + f"//{host}:{port}\n"
         
         info += "="*60
         logger.info(info)
