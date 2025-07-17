@@ -19,7 +19,7 @@ data_center:
       
   # Parquet配置
   parquet:
-    base_path: "data/parquet"
+    base_path: "data"
     compression: "snappy"  # snappy, gzip, lz4
     partition_by: "date"  # date, symbol, none
       
