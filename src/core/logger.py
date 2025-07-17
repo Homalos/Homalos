@@ -12,7 +12,6 @@
 import functools
 import sys
 from logging import CRITICAL, DEBUG, ERROR, INFO, WARNING
-from datetime import datetime
 from pathlib import Path
 from typing import Optional, Any, Callable, Dict, TypeVar, cast
 
@@ -21,7 +20,6 @@ from loguru import logger
 from src.config.global_config import log_config_settings
 from src.config.path import GlobalPath
 
-
 __all__ = [
     "DEBUG",
     "INFO",
@@ -29,7 +27,8 @@ __all__ = [
     "ERROR",
     "CRITICAL",
     "get_logger",
-    "logger"
+    "logger",
+    "Logger"
 ]
 
 
@@ -47,10 +46,13 @@ class Logger:
     7. 支持动态设置日志级别
     """
 
-    def __init__(self) -> None:
+    def __init__(self, log_config_dict: Optional[dict] = None) -> None:
         self.logger = logger
         # 从全局设置中读取日志设置
-        self.log_settings: dict = log_config_settings.get("log", {})
+        log_setting: dict = log_config_settings.get("log", {})
+        # 如果传入了日志配置字典，则使用该字典，否则使用全局配置
+        self.log_settings: dict = log_config_dict if log_config_dict else log_setting
+        # self.log_settings: dict = log_config_settings.get("log", {})
         # 输出的最低日志级别（例如，"DEBUG"、"INFO"）。
         self.level: str = self.log_settings.get("level", "INFO")
         self.log_rotation: str = "100 MB"  # 当文件超过 100MB 时(Rotate when file exceeds 100MB)

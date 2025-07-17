@@ -10,7 +10,7 @@ log:
     enabled: true
 
   file:
-    enabled: true
+    enabled: true  # 禁用文件日志记录以提高性能
     name_format: "{time:YYYYMMDD}.log"
     rotation: "100 MB"  # 当文件超过 100MB 时进行轮转
     retention: "30 days"  # 保留日志的天数

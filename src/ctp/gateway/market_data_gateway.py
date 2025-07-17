@@ -13,6 +13,7 @@ import asyncio
 import sys
 import time
 import traceback
+import threading  # 新增
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Any
@@ -74,6 +75,10 @@ class MarketDataGateway(BaseGateway):
         self._connection_state: ConnectionState = ConnectionState.DISCONNECTED
         self.login_state = LoginState.LOGGED_OUT
         
+        # 新增：线程锁机制
+        self._subscription_lock = threading.RLock()  # 订阅操作锁
+        self._state_lock = threading.RLock()         # 状态变更锁
+        
         # 新增：心跳监控任务初始化
         self.heartbeat_task = None
         
@@ -84,6 +89,8 @@ class MarketDataGateway(BaseGateway):
         # 订阅管理（增强）
         self.pending_subscriptions: set[str] = set()  # 待订阅合约
         self.active_subscriptions: set[str] = set()   # 已订阅合约
+        self.subscription_states: dict[str, str] = {}  # 新增：合约订阅状态追踪
+        # 状态值: 'pending', 'active', 'failed', 'unsubscribing'
         
         # 待处理订阅请求队列
         self.pending_subscription_queue: list[dict] = []
@@ -503,18 +510,36 @@ class MarketDataGateway(BaseGateway):
             logger.error(f"自动重连循环异常: {e}")
 
     def subscribe(self, req: SubscribeRequest) -> None:
-        """
-        订阅行情
-        :param req:
-        :return:
-        """
-        if not self.md_api or not getattr(self.md_api, 'connect_status', False):
-            logger.info("无法订阅行情：行情接口未连接或未初始化。")
-            return
-        if hasattr(self.md_api, 'subscribe'):
-            self.md_api.subscribe(req)
-        else:
-            logger.info("行情API不支持subscribe方法")
+        """订阅行情（增强版本）"""
+        with self._subscription_lock:
+            try:
+                symbol = req.symbol
+                
+                # 检查当前状态
+                current_state = self.subscription_states.get(symbol, None)
+                
+                # 如果已经在活跃状态或正在处理中，跳过
+                if current_state in ['active', 'pending']:
+                    logger.debug(f"合约 {symbol} 已在 {current_state} 状态，跳过重复订阅")
+                    return
+                
+                # 更新状态为pending
+                self.subscription_states[symbol] = 'pending'
+                self.pending_subscriptions.add(symbol)
+                
+                logger.info(f"开始订阅合约: {symbol}")
+                
+                if self.md_api:
+                    self.md_api.subscribe(req)
+                else:
+                    logger.error("MD API未初始化")
+                    self.subscription_states[symbol] = 'failed'
+                    self.pending_subscriptions.discard(symbol)
+                    
+            except Exception as e:
+                logger.error(f"订阅合约 {req.symbol} 失败: {e}")
+                self.subscription_states[req.symbol] = 'failed'
+                self.pending_subscriptions.discard(req.symbol)
 
     def close(self) -> None:
         """
@@ -629,67 +654,54 @@ class CtpMdApi(MdApi):
             asyncio.create_task(self.gateway.start_auto_reconnect())
 
     def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool) -> None:
-        """
-        用户登录请求回报
-        :param data:
-        :param error:
-        :param reqid:
-        :param last:
-        :return:
-        """
-        logger.info(f"CTP行情API回调: onRspUserLogin - 登录回报, ErrorID={error.get('ErrorID', 'N/A')}")
-        if not error["ErrorID"]:
-            logger.info("行情服务器登录成功，开始更新状态并处理pending订阅")
-            self.login_status = True
-            global_var.md_login_success = True
-            self.gateway._update_connection_state(ConnectionState.LOGGED_IN)
-            self.gateway.login_state = LoginState.LOGGED_IN
-            logger.info("行情服务器登录成功")
-            
-            # 更新心跳时间
-            self.gateway.last_heartbeat = time.time()
-
-            for symbol in self.subscribed:
-                self.subscribeMarketData(symbol)
-
-            # 登录成功后自动处理pending订阅队列
-            try:
-                logger.info("🚀 登录成功，开始处理pending订阅队列")
-                if hasattr(self.gateway, 'process_pending_subscriptions'):
-                    # 检查是否有事件循环运行
-                    try:
-                        loop = asyncio.get_running_loop()
-                        # 有事件循环，使用线程安全的方式调度异步任务
-                        coro = self.gateway.process_pending_subscriptions()
-                        if asyncio.iscoroutine(coro):
-                            self.gateway._schedule_async_task(coro)
-                        logger.info("pending订阅队列处理任务已创建")
-                    except RuntimeError:
-                        # 没有事件循环，直接同步处理
-                        logger.info("没有事件循环运行，同步处理pending订阅队列")
-                        # 同步版本的处理逻辑
-                        if hasattr(self.gateway, 'pending_subscription_queue'):
-                            queue = getattr(self.gateway, 'pending_subscription_queue', [])
-                            if queue:
-                                logger.info(f"同步处理 {len(queue)} 个待处理的订阅请求")
-                                for sub_request in queue:
-                                    try:
-                                        from src.core.event import Event
-                                        event = Event(EventType.GATEWAY_SUBSCRIBE, sub_request)
-                                        self.gateway._handle_gateway_subscribe(event)
-                                    except Exception as e:
-                                        logger.error(f"处理待订阅请求失败: {e}")
-                                # 清空队列
-                                self.gateway.pending_subscription_queue.clear()
-                                logger.info("待处理订阅队列已清空")
-                logger.info("登录成功后已触发pending订阅队列处理")
-            except Exception as e:
-                logger.error(f"处理pending订阅队列异常: {e}")
-        else:
-            logger.error(f"行情服务器登录失败: {error}")
-            self.gateway._update_connection_state(ConnectionState.ERROR)
-            self.gateway.login_state = LoginState.LOGIN_FAILED
-            self.gateway.write_error("行情服务器登录失败", error)
+        """用户登录请求回报（修复版本）"""
+        try:
+            if error["ErrorID"] == 0:
+                self.login_status = True
+                self.gateway.login_state = LoginState.LOGGED_IN
+                self.gateway._update_connection_state(ConnectionState.LOGGED_IN)
+                logger.info("行情服务器登录成功")
+                
+                # 修复：使用网关的订阅方法而不是直接调用API
+                with self.gateway._subscription_lock:
+                    # 获取需要重新订阅的合约列表
+                    symbols_to_resubscribe = list(self.subscribed)
+                    
+                    if symbols_to_resubscribe:
+                        logger.info(f"重新订阅 {len(symbols_to_resubscribe)} 个合约")
+                        
+                        # 清理旧状态
+                        for symbol in symbols_to_resubscribe:
+                            self.gateway.subscription_states.pop(symbol, None)
+                            self.gateway.pending_subscriptions.discard(symbol)
+                            self.gateway.active_subscriptions.discard(symbol)
+                        
+                        # 使用网关的订阅方法重新订阅
+                        for symbol in symbols_to_resubscribe:
+                            try:
+                                exchange = self.gateway._get_symbol_exchange(symbol)
+                                req = SubscribeRequest(symbol=symbol, exchange=exchange)
+                                self.gateway.subscribe(req)
+                            except Exception as e:
+                                logger.error(f"重新订阅合约 {symbol} 失败: {e}")
+                    
+                    # 更新日期
+                    self.update_date()
+                    
+                    # 修复：无论是否有重新订阅的合约，都要发布网关就绪事件
+                    self.gateway.event_bus.publish(Event(
+                        EventType.GATEWAY_READY,
+                        {"gateway_name": self.gateway.gateway_name}
+                    ))
+                    logger.info("已发布网关就绪事件，数据中心将开始订阅行情")
+                        
+            else:
+                self.gateway.login_state = LoginState.LOGIN_FAILED
+                logger.error(f"行情服务器登录失败: {error['ErrorMsg']}")
+                        
+        except Exception as e:
+            logger.error(f"处理登录回报异常: {e}")
+            logger.error(traceback.format_exc())
 
     def onRspError(self, error: dict, reqid: int, last: bool) -> None:
         """
@@ -703,8 +715,7 @@ class CtpMdApi(MdApi):
         self.gateway.write_error("行情接口报错", error)
 
     def onRspSubMarketData(self, data: dict, error: dict, reqid: int, last: bool) -> None:
-        """
-        订阅行情回报
+        """订阅行情回报
         :param data:
         :param error:
         :param reqid:
@@ -712,7 +723,7 @@ class CtpMdApi(MdApi):
         :return:
         """
         symbol = data.get("InstrumentID", "UNKNOWN") if data else "UNKNOWN"
-        logger.info(f"CTP行情API回调: onRspSubMarketData - 订阅回报, 合约={symbol}, ErrorID={error.get('ErrorID', 'N/A') if error else 'None'}")
+        logger.debug(f"CTP行情API回调: onRspSubMarketData - 订阅回报, 合约={symbol}, ErrorID={error.get('ErrorID', 'N/A') if error else 'None'}")
         if not error or not error["ErrorID"]:
             # 订阅成功
             if data and "InstrumentID" in data:
@@ -721,7 +732,7 @@ class CtpMdApi(MdApi):
                 if symbol in self.gateway.pending_subscriptions:
                     self.gateway.pending_subscriptions.discard(symbol)
                     self.gateway.active_subscriptions.add(symbol)
-                    logger.info(f"行情订阅成功并更新状态: {symbol}")
+                    logger.debug(f"行情订阅成功并更新状态: {symbol}")
 
                     # 发布订阅成功事件，通知DataService更新状态
                     from src.core.event import create_trading_event, EventType
@@ -735,7 +746,7 @@ class CtpMdApi(MdApi):
                         source="MarketDataGateway"
                     )
                     self.gateway.event_bus.publish(success_event)
-                    logger.info(f"📢 已发布订阅成功事件: {symbol}")
+                    logger.debug(f"已发布订阅成功事件: {symbol}")
                 else:
                     logger.warning(f"订阅成功但合约不在pending列表: {symbol}")
             return
@@ -749,7 +760,6 @@ class CtpMdApi(MdApi):
         :param data:
         :return:
         """
-        """行情数据推送"""
         # 更新心跳时间
         self.gateway.last_heartbeat = time.time()
         
@@ -825,7 +835,7 @@ class CtpMdApi(MdApi):
 
         self.gateway.on_tick(tick)
         # 关键日志：确保行情数据被推送到网关
-        logger.info(f"行情数据已推送到网关: {tick.symbol} @ {tick.last_price}")
+        logger.debug(f"行情数据已推送到网关: {tick.symbol} @ {tick.last_price}")
         logger.debug(f"CtpMdApi.onRtnDepthMarketData: 推送tick {tick.symbol} {tick.datetime} {tick.last_price}")
 
     def onRspUserLogout(self, data: dict, error: dict, reqid: int, last: bool):
@@ -898,19 +908,19 @@ class CtpMdApi(MdApi):
         :return:
         """
         symbol: str = req.symbol
-        logger.info(f"🔔 CTP行情API: 准备订阅合约 {symbol}")
+        logger.debug(f"CTP行情API: 准备订阅合约 {symbol}")
 
         # 过滤重复的订阅
         if symbol in self.subscribed:
-            logger.warning(f"⚠️ 合约 {symbol} 已在订阅列表中，跳过重复订阅")
+            logger.warning(f"合约 {symbol} 已在订阅列表中，跳过重复订阅")
             return
 
         if self.login_status:
-            logger.info(f"📡 CTP行情API: 发送订阅请求 {symbol}")
+            logger.debug(f"CTP行情API: 发送订阅请求 {symbol}")
             result = self.subscribeMarketData(req.symbol)
-            logger.info(f"📤 CTP行情API: 订阅请求已发送 {symbol}, 返回值={result}")
+            logger.debug(f"CTP行情API: 订阅请求已发送 {symbol}, 返回值={result}")
         else:
-            logger.warning(f"⚠️ CTP行情API: 未登录，无法订阅 {symbol}")
+            logger.warning(f"CTP行情API: 未登录，无法订阅 {symbol}")
         self.subscribed.add(req.symbol)
 
     def close(self) -> None:

@@ -7,5 +7,16 @@
 @Author     : Donny
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: description
+@Description: 交易所映射
 """
+from src.config.constant import Exchange
+
+
+EXCHANGE_MAPPING: dict[str, Exchange] = {
+    "CZCE": Exchange.CZCE,
+    "SHFE": Exchange.SHFE,
+    "DCE": Exchange.DCE,
+    "CFFEX": Exchange.CFFEX,
+    "INE": Exchange.INE,
+    "GFEX": Exchange.GFEX
+}

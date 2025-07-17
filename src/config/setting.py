@@ -21,6 +21,11 @@ def get_instrument_exchange_id():
     instrument_exchange_json = load_json_file(GlobalPath.instrument_exchange_id_filepath)
     return instrument_exchange_json
 
+
+def get_exchange(symbol: str):
+    return get_instrument_exchange_id().get(symbol, None)
+
+
 if __name__ == '__main__':
     # print(get_broker_config())
     print(get_instrument_exchange_id())

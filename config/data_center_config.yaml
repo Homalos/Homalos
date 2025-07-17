@@ -10,12 +10,21 @@ data_center:
   
   # 数据库配置
   database:
-    # SQLite配置
+    # SQLite配置 - 分库存储
     sqlite:
-      path: "data/data_center.db"
-      wal_mode: true
-      cache_size: 10000
-      timeout: 30
+      # Tick数据库
+      tick_db:
+        path: "data/tick_data.db"
+        wal_mode: true
+        cache_size: 15000
+        timeout: 30
+      
+      # Bar数据库
+      bar_db:
+        path: "data/bar_data.db"
+        wal_mode: true
+        cache_size: 10000
+        timeout: 30
       
   # Parquet配置
   parquet:
@@ -45,6 +54,9 @@ data_center:
   market_subscription:
     # 自动订阅全市场
     auto_subscribe_all: true
+    
+    # 订阅数量限制（避免性能问题）
+    max_subscriptions: 0  # 最大订阅合约数量，0表示无限制
     
     # 订阅重试配置
     retry:
@@ -125,17 +137,29 @@ data_center:
       max_reconnect_attempts: 10
       
   # 日志配置
-  logging:
+  log:
     level: "INFO"
-    file_path: "logs/data_center.log"
-    max_file_size: "100MB"
-    backup_count: 10
-    
+    has_gateway_format: "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level}</level> | 
+    <magenta>{extra[gateway_name]}</magenta> | <cyan>{extra[module_name]}</cyan> | 
+    <cyan>{function}:{line}</cyan> | <level>{message}</level>\n"  # 包含网关名称的日志格式
+    no_gateway_format: "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level}</level> | 
+    <cyan>{extra[module_name]}</cyan> | <cyan>{function}:{line}</cyan> | <level>{message}</level>\n"  # 不包含网关名称的日志格式
+
+    console:
+      enabled: true
+
+    file:
+      enabled: false  # 禁用文件日志记录以提高性能
+      name_format: "{time:YYYYMMDD}.log"
+      rotation: "100 MB"  # 当文件超过 100MB 时进行轮转
+      retention: "30 days"  # 保留日志的天数
+      compression: "zip"  # 日志压缩格式
+
     # 性能日志
     performance_log:
       enable: true
       interval: 300  # 秒（5分钟）
-      
+
 # 市场配置
 market:
   # 交易时间配置
@@ -153,12 +177,6 @@ market:
   # 节假日配置
   holidays:
     file_path: "config/holidays.json"
-    
-#  # 合约配置
-#  contracts:
-#    config_file_name: "market_symbols.json"
-#    auto_update: true
-#    update_interval: 3600  # 秒（1小时）
     
 # 服务发现配置
 service_discovery:

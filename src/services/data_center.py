@@ -6,22 +6,22 @@
 """
 
 import threading
+import time
 import traceback
 from datetime import datetime
-from pathlib import Path
 from typing import Dict, List, Optional, Set, Any
 
 from src.config.constant import Exchange
-from src.config.setting import get_instrument_exchange_id
+from src.config.setting import get_instrument_exchange_id, get_exchange
 from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
-from src.core.logger import get_logger
+
+from src.core.logger import Logger
 from src.core.object import TickData, BarData, ContractData
 from src.ctp.gateway.market_data_gateway import MarketDataGateway
+from src.function.exchange_mapping import EXCHANGE_MAPPING
 from src.services.data_center_bar_generator import DataCenterBarGenerator
 from src.services.data_center_database import DataCenterDatabase
-
-logger = get_logger("DataCenter")
 
 
 class DataCenter:
@@ -29,7 +29,6 @@ class DataCenter:
     数据中心核心类
     负责全市场行情订阅、数据持久化、K线合成、历史查询等功能
     """
-    
     def __init__(self, event_bus: EventBus, config: dict[str, Any]):
         """
         初始化数据中心
@@ -46,16 +45,25 @@ class DataCenter:
         self.market_config = config.get('market', {})
         self.database_config = self.data_center_config.get('database', {})
         self.bar_config = self.data_center_config.get('bar_generation', {})
-        
+
+        log_config_dict = self.data_center_config.get('log', {})
+        print("[DEBUG] 开始创建数据中心日志器...")
+
+        data_logger = Logger(log_config_dict)
+        self.logger = data_logger.get_gateway_logger(gateway_name=__name__)
+        print("[DEBUG] 数据中心日志器创建完成")
+
         # 运行状态
         self.is_running = False
         self.is_connected = False
         
         # 数据库管理器 - 传递完整配置，让DataCenterDatabase自己提取database段
+        print("[DEBUG] 开始创建数据库管理器...")
         database_full_config = {
             'database': self.database_config
         }
         self.database = DataCenterDatabase(database_full_config)
+        print("[DEBUG] 数据库管理器创建完成")
         
         # K线合成器
         interval_strings = self.bar_config.get('intervals', ["1m", "5m", "15m", "30m", "1h"])
@@ -73,7 +81,9 @@ class DataCenter:
         self.all_contracts: Dict[str, ContractData] = {}
         
         # 全市场合约列表
+        print("[DEBUG] 开始加载市场合约列表...")
         self.market_symbols = self._load_market_symbols()
+        print("[DEBUG] 市场合约列表加载完成")
         
         # 统计信息
         self.stats = {
@@ -90,38 +100,60 @@ class DataCenter:
         self.health_check_thread: Optional[threading.Thread] = None
         
         # 注册事件处理器
+        print("[DEBUG] 开始注册事件处理器...")
         self._register_event_handlers()
+        print("[DEBUG] 事件处理器注册完成")
         
         # 验证配置
+        print("[DEBUG] 开始验证配置...")
         self._validate_config()
+        print("[DEBUG] 配置验证完成")
         
-        logger.info("数据中心初始化完成")
+        self.logger.info("数据中心初始化完成")
     
     def _validate_config(self):
         """验证配置完整性"""
+        print("[DEBUG] 开始验证必需配置段...")
         required_sections = {
             'data_center': ['database', 'bar_generation']
         }
         
         for section, keys in required_sections.items():
             if section not in self.config:
-                logger.warning(f"配置中缺少 {section} 段，将使用默认值")
+                self.logger.warning(f"配置中缺少 {section} 段，将使用默认值")
                 continue
                 
             section_config = self.config[section]
             for key in keys:
                 if key not in section_config:
-                    logger.warning(f"配置 {section}.{key} 缺失，将使用默认值")
+                    self.logger.warning(f"配置 {section}.{key} 缺失，将使用默认值")
         
+        print("[DEBUG] 开始验证数据库配置...")
         # 验证数据库配置
         db_config = self.database_config
-        if not db_config.get('sqlite').get('path'):
-            logger.warning("数据库路径未配置，使用默认路径: data/data_center.db")
+        sqlite_config = db_config.get('sqlite') if db_config else None
+        if not sqlite_config:
+            self.logger.error("数据库配置缺失，请检查配置文件")
+        elif 'tick_db' in sqlite_config:
+            # 新的分库配置验证
+            tick_db_config = sqlite_config.get('tick_db', {})
+            bar_db_config = sqlite_config.get('bar_db', {})
+
+            if not tick_db_config.get('path'):
+                self.logger.warning("Tick数据库路径未配置，使用默认路径: data/tick_data.db")
+            if not bar_db_config.get('path'):
+                self.logger.warning("Bar数据库路径未配置，使用默认路径: data/bar_data.db")
+
+            self.logger.info(f"使用分库配置: Tick={tick_db_config.get('path')}, Bar={bar_db_config.get('path')}")
+        elif not 'bar_db' in sqlite_config:
+            self.logger.error("bar_data数据库配置缺失，请检查配置文件")
         
+        print("[DEBUG] 开始验证K线配置...")
         # 验证K线配置
         bar_config = self.bar_config
-        if not bar_config.get('intervals'):
-            logger.warning("K线间隔未配置，使用默认间隔: [1m, 5m, 15m, 30m, 1h]")
+        if not bar_config or not bar_config.get('intervals'):
+            self.logger.warning("K线间隔未配置，使用默认间隔: [1m, 5m, 15m, 30m, 1h]")
+        print("[DEBUG] 配置验证完成")
         
 
     def _convert_intervals_to_minutes(self, interval_strings: List[str]) -> List[int]:
@@ -137,20 +169,32 @@ class DataCenter:
                     unit = interval_str[-1]
                     intervals.append(number * conversion_map[unit])
                 except ValueError:
-                    logger.warning(f"无法解析时间间隔: {interval_str}")
+                    self.logger.warning(f"无法解析时间间隔: {interval_str}")
             else:
-                logger.warning(f"不支持的时间间隔格式: {interval_str}")
+                self.logger.warning(f"不支持的时间间隔格式: {interval_str}")
         
         if not intervals:
-            logger.warning("未找到有效的时间间隔配置，使用默认值")
+            self.logger.warning("未找到有效的时间间隔配置，使用默认值")
             intervals = [1, 5, 15, 30, 60]  # 默认分钟间隔
         
-        logger.info(f"K线时间间隔配置: {intervals} 分钟")
+        self.logger.info(f"K线时间间隔配置: {intervals} 分钟")
         return intervals
     
     def _load_market_symbols(self) -> List[str]:
-        """加载全市场合约列表"""
-        return ["FG509", "SA509"]
+        """从instrument_exchange_id.json加载全市场合约列表"""
+        try:
+            # 直接从instrument_exchange_id.json获取所有合约
+            instrument_exchange_json = get_instrument_exchange_id()
+            symbols = list(instrument_exchange_json.keys())
+            
+            self.logger.info(f"从instrument_exchange_id.json加载了 {len(symbols)} 个期货合约")
+            return symbols
+            
+        except Exception as e:
+            self.logger.error(f"加载合约列表失败: {e}")
+            # 如果加载失败，返回默认的测试合约
+            self.logger.warning("使用默认测试合约: FG509, SA509")
+            return ["FG509", "SA509"]
 
     
     def _register_event_handlers(self):
@@ -161,22 +205,23 @@ class DataCenter:
         
         # 网关事件
         self.event_bus.subscribe(EventType.GATEWAY_CONNECTED, self._handle_gateway_connected)
+        self.event_bus.subscribe(EventType.GATEWAY_READY, self._handle_gateway_ready)
         self.event_bus.subscribe(EventType.GATEWAY_DISCONNECTED, self._handle_gateway_disconnected)
         self.event_bus.subscribe(EventType.CONTRACT_INFO, self._handle_contract_info)
         
         # 监听原始tick数据事件（从CTP网关发布的事件）
         self.event_bus.subscribe(EventType.MARKET_TICK_RAW, self._handle_tick_data)
         
-        logger.info("数据中心事件处理器注册完成")
+        self.logger.info("数据中心事件处理器注册完成")
     
     def start(self):
         """启动数据中心"""
         try:
             if self.is_running:
-                logger.warning("数据中心已在运行")
+                self.logger.warning("数据中心已在运行")
                 return
             
-            logger.info("启动数据中心...")
+            self.logger.info("启动数据中心...")
             
             # 启动数据库
             self.database.start()
@@ -195,10 +240,10 @@ class DataCenter:
             # 发布数据中心连接事件
             self.event_bus.publish(Event(EventType.DATA_CENTER_CONNECTED, {}))
             
-            logger.info("数据中心启动成功")
+            self.logger.info("数据中心启动成功")
             
         except Exception as e:
-            logger.error(f"启动数据中心失败: {e}", exc_info=True)
+            self.logger.error(f"启动数据中心失败: {e}", exc_info=True)
             self.stop()
             raise
     
@@ -206,10 +251,10 @@ class DataCenter:
         """停止数据中心"""
         try:
             if not self.is_running:
-                logger.warning("数据中心未在运行")
+                self.logger.warning("数据中心未在运行")
                 return
             
-            logger.info("停止数据中心...")
+            self.logger.info("停止数据中心...")
             
             # 设置停止标志
             self.is_running = False
@@ -228,10 +273,10 @@ class DataCenter:
             # 发布数据中心断开事件
             self.event_bus.publish(Event(EventType.DATA_CENTER_DISCONNECTED, {}))
             
-            logger.info("数据中心已停止")
+            self.logger.info("数据中心已停止")
             
         except Exception as e:
-            logger.error(f"停止数据中心失败: {e}", exc_info=True)
+            self.logger.error(f"停止数据中心失败: {e}", exc_info=True)
     
     def _init_gateway(self):
         """初始化网关"""
@@ -248,10 +293,10 @@ class DataCenter:
             # 连接网关
             self.gateway.connect(gateway_config)
             
-            logger.info("网关初始化成功")
+            self.logger.info("网关初始化成功")
             
         except Exception as e:
-            logger.error(f"网关初始化失败: {e}")
+            self.logger.error(f"网关初始化失败: {e}")
             raise
     
     def _start_monitor_threads(self):
@@ -264,10 +309,10 @@ class DataCenter:
             )
             self.monitor_thread.start()
             
-            logger.info("监控线程启动成功")
+            self.logger.info("监控线程启动成功")
             
         except Exception as e:
-            logger.error(f"启动监控线程失败: {e}")
+            self.logger.error(f"启动监控线程失败: {e}")
             raise
     
     def _stop_monitor_threads(self):
@@ -277,18 +322,18 @@ class DataCenter:
             if hasattr(self, 'monitor_thread') and self.monitor_thread.is_alive():
                 self.monitor_thread.join(timeout=5)
             
-            logger.info("监控线程已停止")
+            self.logger.info("监控线程已停止")
             
         except Exception as e:
-            logger.error(f"停止监控线程失败: {e}")
+            self.logger.error(f"停止监控线程失败: {e}")
     
     def _performance_monitor(self):
         """性能监控线程"""
-        logger.info("性能监控线程已启动")
+        self.logger.info("性能监控线程已启动")
         
         while self.is_running:
             try:
-                time.sleep(30)  # 每30秒输出一次统计信息
+                time.sleep(300)  # 每5分钟输出一次统计信息（减少日志频率）
                 
                 # 计算运行时间
                 if self.stats['start_time']:
@@ -298,7 +343,7 @@ class DataCenter:
                     uptime_str = "未知"
                 
                 # 输出统计信息
-                logger.info(
+                self.logger.info(
                     f"📊 数据中心运行状态 - "
                     f"运行时间: {uptime_str}, "
                     f"Tick数量: {self.stats['tick_count']}, "
@@ -308,10 +353,10 @@ class DataCenter:
                 )
                 
             except Exception as e:
-                logger.error(f"性能监控异常: {e}")
+                self.logger.error(f"性能监控异常: {e}")
                 time.sleep(5)
         
-        logger.info("性能监控线程已停止")
+        self.logger.info("性能监控线程已停止")
     
     def _handle_tick_data(self, event: Event):
         """处理tick数据"""
@@ -343,7 +388,7 @@ class DataCenter:
                     gateway_name="DATA_CENTER_MD"
                 )
             else:
-                logger.warning(f"收到未知类型的tick数据: {type(tick_data)}")
+                self.logger.warning(f"收到未知类型的tick数据: {type(tick_data)}")
                 return
             
             # 更新统计信息
@@ -356,12 +401,12 @@ class DataCenter:
             # K线合成
             self._process_bar_generation(processed_tick)
             
-            # 定期输出统计信息
-            if self.stats["tick_count"] % 10 == 0:
-                logger.info(f"数据中心统计: 已处理{self.stats['tick_count']}个tick, 当前合约={processed_tick.symbol}")
+            # 定期输出统计信息（降低频率以减少日志输出）
+            if self.stats["tick_count"] % 1000 == 0:
+                self.logger.info(f"数据中心统计: 已处理{self.stats['tick_count']}个tick, 当前合约={processed_tick.symbol}")
             
         except Exception as e:
-            logger.error(f"处理tick数据失败: {e}", exc_info=True)
+            self.logger.error(f"处理tick数据失败: {e}", exc_info=True)
     
     def _process_bar_generation(self, tick_data: TickData):
         """处理K线合成"""
@@ -370,7 +415,7 @@ class DataCenter:
             self.bar_generator.on_tick(tick_data)
                         
         except Exception as e:
-            logger.error(f"K线合成处理失败: {e}", exc_info=True)
+            self.logger.error(f"K线合成处理失败: {e}", exc_info=True)
     
     def _on_bar_generated(self, bar: BarData):
         """K线生成回调"""
@@ -381,10 +426,10 @@ class DataCenter:
             # 保存到数据库
             self.database.save_bar_data(bar)
             
-            logger.debug(f"生成K线: {bar.symbol} {bar.datetime}")
+            self.logger.debug(f"生成K线: {bar.symbol} {bar.datetime}")
             
         except Exception as e:
-            logger.error(f"处理K线数据失败: {e}", exc_info=True)
+            self.logger.error(f"处理K线数据失败: {e}", exc_info=True)
     
     def _handle_gateway_connected(self, event: Event):
         """处理网关连接事件"""
@@ -392,13 +437,23 @@ class DataCenter:
             self.is_connected = True
             self.stats['gateway_status'] = 'connected'
             
-            # 订阅全市场行情
-            self._subscribe_market_data()
-            
-            logger.info("网关已连接，开始订阅全市场行情")
+            self.logger.info("网关已连接，等待登录完成...")
             
         except Exception as e:
-            logger.error(f"处理网关连接事件失败: {e}")
+            self.logger.error(f"处理网关连接事件失败: {e}")
+    
+    def _handle_gateway_ready(self, event: Event):
+        """处理网关就绪事件（登录完成后）"""
+        try:
+            self.stats['gateway_status'] = 'ready'
+            
+            # 网关登录完成后才开始订阅全市场行情
+            self._subscribe_market_data()
+            
+            self.logger.info("网关已就绪（登录完成），开始订阅全市场行情")
+            
+        except Exception as e:
+            self.logger.error(f"处理网关就绪事件失败: {e}")
     
     def _handle_gateway_disconnected(self, event: Event):
         """处理网关断开事件"""
@@ -406,10 +461,10 @@ class DataCenter:
             self.is_connected = False
             self.stats['gateway_status'] = 'disconnected'
             
-            logger.warning("网关已断开连接")
+            self.logger.warning("网关已断开连接")
             
         except Exception as e:
-            logger.error(f"处理网关断开事件失败: {e}")
+            self.logger.error(f"处理网关断开事件失败: {e}")
     
     def _handle_contract_info(self, event: Event):
         """处理合约信息事件"""
@@ -420,58 +475,102 @@ class DataCenter:
             # 添加到合约列表
             self.all_contracts[symbol] = contract
             
-            logger.info(f"新增合约: {symbol}")
+            self.logger.info(f"新增合约: {symbol}")
             
         except Exception as e:
-            logger.error(f"处理合约信息失败: {e}")
+            self.logger.error(f"处理合约信息失败: {e}")
     
     def _subscribe_market_data(self):
         """订阅全市场行情数据"""
         try:
             if not self.gateway:
-                logger.warning("网关未初始化，无法订阅行情")
+                self.logger.warning("网关未初始化，无法订阅行情")
                 return
             
             # 预加载合约数据到全局缓存
             self._preload_contracts()
             
-            # 优先订阅配置文件中的合约
-            symbols_to_subscribe = self.market_symbols.copy()
+            # 获取订阅配置
+            subscribe_config = self.data_center_config.get('market_subscription', {})
+            max_subscriptions = subscribe_config.get('max_subscriptions', 100)  # 默认最多订阅100个合约
+            subscribe_all = subscribe_config.get('auto_subscribe_all', False)  # 是否订阅所有合约
+
+            # 确定要订阅的合约列表
+            symbols_to_subscribe = []
             
-            # 如果有通过CONTRACT_INFO事件获取的合约，也加入订阅列表
-            for symbol in self.all_contracts:
-                if symbol not in symbols_to_subscribe:
-                    symbols_to_subscribe.append(symbol)
+            # 2. 如果启用订阅所有合约，或者优先合约数量不足，添加其他合约
+            if subscribe_all:
+                # 订阅所有合约，忽略数量限制
+                for symbol in self.market_symbols:
+                    if symbol not in symbols_to_subscribe:
+                        symbols_to_subscribe.append(symbol)
+            elif len(symbols_to_subscribe) < max_subscriptions:
+                # 在数量限制内添加其他合约
+                for symbol in self.market_symbols:
+                    if symbol not in symbols_to_subscribe:
+                        symbols_to_subscribe.append(symbol)
+                        if len(symbols_to_subscribe) >= max_subscriptions:
+                            break
             
-            # 订阅所有合约的tick数据
+            # 3. 添加通过CONTRACT_INFO事件获取的合约
+            if subscribe_all:
+                # 订阅所有合约，忽略数量限制
+                for symbol in self.all_contracts:
+                    if symbol not in symbols_to_subscribe:
+                        symbols_to_subscribe.append(symbol)
+            else:
+                # 在数量限制内添加合约
+                for symbol in self.all_contracts:
+                    if symbol not in symbols_to_subscribe and len(symbols_to_subscribe) < max_subscriptions:
+                        symbols_to_subscribe.append(symbol)
+            
+            self.logger.info(f"准备订阅 {len(symbols_to_subscribe)} 个合约 (最大限制: {'无限制' if subscribe_all else max_subscriptions})")
+            
+            # 订阅合约的tick数据
+            subscribed_count = 0
+            failed_count = 0
+            
             for symbol in symbols_to_subscribe:
-                # 创建订阅请求对象
-                from src.core.object import SubscribeRequest
-                from src.config.constant import Exchange
-                
-                # 根据合约代码推断交易所（简单映射）
-                exchange = self._get_symbol_exchange(symbol)
-                
-                subscribe_req = SubscribeRequest(
-                    symbol=symbol,
-                    exchange=exchange
-                )
-                
-                self.gateway.subscribe(subscribe_req)
-                self.subscribed_symbols.add(symbol)
-                logger.info(f"订阅合约: {symbol} (交易所: {exchange.value})")
+                try:
+                    # 创建订阅请求对象
+                    from src.core.object import SubscribeRequest
+                    from src.config.constant import Exchange
+                    
+                    # 根据合约代码推断交易所
+                    exchange = self._get_symbol_exchange(symbol)
+                    
+                    subscribe_req = SubscribeRequest(
+                        symbol=symbol,
+                        exchange=exchange
+                    )
+                    
+                    self.gateway.subscribe(subscribe_req)
+                    self.subscribed_symbols.add(symbol)
+                    subscribed_count += 1
+                    
+                    # 每订阅50个合约输出一次进度
+                    if subscribed_count % 50 == 0:
+                        self.logger.info(f"已订阅 {subscribed_count} 个合约...")
+                        
+                except Exception as e:
+                    self.logger.error(f"订阅合约 {symbol} 失败: {e}")
+                    failed_count += 1
             
             self.stats['subscribed_count'] = len(self.subscribed_symbols)
-            logger.info(f"已订阅 {len(self.subscribed_symbols)} 个合约的行情数据")
+            self.logger.info(
+                f"合约订阅完成 - "
+                f"成功: {subscribed_count}, "
+                f"失败: {failed_count}, "
+                f"总计: {len(self.subscribed_symbols)} 个合约"
+            )
             
         except Exception as e:
-            logger.error(f"订阅全市场行情失败: {e}")
+            self.logger.error(f"订阅全市场行情失败: {e}")
 
     @staticmethod
     def _get_symbol_exchange(symbol: str):
         """根据合约代码推断交易所"""
-        exchange = get_instrument_exchange_id().get(symbol, "")
-        return Exchange(exchange)
+        return Exchange(get_exchange(symbol))
     
     def _preload_contracts(self):
         """预加载合约数据到全局缓存"""
@@ -481,34 +580,30 @@ class DataCenter:
             from src.core.object import ContractData
             from src.config.constant import Product
             
-            logger.info("开始预加载合约数据...")
+            self.logger.info("开始预加载合约数据...")
             
-            # 获取交易所映射
+            # 直接从instrument_exchange_id.json获取所有合约和交易所映射
             instrument_exchange_json = get_instrument_exchange_id()
             
-            # 为所有要订阅的合约创建合约数据
-            symbols_to_load = self.market_symbols.copy()
+            # 统计信息
+            loaded_count = 0
+            skipped_count = 0
+            error_count = 0
             
-            # 如果有通过CONTRACT_INFO事件获取的合约，也加入加载列表
-            for symbol in self.all_contracts:
-                if symbol not in symbols_to_load:
-                    symbols_to_load.append(symbol)
-            
-            for symbol in symbols_to_load:
-                if symbol not in symbol_contract_map:
-                    exchange_str = instrument_exchange_json.get(symbol, "CZCE")
+            # 遍历所有合约进行预加载
+            for symbol, exchange_str in instrument_exchange_json.items():
+                try:
+                    # 如果合约已存在于缓存中，跳过
+                    if symbol in symbol_contract_map:
+                        skipped_count += 1
+                        continue
                     
-                    # 将字符串转换为Exchange枚举
-                    if exchange_str == "CZCE":
-                        exchange = Exchange.CZCE
-                    elif exchange_str == "SHFE":
-                        exchange = Exchange.SHFE
-                    elif exchange_str == "DCE":
-                        exchange = Exchange.DCE
-                    elif exchange_str == "CFFEX":
-                        exchange = Exchange.CFFEX
-                    else:
-                        exchange = Exchange.CZCE
+                    # 获取交易所枚举
+                    exchange = EXCHANGE_MAPPING.get(exchange_str)
+                    if not exchange:
+                        self.logger.warning(f"未知交易所: {exchange_str} (合约: {symbol})")
+                        error_count += 1
+                        continue
                     
                     # 创建合约数据
                     contract = ContractData(
@@ -524,13 +619,27 @@ class DataCenter:
                     
                     # 添加到全局缓存
                     symbol_contract_map[symbol] = contract
-                    logger.info(f"预加载合约: {symbol} -> {exchange.value}")
+                    loaded_count += 1
+                    
+                    # 每加载100个合约输出一次进度
+                    if loaded_count % 100 == 0:
+                        self.logger.info(f"已预加载 {loaded_count} 个合约...")
+                        
+                except Exception as e:
+                    self.logger.error(f"预加载合约 {symbol} 失败: {e}")
+                    error_count += 1
             
-            logger.info(f"合约预加载完成，共加载 {len(symbols_to_load)} 个合约，全局缓存数量: {len(symbol_contract_map)}")
+            self.logger.info(
+                f"合约预加载完成 - "
+                f"新加载: {loaded_count}, "
+                f"跳过: {skipped_count}, "
+                f"错误: {error_count}, "
+                f"全局缓存总数: {len(symbol_contract_map)}"
+            )
             
         except Exception as e:
-            logger.error(f"预加载合约数据失败: {e}")
-            logger.error(f"错误详情: {traceback.format_exc()}")
+            self.logger.error(f"预加载合约数据失败: {e}")
+            self.logger.error(f"错误详情: {traceback.format_exc()}")
     
     def _handle_query_tick(self, event: Event):
         """处理tick数据查询请求"""
@@ -551,7 +660,7 @@ class DataCenter:
             
             # 发布查询结果
             result_event = Event(
-                type=EventType.DATA_CENTER_TICK_RESULT,
+                event_type=EventType.DATA_CENTER_TICK_RESULT,
                 data={
                     'request_id': query_data.get('request_id'),
                     'tick_data': tick_data
@@ -560,7 +669,7 @@ class DataCenter:
             self.event_bus.publish(result_event)
             
         except Exception as e:
-            logger.error(f"处理tick查询请求失败: {e}")
+            self.logger.error(f"处理tick查询请求失败: {e}")
     
     def _handle_query_bar(self, event: Event):
         """处理bar数据查询请求"""
@@ -585,7 +694,7 @@ class DataCenter:
             
             # 发布查询结果
             result_event = Event(
-                type=EventType.DATA_CENTER_BAR_RESULT,
+                event_type=EventType.DATA_CENTER_BAR_RESULT,
                 data={
                     'request_id': query_data.get('request_id'),
                     'bar_data': bar_data
@@ -594,7 +703,7 @@ class DataCenter:
             self.event_bus.publish(result_event)
             
         except Exception as e:
-            logger.error(f"处理bar查询请求失败: {e}")
+            self.logger.error(f"处理bar查询请求失败: {e}")
     
     def get_status(self) -> dict:
         """获取数据中心状态"""
@@ -611,7 +720,7 @@ class DataCenter:
             return status
             
         except Exception as e:
-            logger.error(f"获取状态失败: {e}")
+            self.logger.error(f"获取状态失败: {e}")
             return {'error': str(e)}
     
     def query_tick_data(self, symbol: str, start_time: datetime = None, 
@@ -620,12 +729,13 @@ class DataCenter:
         try:
             return self.database.query_tick_data(
                 symbol=symbol,
+                exchange=get_exchange(symbol),
                 start_time=start_time,
                 end_time=end_time,
                 limit=limit
             )
         except Exception as e:
-            logger.error(f"查询tick数据失败: {e}")
+            self.logger.error(f"查询tick数据失败: {e}")
             return []
     
     def query_bar_data(self, symbol: str, exchange: str = 'SHFE', interval: str = '1m', 
@@ -641,56 +751,57 @@ class DataCenter:
                 limit=limit
             )
         except Exception as e:
-            logger.error(f"查询bar数据失败: {e}")
+            self.logger.error(f"查询bar数据失败: {e}")
             return []
 
 
-if __name__ == "__main__":
-    # 独立运行示例
-    import time
-    from src.core.event_bus import EventBus
-    
-    def main():
-        # 创建事件总线
-        event_bus = EventBus()
-        
-        # 配置
-        config = {
-            "sqlite_path": "data/market_data.db",
-            "parquet_path": "data/parquet",
-            "tick_batch_size": 100,
-            "bar_batch_size": 50,
-            "tick_flush_interval": 5,
-            "bar_flush_interval": 10,
-            "parquet_compression": "snappy",
-            "symbols_file": "config/market_symbols.json",
-            "gateway": {
-                "type": "ctp",
-                "broker_id": "9999",
-                "user_id": "your_user_id",
-                "password": "your_password",
-                "auth_code": "your_auth_code",
-                "app_id": "your_app_id"
-            }
-        }
-        
-        # 创建数据中心
-        data_center = DataCenter(event_bus=event_bus, config=config)
-        
-        try:
-            # 启动数据中心
-            data_center.start()
-            
-            # 保持运行
-            logger.info("数据中心已启动，按Ctrl+C停止")
-            while data_center.is_running:
-                time.sleep(1)
-                
-        except KeyboardInterrupt:
-            logger.info("收到停止信号")
-        finally:
-            data_center.stop()
-            logger.info("数据中心已停止")
-    
-    # 运行
-    main()
+# 测试代码
+# if __name__ == "__main__":
+#     # 独立运行示例
+#     import time
+#     from src.core.event_bus import EventBus
+#
+#     def main():
+#         # 创建事件总线
+#         event_bus = EventBus()
+#
+#         # 配置
+#         config = {
+#             "sqlite_path": "data/market_data.db",
+#             "parquet_path": "data/parquet",
+#             "tick_batch_size": 100,
+#             "bar_batch_size": 50,
+#             "tick_flush_interval": 5,
+#             "bar_flush_interval": 10,
+#             "parquet_compression": "snappy",
+#             "symbols_file": "config/market_symbols.json",
+#             "gateway": {
+#                 "type": "ctp",
+#                 "broker_id": "9999",
+#                 "user_id": "your_user_id",
+#                 "password": "your_password",
+#                 "auth_code": "your_auth_code",
+#                 "app_id": "your_app_id"
+#             }
+#         }
+#
+#         # 创建数据中心
+#         data_center = DataCenter(event_bus=event_bus, config=config)
+#
+#         try:
+#             # 启动数据中心
+#             data_center.start()
+#
+#             # 保持运行
+#             self.logger.info("数据中心已启动，按Ctrl+C停止")
+#             while data_center.is_running:
+#                 time.sleep(1)
+#
+#         except KeyboardInterrupt:
+#             self.logger.info("收到停止信号")
+#         finally:
+#             data_center.stop()
+#             self.logger.info("数据中心已停止")
+#
+#     # 运行
+#     main()

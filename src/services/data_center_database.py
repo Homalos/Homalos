@@ -39,13 +39,42 @@ class DataCenterDatabase:
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         
-        # 数据库配置
+        # 数据库配置 - 支持分库
         db_config = config.get("database", {})
-        sqlite_path = db_config.get("sqlite", {}).get("path", "data/data_center.db")
-        # 从SQLite路径中提取基础目录
-        base_db_path = Path(sqlite_path).parent
-        self.tick_db_path = base_db_path / "tick_db"
-        self.bar_db_path = base_db_path / "bar_db"
+        sqlite_config = db_config.get("sqlite", {})
+        
+        # 检查是否使用新的分库配置
+        if "tick_db" in sqlite_config:
+            # 新的分库配置
+            tick_db_config = sqlite_config.get("tick_db", {})
+            bar_db_config = sqlite_config.get("bar_db", {})
+            contract_db_config = sqlite_config.get("contract_db", {})
+            
+            # 从配置中获取各数据库路径
+            tick_db_path = tick_db_config.get("path", "data/tick_data.db")
+            bar_db_path = bar_db_config.get("path", "data/bar_data.db")
+
+            # 设置数据库目录（去掉文件名，只保留目录）
+            self.tick_db_path = Path(tick_db_path).parent / "tick_db"
+            self.bar_db_path = Path(bar_db_path).parent / "bar_db"
+
+            # 保存数据库配置用于连接参数
+            self.tick_db_config = tick_db_config
+            self.bar_db_config = bar_db_config
+            self.contract_db_config = contract_db_config
+            
+        else:
+            # 兼容旧的单一数据库配置
+            sqlite_path = sqlite_config.get("path", "data/data_center.db")
+            base_db_path = Path(sqlite_path).parent
+            self.tick_db_path = base_db_path / "tick_db"
+            self.bar_db_path = base_db_path / "bar_db"
+
+            # 使用默认配置
+            default_config = {"wal_mode": True, "cache_size": 10000, "timeout": 30}
+            self.tick_db_config = default_config
+            self.bar_db_config = default_config
+            self.contract_db_config = default_config
         
         # Parquet配置
         parquet_config = config.get("parquet", {})
@@ -107,12 +136,30 @@ class DataCenterDatabase:
         """初始化指定日期的数据库文件"""
         db_path = self._get_db_path(data_type, trade_date)
         
+        # 获取对应数据类型的配置
+        if data_type == 'tick':
+            db_config = self.tick_db_config
+        elif data_type == 'bar':
+            db_config = self.bar_db_config
+        else:
+            db_config = {"wal_mode": True, "cache_size": 10000, "timeout": 30}
+        
         try:
-            with sqlite3.connect(str(db_path)) as conn:
-                # 启用WAL模式提高并发性能
-                conn.execute("PRAGMA journal_mode=WAL")
-                conn.execute("PRAGMA synchronous=NORMAL")
-                conn.execute("PRAGMA cache_size=-64000")  # 64MB缓存
+            with sqlite3.connect(str(db_path), timeout=db_config.get('timeout', 30)) as conn:
+                # 根据配置启用WAL模式
+                if db_config.get('wal_mode', True):
+                    conn.execute("PRAGMA journal_mode=WAL")
+                    conn.execute("PRAGMA synchronous=NORMAL")
+                else:
+                    conn.execute("PRAGMA journal_mode=DELETE")
+                    conn.execute("PRAGMA synchronous=FULL")
+                
+                # 设置缓存大小
+                cache_size = db_config.get('cache_size', 10000)
+                if cache_size > 0:
+                    conn.execute(f"PRAGMA cache_size=-{cache_size}")  # 负数表示KB
+                else:
+                    conn.execute(f"PRAGMA cache_size={cache_size}")  # 正数表示页数
                 
                 if data_type == 'tick':
                     # 创建tick_data表
@@ -701,12 +748,41 @@ class DataCenterDatabase:
                     
                     # 如果文件已存在，追加数据
                     if file_path.exists():
-                        existing_df = pd.read_parquet(file_path)
-                        df = pd.concat([existing_df, df], ignore_index=True)
-                        # 去重并排序
-                        df = df.drop_duplicates(subset=['symbol', 'exchange', 'datetime']).sort_values('datetime')
+                        try:
+                            # 尝试读取现有文件，如果失败则备份并重新创建
+                            existing_df = pd.read_parquet(file_path)
+                            df = pd.concat([existing_df, df], ignore_index=True)
+                            # 去重并排序
+                            df = df.drop_duplicates(subset=['symbol', 'exchange', 'datetime']).sort_values('datetime')
+                        except Exception as read_error:
+                            logger.warning(f"读取现有Parquet文件失败 {file_path}: {read_error}，将备份并重新创建")
+                            # 备份损坏的文件
+                            backup_path = file_path.with_suffix(f'.backup_{int(time.time())}.parquet')
+                            try:
+                                file_path.rename(backup_path)
+                                logger.info(f"损坏文件已备份到: {backup_path}")
+                            except Exception as backup_error:
+                                logger.error(f"备份文件失败: {backup_error}")
+                                # 如果备份失败，直接删除损坏文件
+                                try:
+                                    file_path.unlink()
+                                    logger.info(f"已删除损坏文件: {file_path}")
+                                except Exception as delete_error:
+                                    logger.error(f"删除损坏文件失败: {delete_error}")
+                            # 使用新数据创建文件
                     
-                    df.to_parquet(file_path, compression=self.parquet_compression, index=False)
+                    # 写入文件（使用临时文件确保原子性）
+                    temp_path = file_path.with_suffix('.tmp')
+                    try:
+                        df.to_parquet(temp_path, compression=self.parquet_compression, index=False)
+                        # 原子性移动临时文件到目标位置
+                        temp_path.replace(file_path)
+                    except Exception as write_error:
+                        logger.error(f"写入Parquet文件失败 {file_path}: {write_error}")
+                        # 清理临时文件
+                        if temp_path.exists():
+                            temp_path.unlink()
+                        raise
             
             buffer_count = len(self._tick_parquet_buffer)
             self._tick_parquet_buffer.clear()
@@ -714,6 +790,8 @@ class DataCenterDatabase:
             
         except Exception as e:
             logger.error(f"Tick Parquet写入失败: {e}")
+            # 不清空缓冲区，让数据在下次尝试时重新写入
+            # self._tick_parquet_buffer.clear()
     
     def _flush_bar_parquet_buffer(self):
         """刷新bar数据Parquet缓冲区"""
@@ -747,12 +825,41 @@ class DataCenterDatabase:
                     
                     # 如果文件已存在，追加数据
                     if file_path.exists():
-                        existing_df = pd.read_parquet(file_path)
-                        df = pd.concat([existing_df, df], ignore_index=True)
-                        # 去重并排序
-                        df = df.drop_duplicates(subset=['symbol', 'exchange', 'interval', 'datetime']).sort_values('datetime')
+                        try:
+                            # 尝试读取现有文件，如果失败则备份并重新创建
+                            existing_df = pd.read_parquet(file_path)
+                            df = pd.concat([existing_df, df], ignore_index=True)
+                            # 去重并排序
+                            df = df.drop_duplicates(subset=['symbol', 'exchange', 'interval', 'datetime']).sort_values('datetime')
+                        except Exception as read_error:
+                            logger.warning(f"读取现有Parquet文件失败 {file_path}: {read_error}，将备份并重新创建")
+                            # 备份损坏的文件
+                            backup_path = file_path.with_suffix(f'.backup_{int(time.time())}.parquet')
+                            try:
+                                file_path.rename(backup_path)
+                                logger.info(f"损坏文件已备份到: {backup_path}")
+                            except Exception as backup_error:
+                                logger.error(f"备份文件失败: {backup_error}")
+                                # 如果备份失败，直接删除损坏文件
+                                try:
+                                    file_path.unlink()
+                                    logger.info(f"已删除损坏文件: {file_path}")
+                                except Exception as delete_error:
+                                    logger.error(f"删除损坏文件失败: {delete_error}")
+                            # 使用新数据创建文件
                     
-                    df.to_parquet(file_path, compression=self.parquet_compression, index=False)
+                    # 写入文件（使用临时文件确保原子性）
+                    temp_path = file_path.with_suffix('.tmp')
+                    try:
+                        df.to_parquet(temp_path, compression=self.parquet_compression, index=False)
+                        # 原子性移动临时文件到目标位置
+                        temp_path.replace(file_path)
+                    except Exception as write_error:
+                        logger.error(f"写入Parquet文件失败 {file_path}: {write_error}")
+                        # 清理临时文件
+                        if temp_path.exists():
+                            temp_path.unlink()
+                        raise
             
             buffer_count = len(self._bar_parquet_buffer)
             self._bar_parquet_buffer.clear()
@@ -760,6 +867,8 @@ class DataCenterDatabase:
             
         except Exception as e:
             logger.error(f"Bar Parquet写入失败: {e}")
+            # 不清空缓冲区，让数据在下次尝试时重新写入
+            # self._bar_parquet_buffer.clear()
     
     def _get_date_range(self, start_date: date, end_date: date) -> List[date]:
         """获取日期范围内的所有日期"""
