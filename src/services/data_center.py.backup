@@ -5,7 +5,9 @@
 负责独立运行的数据中心服务，提供全市场行情订阅、数据持久化、K线合成等功能
 """
 
+import json
 import threading
+import time
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -17,9 +19,11 @@ from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.logger import get_logger
 from src.core.object import TickData, BarData, ContractData
-from src.ctp.gateway.market_data_gateway import MarketDataGateway
+
 from src.services.data_center_bar_generator import DataCenterBarGenerator
 from src.services.data_center_database import DataCenterDatabase
+from src.ctp.gateway.market_data_gateway import MarketDataGateway
+
 
 logger = get_logger("DataCenter")
 
@@ -41,25 +45,15 @@ class DataCenter:
         self.config = config
         self.event_bus = event_bus
         
-        # 提取配置段
-        self.data_center_config = config.get('data_center', {})
-        self.market_config = config.get('market', {})
-        self.database_config = self.data_center_config.get('database', {})
-        self.bar_config = self.data_center_config.get('bar_generation', {})
-        
         # 运行状态
         self.is_running = False
         self.is_connected = False
         
-        # 数据库管理器 - 传递完整配置，让DataCenterDatabase自己提取database段
-        database_full_config = {
-            'database': self.database_config
-        }
-        self.database = DataCenterDatabase(database_full_config)
+        # 数据库管理器
+        self.database = DataCenterDatabase(config)
         
         # K线合成器
-        interval_strings = self.bar_config.get('intervals', ["1m", "5m", "15m", "30m", "1h"])
-        intervals = self._convert_intervals_to_minutes(interval_strings)
+        intervals = config.get('bar_intervals', [1, 5, 15, 30, 60])
         self.bar_generator = DataCenterBarGenerator(
             intervals=intervals,
             on_bar=self._on_bar_generated
@@ -92,66 +86,26 @@ class DataCenter:
         # 注册事件处理器
         self._register_event_handlers()
         
-        # 验证配置
-        self._validate_config()
-        
         logger.info("数据中心初始化完成")
-    
-    def _validate_config(self):
-        """验证配置完整性"""
-        required_sections = {
-            'data_center': ['database', 'bar_generation']
-        }
-        
-        for section, keys in required_sections.items():
-            if section not in self.config:
-                logger.warning(f"配置中缺少 {section} 段，将使用默认值")
-                continue
-                
-            section_config = self.config[section]
-            for key in keys:
-                if key not in section_config:
-                    logger.warning(f"配置 {section}.{key} 缺失，将使用默认值")
-        
-        # 验证数据库配置
-        db_config = self.database_config
-        if not db_config.get('sqlite').get('path'):
-            logger.warning("数据库路径未配置，使用默认路径: data/data_center.db")
-        
-        # 验证K线配置
-        bar_config = self.bar_config
-        if not bar_config.get('intervals'):
-            logger.warning("K线间隔未配置，使用默认间隔: [1m, 5m, 15m, 30m, 1h]")
-        
-
-    def _convert_intervals_to_minutes(self, interval_strings: List[str]) -> List[int]:
-        """将时间间隔字符串转换为分钟数"""
-        conversion_map = {
-            'm': 1, 'h': 60, 'd': 1440
-        }
-        intervals = []
-        for interval_str in interval_strings:
-            if interval_str and interval_str[-1] in conversion_map:
-                try:
-                    number = int(interval_str[:-1])
-                    unit = interval_str[-1]
-                    intervals.append(number * conversion_map[unit])
-                except ValueError:
-                    logger.warning(f"无法解析时间间隔: {interval_str}")
-            else:
-                logger.warning(f"不支持的时间间隔格式: {interval_str}")
-        
-        if not intervals:
-            logger.warning("未找到有效的时间间隔配置，使用默认值")
-            intervals = [1, 5, 15, 30, 60]  # 默认分钟间隔
-        
-        logger.info(f"K线时间间隔配置: {intervals} 分钟")
-        return intervals
     
     def _load_market_symbols(self) -> List[str]:
         """加载全市场合约列表"""
-        return ["FG509", "SA509"]
-
+        try:
+            # 从配置文件加载合约列表
+            symbols_file = self.config.get("symbols_file", "config/market_symbols.json")
+            symbols_path = Path(symbols_file)
+            
+            if symbols_path.exists():
+                with open(symbols_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    return data.get("symbols", [])
+            else:
+                logger.warning(f"合约配置文件不存在: {symbols_path}，使用默认合约列表")
+                return []
+                
+        except Exception as e:
+            logger.error(f"加载市场合约列表失败: {e}")
+            return []
     
     def _register_event_handlers(self):
         """注册事件处理器"""
@@ -163,9 +117,7 @@ class DataCenter:
         self.event_bus.subscribe(EventType.GATEWAY_CONNECTED, self._handle_gateway_connected)
         self.event_bus.subscribe(EventType.GATEWAY_DISCONNECTED, self._handle_gateway_disconnected)
         self.event_bus.subscribe(EventType.CONTRACT_INFO, self._handle_contract_info)
-        
-        # 监听原始tick数据事件（从CTP网关发布的事件）
-        self.event_bus.subscribe(EventType.MARKET_TICK_RAW, self._handle_tick_data)
+        self.event_bus.subscribe(EventType.DATA_CENTER_TICK, self._handle_tick_data)
         
         logger.info("数据中心事件处理器注册完成")
     
@@ -316,7 +268,6 @@ class DataCenter:
     def _handle_tick_data(self, event: Event):
         """处理tick数据"""
         try:
-            from datetime import datetime
             tick_data = event.data
             
             # 如果是TickData对象，直接使用
@@ -326,6 +277,7 @@ class DataCenter:
             elif isinstance(tick_data, dict):
                 from src.core.object import TickData as TickDataClass
                 from src.config.constant import Exchange
+                from datetime import datetime
                 
                 # 转换字典为TickData对象
                 processed_tick = TickDataClass(
@@ -357,8 +309,8 @@ class DataCenter:
             self._process_bar_generation(processed_tick)
             
             # 定期输出统计信息
-            if self.stats["tick_count"] % 10 == 0:
-                logger.info(f"数据中心统计: 已处理{self.stats['tick_count']}个tick, 当前合约={processed_tick.symbol}")
+            if self.stats["tick_count"] % 100 == 0:
+                logger.info(f"📊 数据中心统计: 已处理{self.stats['tick_count']}个tick, 当前合约={processed_tick.symbol}")
             
         except Exception as e:
             logger.error(f"处理tick数据失败: {e}", exc_info=True)

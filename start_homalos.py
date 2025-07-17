@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 @ProjectName: Homalos_v2  
-@FileName   : main
+@FileName   : start_homalos.py
 @Date       : 2025/7/6 22:00
 @Author     : Donny
 @Email      : donnymoving@gmail.com
@@ -19,6 +19,7 @@ from typing import Optional
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, EventType
+from src.function.gateway_helper import get_enabled_gateways
 from src.services.trading_engine import TradingEngine
 
 # 添加项目根目录到Python路径
@@ -118,38 +119,6 @@ class HomalosSystem:
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
     
-    def _get_enabled_gateways(self) -> Dict[str, Dict[str, Any]]:
-        """获取配置中启用的网关"""
-        enabled_gateways = {}
-        
-        if not self.config:
-            return enabled_gateways
-        
-        # 检查所有可能的网关配置
-        gateway_configs = {
-            'ctp': self.config.get("gateway.ctp", {}),
-            'tts': self.config.get("gateway.tts", {}),
-            'tts7x24': self.config.get("gateway.tts7x24", {})
-        }
-        
-        for gateway_key, gateway_config in gateway_configs.items():
-            if gateway_config.get("enabled", False):
-                # 确定网关类型（tts7x24 使用 tts 类）
-                gateway_type = 'tts' if gateway_key == 'tts7x24' else gateway_key
-                
-                # 检查网关是否可用
-                if GATEWAY_CLASSES.get(gateway_type, {}).get('available', False):
-                    enabled_gateways[gateway_key] = {
-                        'config': gateway_config,
-                        'type': gateway_type,
-                        'classes': GATEWAY_CLASSES[gateway_type]
-                    }
-                    logger.info(f"发现启用的网关: {gateway_key} (类型: {gateway_type})")
-                else:
-                    logger.warning(f"网关 {gateway_key} 已启用但类型 {gateway_type} 不可用")
-        
-        return enabled_gateways
-
     @staticmethod
     def _validate_gateway_config(gateway_key: str, gateway_config: Dict[str, Any], gateway_type: str) -> bool:
         """验证网关配置的完整性"""
@@ -241,7 +210,7 @@ class HomalosSystem:
         """初始化交易网关（支持动态选择）"""
         try:
             # 获取启用的网关
-            enabled_gateways = self._get_enabled_gateways()
+            enabled_gateways = get_enabled_gateways(self.config)
             
             if not enabled_gateways:
                 logger.warning("未发现启用的网关，系统将在无网关模式下运行")

@@ -14,8 +14,10 @@ import asyncio
 import signal
 import sys
 from pathlib import Path
+from typing import Optional
 
 from src.config.config_manager import ConfigManager
+from src.function.gateway_helper import get_enabled_gateways
 
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent
@@ -30,7 +32,12 @@ logger = get_logger("DataCenterApplication")
 class DataCenterApplication:
     """数据中心应用程序"""
     
-    def __init__(self):
+    def __init__(self,
+                 gateway_config_file: str = "config/system.yaml",
+                 data_center_config_file = "data_center_config.yaml"):
+        self.gateway_config_file = gateway_config_file
+        self.data_center_config_file = data_center_config_file
+        self.gateway_config: Optional[ConfigManager] = None
         self.config = None
         self.event_bus = None
         self.data_center = None
@@ -40,18 +47,45 @@ class DataCenterApplication:
         """初始化数据中心应用"""
         try:
             # 加载配置
+            self.gateway_config = ConfigManager(self.gateway_config_file)
+
+            # 获取启用的网关
+            enabled_gateways = get_enabled_gateways(self.gateway_config)
+
+            if not enabled_gateways:
+                raise ValueError("没有启用的网关配置")
+
+            # 获取第一个启用的网关
+            gateway_key = list(enabled_gateways.keys())[0]
+            gateway_info = enabled_gateways[gateway_key]
+            
+            enabled_gateway_config = gateway_info['config']
+            enabled_gateway_type = gateway_info['type']
+
+            logger.info(f"使用网关: {gateway_key} (类型: {enabled_gateway_type})")
+
             config_path = project_root / "config" / "data_center_config.yaml"
+            logger.info(f"加载数据中心配置文件: {config_path}")
+            
+            if not config_path.exists():
+                raise FileNotFoundError(f"数据中心配置文件不存在: {config_path}")
+            
             config_manager = ConfigManager(str(config_path))
             self.config = config_manager.get_all()
             
+            if self.config is None:
+                raise ValueError("数据中心配置加载失败，配置为空")
+            
+            logger.info(f"数据中心配置加载成功，包含段: {list(self.config.keys())}")
+            
             # 添加网关连接配置到数据中心配置中
             gateway_config = {
-                'user_id': '160219',
-                'password': 'donny@103010',
-                'broker_id': '9999',
-                'md_address': 'tcp://182.254.243.31:40011',
-                'appid': 'simnow_client_test',
-                'auth_code': '0000000000000000'
+                'user_id': enabled_gateway_config.get('user_id'),
+                'password': enabled_gateway_config.get('password'),
+                'broker_id': enabled_gateway_config.get('broker_id'),
+                'md_address': enabled_gateway_config.get('md_address'),
+                'appid': enabled_gateway_config.get('app_id'),
+                'auth_code': enabled_gateway_config.get('auth_code'),
             }
             self.config['gateway'] = gateway_config
 
@@ -59,16 +93,22 @@ class DataCenterApplication:
             self.event_bus = EventBus()
             
             # 创建数据中心（数据中心将独立管理网关连接）
-            self.data_center = DataCenter(self.event_bus, self.config)
+            logger.info("开始创建数据中心实例...")
+            try:
+                self.data_center = DataCenter(self.event_bus, self.config)
+                logger.info("数据中心实例创建成功")
+            except Exception as dc_error:
+                logger.error(f"创建数据中心实例失败: {dc_error}")
+                import traceback
+                logger.error(f"详细错误信息: {traceback.format_exc()}")
+                raise
             
-            # 启动数据中心（数据中心内部会自动创建和连接网关）
-            self.data_center.start()
-
-            logger.info("数据中心应用初始化成功")
             return True
             
         except Exception as e:
             logger.error(f"数据中心应用初始化失败: {e}")
+            import traceback
+            logger.error(f"详细错误信息: {traceback.format_exc()}")
             return False
     
     async def start(self):
@@ -77,10 +117,11 @@ class DataCenterApplication:
             if not await self.initialize():
                 return False
             
-            # 数据中心已在initialize中启动，无需重复启动
+            # 启动数据中心（数据中心内部会自动创建和连接网关）
+            self.data_center.start()
+            logger.info("数据中心应用初始化成功")
             
             # 网关已在数据中心中自动连接
-            
             self.running = True
             logger.info("数据中心应用启动成功，开始7x24小时运行...")
             

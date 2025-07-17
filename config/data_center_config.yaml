@@ -2,7 +2,7 @@
 data_center:
   # 基本配置
   name: "Homalos数据中心"
-  version: "2.0.0"
+  version: "0.0.1"
   description: "7x24小时运行的期货行情数据中心"
   
   # 运行模式
@@ -17,11 +17,11 @@ data_center:
       cache_size: 10000
       timeout: 30
       
-    # Parquet配置
-    parquet:
-      base_path: "data/parquet"
-      compression: "snappy"  # snappy, gzip, lz4
-      partition_by: "date"  # date, symbol, none
+  # Parquet配置
+  parquet:
+    base_path: "data/parquet"
+    compression: "snappy"  # snappy, gzip, lz4
+    partition_by: "date"  # date, symbol, none
       
   # 批量写入配置
   batch_write:
@@ -148,17 +148,17 @@ market:
     # 夜盘
     night_session:
       start: "21:00:00"
-      end: "02:30:00"
+      end: "23:00:00"
       
   # 节假日配置
   holidays:
     file_path: "config/holidays.json"
     
-  # 合约配置
-  contracts:
-    config_file: "config/market_symbols.json"
-    auto_update: true
-    update_interval: 3600  # 秒（1小时）
+#  # 合约配置
+#  contracts:
+#    config_file_name: "market_symbols.json"
+#    auto_update: true
+#    update_interval: 3600  # 秒（1小时）
     
 # 服务发现配置
 service_discovery:

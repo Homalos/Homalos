@@ -34,17 +34,19 @@ class DataCenterDatabase:
         
         # 数据库配置
         db_config = config.get("database", {})
-        self.db_path = Path(db_config.get("path", "data/market_data.db"))
+        self.db_path = Path(db_config.get("sqlite", {}).get("path", "data/data_center.db"))
         
         # Parquet配置
-        self.parquet_base_path = Path(db_config.get("parquet_path", "data/parquet"))
-        self.parquet_compression = "snappy"
+        parquet_config = config.get("parquet", {})
+        self.parquet_base_path = Path(parquet_config.get("base_path", "data/parquet"))
+        self.parquet_compression = parquet_config.get("compression", "snappy")
         
         # 批量写入配置
-        self.tick_batch_size = db_config.get("tick_batch_size", 1000)
-        self.tick_flush_interval = db_config.get("flush_interval", 5)
-        self.bar_batch_size = db_config.get("bar_batch_size", 500)
-        self.bar_flush_interval = db_config.get("flush_interval", 10)
+        batch_write_config = config.get("batch_write", {})
+        self.tick_batch_size = batch_write_config.get("tick", {}).get("batch_size", 1000)
+        self.tick_flush_interval = batch_write_config.get("tick", {}).get("flush_interval", 5)
+        self.bar_batch_size = batch_write_config.get("bar", {}).get("batch_size", 10)
+        self.bar_flush_interval = db_config.get("bar", {}).get("flush_interval", 5)
         self.flush_interval = self.tick_flush_interval  # 添加这个属性
 
         # 批量写入缓存
@@ -115,64 +117,12 @@ class DataCenterDatabase:
                     )
                 ''')
 
-                # 订单数据表
-                conn.execute('''
-                    CREATE TABLE IF NOT EXISTS orders (
-                        order_id TEXT PRIMARY KEY,
-                        strategy_id TEXT,
-                        symbol TEXT,
-                        exchange TEXT,
-                        direction TEXT,
-                        offset TEXT,
-                        price REAL,
-                        volume REAL,
-                        traded REAL,
-                        status TEXT,
-                        create_time TEXT,
-                        update_time TEXT
-                    )
-                ''')
+                # 数据中心只需要行情数据表，不需要交易相关表（orders、positions、trades）
 
-                # 成交数据表
-                conn.execute('''
-                    CREATE TABLE IF NOT EXISTS trades (
-                        trade_id TEXT PRIMARY KEY,
-                        order_id TEXT,
-                        strategy_id TEXT,
-                        symbol TEXT,
-                        exchange TEXT,
-                        direction TEXT,
-                        offset TEXT,
-                        price REAL,
-                        volume REAL,
-                        datetime TEXT
-                    )
-                ''')
-
-                # 持仓数据表
-                conn.execute('''
-                    CREATE TABLE IF NOT EXISTS positions (
-                        strategy_id TEXT,
-                        symbol TEXT,
-                        exchange TEXT,
-                        direction TEXT,
-                        volume REAL,
-                        frozen REAL,
-                        price REAL,
-                        pnl REAL,
-                        yd_volume REAL,
-                        update_time TEXT,
-                        PRIMARY KEY (strategy_id, symbol, exchange, direction)
-                    )
-                ''')
-
-                # 创建索引
+                # 创建索引（仅为行情数据表创建索引）
                 indices = [
                     "CREATE INDEX IF NOT EXISTS idx_tick_symbol_time ON tick_data(symbol, datetime)",
-                    "CREATE INDEX IF NOT EXISTS idx_bar_symbol_time ON bar_data(symbol, datetime)",
-                    "CREATE INDEX IF NOT EXISTS idx_orders_strategy ON orders(strategy_id)",
-                    "CREATE INDEX IF NOT EXISTS idx_trades_strategy ON trades(strategy_id)",
-                    "CREATE INDEX IF NOT EXISTS idx_positions_strategy ON positions(strategy_id)"
+                    "CREATE INDEX IF NOT EXISTS idx_bar_symbol_time ON bar_data(symbol, datetime)"
                 ]
 
                 for idx in indices:
