@@ -43,7 +43,7 @@ Homalos/
 │   ├── 📁 config/            # 配置管理
 │   ├── 📁 core/              # 系统核心模块
 │   ├── 📁 ctp/               # CTP接口模块
-│   ├── 📁 function/		  # 核心函数
+│   ├── 📁 function/          # 核心函数
 │   ├── 📁 services/          # 服务模块
 │   ├── 📁 strategies/        # 策略实例模块
 │   ├── 📁 tts/               # TTS接口模块
