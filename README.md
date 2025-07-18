@@ -2,10 +2,10 @@
   <a href="https://homalos.github.io"><img src="assets/logo.png" width="500" height="333"  alt="homalos"></a>
 </p>
 
-
 <p align="center">
-  <font size="5">✨ Python-based Futures Quantitative Trading System ✨</font>
+  <font size="5px">✨ Python-based Futures Quantitative Trading System ✨</font>
 </p>
+
 
 <p align="center">
   <a href="https://img.shields.io/github/license/Homalos/Homalos"><img alt="GitHub License" title="GitHub License"
