@@ -43,7 +43,7 @@ Homalos/
 │   ├── 📁 config/            # Configuration management
 │   ├── 📁 core/              # System core modules
 │   ├── 📁 ctp/               # CTP interface module
-│   ├── 📁 function/          # core function
+│   ├── 📁 function/          # Core function
 │   ├── 📁 services/          # Service modules
 │   ├── 📁 strategies/        # Strategy instance modules
 │   ├── 📁 tts/               # TTS interface module
