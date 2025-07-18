@@ -1,6 +1,7 @@
 <p align="center">
-  <a href="https://homalos.github.io"><img src="assets/logo.png" width="350" height="233"  alt="homalos"></a>
+  <a href="https://homalos.github.io"><img src="assets/logo.png" width="500" height="333"  alt="homalos"></a>
 </p>
+
 
 <p align="center">
   <font size="5">✨ 基于Python的期货量化交易系统 ✨</font>
@@ -53,6 +54,7 @@ Homalos 目标是一个可投入生产的量化交易系统，具有以下主要
 
 ```reStructuredText
 Homalos/
+├── 📁 assets/                # 资源文件
 ├── 📁 config/                # 配置文件
 ├── 📁 data/                  # 数据存储
 ├── 📁 docs/                  # 系统文档

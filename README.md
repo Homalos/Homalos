@@ -1,6 +1,7 @@
 <p align="center">
-  <a href="https://homalos.github.io"><img src="assets/logo.png" width="350" height="233"  alt="homalos"></a>
+  <a href="https://homalos.github.io"><img src="assets/logo.png" width="500" height="333"  alt="homalos"></a>
 </p>
+
 
 <p align="center">
   <font size="5">✨ Python-based Futures Quantitative Trading System ✨</font>
@@ -53,6 +54,7 @@ Homalos aims to be a production-ready quantitative trading system with the follo
 
 ```reStructuredText
 Homalos/
+├── 📁 assets/                # Resource Files
 ├── 📁 config/                # Configuration files
 ├── 📁 data/                  # Data storage
 ├── 📁 docs/                  # System documentation
