@@ -8,8 +8,8 @@
 
 Homalos 是一个基于 Python 的事件驱动型期货交易平台，旨在实现单机部署，并最大限度地减少外部依赖。
 
-- **当前状态**: 开发中
-- **核心特性**: 实时行情处理、智能风控、策略管理、Web界面、性能监控
+- **当前状态**: 核心功能完成，生产就绪
+- **核心特性**: 实时行情处理、智能风控、策略管理、Web界面、性能监控、数据中心优化
 
 ## 目的
 
@@ -43,6 +43,7 @@ Homalos/
 │   ├── 📁 config/            # 配置管理
 │   ├── 📁 core/              # 系统核心模块
 │   ├── 📁 ctp/               # CTP接口模块
+│   ├── 📁 function/		  # 核心函数
 │   ├── 📁 services/          # 服务模块
 │   ├── 📁 strategies/        # 策略实例模块
 │   ├── 📁 tts/               # TTS接口模块
@@ -239,12 +240,20 @@ python build.py
 - 告警系统：阈值监控、事件通知、多级告警 ✅
 - 性能测试：基准测试、压力测试、端到端测试 ✅
 
-#### 7.CTP网关集成（95%完成）
+#### 7.CTP网关集成（100%完成）
 
 - 行情网关：实时数据接收、连接管理 ✅
 - 交易网关：订单执行、状态同步 ✅
 - 自动重连：智能重连、故障恢复 ✅
 - 事件集成：动态订阅、状态广播 ✅
+- 线程安全：CTP API回调线程安全桥接 ✅
+
+#### 8.数据中心优化（100%完成）
+
+- 表缓存机制：数据类型隔离、竞态条件修复 ✅
+- 批量写入优化：tick和bar数据独立管理 ✅
+- 数据库隔离：多数据库表创建状态独立跟踪 ✅
+- 并发安全：多线程环境下的数据写入安全 ✅
 
 ## 技术实现亮点
 
@@ -274,6 +283,8 @@ python build.py
 - **界面优化**：精简表格布局，提升信息展示效率
 - **调试友好**：完善的事件流调试日志，便于问题排查
 - **JSON序列化增强**：WebSocket事件中复杂对象的健壮处理，支持枚举、dataclass、datetime对象
+- **数据中心稳定性**：修复表缓存竞态条件，确保tick和bar数据正常写入
+- **线程安全优化**：CTP API回调与Python事件循环的安全桥接
 
 ## 部署和运维
 
@@ -332,8 +343,10 @@ cp config/system.yaml.example config/system.yaml
 #### 3. 启动系统
 
 ```bash
+# 启动Homalos数据中心
+python -m start_data_center
 # 启动Homalos交易系统
-python -m start
+python -m start_homalos
 ```
 
 #### 4. 验证运行
@@ -389,7 +402,6 @@ class MyStrategy(BaseStrategy):
 
 ### 社区支持
 
-- **GitHub仓库**: [Homalos](https://github.com/Homalos/Homalos)
 - **项目手册**: [homalos.github.io](https://homalos.github.io/)
 - **Wiki**: [DeepWiki](https://deepwiki.com/Homalos/Homalos)
 - **技术交流(QQ Group)**: `446042777`
@@ -402,4 +414,4 @@ class MyStrategy(BaseStrategy):
 ---
 
 *Homalos 量化交易系统 - 从概念到生产的实现*  
-*项目状态: 开发中 | 最后更新: 2025-07-15*
+*项目状态: 开发中 | 最后更新: 2025-07-18*

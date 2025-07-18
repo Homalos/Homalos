@@ -1,6 +1,6 @@
 # Homalos - Python-based Futures Quantitative Trading System
 
-[中文](README_CN.md) | ENGLISH
+ENGLISH | [中文](README_CN.md)
 
 ![GitHub License](https://img.shields.io/github/license/Homalos/Homalos)&ensp;![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FHomalos%2FHomalos%2Frefs%2Fheads%2Fmain%2Fpyproject.toml)&ensp;[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Homalos/Homalos)&ensp;[![Group#1](https://img.shields.io/badge/Group%231-Join-blue)](https://qun.qq.com/universal-share/share?ac=1&authKey=dzGDk%2F%2Bpy%2FwpVyR%2BTrt9%2B5cxLZrEHL793cZlFWvOXuV5I8szMnOU4Wf3ylap7Ph0&busi_data=eyJncm91cENvZGUiOiI0NDYwNDI3NzciLCJ0b2tlbiI6IlFrM0ZhZmRLd0xIaFdsZE9FWjlPcHFwSWxBRFFLY2xZbFhaTUh4K2RldisvcXlBckZ4NVIrQzVTdDNKUFpCNi8iLCJ1aW4iOiI4MjEzMDAwNzkifQ%3D%3D&data=O1Bf7_yhnvrrLsJxc3g5-p-ga6TWx6EExnG0S1kDNJTyK4sV_Nd9m4p-bkG4rhj_5TdtS5lMjVZRBv4amHyvEA&svctype=4&tempid=h5_group_info)
 
@@ -8,8 +8,8 @@
 
 Homalos is a Python-based event-driven futures trading platform designed for standalone deployment with minimal external dependencies.
 
-- **Current Status**: Under development
-- **Core Features**: Real-time market data processing, intelligent risk control, strategy management, Web interface, performance monitoring
+- **Current Status**: Core features completed, production ready
+- **Core Features**: Real-time market data processing, intelligent risk control, strategy management, Web interface, performance monitoring, data center optimization
 
 ## Purpose
 
@@ -43,6 +43,7 @@ Homalos/
 │   ├── 📁 config/            # Configuration management
 │   ├── 📁 core/              # System core modules
 │   ├── 📁 ctp/               # CTP interface module
+│   ├── 📁 function/		  # core function
 │   ├── 📁 services/          # Service modules
 │   ├── 📁 strategies/        # Strategy instance modules
 │   ├── 📁 tts/               # TTS interface module
@@ -238,12 +239,20 @@ python build.py
 - Alert System: Threshold monitoring, event notifications, multi-level alerts ✅
 - Performance Testing: Benchmarking, stress testing, end-to-end testing ✅
 
-#### 7. CTP Gateway Integration (95% Complete)
+#### 7. CTP Gateway Integration (100% Complete)
 
 - Market Data Gateway: Real-time data reception, connection management ✅
 - Trading Gateway: Order execution, status synchronization ✅
 - Auto-reconnection: Intelligent reconnection, fault recovery ✅
 - Event Integration: Dynamic subscription, status broadcasting ✅
+- Thread Safety: CTP API callback thread-safe bridging ✅
+
+#### 8. Data Center Optimization (100% Complete)
+
+- Table Cache Mechanism: Data type isolation, race condition fixes ✅
+- Batch Write Optimization: Independent tick and bar data management ✅
+- Database Isolation: Independent table creation status tracking for multiple databases ✅
+- Concurrency Safety: Safe data writing in multi-threaded environments ✅
 
 ## Technical Implementation Highlights
 
@@ -273,6 +282,8 @@ python build.py
 - **Interface Optimization**: Streamlined table layout, improved information display efficiency
 - **Debug-friendly**: Complete event flow debug logs for easy troubleshooting
 - **JSON Serialization Enhancement**: Robust handling of complex objects in WebSocket events, supports enum, dataclass, datetime objects
+- **Data Center Stability**: Fixed table cache race conditions, ensuring normal tick and bar data writing
+- **Thread Safety Optimization**: Safe bridging between CTP API callbacks and Python event loops
 
 ## Deployment and Operations
 
@@ -331,8 +342,10 @@ cp config/system.yaml.example config/system.yaml
 #### 3. Start System
 
 ```bash
+# Start Homalos data center
+python -m start_data_center
 # Start Homalos trading system
-python -m start
+python -m start_homalos
 ```
 
 #### 4. Verify Operation
@@ -388,7 +401,6 @@ class MyStrategy(BaseStrategy):
 
 ### Community Support
 
-- **GitHub Repository**: [Homalos](https://github.com/Homalos/Homalos)
 - **Project Manual**: [homalos.github.io](https://homalos.github.io/)
 - **Wiki**: [DeepWiki](https://deepwiki.com/Homalos/Homalos)
 - **Technical Exchange (QQ Group)**: `446042777`
@@ -401,4 +413,4 @@ class MyStrategy(BaseStrategy):
 ---
 
 *Homalos Quantitative Trading System - From Concept to Production*
-*Project Status: Under development | Last Updated: 2025-07-15*
+*Project Status: Under development | Last Updated: 2025-07-18*

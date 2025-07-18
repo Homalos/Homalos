@@ -1,3 +1,5 @@
+# 更新历史
+
 ## v0.0.1.202507081831
 
 我已经成功完成了Homalos量化交易系统的核心重构工作，按照设计文档的MVP架构要求实现了以下组件：
@@ -23,9 +25,9 @@
 - **Web界面**: 实时监控 + WebSocket推送
 - **策略框架**: 事件驱动的策略基类，支持生命周期管理
 
-### 📁 新增的核心文件：
+### 📁 新增的核心文件
 
-```
+```reStructuredText
 src/
 ├── core/
 │   ├── config_manager.py      # 配置管理器  
@@ -45,7 +47,7 @@ config/
 main.py                       # 重写的启动程序
 ```
 
-### 🎯 系统效果：
+### 🎯 系统效果
 
 - **开发效率**: 架构复杂度降低约60%，开发周期从6-12个月缩短到4-6周
 - **性能优化**: 模块化单体避免过度服务间通信开销
@@ -120,7 +122,7 @@ main.py                       # 重写的启动程序
 
 ### ✅ 已完成实施项目
 
-**1. 移除模拟成交逻辑** 
+**1. 移除模拟成交逻辑**
 
 - ✅ 删除了OrderManager中的`_mock_trade_fill`方法
 - ✅ 修改了`_handle_order_request`直接转发到CTP网关
@@ -167,7 +169,7 @@ main.py                       # 重写的启动程序
 
 **完整的实盘交易链路：**
 
-```
+```reStructuredText
 策略信号 → 风控检查 → OrderManager → CTP网关 → SimNow撮合 → 真实成交回报 → 持仓更新
 ```
 
@@ -194,6 +196,7 @@ main.py                       # 重写的启动程序
 ### ✅ JSON序列化修复 (2025-01-14)
 
 **核心问题解决**:
+
 - ✅ **WebSocket事件推送JSON序列化错误修复**: 解决了`OrderRequest`和`Exchange`对象无法JSON序列化的`TypeError`异常
 - ✅ **事件序列化增强**: 重构`_serialize_event_data`方法，支持复杂数据类型的递归序列化
 - ✅ **枚举类型支持**: 完善对`Exchange`等枚举类型的JSON序列化处理
@@ -202,6 +205,7 @@ main.py                       # 重写的启动程序
 - ✅ **容器类型递归处理**: 支持列表、元组、字典等容器类型的递归序列化
 
 **技术实现**:
+
 ```python
 # 修复前的问题
 TypeError: Object of type OrderRequest is not JSON serializable
@@ -215,6 +219,7 @@ TypeError: Object of type Exchange is not JSON serializable
 ```
 
 **验证结果**:
+
 - ✅ 系统启动正常，无JSON序列化错误
 - ✅ WebSocket事件推送100%成功率
 - ✅ 策略操作实时日志反馈正常
@@ -286,3 +291,53 @@ TypeError: Object of type Exchange is not JSON serializable
 - ✅ 建立了线程安全的CTP回调桥接机制
 - ✅ 实现了类型安全的枚举处理框架
 - ✅ 创建了灵活的测试环境配置系统
+
+---
+
+## v0.0.1.20250718
+
+### ✅ 数据中心表缓存机制修复 (2025-07-18)
+
+**核心问题解决**:
+
+- ✅ **数据中心'no such table'错误修复**: 解决了`_flush_contract_batch`方法中bar数据批量写入失败的表不存在错误
+- ✅ **表缓存机制优化**: 修复了表缓存键不区分数据类型导致的竞态条件问题
+- ✅ **参数匹配修复**: 解决了`_create_contract_table`和`_get_table_name`方法调用时缺少`data_type`参数的问题
+- ✅ **数据库隔离增强**: 确保tick和bar数据库的表创建状态独立跟踪
+
+**技术实现**:
+
+```python
+# 修复前的问题
+no such table: ss2604
+no such table: jd2602
+# 表缓存键: (date_str, table_name)
+
+# 修复后的解决方案
+# 表缓存键: (data_type, date_str, table_name)
+- tick数据库和bar数据库表创建状态独立管理
+- 消除不同数据库间的缓存冲突
+- 避免多线程环境下的竞态条件
+```
+
+**修复内容**:
+
+- ✅ **表缓存键格式更新**: 从`(date_str, table_name)`改为`(data_type, date_str, table_name)`
+- ✅ **方法参数修正**: 为`_create_contract_table`和`_get_table_name`调用添加缺失的`data_type`参数
+- ✅ **并发安全增强**: 解决了多线程环境下的表创建竞态条件
+- ✅ **数据库隔离**: tick和bar数据现在在各自数据库中独立创建和管理表
+
+**验证结果**:
+
+- ✅ 数据中心成功启动并订阅935个合约
+- ✅ 正常处理tick数据（已处理8000+个tick）
+- ✅ 完全消除"no such table"错误
+- ✅ tick和bar数据都能正常写入各自的数据库
+- ✅ 系统稳定运行，无表创建相关错误
+
+**技术改进**:
+
+- **消除竞态条件**: 不同数据类型的表创建现在完全独立
+- **提高并发安全性**: 避免了多线程环境下的缓存冲突
+- **增强可维护性**: 更清晰的缓存键结构便于调试和扩展
+- **架构优化**: 统一表结构设计，通过`data_type`字段区分tick和bar数据
