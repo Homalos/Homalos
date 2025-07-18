@@ -12,14 +12,13 @@
 import sqlite3
 import threading
 import time
-import pandas as pd
+from collections import defaultdict
 from datetime import datetime, date, timedelta
 from pathlib import Path
 from queue import Queue, Empty
 from typing import List, Dict, Any, Optional
-from collections import defaultdict
 
-import aiosqlite
+import pandas as pd
 
 from src.core.logger import get_logger
 from src.core.object import TickData, BarData
@@ -30,51 +29,45 @@ logger = get_logger("DataCenterDatabase")
 class DataCenterDatabase:
     """数据中心数据库管理器
     
-    专门用于数据中心的数据库操作，按交易日+合约分表存储tick和bar数据。
+    按合约分表存储tick和bar数据，每个合约独立建表。
     数据库文件结构：
-    - tick_db/tick_YYYYMMDD.db：存储每日tick数据
-    - bar_db/bar_YYYYMMDD.db：存储每日bar数据
+    - tick_db/tick_YYYYMMDD.db：存储每日tick数据，每个合约一个表
+    - bar_db/bar_YYYYMMDD.db：存储每日bar数据，每个合约一个表
+    
+    表命名规范：
+    - tick表：tick_{symbol}_{exchange}
+    - bar表：bar_{symbol}_{exchange}
     """
 
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         
-        # 数据库配置 - 支持分库
+        # 数据库配置
         db_config = config.get("database", {})
         sqlite_config = db_config.get("sqlite", {})
         
-        # 检查是否使用新的分库配置
-        if "tick_db" in sqlite_config:
-            # 新的分库配置
-            tick_db_config = sqlite_config.get("tick_db", {})
-            bar_db_config = sqlite_config.get("bar_db", {})
-            contract_db_config = sqlite_config.get("contract_db", {})
-            
-            # 从配置中获取各数据库路径
-            tick_db_path = tick_db_config.get("path", "data/tick_data.db")
-            bar_db_path = bar_db_config.get("path", "data/bar_data.db")
-
-            # 设置数据库目录（去掉文件名，只保留目录）
-            self.tick_db_path = Path(tick_db_path).parent / "tick_db"
-            self.bar_db_path = Path(bar_db_path).parent / "bar_db"
-
-            # 保存数据库配置用于连接参数
-            self.tick_db_config = tick_db_config
-            self.bar_db_config = bar_db_config
-            self.contract_db_config = contract_db_config
-            
-        else:
-            # 兼容旧的单一数据库配置
-            sqlite_path = sqlite_config.get("path", "data/data_center.db")
-            base_db_path = Path(sqlite_path).parent
-            self.tick_db_path = base_db_path / "tick_db"
-            self.bar_db_path = base_db_path / "bar_db"
-
-            # 使用默认配置
-            default_config = {"wal_mode": True, "cache_size": 10000, "timeout": 30}
-            self.tick_db_config = default_config
-            self.bar_db_config = default_config
-            self.contract_db_config = default_config
+        # 表结构策略
+        self.table_strategy = db_config.get("table_strategy", "per_contract")
+        
+        # 合约表配置
+        contract_tables_config = db_config.get("contract_tables", {})
+        self.tick_table_format = contract_tables_config.get("tick_table_format", "tick_{symbol}_{exchange}")
+        self.bar_table_format = contract_tables_config.get("bar_table_format", "bar_{symbol}_{exchange}")
+        self.auto_create_tables = contract_tables_config.get("auto_create", True)
+        self.table_cache_size = contract_tables_config.get("table_cache_size", 1000)
+        self.parallel_write = contract_tables_config.get("parallel_write", True)
+        self.max_parallel_workers = contract_tables_config.get("max_parallel_workers", 4)
+        
+        # 数据库路径配置
+        tick_db_config = sqlite_config.get("tick_db", {})
+        bar_db_config = sqlite_config.get("bar_db", {})
+        
+        self.tick_db_path = Path(tick_db_config.get("path", "data/tick_db"))
+        self.bar_db_path = Path(bar_db_config.get("path", "data/bar_db"))
+        
+        # 数据库连接配置
+        self.tick_db_config = tick_db_config
+        self.bar_db_config = bar_db_config
         
         # Parquet配置
         parquet_config = config.get("parquet", {})
@@ -83,15 +76,15 @@ class DataCenterDatabase:
         
         # 批量写入配置
         batch_write_config = config.get("batch_write", {})
-        self.tick_batch_size = batch_write_config.get("tick", {}).get("batch_size", 8000)
+        self.tick_batch_size = batch_write_config.get("tick", {}).get("batch_size", 1000)
         self.tick_flush_interval = batch_write_config.get("tick", {}).get("flush_interval", 5)
-        self.bar_batch_size = batch_write_config.get("bar", {}).get("batch_size", 5000)
-        self.bar_flush_interval = batch_write_config.get("bar", {}).get("flush_interval", 5)
-        self.flush_interval = self.tick_flush_interval  # 添加这个属性
+        self.bar_batch_size = batch_write_config.get("bar", {}).get("batch_size", 500)
+        self.bar_flush_interval = batch_write_config.get("bar", {}).get("flush_interval", 10)
+        self.flush_interval = self.tick_flush_interval
 
-        # 按日期分组的批量写入缓存
-        self._tick_batches = defaultdict(list)  # {date_str: [data_list]}
-        self._bar_batches = defaultdict(list)   # {date_str: [data_list]}
+        # 按合约和日期分组的批量写入缓存
+        self._tick_batches = defaultdict(lambda: defaultdict(list))  # {date_str: {contract_key: [data_list]}}
+        self._bar_batches = defaultdict(lambda: defaultdict(list))   # {date_str: {contract_key: [data_list]}}
         self._batch_lock = threading.Lock()
         
         # Parquet缓存
@@ -99,9 +92,9 @@ class DataCenterDatabase:
         self._bar_parquet_buffer: List[Dict[str, Any]] = []
         self._parquet_lock = threading.Lock()
 
-        # 数据库连接池（按日期缓存）
-        self._db_connections = {}  # {date_str: {"tick": conn, "bar": conn}}
-        self._connection_lock = threading.Lock()
+        # 表缓存 - 记录已创建的表
+        self._created_tables = set()  # {(data_type, date_str, table_name)}
+        self._table_cache_lock = threading.Lock()
 
         # 后台写入线程
         self._write_queue = Queue()
@@ -132,9 +125,26 @@ class DataCenterDatabase:
         else:
             raise ValueError(f"不支持的数据类型: {data_type}")
     
-    def _init_daily_database(self, data_type: str, trade_date: date):
-        """初始化指定日期的数据库文件"""
+    def _get_contract_key(self, symbol: str, exchange: str) -> str:
+        """生成合约唯一标识"""
+        return f"{symbol}_{exchange}"
+    
+    def _get_table_name(self, data_type: str, symbol: str, exchange: str) -> str:
+        """生成表名 - 直接使用合约名作为表名"""
+        # 直接使用合约名作为表名，不再添加前缀
+        return symbol
+    
+    def _create_contract_table(self, data_type: str, symbol: str, exchange: str, trade_date: date):
+        """为指定合约创建表"""
         db_path = self._get_db_path(data_type, trade_date)
+        table_name = self._get_table_name(data_type, symbol, exchange)
+        date_str = trade_date.strftime('%Y%m%d')
+        
+        # 检查表是否已创建（加上数据类型以区分不同数据库）
+        table_key = (data_type, date_str, table_name)
+        with self._table_cache_lock:
+            if table_key in self._created_tables:
+                return
         
         # 获取对应数据类型的配置
         if data_type == 'tick':
@@ -161,60 +171,44 @@ class DataCenterDatabase:
                 else:
                     conn.execute(f"PRAGMA cache_size={cache_size}")  # 正数表示页数
                 
-                if data_type == 'tick':
-                    # 创建tick_data表
-                    conn.execute('''
-                        CREATE TABLE IF NOT EXISTS tick_data (
-                            symbol TEXT NOT NULL,
-                            exchange TEXT NOT NULL,
-                            datetime TEXT NOT NULL,
-                            last_price REAL,
-                            volume REAL,
-                            turnover REAL,
-                            open_interest REAL,
-                            bid_price_1 REAL,
-                            ask_price_1 REAL,
-                            bid_volume_1 REAL,
-                            ask_volume_1 REAL,
-                            PRIMARY KEY (symbol, exchange, datetime)
-                        )
-                    ''')
-                    
-                    # 创建索引
-                    conn.execute('CREATE INDEX IF NOT EXISTS idx_tick_symbol_datetime ON tick_data(symbol, datetime)')
-                    conn.execute('CREATE INDEX IF NOT EXISTS idx_tick_exchange_datetime ON tick_data(exchange, datetime)')
-                    conn.execute('CREATE INDEX IF NOT EXISTS idx_tick_symbol_exchange ON tick_data(symbol, exchange)')
-                    
-                elif data_type == 'bar':
-                    # 创建bar_data表
-                    conn.execute('''
-                        CREATE TABLE IF NOT EXISTS bar_data (
-                            symbol TEXT NOT NULL,
-                            exchange TEXT NOT NULL,
-                            interval TEXT NOT NULL,
-                            datetime TEXT NOT NULL,
-                            open_price REAL,
-                            high_price REAL,
-                            low_price REAL,
-                            close_price REAL,
-                            volume REAL,
-                            turnover REAL,
-                            open_interest REAL,
-                            PRIMARY KEY (symbol, exchange, interval, datetime)
-                        )
-                    ''')
-                    
-                    # 创建索引
-                    conn.execute('CREATE INDEX IF NOT EXISTS idx_bar_symbol_datetime ON bar_data(symbol, datetime)')
-                    conn.execute('CREATE INDEX IF NOT EXISTS idx_bar_exchange_datetime ON bar_data(exchange, datetime)')
-                    conn.execute('CREATE INDEX IF NOT EXISTS idx_bar_interval ON bar_data(interval)')
-                    conn.execute('CREATE INDEX IF NOT EXISTS idx_bar_symbol_exchange ON bar_data(symbol, exchange)')
+                # 创建统一的合约表（包含tick和bar数据）
+                conn.execute(f'''
+                    CREATE TABLE IF NOT EXISTS {table_name} (
+                        data_type TEXT NOT NULL,
+                        datetime TEXT NOT NULL,
+                        interval TEXT,
+                        last_price REAL,
+                        open_price REAL,
+                        high_price REAL,
+                        low_price REAL,
+                        close_price REAL,
+                        volume REAL,
+                        turnover REAL,
+                        open_interest REAL,
+                        bid_price_1 REAL,
+                        ask_price_1 REAL,
+                        bid_volume_1 REAL,
+                        ask_volume_1 REAL,
+                        PRIMARY KEY (data_type, datetime, interval)
+                    )
+                ''')
+                
+                # 创建索引
+                conn.execute(f'CREATE INDEX IF NOT EXISTS idx_{table_name}_datetime ON {table_name}(datetime)')
+                conn.execute(f'CREATE INDEX IF NOT EXISTS idx_{table_name}_data_type ON {table_name}(data_type)')
+                conn.execute(f'CREATE INDEX IF NOT EXISTS idx_{table_name}_interval ON {table_name}(interval)')
                 
                 conn.commit()
-                logger.debug(f"{data_type}数据库文件初始化完成: {db_path}")
                 
+                # 标记表已创建（包含数据类型）
+                with self._table_cache_lock:
+                    self._created_tables.add(table_key)
+                    
+                logger.debug(f"{data_type}表创建完成 - 合约: {symbol}.{exchange}, 表名: {table_name}, 日期: {trade_date}")
+                    
         except Exception as e:
-            logger.error(f"初始化{data_type}数据库失败 {db_path}: {e}")
+            logger.error(f"创建{data_type}表失败 - 合约: {symbol}.{exchange}, 日期: {trade_date}, 错误: {e}")
+            raise
     
     def _init_parquet_storage(self):
         """初始化Parquet存储"""
@@ -269,19 +263,39 @@ class DataCenterDatabase:
     def get_status(self) -> Dict[str, Any]:
         """获取数据库状态"""
         try:
-            # 计算所有日期批次的总大小
-            total_tick_batch_size = sum(len(batch) for batch in self._tick_batches.values())
-            total_bar_batch_size = sum(len(batch) for batch in self._bar_batches.values())
+            # 计算所有合约批次的总大小
+            total_tick_batch_size = 0
+            total_bar_batch_size = 0
+            tick_batches_by_contract = {}
+            bar_batches_by_contract = {}
+            
+            for contract_key, date_batches in self._tick_batches.items():
+                contract_total = sum(len(batch) for batch in date_batches.values())
+                total_tick_batch_size += contract_total
+                tick_batches_by_contract[contract_key] = {
+                    'total': contract_total,
+                    'by_date': {date_str: len(batch) for date_str, batch in date_batches.items()}
+                }
+            
+            for contract_key, date_batches in self._bar_batches.items():
+                contract_total = sum(len(batch) for batch in date_batches.values())
+                total_bar_batch_size += contract_total
+                bar_batches_by_contract[contract_key] = {
+                    'total': contract_total,
+                    'by_date': {date_str: len(batch) for date_str, batch in date_batches.items()}
+                }
             
             return {
                 'running': self._running,
+                'table_strategy': self.table_strategy,
                 'tick_db_path': str(self.tick_db_path),
                 'bar_db_path': str(self.bar_db_path),
                 'parquet_path': str(self.parquet_base_path),
                 'tick_batch_size': total_tick_batch_size,
                 'bar_batch_size': total_bar_batch_size,
-                'tick_batches_by_date': {date_str: len(batch) for date_str, batch in self._tick_batches.items()},
-                'bar_batches_by_date': {date_str: len(batch) for date_str, batch in self._bar_batches.items()},
+                'tick_batches_by_contract': tick_batches_by_contract,
+                'bar_batches_by_contract': bar_batches_by_contract,
+                'created_tables_count': len(self._created_tables),
                 'tick_parquet_buffer_size': len(self._tick_parquet_buffer),
                 'bar_parquet_buffer_size': len(self._bar_parquet_buffer),
                 'write_queue_size': self._write_queue.qsize(),
@@ -340,17 +354,31 @@ class DataCenterDatabase:
             data = task["data"]
 
             if task_type == "tick":
-                # 从队列任务中提取日期信息
+                # 从队列任务中提取日期和合约信息
                 dt = datetime.fromisoformat(data['datetime'])
                 trade_date = dt.date()
                 date_str = trade_date.strftime('%Y%m%d')
-                self._add_to_daily_batch('tick', date_str, trade_date, data)
+                symbol = data['symbol']
+                exchange = data['exchange']
+                contract_key = self._get_contract_key(symbol, exchange)
+                
+                # 确保表已创建
+                self._create_contract_table('tick', symbol, exchange, trade_date)
+                
+                self._add_to_contract_batch('tick', contract_key, date_str, trade_date, data)
             elif task_type == "bar":
-                # 从队列任务中提取日期信息
+                # 从队列任务中提取日期和合约信息
                 dt = datetime.fromisoformat(data['datetime'])
                 trade_date = dt.date()
                 date_str = trade_date.strftime('%Y%m%d')
-                self._add_to_daily_batch('bar', date_str, trade_date, data)
+                symbol = data['symbol']
+                exchange = data['exchange']
+                contract_key = self._get_contract_key(symbol, exchange)
+                
+                # 确保表已创建
+                self._create_contract_table('bar', symbol, exchange, trade_date)
+                
+                self._add_to_contract_batch('bar', contract_key, date_str, trade_date, data)
             elif task_type == "direct_sql":
                 self._execute_direct_sql(data)
 
@@ -382,13 +410,19 @@ class DataCenterDatabase:
             if 'datetime' in tick_dict and hasattr(tick_dict['datetime'], 'isoformat'):
                 tick_dict['datetime'] = tick_dict['datetime'].isoformat()
 
-        # 获取交易日期
+        # 获取交易日期和合约信息
         dt = datetime.fromisoformat(tick_dict['datetime'])
         trade_date = dt.date()
         date_str = trade_date.strftime('%Y%m%d')
+        symbol = tick_dict['symbol']
+        exchange = tick_dict['exchange']
+        contract_key = self._get_contract_key(symbol, exchange)
         
-        # 添加到按日期分组的批量写入缓存
-        self._add_to_daily_batch('tick', date_str, trade_date, tick_dict)
+        # 确保表已创建
+        self._create_contract_table('tick', symbol, exchange, trade_date)
+        
+        # 添加到按合约和日期分组的批量写入缓存
+        self._add_to_contract_batch('tick', contract_key, date_str, trade_date, tick_dict)
         
         # 同时添加到Parquet缓冲区
         self._add_tick_to_parquet_buffer(tick_dict)
@@ -424,13 +458,19 @@ class DataCenterDatabase:
             if 'datetime' in bar_dict and hasattr(bar_dict['datetime'], 'isoformat'):
                 bar_dict['datetime'] = bar_dict['datetime'].isoformat()
 
-        # 获取交易日期
+        # 获取交易日期和合约信息
         dt = datetime.fromisoformat(bar_dict['datetime'])
         trade_date = dt.date()
         date_str = trade_date.strftime('%Y%m%d')
+        symbol = bar_dict['symbol']
+        exchange = bar_dict['exchange']
+        contract_key = self._get_contract_key(symbol, exchange)
         
-        # 添加到按日期分组的批量写入缓存
-        self._add_to_daily_batch('bar', date_str, trade_date, bar_dict)
+        # 确保表已创建
+        self._create_contract_table('bar', symbol, exchange, trade_date)
+        
+        # 添加到按合约和日期分组的批量写入缓存
+        self._add_to_contract_batch('bar', contract_key, date_str, trade_date, bar_dict)
         
         # 同时添加到Parquet缓冲区
         self._add_bar_to_parquet_buffer(bar_dict)
@@ -443,7 +483,7 @@ class DataCenterDatabase:
                               start_time: Optional[datetime] = None,
                               end_time: Optional[datetime] = None,
                               limit: int = 1000) -> List[Dict[str, Any]]:
-        """查询tick数据（跨日期数据库文件）"""
+        """查询tick数据（跨日期数据库文件，按合约分表）"""
         try:
             # 确定查询的日期范围
             if start_time and end_time:
@@ -462,14 +502,15 @@ class DataCenterDatabase:
                 date_range = self._get_date_range(start_date, end_date)
             
             all_results = []
+            table_name = self._get_table_name('tick', symbol, exchange)
             
             for trade_date in date_range:
                 db_path = self._get_db_path('tick', trade_date)
                 if not db_path.exists():
                     continue
                 
-                conditions = ["symbol = ? AND exchange = ?"]
-                params = [symbol, exchange]
+                conditions = ["data_type = ?"]
+                params = ['tick']
                 
                 if start_time:
                     conditions.append("datetime >= ?")
@@ -479,18 +520,28 @@ class DataCenterDatabase:
                     conditions.append("datetime <= ?")
                     params.append(end_time.isoformat())
                 
+                where_clause = f"WHERE {' AND '.join(conditions)}"
                 sql = f'''
-                    SELECT * FROM tick_data 
-                    WHERE {" AND ".join(conditions)}
+                    SELECT * FROM {table_name} 
+                    {where_clause}
                     ORDER BY datetime DESC
                 '''
                 
                 try:
                     with sqlite3.connect(str(db_path)) as conn:
+                        # 检查表是否存在
+                        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+                        if not cursor.fetchone():
+                            continue
+                        
                         cursor = conn.execute(sql, params)
                         rows = cursor.fetchall()
                         columns = [desc[0] for desc in cursor.description]
                         results = [dict(zip(columns, row)) for row in rows]
+                        # 为结果添加symbol和exchange信息
+                        for result in results:
+                            result['symbol'] = symbol
+                            result['exchange'] = exchange
                         all_results.extend(results)
                 except Exception as e:
                     logger.error(f"查询tick数据失败 {db_path}: {e}")
@@ -515,7 +566,7 @@ class DataCenterDatabase:
                              start_time: Optional[datetime] = None,
                              end_time: Optional[datetime] = None,
                              limit: int = 1000) -> List[Dict[str, Any]]:
-        """查询bar数据（跨日期数据库文件）"""
+        """查询bar数据（跨日期数据库文件，按合约分表）"""
         try:
             # 确定查询的日期范围
             if start_time and end_time:
@@ -534,14 +585,15 @@ class DataCenterDatabase:
                 date_range = self._get_date_range(start_date, end_date)
             
             all_results = []
+            table_name = self._get_table_name('bar', symbol, exchange)
             
             for trade_date in date_range:
                 db_path = self._get_db_path('bar', trade_date)
                 if not db_path.exists():
                     continue
                 
-                conditions = ["symbol = ? AND exchange = ? AND interval = ?"]
-                params = [symbol, exchange, interval]
+                conditions = ["data_type = ?", "interval = ?"]
+                params = ['bar', interval]
                 
                 if start_time:
                     conditions.append("datetime >= ?")
@@ -551,18 +603,28 @@ class DataCenterDatabase:
                     conditions.append("datetime <= ?")
                     params.append(end_time.isoformat())
                 
+                where_clause = f"WHERE {' AND '.join(conditions)}"
                 sql = f'''
-                    SELECT * FROM bar_data 
-                    WHERE {" AND ".join(conditions)}
+                    SELECT * FROM {table_name} 
+                    {where_clause}
                     ORDER BY datetime DESC
                 '''
                 
                 try:
                     with sqlite3.connect(str(db_path)) as conn:
+                        # 检查表是否存在
+                        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+                        if not cursor.fetchone():
+                            continue
+                        
                         cursor = conn.execute(sql, params)
                         rows = cursor.fetchall()
                         columns = [desc[0] for desc in cursor.description]
                         results = [dict(zip(columns, row)) for row in rows]
+                        # 为结果添加symbol和exchange信息
+                        for result in results:
+                            result['symbol'] = symbol
+                            result['exchange'] = exchange
                         all_results.extend(results)
                 except Exception as e:
                     logger.error(f"查询bar数据失败 {db_path}: {e}")
@@ -587,105 +649,125 @@ class DataCenterDatabase:
         """批量刷新所有缓存到数据库"""
         with self._batch_lock:
             try:
-                # 刷新所有日期的tick批次
-                for date_str in list(self._tick_batches.keys()):
-                    if self._tick_batches[date_str]:
-                        trade_date = datetime.strptime(date_str, '%Y%m%d').date()
-                        self._flush_daily_batch('tick', date_str, trade_date)
+                # 刷新所有合约的tick批次
+                for contract_key in list(self._tick_batches.keys()):
+                    for date_str in list(self._tick_batches[contract_key].keys()):
+                        if self._tick_batches[contract_key][date_str]:
+                            trade_date = datetime.strptime(date_str, '%Y%m%d').date()
+                            self._flush_contract_batch('tick', contract_key, date_str, trade_date)
                 
-                # 刷新所有日期的bar批次
-                for date_str in list(self._bar_batches.keys()):
-                    if self._bar_batches[date_str]:
-                        trade_date = datetime.strptime(date_str, '%Y%m%d').date()
-                        self._flush_daily_batch('bar', date_str, trade_date)
+                # 刷新所有合约的bar批次
+                for contract_key in list(self._bar_batches.keys()):
+                    for date_str in list(self._bar_batches[contract_key].keys()):
+                        if self._bar_batches[contract_key][date_str]:
+                            trade_date = datetime.strptime(date_str, '%Y%m%d').date()
+                            self._flush_contract_batch('bar', contract_key, date_str, trade_date)
                         
             except Exception as e:
                 logger.error(f"批量刷新失败: {e}")
 
 
 
-    def _add_to_daily_batch(self, data_type: str, date_str: str, trade_date: date, data: Dict[str, Any]):
-        """添加数据到按日期分组的批量写入缓存"""
+    def _add_to_contract_batch(self, data_type: str, contract_key: str, date_str: str, trade_date: date, data: Dict[str, Any]):
+        """添加数据到按合约和日期分组的批量写入缓存"""
         with self._batch_lock:
             if data_type == 'tick':
-                self._tick_batches[date_str].append(data)
-                batch_size = len(self._tick_batches[date_str])
+                if contract_key not in self._tick_batches:
+                    self._tick_batches[contract_key] = defaultdict(list)
+                self._tick_batches[contract_key][date_str].append(data)
+                batch_size = len(self._tick_batches[contract_key][date_str])
                 threshold = self.tick_batch_size
             else:  # bar
-                self._bar_batches[date_str].append(data)
-                batch_size = len(self._bar_batches[date_str])
+                if contract_key not in self._bar_batches:
+                    self._bar_batches[contract_key] = defaultdict(list)
+                self._bar_batches[contract_key][date_str].append(data)
+                batch_size = len(self._bar_batches[contract_key][date_str])
                 threshold = self.bar_batch_size
             
-            # 检查是否需要刷新该日期的批次
+            # 检查是否需要刷新该合约和日期的批次
             if batch_size >= threshold:
-                self._flush_daily_batch(data_type, date_str, trade_date)
+                self._flush_contract_batch(data_type, contract_key, date_str, trade_date)
     
-    def _flush_daily_batch(self, data_type: str, date_str: str, trade_date: date):
-        """刷新指定日期的批次数据"""
+    def _flush_contract_batch(self, data_type: str, contract_key: str, date_str: str, trade_date: date):
+        """刷新指定合约和日期的批次数据"""
         try:
+            # 解析合约信息
+            symbol, exchange = contract_key.split('_', 1)
+            
             if data_type == 'tick':
-                batch_data = self._tick_batches[date_str]
+                batch_data = self._tick_batches[contract_key][date_str]
                 if not batch_data:
                     return
                 
-                # 确保数据库已初始化
-                self._init_daily_database('tick', trade_date)
+                # 确保表已创建
+                self._create_contract_table('tick', symbol, exchange, trade_date)
                 
-                # 获取数据库路径并写入
+                # 获取表名和数据库路径
+                table_name = self._get_table_name('tick', symbol, exchange)
                 db_path = self._get_db_path('tick', trade_date)
+                
                 with sqlite3.connect(str(db_path)) as conn:
-                    conn.executemany('''
-                        INSERT OR REPLACE INTO tick_data (
-                            symbol, exchange, datetime, last_price, volume, turnover, open_interest,
+                    conn.executemany(f'''
+                        INSERT OR REPLACE INTO {table_name} (
+                            data_type, datetime, last_price, volume, turnover, open_interest,
                             bid_price_1, ask_price_1, bid_volume_1, ask_volume_1
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', [(
-                        d['symbol'], d['exchange'], d['datetime'], d['last_price'], d['volume'], d['turnover'],
+                        'tick', d['datetime'], d['last_price'], d['volume'], d['turnover'],
                         d['open_interest'], d['bid_price_1'], d['ask_price_1'], d['bid_volume_1'], d['ask_volume_1']
                     ) for d in batch_data])
                     conn.commit()
                 
-                # 清空该日期的批次
-                self._tick_batches[date_str].clear()
-                logger.debug(f"Tick数据批量写入完成: {date_str}, 共{len(batch_data)}条")
+                # 清空该合约和日期的批次
+                self._tick_batches[contract_key][date_str].clear()
+                logger.debug(f"Tick数据批量写入完成: {contract_key}, {date_str}, 共{len(batch_data)}条")
                 
             else:  # bar
-                batch_data = self._bar_batches[date_str]
+                batch_data = self._bar_batches[contract_key][date_str]
                 if not batch_data:
                     return
                 
-                # 确保数据库已初始化
-                self._init_daily_database('bar', trade_date)
+                # 确保表已创建
+                self._create_contract_table('bar', symbol, exchange, trade_date)
                 
-                # 获取数据库路径并写入
+                # 获取表名和数据库路径
+                table_name = self._get_table_name('bar', symbol, exchange)
                 db_path = self._get_db_path('bar', trade_date)
+                
                 with sqlite3.connect(str(db_path)) as conn:
-                    conn.executemany('''
-                        INSERT OR REPLACE INTO bar_data (
-                            symbol, exchange, interval, datetime, open_price, high_price, low_price, close_price,
+                    conn.executemany(f'''
+                        INSERT OR REPLACE INTO {table_name} (
+                            data_type, interval, datetime, open_price, high_price, low_price, close_price,
                             volume, turnover, open_interest
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', [(
-                        d['symbol'], d['exchange'], d['interval'], d['datetime'], d['open_price'], d['high_price'],
+                        'bar', d['interval'], d['datetime'], d['open_price'], d['high_price'],
                         d['low_price'], d['close_price'], d['volume'], d['turnover'], d['open_interest']
                     ) for d in batch_data])
                     conn.commit()
                 
-                # 清空该日期的批次
-                self._bar_batches[date_str].clear()
-                logger.debug(f"Bar数据批量写入完成: {date_str}, 共{len(batch_data)}条")
+                # 清空该合约和日期的批次
+                self._bar_batches[contract_key][date_str].clear()
+                logger.debug(f"Bar数据批量写入完成: {contract_key}, {date_str}, 共{len(batch_data)}条")
                 
         except Exception as e:
-            logger.error(f"{data_type}数据批量写入失败 {date_str}: {e}")
+            logger.error(f"{data_type}数据批量写入失败 {contract_key}, {date_str}: {e}")
 
     def _execute_direct_sql(self, sql_data):
         try:
             sql = sql_data.get('sql')
             params = sql_data.get('params', [])
+            db_type = sql_data.get('db_type', 'tick')  # 默认为tick数据库
+            trade_date = sql_data.get('trade_date', datetime.now().date())
+            
             if not sql:
                 logger.error("未提供SQL语句")
                 return
-            with sqlite3.connect(str(self.db_path)) as conn:
+            
+            # 根据数据库类型获取路径
+            db_path = self._get_db_path(db_type, trade_date)
+            
+            with sqlite3.connect(str(db_path)) as conn:
                 conn.execute(sql, params)
                 conn.commit()
         except Exception as e:

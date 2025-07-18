@@ -10,21 +10,40 @@ data_center:
   
   # 数据库配置
   database:
+    # 表结构策略
+    table_strategy: "per_contract"  # per_contract: 每个合约独立表, unified: 统一表
+    
     # SQLite配置 - 分库存储
     sqlite:
       # Tick数据库
       tick_db:
-        path: "data/tick_data.db"
+        path: "data/tick_db"
         wal_mode: true
         cache_size: 15000
         timeout: 30
       
       # Bar数据库
       bar_db:
-        path: "data/bar_data.db"
+        path: "data/bar_db"
         wal_mode: true
         cache_size: 10000
         timeout: 30
+        
+    # 合约表管理
+    contract_tables:
+      # 表名格式
+      tick_table_format: "tick_{symbol}_{exchange}"
+      bar_table_format: "bar_{symbol}_{exchange}"
+      
+      # 自动创建表
+      auto_create: true
+      
+      # 表缓存
+      table_cache_size: 1000
+      
+      # 并行写入
+      parallel_write: true
+      max_parallel_workers: 4
       
   # Parquet配置
   parquet:
