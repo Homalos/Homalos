@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://homalos.github.io"><img src="assets/logo.png" width="500" height="500"  alt="homalos"></a>
+  <a href="https://homalos.github.io"><img src="assets/logo.png" width="350" height="350"  alt="homalos"></a>
 </p>
 
 <p align="center">
