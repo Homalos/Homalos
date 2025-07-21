@@ -40,6 +40,10 @@ Homalos aims to be a production-ready quantitative trading system with the follo
 - **Web Management Interface**: FastAPI backend with Vue.js frontend for system control
 - **Performance Monitoring**: Real-time system metrics and alerting mechanisms
 
+## Web management interface display
+
+![homalos_dashboard](.\assets\homalos_dashboard.png)
+
 ## System Features
 
 1. **Technical Architecture**: Python EventBus-based synchronous + asynchronous event processing, modular monolithic architecture with clear separation of concerns

@@ -22,7 +22,6 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
   简体中文 |
   <a href="README.md">English</a>
 </p>
-
 ## 概述
 
 Homalos 是一个基于 Python 的事件驱动型期货交易平台，旨在实现单机部署，并最大限度地减少外部依赖。
@@ -39,6 +38,10 @@ Homalos 目标是一个可投入生产的量化交易系统，具有以下主要
 - **策略管理**：通过验证和健康监测完成策略生命周期管理
 - **Web 管理界面**：FastAPI 后端与 Vue.js 前端用于系统控制
 - **性能监控**：实时系统指标和警报机制
+
+## Web 管理界面展示
+
+![homalos_dashboard](.\assets\homalos_dashboard.png)
 
 ## 系统特色
 
