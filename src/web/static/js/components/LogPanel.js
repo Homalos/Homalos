@@ -7,20 +7,20 @@ const LogPanelComponent = {
         <el-card style="margin-top: 1rem;">
             <template #header>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span>实时日志</span>
+                    <span>{{ t('log.realtimeLog') }}</span>
                     <div>
                         <el-button-group size="small">
                             <el-button 
                                 @click="toggleAutoScroll"
                                 :type="autoScroll ? 'primary' : 'default'"
                                 :icon="autoScroll ? 'VideoPlay' : 'VideoPause'">
-                                {{ autoScroll ? '自动滚动' : '暂停滚动' }}
+                                {{ autoScroll ? t('log.autoScroll') : t('log.pauseScroll') }}
                             </el-button>
                             <el-button 
                                 @click="clearLogs"
                                 type="warning"
                                 icon="Delete">
-                                清空
+                                {{ t('log.clear') }}
                             </el-button>
                         </el-button-group>
                     </div>
@@ -31,7 +31,7 @@ const LogPanelComponent = {
             <div style="margin-bottom: 1rem;">
                 <el-row :gutter="10" align="middle">
                     <el-col :span="4">
-                        <el-text>日志级别：</el-text>
+                        <el-text>{{ t('log.logLevel') }}：</el-text>
                     </el-col>
                     <el-col :span="20">
                         <el-checkbox-group v-model="visibleLogTypes">
@@ -72,9 +72,9 @@ const LogPanelComponent = {
                 
                 <!-- 空状态 -->
                 <div v-if="filteredLogs.length === 0" class="text-center" style="padding: 2rem;">
-                    <el-empty description="暂无日志信息">
+                    <el-empty :description="t('log.noLogs')">
                         <el-text type="info">
-                            {{ state.realtimeLogs.length === 0 ? '系统将在这里显示实时日志' : '当前过滤条件下无日志显示' }}
+                            {{ state.realtimeLogs.length === 0 ? t('log.systemWillShowLogs') : t('log.noLogsWithFilter') }}
                         </el-text>
                     </el-empty>
                 </div>
@@ -84,16 +84,16 @@ const LogPanelComponent = {
             <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e4e7ed;">
                 <el-row :gutter="20">
                     <el-col :span="6">
-                        <el-statistic title="总日志数" :value="state.realtimeLogs.length" />
+                        <el-statistic :title="t('log.totalLogs')" :value="state.realtimeLogs.length" />
                     </el-col>
                     <el-col :span="6">
-                        <el-statistic title="显示数" :value="filteredLogs.length" />
+                        <el-statistic :title="t('log.displayedLogs')" :value="filteredLogs.length" />
                     </el-col>
                     <el-col :span="6">
-                        <el-statistic title="错误数" :value="getLogCountByType('error')" />
+                        <el-statistic :title="t('log.errorCount')" :value="getLogCountByType('error')" />
                     </el-col>
                     <el-col :span="6">
-                        <el-statistic title="警告数" :value="getLogCountByType('warning')" />
+                        <el-statistic :title="t('log.warningCount')" :value="getLogCountByType('warning')" />
                     </el-col>
                 </el-row>
             </div>
@@ -102,6 +102,7 @@ const LogPanelComponent = {
     
     setup() {
         const { state, actions } = window.useGlobalState()
+        const { t } = window.useI18n()
         
         // 组件引用
         const logContainer = Vue.ref(null)
@@ -111,12 +112,12 @@ const LogPanelComponent = {
         const visibleLogTypes = Vue.ref(['info', 'success', 'warning', 'error'])
         
         // 日志类型定义
-        const logTypes = [
-            { value: 'info', label: '信息', color: '#409EFF' },
-            { value: 'success', label: '成功', color: '#67C23A' },
-            { value: 'warning', label: '警告', color: '#E6A23C' },
-            { value: 'error', label: '错误', color: '#F56C6C' }
-        ]
+        const logTypes = Vue.computed(() => [
+            { value: 'info', label: t('log.info'), color: '#409EFF' },
+            { value: 'success', label: t('log.success'), color: '#67C23A' },
+            { value: 'warning', label: t('log.warning'), color: '#E6A23C' },
+            { value: 'error', label: t('log.error'), color: '#F56C6C' }
+        ])
         
         // 过滤后的日志
         const filteredLogs = Vue.computed(() => {
@@ -144,10 +145,10 @@ const LogPanelComponent = {
         // 获取日志类型文本
         const getLogTypeText = (type) => {
             const textMap = {
-                'info': '信息',
-                'success': '成功',
-                'warning': '警告',
-                'error': '错误'
+                'info': t('log.info'),
+                'success': t('log.success'),
+                'warning': t('log.warning'),
+                'error': t('log.error')
             }
             return textMap[type] || type.toUpperCase()
         }
@@ -177,13 +178,13 @@ const LogPanelComponent = {
         
         // 清空日志
         const clearLogs = () => {
-            ElMessageBox.confirm('确定要清空所有日志吗？', '确认操作', {
-                confirmButtonText: '确定',
-                cancelButtonText: '取消',
+            ElMessageBox.confirm(t('log.confirmClearLogs'), t('log.confirmOperation'), {
+                confirmButtonText: t('common.confirm'),
+                cancelButtonText: t('common.cancel'),
                 type: 'warning'
             }).then(() => {
                 actions.clearLogs()
-                ElMessage.success('日志已清空')
+                ElMessage.success(t('log.logsCleared'))
             }).catch(() => {
                 // 用户取消
             })
@@ -253,10 +254,11 @@ const LogPanelComponent = {
             getLogTypeText,
             getLogCountByType,
             toggleAutoScroll,
-            clearLogs
+            clearLogs,
+            t
         }
     }
 }
 
 // 导出到全局
-window.LogPanelComponent = LogPanelComponent 
+window.LogPanelComponent = LogPanelComponent

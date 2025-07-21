@@ -8,7 +8,7 @@ const DashboardComponent = {
             <el-col :span="6">
                 <el-card>
                     <template #header>
-                        <span>系统状态</span>
+                        <span>{{ t('dashboard.systemStatus') }}</span>
                     </template>
                     <div>
                         <el-tag :type="systemStatusType">
@@ -21,7 +21,7 @@ const DashboardComponent = {
             <el-col :span="6">
                 <el-card>
                     <template #header>
-                        <span>策略数量</span>
+                        <span>{{ t('dashboard.strategyCount') }}</span>
                     </template>
                     <div style="font-size: 2rem; color: #409EFF;">
                         {{ strategyCount }}
@@ -32,7 +32,7 @@ const DashboardComponent = {
             <el-col :span="6">
                 <el-card>
                     <template #header>
-                        <span>账户余额</span>
+                        <span>{{ t('dashboard.accountBalance') }}</span>
                     </template>
                     <div style="font-size: 1.5rem; color: #67C23A;">
                         {{ formattedBalance }}
@@ -43,7 +43,7 @@ const DashboardComponent = {
             <el-col :span="6">
                 <el-card>
                     <template #header>
-                        <span>连接状态</span>
+                        <span>{{ t('dashboard.connectionStatus') }}</span>
                     </template>
                     <div>
                         <el-tag :type="connectionStatusType">
@@ -57,6 +57,7 @@ const DashboardComponent = {
     
     setup() {
         const { state, getters } = window.useGlobalState()
+        const { t } = window.useI18n()
         
         // 计算系统状态类型
         const systemStatusType = Vue.computed(() => {
@@ -65,7 +66,7 @@ const DashboardComponent = {
         
         // 计算系统状态文本
         const systemStatusText = Vue.computed(() => {
-            return state.system.isRunning ? '运行中' : '已停止'
+            return state.system.isRunning ? t('dashboard.running') : t('dashboard.stopped')
         })
         
         // 计算策略数量
@@ -86,11 +87,12 @@ const DashboardComponent = {
         
         // 计算连接状态文本
         const connectionStatusText = Vue.computed(() => {
-            return state.wsConnection.connected ? '已连接' : '断开'
+            return state.wsConnection.connected ? t('dashboard.connected') : t('dashboard.disconnected')
         })
         
         return {
             state,
+            t,
             systemStatusType,
             systemStatusText,
             strategyCount,
@@ -102,4 +104,4 @@ const DashboardComponent = {
 }
 
 // 导出到全局
-window.DashboardComponent = DashboardComponent 
+window.DashboardComponent = DashboardComponent

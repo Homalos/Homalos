@@ -8,8 +8,15 @@ const MainApp = {
         <div>
             <!-- 头部 -->
             <header class="header">
-                <h1>🚀 Homalos量化交易系统</h1>
-                <p>基于Python的期货量化交易系统 v2.0</p>
+                <div class="header-content">
+                    <div class="header-title">
+                            <h1>🚀 {{ t('header.title') }}</h1>
+                            <p>{{ t('header.subtitle') }}</p>
+                        </div>
+                    <div class="header-actions">
+                        <language-switcher-component></language-switcher-component>
+                    </div>
+                </div>
             </header>
             
             <!-- 主容器 -->
@@ -31,10 +38,11 @@ const MainApp = {
     
     setup() {
         const { state, actions } = window.useGlobalState()
+        const { t } = window.useI18n()
         
         // 初始化数据加载
         const initializeApp = async () => {
-            actions.setLoading(true, '正在初始化系统...')
+            actions.setLoading(true, t('system.initializingSystem'))
             
             try {
                 // 并行加载初始数据
@@ -60,11 +68,11 @@ const MainApp = {
                 // 连接WebSocket
                 window.wsService.connect()
                 
-                console.log('应用初始化完成')
+                console.log(t('system.appInitialized'))
                 
             } catch (error) {
-                console.error('应用初始化失败:', error)
-                actions.addLog('error', `应用初始化失败: ${error.message}`)
+                console.error(t('system.appInitFailed'), error)
+                actions.addLog('error', `${t('system.appInitFailed')}: ${error.message}`)
             } finally {
                 actions.setLoading(false)
             }
@@ -110,7 +118,8 @@ const MainApp = {
         })
         
         return {
-            state
+            state,
+            t
         }
     }
 }
@@ -180,6 +189,10 @@ function createVueApp() {
                 app.component('log-panel-component', registry.LogPanelComponent)
                 console.log('✅ log-panel-component 已注册到Vue应用')
             }
+            if (registry.LanguageSwitcherComponent) {
+                app.component('language-switcher-component', registry.LanguageSwitcherComponent)
+                console.log('✅ language-switcher-component 已注册到Vue应用')
+            }
         }
         
         // 挂载应用到#app
@@ -233,4 +246,4 @@ window.HomalosUtils = {
         }
         return colors[type] || '#909399'
     }
-} 
+}

@@ -24,14 +24,54 @@ body {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.header h1 {
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.header-title h1 {
     margin: 0;
     font-size: 1.8rem;
 }
 
-.header p {
+.header-title p {
     margin: 0.5rem 0 0 0;
     opacity: 0.9;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* 语言切换器样式 */
+.language-switcher {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    padding: 0.5rem;
+}
+
+.language-switcher .el-select {
+    width: 120px;
+}
+
+.language-switcher .el-input__inner {
+    background: transparent;
+    border: none;
+    color: white;
+}
+
+.language-switcher .el-input__inner::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.language-switcher .el-select__caret {
+    color: white;
 }
 
 .container {
@@ -101,4 +141,4 @@ body {
 
 .mt-2 {
     margin-top: 1rem;
-} 
+}

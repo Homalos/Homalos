@@ -7,13 +7,13 @@ const StrategyTableComponent = {
         <el-card class="strategy-table">
             <template #header>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span>策略管理</span>
+                    <span>{{ t('strategy.management') }}</span>
                     <el-button 
                         type="primary" 
                         size="small" 
                         @click="openStrategyDialog"
                         :loading="state.ui.loading">
-                        加载策略
+                        {{ t('strategy.loadStrategy') }}
                     </el-button>
                 </div>
             </template>
@@ -26,13 +26,13 @@ const StrategyTableComponent = {
                 
                 <el-table-column 
                     prop="strategy_name" 
-                    label="策略名称" 
+                    :label="t('strategy.strategyName')" 
                     width="200">
                 </el-table-column>
                 
                 <el-table-column 
                     prop="strategy_uuid" 
-                    label="策略UUID" 
+                    :label="t('strategy.strategyUuid')" 
                     width="280">
                     <template #default="scope">
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -44,7 +44,7 @@ const StrategyTableComponent = {
                                 type="text" 
                                 size="small"
                                 @click="copyUuid(scope.row.strategy_uuid)"
-                                title="复制UUID">
+                                :title="t('strategy.copyUuid')">
                                 📋
                             </el-button>
                         </div>
@@ -53,7 +53,7 @@ const StrategyTableComponent = {
                 
                 <el-table-column 
                     prop="status" 
-                    label="状态" 
+                    :label="t('strategy.status')" 
                     width="120">
                     <template #default="scope">
                         <el-tag 
@@ -66,7 +66,7 @@ const StrategyTableComponent = {
                 
                 <el-table-column 
                     prop="start_time" 
-                    label="启动时间" 
+                    :label="t('strategy.startTime')" 
                     width="180">
                     <template #default="scope">
                         {{ formatTime(scope.row.start_time) }}
@@ -74,7 +74,7 @@ const StrategyTableComponent = {
                 </el-table-column>
                 
                 <el-table-column 
-                    label="操作" 
+                    :label="t('strategy.actions')" 
                     width="200">
                     <template #default="scope">
                         <div class="strategy-actions">
@@ -84,7 +84,7 @@ const StrategyTableComponent = {
                                 type="success" 
                                 size="small"
                                 :loading="startingStrategies.has(scope.row.strategy_uuid)">
-                                启动
+                                {{ t('strategy.start') }}
                             </el-button>
                             
                             <el-button 
@@ -93,7 +93,7 @@ const StrategyTableComponent = {
                                 type="danger" 
                                 size="small"
                                 :loading="stoppingStrategies.has(scope.row.strategy_uuid)">
-                                停止
+                                {{ t('strategy.stop') }}
                             </el-button>
                         </div>
                     </template>
@@ -102,9 +102,9 @@ const StrategyTableComponent = {
             
             <!-- 空状态 -->
             <div v-if="strategyList.length === 0" class="text-center mt-2">
-                <el-empty description="暂无策略">
+                <el-empty :description="t('strategy.noStrategies')">
                     <el-button type="primary" @click="openStrategyDialog">
-                        加载第一个策略
+                        {{ t('strategy.loadFirstStrategy') }}
                     </el-button>
                 </el-empty>
             </div>
@@ -113,6 +113,7 @@ const StrategyTableComponent = {
     
     setup() {
         const { state, actions } = window.useGlobalState()
+        const { t } = window.useI18n()
         
         // 正在启动的策略集合
         const startingStrategies = Vue.ref(new Set())
@@ -156,7 +157,7 @@ const StrategyTableComponent = {
                 const response = await window.ApiService.startStrategy(strategyUuid)
                 
                 if (window.ApiResponse.isSuccess(response)) {
-                    window.ElMessage.success('策略启动成功')
+                    window.ElMessage.success(t('strategy.startSuccess'))
                     // 刷新策略列表
                     await refreshStrategies()
                 } else {
@@ -164,8 +165,8 @@ const StrategyTableComponent = {
                 }
                 
             } catch (error) {
-                console.error('启动策略失败:', error)
-                window.ElMessage.error('启动策略失败')
+                console.error(t('strategy.startFailed'), error)
+                window.ElMessage.error(t('strategy.startFailed'))
             } finally {
                 startingStrategies.value.delete(strategyUuid)
             }
@@ -179,7 +180,7 @@ const StrategyTableComponent = {
                 const response = await window.ApiService.stopStrategy(strategyUuid)
                 
                 if (window.ApiResponse.isSuccess(response)) {
-                    window.ElMessage.success('策略停止成功')
+                    window.ElMessage.success(t('strategy.stopSuccess'))
                     // 刷新策略列表
                     await refreshStrategies()
                 } else {
@@ -187,8 +188,8 @@ const StrategyTableComponent = {
                 }
                 
             } catch (error) {
-                console.error('停止策略失败:', error)
-                window.ElMessage.error('停止策略失败')
+                console.error(t('strategy.stopFailed'), error)
+                window.ElMessage.error(t('strategy.stopFailed'))
             } finally {
                 stoppingStrategies.value.delete(strategyUuid)
             }
@@ -212,7 +213,7 @@ const StrategyTableComponent = {
         const copyUuid = async (uuid) => {
             try {
                 await navigator.clipboard.writeText(uuid)
-                window.ElMessage.success('UUID已复制到剪贴板')
+                window.ElMessage.success(t('strategy.uuidCopied'))
             } catch (error) {
                 console.error('复制UUID失败:', error)
                 // 降级方案：使用传统方法
@@ -222,12 +223,13 @@ const StrategyTableComponent = {
                 textArea.select()
                 document.execCommand('copy')
                 document.body.removeChild(textArea)
-                window.ElMessage.success('UUID已复制到剪贴板')
+                window.ElMessage.success(t('strategy.uuidCopied'))
             }
         }
         
         return {
             state,
+            t,
             strategyList,
             startingStrategies,
             stoppingStrategies,
@@ -242,4 +244,4 @@ const StrategyTableComponent = {
 }
 
 // 导出到全局
-window.StrategyTableComponent = StrategyTableComponent 
+window.StrategyTableComponent = StrategyTableComponent

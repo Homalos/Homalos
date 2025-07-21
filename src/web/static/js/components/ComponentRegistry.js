@@ -21,7 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'DashboardComponent',
             'StrategyTableComponent', 
             'StrategyDialogComponent',
-            'LogPanelComponent'
+            'LogPanelComponent',
+            'LanguageSwitcherComponent'
         ]
         
         const allLoaded = componentsToCheck.every(name => 
@@ -66,12 +67,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('✅ LogPanelComponent 已注册')
             }
             
+            if (window.LanguageSwitcherComponent) {
+                tempApp.component('language-switcher-component', window.LanguageSwitcherComponent)
+                console.log('✅ LanguageSwitcherComponent 已注册')
+            }
+            
             // 将注册的组件存储到全局，供主应用使用
             window.VueComponentRegistry = {
                 DashboardComponent: window.DashboardComponent,
                 StrategyTableComponent: window.StrategyTableComponent,
                 StrategyDialogComponent: window.StrategyDialogComponent,
-                LogPanelComponent: window.LogPanelComponent
+                LogPanelComponent: window.LogPanelComponent,
+                LanguageSwitcherComponent: window.LanguageSwitcherComponent
             }
             
             console.log('🎉 所有Vue组件注册完成')
@@ -92,4 +99,4 @@ document.addEventListener('DOMContentLoaded', () => {
 window.registerVueComponents = () => {
     console.log('手动触发组件注册...')
     document.dispatchEvent(new Event('DOMContentLoaded'))
-} 
+}
