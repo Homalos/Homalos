@@ -71,16 +71,16 @@ def get_enabled_gateways(config: Optional[ConfigManager]) -> Dict[str, Dict[str,
 
     # 检查所有可能的网关配置
     gateway_configs = {
-        'ctp': config.get("gateway.ctp", {}),
-        'ctp7x24': config.get("gateway.ctp7x24", {}),
+        'simnow': config.get("gateway.simnow", {}),
+        'simnow7x24': config.get("gateway.simnow7x24", {}),
         'tts': config.get("gateway.tts", {}),
         'tts7x24': config.get("gateway.tts7x24", {})
     }
 
     for gateway_key, gateway_config in gateway_configs.items():
         if gateway_config.get("enabled", False):
-            # 确定网关类型（ctp7x24 使用 ctp 类，tts7x24 使用 tts 类）
-            if gateway_key == 'ctp7x24':
+            # 确定网关类型（simnow7x24 使用 ctp 类，tts7x24 使用 tts 类）
+            if gateway_key == 'simnow7x24':
                 gateway_type = 'ctp'
             elif gateway_key == 'tts7x24':
                 gateway_type = 'tts'

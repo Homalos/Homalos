@@ -134,30 +134,22 @@ class DataCenterDatabase:
         # 直接使用合约名作为表名，不再添加前缀
         return symbol
     
-    def _create_contract_table(self, data_type: str, symbol: str, exchange: str, trade_date: date):
-        """为指定合约创建表"""
-        db_path = self._get_db_path(data_type, trade_date)
-        table_name = self._get_table_name(data_type, symbol, exchange)
+    def _create_tick_table(self, symbol: str, exchange: str, trade_date: date):
+        """为指定合约创建tick数据表"""
+        db_path = self._get_db_path('tick', trade_date)
+        table_name = self._get_table_name('tick', symbol, exchange)
         date_str = trade_date.strftime('%Y%m%d')
         
-        # 检查表是否已创建（加上数据类型以区分不同数据库）
-        table_key = (data_type, date_str, table_name)
+        # 检查表是否已创建
+        table_key = ('tick', date_str, table_name)
         with self._table_cache_lock:
             if table_key in self._created_tables:
                 return
         
-        # 获取对应数据类型的配置
-        if data_type == 'tick':
-            db_config = self.tick_db_config
-        elif data_type == 'bar':
-            db_config = self.bar_db_config
-        else:
-            db_config = {"wal_mode": True, "cache_size": 10000, "timeout": 30}
-        
         try:
-            with sqlite3.connect(str(db_path), timeout=db_config.get('timeout', 30)) as conn:
+            with sqlite3.connect(str(db_path), timeout=self.tick_db_config.get('timeout', 30)) as conn:
                 # 根据配置启用WAL模式
-                if db_config.get('wal_mode', True):
+                if self.tick_db_config.get('wal_mode', True):
                     conn.execute("PRAGMA journal_mode=WAL")
                     conn.execute("PRAGMA synchronous=NORMAL")
                 else:
@@ -165,49 +157,137 @@ class DataCenterDatabase:
                     conn.execute("PRAGMA synchronous=FULL")
                 
                 # 设置缓存大小
-                cache_size = db_config.get('cache_size', 10000)
+                cache_size = self.tick_db_config.get('cache_size', 10000)
                 if cache_size > 0:
                     conn.execute(f"PRAGMA cache_size=-{cache_size}")  # 负数表示KB
                 else:
                     conn.execute(f"PRAGMA cache_size={cache_size}")  # 正数表示页数
                 
-                # 创建统一的合约表（包含tick和bar数据）
+                # 创建tick数据表（深度市场行情字段）
                 conn.execute(f'''
                     CREATE TABLE IF NOT EXISTS {table_name} (
-                        data_type TEXT NOT NULL,
-                        datetime TEXT NOT NULL,
-                        interval TEXT,
-                        last_price REAL,
-                        open_price REAL,
-                        high_price REAL,
-                        low_price REAL,
-                        close_price REAL,
-                        volume REAL,
-                        turnover REAL,
-                        open_interest REAL,
-                        bid_price_1 REAL,
-                        ask_price_1 REAL,
-                        bid_volume_1 REAL,
-                        ask_volume_1 REAL,
-                        PRIMARY KEY (data_type, datetime, interval)
+                        InstrumentID TEXT,
+                        ExchangeID TEXT,
+                        TradingDay TEXT,
+                        UpdateTime TEXT,
+                        UpdateMillisec INTEGER,
+                        PreSettlementPrice REAL,
+                        PreClosePrice REAL,
+                        PreOpenInterest REAL,
+                        OpenPrice REAL,
+                        ClosePrice REAL,
+                        SettlementPrice REAL,
+                        UpperLimitPrice REAL,
+                        LowerLimitPrice REAL,
+                        HighestPrice REAL,
+                        LowestPrice REAL,
+                        LastPrice REAL,
+                        Volume REAL,
+                        LastVolume REAL,
+                        Turnover REAL,
+                        OpenInterest REAL,
+                        LastOpenInterest REAL,
+                        BidPrice1 REAL,
+                        BidVolume1 REAL,
+                        AskPrice1 REAL,
+                        AskVolume1 REAL,
+                        BidPrice2 REAL,
+                        BidVolume2 REAL,
+                        AskPrice2 REAL,
+                        AskVolume2 REAL,
+                        BidPrice3 REAL,
+                        BidVolume3 REAL,
+                        AskPrice3 REAL,
+                        AskVolume3 REAL,
+                        BidPrice4 REAL,
+                        BidVolume4 REAL,
+                        AskPrice4 REAL,
+                        AskVolume4 REAL,
+                        BidPrice5 REAL,
+                        BidVolume5 REAL,
+                        AskPrice5 REAL,
+                        AskVolume5 REAL,
+                        AveragePrice REAL
                     )
                 ''')
                 
-                # 创建索引
-                conn.execute(f'CREATE INDEX IF NOT EXISTS idx_{table_name}_datetime ON {table_name}(datetime)')
-                conn.execute(f'CREATE INDEX IF NOT EXISTS idx_{table_name}_data_type ON {table_name}(data_type)')
-                conn.execute(f'CREATE INDEX IF NOT EXISTS idx_{table_name}_interval ON {table_name}(interval)')
+                # 创建索引以提高查询性能
+                conn.execute(f'CREATE INDEX IF NOT EXISTS idx_{table_name}_update_time ON {table_name}(UpdateTime)')
+                conn.execute(f'CREATE INDEX IF NOT EXISTS idx_{table_name}_last_price ON {table_name}(LastPrice)')
+                conn.execute(f'CREATE INDEX IF NOT EXISTS idx_{table_name}_volume ON {table_name}(Volume)')
                 
                 conn.commit()
                 
-                # 标记表已创建（包含数据类型）
+                # 标记表已创建
                 with self._table_cache_lock:
                     self._created_tables.add(table_key)
                     
-                logger.debug(f"{data_type}表创建完成 - 合约: {symbol}.{exchange}, 表名: {table_name}, 日期: {trade_date}")
+                logger.debug(f"tick表创建完成 - 合约: {symbol}.{exchange}, 表名: {table_name}, 日期: {trade_date}")
                     
         except Exception as e:
-            logger.error(f"创建{data_type}表失败 - 合约: {symbol}.{exchange}, 日期: {trade_date}, 错误: {e}")
+            logger.error(f"创建tick表失败 - 合约: {symbol}.{exchange}, 日期: {trade_date}, 错误: {e}")
+            raise
+    
+    def _create_bar_table(self, symbol: str, exchange: str, bar_type: str, trade_date: date):
+        """为指定合约和时间周期创建bar数据表"""
+        db_path = self._get_db_path('bar', trade_date)
+        table_name = f"{symbol}_{bar_type}"
+        date_str = trade_date.strftime('%Y%m%d')
+        
+        # 检查表是否已创建
+        table_key = ('bar', date_str, table_name)
+        with self._table_cache_lock:
+            if table_key in self._created_tables:
+                return
+        
+        try:
+            with sqlite3.connect(str(db_path), timeout=self.bar_db_config.get('timeout', 30)) as conn:
+                # 根据配置启用WAL模式
+                if self.bar_db_config.get('wal_mode', True):
+                    conn.execute("PRAGMA journal_mode=WAL")
+                    conn.execute("PRAGMA synchronous=NORMAL")
+                else:
+                    conn.execute("PRAGMA journal_mode=DELETE")
+                    conn.execute("PRAGMA synchronous=FULL")
+                
+                # 设置缓存大小
+                cache_size = self.bar_db_config.get('cache_size', 10000)
+                if cache_size > 0:
+                    conn.execute(f"PRAGMA cache_size=-{cache_size}")  # 负数表示KB
+                else:
+                    conn.execute(f"PRAGMA cache_size={cache_size}")  # 正数表示页数
+                
+                # 创建bar数据表
+                conn.execute(f'''
+                    CREATE TABLE IF NOT EXISTS {table_name} (
+                        BarType TEXT,
+                        UpdateTime TEXT,
+                        InstrumentID TEXT,
+                        Volume REAL,
+                        OpenInterest REAL,
+                        OpenPrice REAL,
+                        HighestPrice REAL,
+                        LowestPrice REAL,
+                        ClosePrice REAL,
+                        LastVolume REAL
+                    )
+                ''')
+                
+                # 创建索引以提高查询性能
+                conn.execute(f'CREATE INDEX IF NOT EXISTS idx_{table_name}_update_time ON {table_name}(UpdateTime)')
+                conn.execute(f'CREATE INDEX IF NOT EXISTS idx_{table_name}_close_price ON {table_name}(ClosePrice)')
+                conn.execute(f'CREATE INDEX IF NOT EXISTS idx_{table_name}_volume ON {table_name}(Volume)')
+                
+                conn.commit()
+                
+                # 标记表已创建
+                with self._table_cache_lock:
+                    self._created_tables.add(table_key)
+                    
+                logger.debug(f"bar表创建完成 - 合约: {symbol}.{exchange}, 表名: {table_name}, 日期: {trade_date}")
+                    
+        except Exception as e:
+            logger.error(f"创建bar表失败 - 合约: {symbol}.{exchange}, 日期: {trade_date}, 错误: {e}")
             raise
     
     def _init_parquet_storage(self):
@@ -363,7 +443,7 @@ class DataCenterDatabase:
                 contract_key = self._get_contract_key(symbol, exchange)
                 
                 # 确保表已创建
-                self._create_contract_table('tick', symbol, exchange, trade_date)
+                self._create_tick_table(symbol, exchange, trade_date)
                 
                 self._add_to_contract_batch('tick', contract_key, date_str, trade_date, data)
             elif task_type == "bar":
@@ -376,7 +456,9 @@ class DataCenterDatabase:
                 contract_key = self._get_contract_key(symbol, exchange)
                 
                 # 确保表已创建
-                self._create_contract_table('bar', symbol, exchange, trade_date)
+                # 从第一个数据项获取bar_type
+                bar_type = data.get('BarType', 'min1')
+                self._create_bar_table(symbol, exchange, bar_type, trade_date)
                 
                 self._add_to_contract_batch('bar', contract_key, date_str, trade_date, data)
             elif task_type == "direct_sql":
@@ -389,18 +471,59 @@ class DataCenterDatabase:
         """保存tick数据（同步版本）"""
         # 支持TickData对象和字典两种格式
         if hasattr(tick_data, 'symbol'):  # TickData对象
+            # 从datetime中提取UpdateTime（保持完整的ISO格式用于Parquet）
+            update_time = tick_data.datetime.isoformat() if hasattr(tick_data.datetime, 'isoformat') else str(tick_data.datetime)
+            update_millisec = tick_data.datetime.microsecond // 1000 if hasattr(tick_data.datetime, 'microsecond') else 0
+            
             tick_dict = {
+                # 深度市场行情字段
+                'InstrumentID': tick_data.symbol,
+                'ExchangeID': tick_data.exchange.value if hasattr(tick_data.exchange, 'value') else str(tick_data.exchange),
+                'TradingDay': getattr(tick_data, 'trading_day', ''),
+                'UpdateTime': update_time,
+                'UpdateMillisec': update_millisec,
+                'PreSettlementPrice': getattr(tick_data, 'pre_settlement_price', 0.0),
+                'PreClosePrice': getattr(tick_data, 'pre_close', 0.0),
+                'PreOpenInterest': getattr(tick_data, 'pre_open_interest', 0.0),
+                'OpenPrice': getattr(tick_data, 'open_price', 0.0),
+                'ClosePrice': getattr(tick_data, 'close_price', 0.0),
+                'SettlementPrice': getattr(tick_data, 'settlement_price', 0.0),
+                'UpperLimitPrice': getattr(tick_data, 'limit_up', 0.0),
+                'LowerLimitPrice': getattr(tick_data, 'limit_down', 0.0),
+                'HighestPrice': getattr(tick_data, 'high_price', 0.0),
+                'LowestPrice': getattr(tick_data, 'low_price', 0.0),
+                'LastPrice': tick_data.last_price,
+                'Volume': tick_data.volume,
+                'LastVolume': getattr(tick_data, 'last_volume', 0.0),
+                'Turnover': tick_data.turnover,
+                'OpenInterest': tick_data.open_interest,
+                'LastOpenInterest': getattr(tick_data, 'last_open_interest', 0.0),
+                'BidPrice1': tick_data.bid_price_1,
+                'BidVolume1': tick_data.bid_volume_1,
+                'AskPrice1': tick_data.ask_price_1,
+                'AskVolume1': tick_data.ask_volume_1,
+                'BidPrice2': tick_data.bid_price_2,
+                'BidVolume2': tick_data.bid_volume_2,
+                'AskPrice2': tick_data.ask_price_2,
+                'AskVolume2': tick_data.ask_volume_2,
+                'BidPrice3': tick_data.bid_price_3,
+                'BidVolume3': tick_data.bid_volume_3,
+                'AskPrice3': tick_data.ask_price_3,
+                'AskVolume3': tick_data.ask_volume_3,
+                'BidPrice4': tick_data.bid_price_4,
+                'BidVolume4': tick_data.bid_volume_4,
+                'AskPrice4': tick_data.ask_price_4,
+                'AskVolume4': tick_data.ask_volume_4,
+                'BidPrice5': tick_data.bid_price_5,
+                'BidVolume5': tick_data.bid_volume_5,
+                'AskPrice5': tick_data.ask_price_5,
+                'AskVolume5': tick_data.ask_volume_5,
+                'AveragePrice': getattr(tick_data, 'average_price', 0.0),
+                
+                # 保留用于内部处理的字段
                 'symbol': tick_data.symbol,
                 'exchange': tick_data.exchange.value if hasattr(tick_data.exchange, 'value') else str(tick_data.exchange),
-                'datetime': tick_data.datetime.isoformat() if hasattr(tick_data.datetime, 'isoformat') else str(tick_data.datetime),
-                'last_price': tick_data.last_price,
-                'volume': tick_data.volume,
-                'turnover': tick_data.turnover,
-                'open_interest': tick_data.open_interest,
-                'bid_price_1': tick_data.bid_price_1,
-                'ask_price_1': tick_data.ask_price_1,
-                'bid_volume_1': tick_data.bid_volume_1,
-                'ask_volume_1': tick_data.ask_volume_1
+                'datetime': tick_data.datetime.isoformat() if hasattr(tick_data.datetime, 'isoformat') else str(tick_data.datetime)
             }
         else:  # 字典格式
             tick_dict = tick_data.copy()
@@ -419,7 +542,7 @@ class DataCenterDatabase:
         contract_key = self._get_contract_key(symbol, exchange)
         
         # 确保表已创建
-        self._create_contract_table('tick', symbol, exchange, trade_date)
+        self._create_tick_table(symbol, exchange, trade_date)
         
         # 添加到按合约和日期分组的批量写入缓存
         self._add_to_contract_batch('tick', contract_key, date_str, trade_date, tick_dict)
@@ -431,32 +554,68 @@ class DataCenterDatabase:
         """异步保存tick数据"""
         self.save_tick_data(tick_data)
 
-    def save_bar_data(self, bar_data):
+    def save_bar_data(self, bar_data, bar_type='min1'):
         """保存bar数据（同步版本）"""
         # 支持BarData对象和字典两种格式
         if hasattr(bar_data, 'symbol'):  # BarData对象
+            # 从datetime中提取UpdateTime（保持完整的ISO格式用于Parquet）
+            update_time = bar_data.datetime.isoformat() if hasattr(bar_data.datetime, 'isoformat') else str(bar_data.datetime)
+            
+            # 从interval属性获取bar_type，如果没有则使用传入的bar_type
+            if hasattr(bar_data, 'interval') and bar_data.interval:
+                if hasattr(bar_data.interval, 'value'):
+                    bar_type = bar_data.interval.value
+                else:
+                    bar_type = str(bar_data.interval)
+            
             bar_dict = {
+                'BarType': bar_type,
+                'UpdateTime': update_time,
+                'InstrumentID': bar_data.symbol,
+                'Volume': bar_data.volume,
+                'OpenInterest': bar_data.open_interest,
+                'OpenPrice': bar_data.open_price,
+                'HighestPrice': bar_data.high_price,
+                'LowestPrice': bar_data.low_price,
+                'ClosePrice': bar_data.close_price,
+                'LastVolume': getattr(bar_data, 'last_volume', 0.0),
+                
+                # 保留用于内部处理的字段
                 'symbol': bar_data.symbol,
                 'exchange': bar_data.exchange.value if hasattr(bar_data.exchange, 'value') else str(bar_data.exchange),
-                'interval': bar_data.interval.value if hasattr(bar_data.interval, 'value') else str(bar_data.interval) if bar_data.interval else '1m',
-                'datetime': bar_data.datetime.isoformat(),
-                'open_price': bar_data.open_price,
-                'high_price': bar_data.high_price,
-                'low_price': bar_data.low_price,
-                'close_price': bar_data.close_price,
-                'volume': bar_data.volume,
-                'turnover': bar_data.turnover,
-                'open_interest': bar_data.open_interest
+                'datetime': bar_data.datetime.isoformat() if hasattr(bar_data.datetime, 'isoformat') else str(bar_data.datetime)
             }
         else:  # 字典格式
             bar_dict = bar_data.copy()
             # 处理枚举值转换
             if 'exchange' in bar_dict and hasattr(bar_dict['exchange'], 'value'):
                 bar_dict['exchange'] = bar_dict['exchange'].value
-            if 'interval' in bar_dict and hasattr(bar_dict['interval'], 'value'):
-                bar_dict['interval'] = bar_dict['interval'].value
             if 'datetime' in bar_dict and hasattr(bar_dict['datetime'], 'isoformat'):
                 bar_dict['datetime'] = bar_dict['datetime'].isoformat()
+            
+            # 从datetime中提取UpdateTime（保持完整的ISO格式用于Parquet）
+            dt = datetime.fromisoformat(bar_dict['datetime'])
+            update_time = dt.isoformat()
+            
+            # 重新构建bar_dict以符合新的表结构
+            new_bar_dict = {
+                'BarType': bar_type,
+                'UpdateTime': update_time,
+                'InstrumentID': bar_dict.get('symbol', ''),
+                'Volume': bar_dict.get('volume', 0.0),
+                'OpenInterest': bar_dict.get('open_interest', 0.0),
+                'OpenPrice': bar_dict.get('open_price', 0.0),
+                'HighestPrice': bar_dict.get('high_price', 0.0),
+                'LowestPrice': bar_dict.get('low_price', 0.0),
+                'ClosePrice': bar_dict.get('close_price', 0.0),
+                'LastVolume': bar_dict.get('last_volume', 0.0),
+                
+                # 保留用于内部处理的字段
+                'symbol': bar_dict.get('symbol', ''),
+                'exchange': bar_dict.get('exchange', ''),
+                'datetime': bar_dict.get('datetime', '')
+            }
+            bar_dict = new_bar_dict
 
         # 获取交易日期和合约信息
         dt = datetime.fromisoformat(bar_dict['datetime'])
@@ -467,7 +626,7 @@ class DataCenterDatabase:
         contract_key = self._get_contract_key(symbol, exchange)
         
         # 确保表已创建
-        self._create_contract_table('bar', symbol, exchange, trade_date)
+        self._create_bar_table(symbol, exchange, bar_type, trade_date)
         
         # 添加到按合约和日期分组的批量写入缓存
         self._add_to_contract_batch('bar', contract_key, date_str, trade_date, bar_dict)
@@ -509,22 +668,22 @@ class DataCenterDatabase:
                 if not db_path.exists():
                     continue
                 
-                conditions = ["data_type = ?"]
-                params = ['tick']
+                conditions = []
+                params = []
                 
                 if start_time:
-                    conditions.append("datetime >= ?")
-                    params.append(start_time.isoformat())
+                    conditions.append("UpdateTime >= ? AND UpdateMillisec >= ?")
+                    params.extend([start_time.strftime('%H:%M:%S'), start_time.microsecond // 1000])
                 
                 if end_time:
-                    conditions.append("datetime <= ?")
-                    params.append(end_time.isoformat())
+                    conditions.append("UpdateTime <= ? AND UpdateMillisec <= ?")
+                    params.extend([end_time.strftime('%H:%M:%S'), end_time.microsecond // 1000])
                 
-                where_clause = f"WHERE {' AND '.join(conditions)}"
+                where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
                 sql = f'''
                     SELECT * FROM {table_name} 
                     {where_clause}
-                    ORDER BY datetime DESC
+                    ORDER BY UpdateTime DESC, UpdateMillisec DESC
                 '''
                 
                 try:
@@ -548,7 +707,7 @@ class DataCenterDatabase:
                     continue
             
             # 按时间排序并限制结果数量
-            all_results.sort(key=lambda x: x['datetime'], reverse=True)
+            all_results.sort(key=lambda x: (x['UpdateTime'], x['UpdateMillisec']), reverse=True)
             return all_results[:limit]
             
         except Exception as e:
@@ -568,6 +727,9 @@ class DataCenterDatabase:
                              limit: int = 1000) -> List[Dict[str, Any]]:
         """查询bar数据（跨日期数据库文件，按合约分表）"""
         try:
+            # 将interval转换为BarType格式
+            bar_type = interval.replace('m', 'min')  # 例如：1m -> min1, 3m -> min3
+            
             # 确定查询的日期范围
             if start_time and end_time:
                 date_range = self._get_date_range(start_time.date(), end_time.date())
@@ -585,29 +747,29 @@ class DataCenterDatabase:
                 date_range = self._get_date_range(start_date, end_date)
             
             all_results = []
-            table_name = self._get_table_name('bar', symbol, exchange)
+            table_name = f"{symbol}_{bar_type}"  # 新的表名格式
             
             for trade_date in date_range:
                 db_path = self._get_db_path('bar', trade_date)
                 if not db_path.exists():
                     continue
                 
-                conditions = ["data_type = ?", "interval = ?"]
-                params = ['bar', interval]
+                conditions = ["BarType = ?"]
+                params = [bar_type]
                 
                 if start_time:
-                    conditions.append("datetime >= ?")
-                    params.append(start_time.isoformat())
+                    conditions.append("UpdateTime >= ?")
+                    params.append(start_time.strftime('%H:%M:%S'))
                 
                 if end_time:
-                    conditions.append("datetime <= ?")
-                    params.append(end_time.isoformat())
+                    conditions.append("UpdateTime <= ?")
+                    params.append(end_time.strftime('%H:%M:%S'))
                 
                 where_clause = f"WHERE {' AND '.join(conditions)}"
                 sql = f'''
                     SELECT * FROM {table_name} 
                     {where_clause}
-                    ORDER BY datetime DESC
+                    ORDER BY UpdateTime DESC
                 '''
                 
                 try:
@@ -631,7 +793,7 @@ class DataCenterDatabase:
                     continue
             
             # 按时间排序并限制结果数量
-            all_results.sort(key=lambda x: x['datetime'], reverse=True)
+            all_results.sort(key=lambda x: x['UpdateTime'], reverse=True)
             return all_results[:limit]
             
         except Exception as e:
@@ -700,7 +862,7 @@ class DataCenterDatabase:
                     return
                 
                 # 确保表已创建
-                self._create_contract_table('tick', symbol, exchange, trade_date)
+                self._create_tick_table(symbol, exchange, trade_date)
                 
                 # 获取表名和数据库路径
                 table_name = self._get_table_name('tick', symbol, exchange)
@@ -709,12 +871,60 @@ class DataCenterDatabase:
                 with sqlite3.connect(str(db_path)) as conn:
                     conn.executemany(f'''
                         INSERT OR REPLACE INTO {table_name} (
-                            data_type, datetime, last_price, volume, turnover, open_interest,
-                            bid_price_1, ask_price_1, bid_volume_1, ask_volume_1
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            InstrumentID, ExchangeID, TradingDay, UpdateTime, UpdateMillisec,
+                            PreSettlementPrice, PreClosePrice, PreOpenInterest, OpenPrice, ClosePrice,
+                            SettlementPrice, UpperLimitPrice, LowerLimitPrice, HighestPrice, LowestPrice,
+                            LastPrice, Volume, LastVolume, Turnover, OpenInterest, LastOpenInterest,
+                            BidPrice1, BidVolume1, AskPrice1, AskVolume1,
+                            BidPrice2, BidVolume2, AskPrice2, AskVolume2,
+                            BidPrice3, BidVolume3, AskPrice3, AskVolume3,
+                            BidPrice4, BidVolume4, AskPrice4, AskVolume4,
+                            BidPrice5, BidVolume5, AskPrice5, AskVolume5,
+                            AveragePrice
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', [(
-                        'tick', d['datetime'], d['last_price'], d['volume'], d['turnover'],
-                        d['open_interest'], d['bid_price_1'], d['ask_price_1'], d['bid_volume_1'], d['ask_volume_1']
+                        d.get('InstrumentID', d.get('symbol', '')),
+                        d.get('ExchangeID', d.get('exchange', '')),
+                        d.get('TradingDay', ''),
+                        d.get('UpdateTime', ''),
+                        d.get('UpdateMillisec', 0),
+                        d.get('PreSettlementPrice', 0.0),
+                        d.get('PreClosePrice', 0.0),
+                        d.get('PreOpenInterest', 0.0),
+                        d.get('OpenPrice', 0.0),
+                        d.get('ClosePrice', 0.0),
+                        d.get('SettlementPrice', 0.0),
+                        d.get('UpperLimitPrice', 0.0),
+                        d.get('LowerLimitPrice', 0.0),
+                        d.get('HighestPrice', 0.0),
+                        d.get('LowestPrice', 0.0),
+                        d.get('LastPrice', d.get('last_price', 0.0)),
+                        d.get('Volume', d.get('volume', 0.0)),
+                        d.get('LastVolume', 0.0),
+                        d.get('Turnover', d.get('turnover', 0.0)),
+                        d.get('OpenInterest', d.get('open_interest', 0.0)),
+                        d.get('LastOpenInterest', 0.0),
+                        d.get('BidPrice1', d.get('bid_price_1', 0.0)),
+                        d.get('BidVolume1', d.get('bid_volume_1', 0.0)),
+                        d.get('AskPrice1', d.get('ask_price_1', 0.0)),
+                        d.get('AskVolume1', d.get('ask_volume_1', 0.0)),
+                        d.get('BidPrice2', 0.0),
+                        d.get('BidVolume2', 0.0),
+                        d.get('AskPrice2', 0.0),
+                        d.get('AskVolume2', 0.0),
+                        d.get('BidPrice3', 0.0),
+                        d.get('BidVolume3', 0.0),
+                        d.get('AskPrice3', 0.0),
+                        d.get('AskVolume3', 0.0),
+                        d.get('BidPrice4', 0.0),
+                        d.get('BidVolume4', 0.0),
+                        d.get('AskPrice4', 0.0),
+                        d.get('AskVolume4', 0.0),
+                        d.get('BidPrice5', 0.0),
+                        d.get('BidVolume5', 0.0),
+                        d.get('AskPrice5', 0.0),
+                        d.get('AskVolume5', 0.0),
+                        d.get('AveragePrice', 0.0)
                     ) for d in batch_data])
                     conn.commit()
                 
@@ -727,22 +937,33 @@ class DataCenterDatabase:
                 if not batch_data:
                     return
                 
+                # 从第一个数据项获取bar_type
+                bar_type = batch_data[0].get('BarType', 'min1') if batch_data else 'min1'
+                
                 # 确保表已创建
-                self._create_contract_table('bar', symbol, exchange, trade_date)
+                self._create_bar_table(symbol, exchange, bar_type, trade_date)
                 
                 # 获取表名和数据库路径
-                table_name = self._get_table_name('bar', symbol, exchange)
+                table_name = f"{symbol}_{bar_type}"
                 db_path = self._get_db_path('bar', trade_date)
                 
                 with sqlite3.connect(str(db_path)) as conn:
                     conn.executemany(f'''
                         INSERT OR REPLACE INTO {table_name} (
-                            data_type, interval, datetime, open_price, high_price, low_price, close_price,
-                            volume, turnover, open_interest
+                            BarType, UpdateTime, InstrumentID, Volume, OpenInterest,
+                            OpenPrice, HighestPrice, LowestPrice, ClosePrice, LastVolume
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', [(
-                        'bar', d['interval'], d['datetime'], d['open_price'], d['high_price'],
-                        d['low_price'], d['close_price'], d['volume'], d['turnover'], d['open_interest']
+                        d.get('BarType', 'min1'),
+                        d.get('UpdateTime', ''),
+                        d.get('InstrumentID', ''),
+                        d.get('Volume', 0.0),
+                        d.get('OpenInterest', 0.0),
+                        d.get('OpenPrice', 0.0),
+                        d.get('HighestPrice', 0.0),
+                        d.get('LowestPrice', 0.0),
+                        d.get('ClosePrice', 0.0),
+                        d.get('LastVolume', 0.0)
                     ) for d in batch_data])
                     conn.commit()
                 
@@ -807,9 +1028,9 @@ class DataCenterDatabase:
             # 按日期和合约分组
             date_symbol_groups = {}
             for data in self._tick_parquet_buffer:
-                dt = datetime.fromisoformat(data['datetime'])
+                dt = datetime.fromisoformat(data['UpdateTime'])
                 date_str = dt.strftime('%Y%m%d')
-                symbol = data['symbol']
+                symbol = data['InstrumentID']
                 
                 if date_str not in date_symbol_groups:
                     date_symbol_groups[date_str] = {}
@@ -835,7 +1056,7 @@ class DataCenterDatabase:
                             existing_df = pd.read_parquet(file_path)
                             df = pd.concat([existing_df, df], ignore_index=True)
                             # 去重并排序
-                            df = df.drop_duplicates(subset=['symbol', 'exchange', 'datetime']).sort_values('datetime')
+                            df = df.drop_duplicates(subset=['InstrumentID', 'ExchangeID', 'UpdateTime']).sort_values('UpdateTime')
                         except Exception as read_error:
                             logger.warning(f"读取现有Parquet文件失败 {file_path}: {read_error}，将备份并重新创建")
                             # 备份损坏的文件
@@ -857,13 +1078,28 @@ class DataCenterDatabase:
                     temp_path = file_path.with_suffix('.tmp')
                     try:
                         df.to_parquet(temp_path, compression=self.parquet_compression, index=False)
-                        # 原子性移动临时文件到目标位置
-                        temp_path.replace(file_path)
+                        # 原子性移动临时文件到目标位置，添加重试机制
+                        max_retries = 3
+                        for retry in range(max_retries):
+                            try:
+                                if file_path.exists():
+                                    file_path.unlink()  # 先删除目标文件
+                                temp_path.rename(file_path)  # 使用rename而不是replace
+                                break
+                            except (OSError, PermissionError) as move_error:
+                                if retry < max_retries - 1:
+                                    time.sleep(0.1)  # 等待100ms后重试
+                                    continue
+                                else:
+                                    raise move_error
                     except Exception as write_error:
                         logger.error(f"写入Parquet文件失败 {file_path}: {write_error}")
                         # 清理临时文件
                         if temp_path.exists():
-                            temp_path.unlink()
+                            try:
+                                temp_path.unlink()
+                            except:
+                                pass
                         raise
             
             buffer_count = len(self._tick_parquet_buffer)
@@ -884,9 +1120,9 @@ class DataCenterDatabase:
             # 按日期和合约分组
             date_symbol_groups = {}
             for data in self._bar_parquet_buffer:
-                dt = datetime.fromisoformat(data['datetime'])
+                dt = datetime.fromisoformat(data['UpdateTime'])
                 date_str = dt.strftime('%Y%m%d')
-                symbol = data['symbol']
+                symbol = data['InstrumentID']
                 
                 if date_str not in date_symbol_groups:
                     date_symbol_groups[date_str] = {}
@@ -912,7 +1148,7 @@ class DataCenterDatabase:
                             existing_df = pd.read_parquet(file_path)
                             df = pd.concat([existing_df, df], ignore_index=True)
                             # 去重并排序
-                            df = df.drop_duplicates(subset=['symbol', 'exchange', 'interval', 'datetime']).sort_values('datetime')
+                            df = df.drop_duplicates(subset=['InstrumentID', 'BarType', 'UpdateTime']).sort_values('UpdateTime')
                         except Exception as read_error:
                             logger.warning(f"读取现有Parquet文件失败 {file_path}: {read_error}，将备份并重新创建")
                             # 备份损坏的文件
@@ -934,13 +1170,28 @@ class DataCenterDatabase:
                     temp_path = file_path.with_suffix('.tmp')
                     try:
                         df.to_parquet(temp_path, compression=self.parquet_compression, index=False)
-                        # 原子性移动临时文件到目标位置
-                        temp_path.replace(file_path)
+                        # 原子性移动临时文件到目标位置，添加重试机制
+                        max_retries = 3
+                        for retry in range(max_retries):
+                            try:
+                                if file_path.exists():
+                                    file_path.unlink()  # 先删除目标文件
+                                temp_path.rename(file_path)  # 使用rename而不是replace
+                                break
+                            except (OSError, PermissionError) as move_error:
+                                if retry < max_retries - 1:
+                                    time.sleep(0.1)  # 等待100ms后重试
+                                    continue
+                                else:
+                                    raise move_error
                     except Exception as write_error:
                         logger.error(f"写入Parquet文件失败 {file_path}: {write_error}")
                         # 清理临时文件
                         if temp_path.exists():
-                            temp_path.unlink()
+                            try:
+                                temp_path.unlink()
+                            except:
+                                pass
                         raise
             
             buffer_count = len(self._bar_parquet_buffer)
