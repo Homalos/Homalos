@@ -41,7 +41,7 @@ Homalos 目标是一个可投入生产的量化交易系统，具有以下主要
 
 ## Web 管理界面展示
 
-![homalos_dashboard](.\assets\homalos_dashboard.png)
+![homalos_dashboard](.\assets\homalos_dashboard_cn.png)
 
 ## 系统特色
 
