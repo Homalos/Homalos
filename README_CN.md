@@ -6,7 +6,6 @@
   <font size="5px">✨ 基于Python的期货量化交易系统 ✨</font>
 </p>
 
-
 <p align="center">
   <a href="https://img.shields.io/github/license/Homalos/Homalos"><img alt="GitHub License" title="GitHub License"
 src="https://img.shields.io/github/license/Homalos/Homalos"/></a>
@@ -22,6 +21,7 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
   简体中文 |
   <a href="README.md">English</a>
 </p>
+
 ## 概述
 
 Homalos 是一个基于 Python 的事件驱动型期货交易平台，旨在实现单机部署，并最大限度地减少外部依赖。
@@ -72,7 +72,6 @@ Homalos/
 │   ├── 📁 tts/               # TTS接口模块
 │   ├── 📁 util/              # 工具模块
 │   └── 📁 web/               # Web界面
-├── 📁 test_data/             # 测试数据存储
 └── 📁 tests/                 # 测试脚本目录
 ```
 

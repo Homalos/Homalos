@@ -193,8 +193,7 @@ class DataCenter:
         except Exception as e:
             self.logger.error(f"加载合约列表失败: {e}")
             # 如果加载失败，返回默认的测试合约
-            self.logger.warning("使用默认测试合约: FG509, SA509")
-            return ["FG509", "SA509"]
+            return [""]
 
     
     def _register_event_handlers(self):
@@ -251,7 +250,7 @@ class DataCenter:
         """停止数据中心"""
         try:
             if not self.is_running:
-                self.logger.warning("数据中心未在运行")
+                self.logger.info("数据中心未在运行")
                 return
             
             self.logger.info("停止数据中心...")
@@ -344,7 +343,7 @@ class DataCenter:
                 
                 # 输出统计信息
                 self.logger.info(
-                    f"📊 数据中心运行状态 - "
+                    f"数据中心运行状态 - "
                     f"运行时间: {uptime_str}, "
                     f"Tick数量: {self.stats['tick_count']}, "
                     f"K线数量: {self.stats['bar_count']}, "
@@ -403,7 +402,7 @@ class DataCenter:
             
             # 定期输出统计信息（降低频率以减少日志输出）
             if self.stats["tick_count"] % 1000 == 0:
-                self.logger.info(f"数据中心统计: 已处理{self.stats['tick_count']}个tick, 当前合约={processed_tick.symbol}")
+                self.logger.info(f"数据中心统计: 已处理{self.stats['tick_count']}个tick")
             
         except Exception as e:
             self.logger.error(f"处理tick数据失败: {e}", exc_info=True)
@@ -646,6 +645,7 @@ class DataCenter:
         try:
             query_data = event.data
             symbol = query_data.get('symbol')
+            exchange = get_exchange(symbol)
             start_time = query_data.get('start_time')
             end_time = query_data.get('end_time')
             limit = query_data.get('limit', 1000)
@@ -653,6 +653,7 @@ class DataCenter:
             # 查询数据
             tick_data = self.database.query_tick_data(
                 symbol=symbol,
+                exchange=exchange,
                 start_time=start_time,
                 end_time=end_time,
                 limit=limit
@@ -676,7 +677,7 @@ class DataCenter:
         try:
             query_data = event.data
             symbol = query_data.get('symbol')
-            exchange = query_data.get('exchange', 'SHFE')  # 默认上期所
+            exchange = get_exchange(symbol)
             interval = query_data.get('interval')
             start_time = query_data.get('start_time')
             end_time = query_data.get('end_time')
@@ -753,55 +754,3 @@ class DataCenter:
         except Exception as e:
             self.logger.error(f"查询bar数据失败: {e}")
             return []
-
-
-# 测试代码
-# if __name__ == "__main__":
-#     # 独立运行示例
-#     import time
-#     from src.core.event_bus import EventBus
-#
-#     def main():
-#         # 创建事件总线
-#         event_bus = EventBus()
-#
-#         # 配置
-#         config = {
-#             "sqlite_path": "data/market_data.db",
-#             "parquet_path": "data/parquet",
-#             "tick_batch_size": 100,
-#             "bar_batch_size": 50,
-#             "tick_flush_interval": 5,
-#             "bar_flush_interval": 10,
-#             "parquet_compression": "snappy",
-#             "symbols_file": "config/market_symbols.json",
-#             "gateway": {
-#                 "type": "ctp",
-#                 "broker_id": "9999",
-#                 "user_id": "your_user_id",
-#                 "password": "your_password",
-#                 "auth_code": "your_auth_code",
-#                 "app_id": "your_app_id"
-#             }
-#         }
-#
-#         # 创建数据中心
-#         data_center = DataCenter(event_bus=event_bus, config=config)
-#
-#         try:
-#             # 启动数据中心
-#             data_center.start()
-#
-#             # 保持运行
-#             self.logger.info("数据中心已启动，按Ctrl+C停止")
-#             while data_center.is_running:
-#                 time.sleep(1)
-#
-#         except KeyboardInterrupt:
-#             self.logger.info("收到停止信号")
-#         finally:
-#             data_center.stop()
-#             self.logger.info("数据中心已停止")
-#
-#     # 运行
-#     main()

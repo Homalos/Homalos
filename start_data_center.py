@@ -11,6 +11,7 @@
 """
 
 import asyncio
+import os
 import signal
 import sys
 from pathlib import Path
@@ -113,6 +114,7 @@ class DataCenterApplication:
     
     async def start(self):
         """启动数据中心应用"""
+        global shutdown_requested
         try:
             if not await self.initialize():
                 return False
@@ -126,7 +128,7 @@ class DataCenterApplication:
             logger.info("数据中心应用启动成功，开始7x24小时运行...")
             
             # 主循环
-            while self.running:
+            while self.running and not shutdown_requested:
                 await asyncio.sleep(1)
                 
                 # 检查组件状态
@@ -155,25 +157,45 @@ class DataCenterApplication:
 
 # 全局应用实例
 app = DataCenterApplication()
+# 全局关闭标志
+shutdown_requested = False
 
 def signal_handler(signum, frame):
     """信号处理器"""
+    global shutdown_requested
     logger.info(f"接收到信号 {signum}，开始关闭数据中心...")
-    asyncio.create_task(app.shutdown())
+    shutdown_requested = True
+    # 设置应用停止标志
+    app.running = False
+    
+    # 获取当前事件循环并安排关闭任务
+    try:
+        loop = asyncio.get_running_loop()
+        # 在当前事件循环中安排关闭任务
+        loop.create_task(app.shutdown())
+    except RuntimeError:
+        # 如果没有运行的事件循环，直接退出
+        logger.warning("没有运行的事件循环，直接退出")
+        os._exit(0)
 
 async def main():
     """主函数"""
+    global shutdown_requested
+    
     # 注册信号处理器
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
     try:
+        # 启动数据中心应用
         await app.start()
     except KeyboardInterrupt:
         logger.info("接收到键盘中断，开始关闭数据中心...")
     except Exception as e:
         logger.error(f"数据中心运行异常: {e}")
     finally:
+        if shutdown_requested:
+            logger.info("收到关闭信号，正在关闭数据中心...")
         await app.shutdown()
 
 if __name__ == "__main__":

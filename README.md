@@ -6,7 +6,6 @@
   <font size="5px">✨ Python-based Futures Quantitative Trading System ✨</font>
 </p>
 
-
 <p align="center">
   <a href="https://img.shields.io/github/license/Homalos/Homalos"><img alt="GitHub License" title="GitHub License"
 src="https://img.shields.io/github/license/Homalos/Homalos"/></a>
@@ -73,7 +72,6 @@ Homalos/
 │   ├── 📁 tts/               # TTS interface module
 │   ├── 📁 util/              # Utility modules
 │   └── 📁 web/               # Web interface
-├── 📁 test_data/             # Test data storage
 └── 📁 tests/                 # Test script directory
 ```
 
