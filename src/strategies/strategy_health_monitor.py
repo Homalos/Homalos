@@ -471,8 +471,9 @@ class StrategyHealthMonitor:
             self.logger.error(f"检测异常失败: {e}")
         
         return anomalies
-    
-    def _calculate_health_status(self, metrics: List[HealthMetric], anomalies: List[Anomaly]) -> HealthStatus:
+
+    @staticmethod
+    def _calculate_health_status(metrics: List[HealthMetric], anomalies: List[Anomaly]) -> HealthStatus:
         """计算健康状态"""
         if any(a.severity == HealthStatus.CRITICAL for a in anomalies):
             return HealthStatus.CRITICAL
@@ -484,23 +485,26 @@ class StrategyHealthMonitor:
             return HealthStatus.WARNING
         else:
             return HealthStatus.HEALTHY
-    
-    def _calculate_performance_score(self, metrics: List[HealthMetric]) -> float:
-        """计算性能分数"""
+
+    @staticmethod
+    def _calculate_performance_score(metrics: List[HealthMetric]) -> float:
+        """计算性能分数，基于各项指标与阈值的比例关系"""
         if not metrics:
             return 0.0
         
         total_score = 0.0
+
         for metric in metrics:
-            if metric.threshold > 0:
-                # 计算指标得分（0-100）
+            if metric.threshold > 0 and metric.value is not None:
+                # 计算指标得分（0-100），比例限制在0-2之间
                 ratio = min(metric.value / metric.threshold, 2.0)  # 最大比例为2
-                score = max(0, 100 - (ratio - 1) * 100)  # 超过阈值开始扣分
-                total_score += score
-        
+                metric_score = max(0, 100 - (ratio - 1) * 100)  # 超过阈值开始线性扣分
+                total_score += metric_score
+
         return total_score / len(metrics)
-    
-    def _generate_recommendations(self, metrics: List[HealthMetric], anomalies: List[Anomaly]) -> List[str]:
+
+    @staticmethod
+    def _generate_recommendations(metrics: List[HealthMetric], anomalies: List[Anomaly]) -> List[str]:
         """生成建议"""
         recommendations = []
         

@@ -11,7 +11,7 @@ from typing import Dict, Optional, Callable, List
 from src.config.constant import Interval
 from src.core.logger import get_logger
 from src.core.object import TickData, BarData
-
+from src.function.data_mapping import INTERVAL_MAPPING
 
 logger = get_logger("DataCenterBarGenerator")
 
@@ -35,7 +35,7 @@ class DataCenterBarGenerator:
         
         # 多合约多周期的当前K线数据
         # 结构: {symbol: {interval: BarData}}
-        self.current_bars: Dict[str, Dict[int, BarData]] = defaultdict(lambda: defaultdict(lambda: None))
+        self.current_bars: Dict[str, Dict[int, BarData]] = defaultdict(dict)
         
         # 最后一个tick数据
         # 结构: {symbol: TickData}
@@ -124,13 +124,16 @@ class DataCenterBarGenerator:
             interval: K线周期（分钟）
             
         Returns:
-            新的K线数据
+            BarData: 新的K线数据
         """
+        if not tick or not bar_time:
+            raise ValueError("Invalid tick or bar_time")
+
         return BarData(
             symbol=tick.symbol,
             exchange=tick.exchange,
             datetime=bar_time,
-            interval=Interval.MINUTE,  # 使用正确的 Interval 枚举
+            interval=INTERVAL_MAPPING.get(interval, Interval.MINUTE),
             volume=tick.volume,
             turnover=tick.turnover,
             open_interest=tick.open_interest,
@@ -138,7 +141,7 @@ class DataCenterBarGenerator:
             high_price=tick.last_price,
             low_price=tick.last_price,
             close_price=tick.last_price,
-            gateway_name="BarData"
+            gateway_name="DataCenterBarGenerator"
         )
     
     def _update_current_bar(self, current_bar: BarData, tick: TickData) -> None:

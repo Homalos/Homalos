@@ -2,15 +2,17 @@
 # -*- coding: utf-8 -*-
 """
 @ProjectName: Homalos_v2
-@FileName   : exchange_mapping
+@FileName   : data_mapping
 @Date       : 2025/7/18 00:30
 @Author     : Donny
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 交易所映射
+@Description: 数据映射
 """
 from src.config.constant import Exchange, Interval
 
+
+# 交易所映射
 EXCHANGE_MAPPING: dict[str, Exchange] = {
     "CZCE": Exchange.CZCE,
     "SHFE": Exchange.SHFE,
@@ -20,6 +22,7 @@ EXCHANGE_MAPPING: dict[str, Exchange] = {
     "GFEX": Exchange.GFEX
 }
 
+# 时间周期映射(用于BarData)
 INTERVAL_MAPPING: dict[int, Interval] = {
     1: Interval.MINUTE,
     3: Interval.THREE_MINUTE,

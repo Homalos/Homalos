@@ -19,7 +19,7 @@ from src.core.event_bus import EventBus
 from src.core.logger import Logger
 from src.core.object import TickData, BarData, ContractData
 from src.ctp.gateway.market_data_gateway import MarketDataGateway
-from src.function.exchange_mapping import EXCHANGE_MAPPING
+from src.function.data_mapping import EXCHANGE_MAPPING
 from src.services.data_center_bar_generator import DataCenterBarGenerator
 from src.services.data_center_database import DataCenterDatabase
 
