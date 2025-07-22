@@ -549,26 +549,6 @@ class HomalosSystem:
             # 关闭所有交易网关
             self._close_gateways(self.trading_gateways, "交易网关")
 
-            # # 关闭所有行情网关
-            # if self.market_gateways:
-            #     logger.info(f"关闭 {len(self.market_gateways)} 个行情网关...")
-            #     for gateway_key, market_gateway in self.market_gateways.items():
-            #         try:
-            #             logger.info(f"关闭行情网关: {gateway_key}")
-            #             market_gateway.close()
-            #         except Exception as e:
-            #             logger.error(f"关闭行情网关 {gateway_key} 时发生错误: {e}")
-            #
-            # # 关闭所有交易网关
-            # if self.trading_gateways:
-            #     logger.info(f"关闭 {len(self.trading_gateways)} 个交易网关...")
-            #     for gateway_key, trading_gateway in self.trading_gateways.items():
-            #         try:
-            #             logger.info(f"关闭交易网关: {gateway_key}")
-            #             trading_gateway.close()
-            #         except Exception as e:
-            #             logger.error(f"关闭交易网关 {gateway_key} 时发生错误: {e}")
-
             # 停止服务注册中心
             if self.service_registry:
                 logger.info("停止服务注册中心...")
@@ -674,9 +654,9 @@ if __name__ == "__main__":
     print("""
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
-║    Homalos 量化交易系统 v0.0.1                                 ║
+║    Homalos 量化交易系统 v0.0.1                               ║
 ║                                                              ║
-║    基于 Python 的期货量化交易系统                                ║
+║    基于 Python 的期货量化交易系统                            ║
 ║                                                              ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝

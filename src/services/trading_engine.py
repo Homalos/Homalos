@@ -23,7 +23,7 @@ from src.core.event_bus import EventBus
 from src.core.logger import get_logger
 from src.core.object import OrderRequest, OrderData, TradeData, TickData, PositionData, AccountData, Status
 from src.services.performance_monitor import PerformanceMonitor
-from src.strategies.strategy_health_monitor import StrategyHealthMonitor
+from src.strategies.strategy_health_monitor import StrategyHealthMonitor, HealthReport
 from src.strategies.strategy_event_handler import StrategyEventHandler
 
 
@@ -770,16 +770,19 @@ class StrategyManager:
         except Exception as e:
             logger.error(f"策略恢复过程中发生异常: {e}")
     
-    async def get_strategy_health_report(self, strategy_uuid: str) -> Optional[Dict[str, Any]]:
-        """获取策略健康报告"""
+    async def get_strategy_health_report(self, strategy_uuid: str) -> HealthReport:
+        """
+        获取策略健康报告
+        返回类型 由Optional[Dict[str, Any]]修改为HealthReport
+        """
         try:
             if strategy_uuid not in self.strategies:
-                return None
+                return Optional[HealthReport]
             
             return await self.health_monitor.check_strategy_health(strategy_uuid)
         except Exception as e:
             logger.error(f"获取策略健康报告失败: {e}")
-            return None
+            return Optional[HealthReport]
     
     def get_all_strategy_health(self) -> Dict[str, Any]:
         """获取所有策略的健康状态"""
@@ -1518,8 +1521,9 @@ class TradingEngine:
         # 系统控制事件
         self.event_bus.subscribe("engine.start", self._handle_engine_start)
         self.event_bus.subscribe("engine.stop", self._handle_engine_stop)
-    
-    async def initialize(self):
+
+    @staticmethod
+    async def initialize():
         """初始化交易引擎"""
         try:
             logger.info("正在初始化交易引擎...")

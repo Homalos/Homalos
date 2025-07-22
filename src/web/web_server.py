@@ -10,22 +10,29 @@
 @Description: Web管理界面服务器
 """
 import asyncio
+import datetime
+import inspect
 import json
 import time
-from typing import Dict, List, Optional, Any
+from dataclasses import is_dataclass, asdict
+from enum import Enum
 from pathlib import Path
+from typing import Dict, List, Optional, Any, cast
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
+import uvicorn
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from src.config.config_manager import ConfigManager
-from src.core.event_bus import EventBus
 from src.core.event import Event, create_trading_event
+from src.core.event_bus import EventBus
 from src.core.logger import get_logger
 from src.services.trading_engine import TradingEngine
+from src.strategies.base_strategy import BaseStrategy
+
 
 logger = get_logger("WebServer")
 
@@ -141,13 +148,13 @@ class WebServer:
         app = FastAPI(
             title="Homalos量化交易系统",
             description="基于Python的期货量化交易系统Web管理界面",
-            version="2.0.0",
+            version="0.0.1",
             docs_url="/docs" if self.config.get("web.api.enable_swagger", True) else None
         )
         
         # CORS中间件
         app.add_middleware(
-            CORSMiddleware,
+            cast(Any, CORSMiddleware),
             allow_origins=self.config.get("web.cors_origins", ["*"]),
             allow_credentials=True,
             allow_methods=self.config.get("web.cors_methods", ["GET", "POST", "PUT", "DELETE"]),
@@ -315,7 +322,6 @@ class WebServer:
                 logger.error(f"获取策略订单失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
-        # 行情订阅API
         @app.post("/api/v1/market/subscribe")
         async def subscribe_market_data(request: SubscriptionRequest):
             """订阅行情"""
@@ -323,13 +329,14 @@ class WebServer:
                 # 通过事件总线发布订阅请求
                 self.event_bus.publish(create_trading_event(
                     "data.subscribe",
-                    {"symbols": request.symbols, "strategy_id": request.strategy_id},
+                    { "symbols": request.symbols, "strategy_id": request.strategy_id },
                     "WebServer"
                 ))
                 
                 return SystemResponse(
                     success=True,
-                    message=f"行情订阅成功: {request.symbols}"
+                    message=f"行情订阅成功: {request.symbols}",
+                    data={"symbols": request.symbols}
                 )
             except Exception as e:
                 logger.error(f"订阅行情失败: {e}")
@@ -370,7 +377,6 @@ class WebServer:
                 logger.error(f"获取监控统计失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
-        # WebSocket端点
         @app.websocket("/ws/realtime")
         async def websocket_endpoint(websocket: WebSocket):
             """WebSocket实时数据推送"""
@@ -449,10 +455,6 @@ class WebServer:
     def _serialize_event_data(self, data: Any) -> Any:
         """序列化事件数据"""
         try:
-            from enum import Enum
-            from dataclasses import is_dataclass, asdict
-            import datetime
-            
             # 处理None值
             if data is None:
                 return None
@@ -494,15 +496,13 @@ class WebServer:
         except Exception as e:
             logger.error(f"序列化事件数据失败: {e}, 数据类型: {type(data)}")
             return str(data)
-    
-    async def _discover_available_strategies(self) -> List[Dict[str, Any]]:
+
+    @staticmethod
+    async def _discover_available_strategies() -> List[Dict[str, Any]]:
         """发现可用策略文件"""
         try:
-            from pathlib import Path
             import importlib.util
-            import inspect
-            from src.strategies.base_strategy import BaseStrategy
-            
+
             strategies = []
             strategy_dir = Path("src/strategies")
             
@@ -586,15 +586,29 @@ class WebServer:
             if static_index_path.exists():
                 return static_index_path.read_text(encoding='utf-8')
             else:
-                return f"<html><body><h1>页面加载错误</h1><p>静态HTML文件不存在</p></body></html>"
+                return WebServer._load_error_template("error_404.html")
         except Exception as e:
             logger.error(f"读取静态HTML文件失败: {e}")
-            return f"<html><body><h1>页面加载错误</h1><p>{str(e)}</p></body></html>"
+            return WebServer._load_error_template("error_500.html", str(e))
+    
+    @staticmethod
+    def _load_error_template(template_name: str, error_message: Optional[str] = None) -> str:
+        """加载错误页面模板"""
+        template_path = Path(__file__).parent / "static" / template_name
+        try:
+            template_content = template_path.read_text(encoding='utf-8')
+            if error_message and "{{ERROR_MESSAGE}}" in template_content:
+                template_content = template_content.replace("{{ERROR_MESSAGE}}", error_message)
+            return template_content
+        except Exception:
+            # 如果模板文件也无法加载，返回最基本的错误页面
+            if error_message:
+                return f"<html><body><h1>页面加载错误</h1><p>{error_message}</p></body></html>"
+            else:
+                return "<html><body><h1>页面加载错误</h1><p>静态HTML文件不存在</p></body></html>"
     
     async def start(self, host: Optional[str] = None, port: Optional[int] = None):
         """启动Web服务器"""
-        import uvicorn
-        
         actual_host: str = host or self.config.get("web.host", "0.0.0.0")
         actual_port: int = port or self.config.get("web.port", 8000)
         debug = self.config.get("web.debug", False)
@@ -613,8 +627,6 @@ class WebServer:
     
     def run_sync(self, host: Optional[str] = None, port: Optional[int] = None):
         """同步启动Web服务器"""
-        import uvicorn
-        
         actual_host: str = host or self.config.get("web.host", "0.0.0.0")
         actual_port: int = port or self.config.get("web.port", 8000)
         debug = self.config.get("web.debug", False)
