@@ -147,8 +147,9 @@ class ConfigManager:
                 else:
                     # 直接值变更
                     self._notify_change(full_key, old_val, new_val)
-    
-    def _match_pattern(self, key: str, pattern: str) -> bool:
+
+    @staticmethod
+    def _match_pattern(key: str, pattern: str) -> bool:
         """简单的通配符匹配"""
         if pattern == "*":
             return True

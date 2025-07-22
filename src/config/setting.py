@@ -7,7 +7,7 @@
 @Author     : Donny
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 获取配置
+@Description: 获取全局配置
 """
 from src.config.path import GlobalPath
 from src.util.file_helper import load_json_file

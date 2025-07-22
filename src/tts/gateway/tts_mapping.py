@@ -7,11 +7,10 @@
 @Author     : Donny
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: description
+@Description: tts_mapping
 """
 from src.config.constant import Direction, Exchange, Offset, OptionType, OrderType, Product, Status
 
-# Import TTS specific constants from the api
 from ..api import (
     THOST_FTDC_CP_CallOptions,
     THOST_FTDC_CP_PutOptions,
@@ -30,6 +29,7 @@ from ..api import (
     THOST_FTDC_OST_Canceled,
     THOST_FTDC_OST_NoTradeQueueing,
     THOST_FTDC_OST_PartTradedQueueing,
+    THOST_FTDC_OST_Unknown,
     THOST_FTDC_PC_Combination,
     THOST_FTDC_PC_Futures,
     THOST_FTDC_PC_Options,
@@ -46,7 +46,8 @@ STATUS_TTS2VT: dict[str, Status] = {
     THOST_FTDC_OST_NoTradeQueueing: Status.NOT_TRADED,
     THOST_FTDC_OST_PartTradedQueueing: Status.PART_TRADED,
     THOST_FTDC_OST_AllTraded: Status.ALL_TRADED,
-    THOST_FTDC_OST_Canceled: Status.CANCELLED
+    THOST_FTDC_OST_Canceled: Status.CANCELLED,
+    THOST_FTDC_OST_Unknown: Status.SUBMITTING
 }
 
 # 多空方向映射
@@ -54,6 +55,7 @@ DIRECTION_VT2TTS: dict[Direction, str] = {
     Direction.LONG: THOST_FTDC_D_Buy,
     Direction.SHORT: THOST_FTDC_D_Sell
 }
+
 DIRECTION_TTS2VT: dict[str, Direction] = {v: k for k, v in DIRECTION_VT2TTS.items()}
 DIRECTION_TTS2VT[THOST_FTDC_PD_Long] = Direction.LONG
 DIRECTION_TTS2VT[THOST_FTDC_PD_Short] = Direction.SHORT
@@ -63,6 +65,7 @@ ORDERTYPE_VT2TTS: dict[OrderType, str] = {
     OrderType.LIMIT: THOST_FTDC_OPT_LimitPrice,
     OrderType.MARKET: THOST_FTDC_OPT_AnyPrice
 }
+
 ORDERTYPE_TTS2VT: dict[str, OrderType] = {v: k for k, v in ORDERTYPE_VT2TTS.items()}
 
 # 开平方向映射
@@ -102,7 +105,7 @@ PRODUCT_TTS2VT: dict[str, Product] = {
 }
 
 # 期权类型映射
-OPTIONTYPE_TTS2VT: dict[str, OptionType] = {
+OPTION_TYPE_TTS2VT: dict[str, OptionType] = {
     THOST_FTDC_CP_CallOptions: OptionType.CALL,
     THOST_FTDC_CP_PutOptions: OptionType.PUT
 }

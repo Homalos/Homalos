@@ -113,9 +113,9 @@ class Exchange(Enum):
     XBOND = "XBOND"         # CFETS X-Bond Anonymous Trading System
 
     # Global
-    NYSE = "NYSE"  # New York Stock Exchnage
-    NASDAQ = "NASDAQ"  # Nasdaq Exchange
-    SEHK = "SEHK"  # Stock Exchange of Hong Kong
+    NYSE = "NYSE"           # New York Stock Exchange
+    NASDAQ = "NASDAQ"       # Nasdaq Exchange
+    SEHK = "SEHK"           # Stock Exchange of Hong Kong
 
     # Special Function
     LOCAL = "LOCAL"         # For local generated data

@@ -7,7 +7,7 @@
 @Author     : Donny
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: description
+@Description: 系统全局变量
 """
 from src.config.path import GlobalPath
 from src.util.file_helper import load_ini_file, load_json_file, write_json_file

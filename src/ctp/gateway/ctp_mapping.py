@@ -2,16 +2,15 @@
 # -*- coding: utf-8 -*-
 """
 @ProjectName: Nilotica
-@FileName   : tts_mapping
+@FileName   : ctp_mapping
 @Date       : 2025/5/24 23:29
 @Author     : Donny
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: description
+@Description: ctp_mapping
 """
 from src.config.constant import Direction, Exchange, Offset, OptionType, OrderType, Product, Status
 
-# Import CTP specific constants from the api
 from ..api import (
     THOST_FTDC_TC_GFD,
     THOST_FTDC_TC_IOC,
@@ -54,6 +53,7 @@ DIRECTION_VT2CTP: dict[Direction, str] = {
     Direction.LONG: THOST_FTDC_D_Buy,
     Direction.SHORT: THOST_FTDC_D_Sell
 }
+
 DIRECTION_CTP2VT: dict[str, Direction] = {v: k for k, v in DIRECTION_VT2CTP.items()}
 DIRECTION_CTP2VT[THOST_FTDC_PD_Long] = Direction.LONG
 DIRECTION_CTP2VT[THOST_FTDC_PD_Short] = Direction.SHORT
@@ -65,6 +65,7 @@ ORDERTYPE_VT2CTP: dict[OrderType, tuple] = {
     OrderType.FAK: (THOST_FTDC_OPT_LimitPrice, THOST_FTDC_TC_IOC, THOST_FTDC_VC_AV),
     OrderType.FOK: (THOST_FTDC_OPT_LimitPrice, THOST_FTDC_TC_IOC, THOST_FTDC_VC_CV),
 }
+
 ORDERTYPE_CTP2VT: dict[tuple, OrderType] = {v: k for k, v in ORDERTYPE_VT2CTP.items()}
 
 # Offset map
@@ -95,7 +96,7 @@ PRODUCT_CTP2VT: dict[str, Product] = {
 }
 
 # Option type map
-OPTIONTYPE_CTP2VT: dict[str, OptionType] = {
+OPTION_TYPE_CTP2VT: dict[str, OptionType] = {
     THOST_FTDC_CP_CallOptions: OptionType.CALL,
     THOST_FTDC_CP_PutOptions: OptionType.PUT
 }

@@ -4,16 +4,16 @@
 数据中心K线合成器
 负责将tick数据合成为不同周期的K线数据，支持多合约多周期
 """
-
-from datetime import datetime, timedelta
-from typing import Dict, Optional, Callable, List
 from collections import defaultdict
+from datetime import datetime
+from typing import Dict, Optional, Callable, List
 
-from src.core.logger import get_logger
 from src.config.constant import Interval
-
-logger = get_logger(__name__)
+from src.core.logger import get_logger
 from src.core.object import TickData, BarData
+
+
+logger = get_logger("DataCenterBarGenerator")
 
 
 class DataCenterBarGenerator:
@@ -92,8 +92,9 @@ class DataCenterBarGenerator:
             self._update_current_bar(current_bar, tick)
         
         self.current_bars[symbol][interval] = current_bar
-    
-    def _get_bar_time(self, tick_time: datetime, interval: int) -> datetime:
+
+    @staticmethod
+    def _get_bar_time(tick_time: datetime, interval: int) -> datetime:
         """
         计算tick时间对应的K线时间
         
@@ -111,8 +112,9 @@ class DataCenterBarGenerator:
         
         # 返回K线时间（秒和微秒设为0）
         return tick_time.replace(minute=bar_minute, second=0, microsecond=0)
-    
-    def _create_new_bar(self, tick: TickData, bar_time: datetime, interval: int) -> BarData:
+
+    @staticmethod
+    def _create_new_bar(tick: TickData, bar_time: datetime, interval: int) -> BarData:
         """
         创建新的K线数据
         

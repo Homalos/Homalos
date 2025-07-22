@@ -7,7 +7,7 @@
 @Author     : Donny
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: description
+@Description: 全局路径常量
 """
 from pathlib import Path
 
