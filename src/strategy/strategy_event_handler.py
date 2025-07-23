@@ -12,11 +12,11 @@
 import asyncio
 import json
 import sqlite3
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Callable, Any, Set, Union
+from typing import Dict, List, Optional, Callable, Any, Set
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, EventType

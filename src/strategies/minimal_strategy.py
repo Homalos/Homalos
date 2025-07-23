@@ -14,7 +14,7 @@ from typing import Dict, Any
 
 from src.config.constant import Direction, Offset, OrderType, Exchange
 from src.core.object import TickData, BarData, OrderData, TradeData, OrderRequest
-from src.strategies.base_strategy import BaseStrategy
+from src.strategy.base_strategy import BaseStrategy
 
 
 class MinimalStrategy(BaseStrategy):

@@ -5,15 +5,15 @@
 用途：为策略开发者提供标准化的策略开发框架
 作者：Homalos Team
 """
-
-from typing import Dict, Any, Optional, List
-from dataclasses import dataclass
+import asyncio
 import time
+from dataclasses import dataclass
+from typing import Dict, Any, Optional, List
 
-from .base_strategy import BaseStrategy
-from ..core.object import TickData, BarData, OrderData, TradeData, PositionData
-from ..core.object import OrderRequest, CancelRequest
 from ..config.constant import Direction, Offset, OrderType, Exchange
+from ..core.object import OrderRequest, CancelRequest
+from ..core.object import TickData, BarData, OrderData, TradeData
+from ..strategy.base_strategy import BaseStrategy
 
 
 @dataclass
@@ -52,7 +52,7 @@ class StrategyTemplate(BaseStrategy):
     
     # 策略元信息
     strategy_name = "策略开发模板"
-    strategy_version = "1.0.0"
+    strategy_version = "0.0.1"
     strategy_author = "开发者姓名"
     strategy_description = "这是一个策略开发模板，展示了完整的策略开发框架"
     
@@ -446,4 +446,4 @@ class StrategyTemplate(BaseStrategy):
 
 
 # 策略类的别名，用于动态加载
-Strategy = StrategyTemplate 
+Strategy = StrategyTemplate

@@ -11,14 +11,14 @@
 """
 from typing import Dict, Any, Type, Optional, Tuple
 
-from src.strategies.base_strategy import BaseStrategy
 from src.strategies.moving_average_strategy import MovingAverageStrategy
 from src.strategies.grid_trading_strategy import GridTradingStrategy
-from src.strategies.dependency_checker import DependencyChecker, DependencyCheckResult
-from src.strategies.strategy_validator import StrategyValidator, ValidationResult
 from src.config.config_manager import ConfigManager
 from src.core.event_bus import EventBus
 from src.core.logger import get_logger
+from src.strategy.base_strategy import BaseStrategy
+from src.strategy.dependency_checker import DependencyChecker, DependencyCheckResult
+from src.strategy.strategy_validator import StrategyValidator, ValidationResult
 
 
 class StrategyFactory:
@@ -298,7 +298,7 @@ class StrategyFactory:
         compatibility_result = await self.strategy_validator.validate_compatibility(strategy_class)
         
         # 合并结果
-        all_issues = []
+        all_issues: list = []
         all_issues.extend(methods_result.issues)
         all_issues.extend(params_result.issues)
         all_issues.extend(risk_result.issues)

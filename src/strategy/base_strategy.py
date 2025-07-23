@@ -7,7 +7,7 @@
 @Author     : Donny
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 策略基类 - 适配MVP架构
+@Description: 策略基类
 """
 import asyncio
 import threading

@@ -10,6 +10,7 @@
 @Description: 策略管理器
 """
 import asyncio
+import inspect
 import time
 from collections import defaultdict
 from typing import Dict, Optional, Any
@@ -19,8 +20,9 @@ from src.core.event import Event, EventType, create_trading_event
 from src.core.event_bus import EventBus
 from src.core.logger import get_logger
 from src.core.object import TickData, StrategyInfo
-from src.strategies.strategy_event_handler import StrategyEventHandler
-from src.strategies.strategy_health_monitor import StrategyHealthMonitor, HealthReport
+from src.strategy.base_strategy import BaseStrategy
+from src.strategy.strategy_event_handler import StrategyEventHandler
+from src.strategy.strategy_health_monitor import StrategyHealthMonitor, HealthReport
 
 logger = get_logger("StrategyManager")
 
@@ -62,11 +64,9 @@ class StrategyManager:
         self.event_bus.subscribe(EventType.STRATEGY_RECOVERY_FAILED, self._handle_recovery_failed)
         self.event_bus.subscribe(EventType.STRATEGY_ERROR, self._handle_strategy_error)
 
-    def _find_strategy_class(self, module):
+    @staticmethod
+    def _find_strategy_class(module):
         """自动发现策略类 - 查找继承自BaseStrategy的类"""
-        import inspect
-        from src.strategies.base_strategy import BaseStrategy
-
         for name, obj in inspect.getmembers(module):
             if (inspect.isclass(obj) and
                     issubclass(obj, BaseStrategy) and
@@ -566,7 +566,8 @@ class StrategyManager:
         except Exception as e:
             logger.error(f"通知策略网关状态变化失败: {e}")
 
-    def _retry_pending_strategy_starts(self):
+    @staticmethod
+    def _retry_pending_strategy_starts():
         """重试待启动的策略"""
         try:
             # 这里可以实现重试逻辑
