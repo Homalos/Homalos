@@ -30,9 +30,8 @@ from src.config.config_manager import ConfigManager
 from src.core.event import Event, create_trading_event
 from src.core.event_bus import EventBus
 from src.core.logger import get_logger
-from src.services.trading_engine import TradingEngine
 from src.strategies.base_strategy import BaseStrategy
-
+from src.trade.trading_engine import TradingEngine
 
 logger = get_logger("WebServer")
 

@@ -20,7 +20,7 @@ from typing import Optional
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, EventType
 from src.function.gateway_helper import get_enabled_gateways
-from src.services.trading_engine import TradingEngine
+from src.trade.trading_engine import TradingEngine
 
 # 添加项目根目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent))
@@ -575,7 +575,7 @@ class HomalosSystem:
         """打印系统信息"""
         info = f"""
 {'='*60}
-🎯 Homalos量化交易系统 v2.0
+🎯 Homalos量化交易系统
 📁 配置文件: {self.config_file}
 🌐 Web界面: {'启用' if self.web_server else '禁用'}
 🔌 CTP网关: {'可用' if CTP_AVAILABLE else '不可用'}
@@ -602,7 +602,7 @@ class HomalosSystem:
             "ctp_available": CTP_AVAILABLE,
             "components": {
                 "event_bus": self.event_bus is not None,
-                "trading_engine": self.trading_engine is not None,
+                "trade": self.trading_engine is not None,
                 "data_service": self.data_service is not None,
                 "web_server": self.web_server is not None,
                 "market_gateway": self.market_gateway is not None,
@@ -652,14 +652,19 @@ if __name__ == "__main__":
         print("请复制config/system.yaml.example为config/system.yaml并进行配置")
         sys.exit(1)
     print("""
-╔══════════════════════════════════════════════════════════════╗
-║                                                              ║
-║    Homalos 量化交易系统 v0.0.1                               ║
-║                                                              ║
-║    基于 Python 的期货量化交易系统                            ║
-║                                                              ║
-║                                                              ║
-╚══════════════════════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║ ██╗  ██╗ ██████╗ ███╗   ███╗ █████╗ ██╗      ██████╗ ███████╗ ║
+║ ██║  ██║██╔═══██╗████╗ ████║██╔══██╗██║     ██╔═══██╗██╔════╝ ║
+║ ███████║██║   ██║██╔████╔██║███████║██║     ██║   ██║███████╗ ║
+║ ██╔══██║██║   ██║██║╚██╔╝██║██╔══██║██║     ██║   ██║╚════██║ ║
+║ ██║  ██║╚██████╔╝██║ ╚═╝ ██║██║  ██║███████╗╚██████╔╝███████║ ║
+║ ╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚══════╝ ║
+║                  Homalos 量化交易系统 v0.0.1                  ║
+║                                                               ║
+║                 基于 Python 的期货量化交易系统                ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
     """)
     
     # 运行系统

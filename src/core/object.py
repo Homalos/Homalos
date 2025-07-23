@@ -9,8 +9,11 @@
 @Software   : PyCharm
 @Description: 交易平台中用于一般交易功能的基本数据结构。
 """
+import time
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime as Datetime
+from typing import Any, Dict, Optional, List
 
 from src.config.constant import Direction, Exchange, Interval, Offset, OptionType, OrderType, Product, Status
 
@@ -469,3 +472,89 @@ class QuoteRequest:
             gateway_name=gateway_name,
         )
         return quote
+
+
+@dataclass
+class StrategyInfo:
+    """策略信息"""
+    strategy_id: str
+    strategy_name: str
+    instance: Any
+    status: str  # "loading", "loaded", "running", "stopped", "error"
+    params: Dict[str, Any]
+    strategy_uuid: Optional[str] = None  # 策略UUID唯一标识
+    strategy_path: Optional[str] = None  # 策略文件路径
+    start_time: Optional[float] = None
+    stop_time: Optional[float] = None
+    error_message: Optional[str] = None
+
+
+@dataclass
+class RiskCheckResult:
+    """风控检查结果"""
+    passed: bool
+    order_id: str
+    reasons: List[str]
+    risk_level: str  # "low", "medium", "high", "critical"
+
+
+@dataclass
+class OrderInfo:
+    """订单信息扩展"""
+    order_data: OrderData
+    strategy_id: str
+    create_time: float
+    update_time: float
+    risk_check_result: Optional[RiskCheckResult] = None
+
+@dataclass
+class PerformanceMetrics:
+    """性能指标数据类"""
+    strategy_id: str
+
+    # 延迟指标
+    order_latencies: deque = field(default_factory=lambda: deque(maxlen=1000))
+    avg_order_latency: float = 0.0
+    max_order_latency: float = 0.0
+    min_order_latency: float = float('inf')
+
+    # 交易指标
+    total_orders: int = 0
+    successful_orders: int = 0
+    failed_orders: int = 0
+    total_trades: int = 0
+
+    # 盈亏指标
+    total_pnl: float = 0.0
+    max_drawdown: float = 0.0
+    win_count: int = 0
+    loss_count: int = 0
+
+    # 性能指标
+    tick_processing_rate: float = 0.0
+    last_tick_time: float = 0.0
+    tick_count: int = 0
+
+    # 时间戳
+    start_time: float = field(default_factory=time.time)
+    last_update: float = field(default_factory=time.time)
+
+@dataclass
+class SystemMetrics:
+    """系统性能指标"""
+    # CPU和内存
+    cpu_percent: float = 0.0
+    memory_mb: float = 0.0
+    memory_percent: float = 0.0
+
+    # 系统指标
+    active_strategies: int = 0
+    total_events: int = 0
+    event_processing_rate: float = 0.0
+
+    # 网络和延迟
+    network_latency: float = 0.0
+    system_uptime: float = 0.0
+
+    # 时间戳
+    timestamp: float = field(default_factory=time.time)

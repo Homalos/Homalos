@@ -14,7 +14,7 @@ from typing import Optional
 
 from src.config.constant import Product, Exchange
 from src.core.object import ContractData
-from .ctp_mapping import PRODUCT_CTP2VT, EXCHANGE_CTP2VT, OPTIONTYPE_CTP2VT
+from .ctp_mapping import PRODUCT_CTP2VT, EXCHANGE_CTP2VT, OPTION_TYPE_CTP2VT
 from ...core.logger import get_logger
 
 logger = get_logger("ctp_build_contract")
@@ -45,7 +45,7 @@ def ctp_build_contract(data: dict, gateway_name: str) -> ContractData | None:
             else:
                 contract.option_portfolio = data.get("ProductID", "")
             contract.option_underlying = data.get("UnderlyingInstrID", "")
-            contract.option_type = OPTIONTYPE_CTP2VT.get(data.get("OptionsType"))
+            contract.option_type = OPTION_TYPE_CTP2VT.get(data.get("OptionsType"))
             contract.option_strike = data.get("StrikePrice", 0.0)
             contract.option_index = str(data.get("StrikePrice", ""))
             try:

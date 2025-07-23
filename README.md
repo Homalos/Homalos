@@ -1,6 +1,6 @@
-<p align="center">
-  <a href="https://homalos.github.io"><img src="assets/logo.png" width="350" height="233"  alt="homalos"></a>
-</p>
+<div align="center">
+  <a href="https://homalos.github.io" target="blank"><img alt="Homalos Logo" src="assets/logo.svg"/></a>
+</div>
 
 <p align="center">
   <font size="5px">✨ Python-based Futures Quantitative Trading System ✨</font>
@@ -65,10 +65,12 @@ Homalos/
 ├── 📁 src/                   # Core source code directory
 │   ├── 📁 config/            # Configuration management
 │   ├── 📁 core/              # System core modules
+│   ├── 📁 data_center/       # Data Center Module
 │   ├── 📁 ctp/               # CTP interface module
 │   ├── 📁 function/          # Core function
 │   ├── 📁 services/          # Service modules
 │   ├── 📁 strategies/        # Strategy instance modules
+│   ├── 📁 trade/             # Trading Module
 │   ├── 📁 tts/               # TTS interface module
 │   ├── 📁 util/              # Utility modules
 │   └── 📁 web/               # Web interface

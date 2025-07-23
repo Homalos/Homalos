@@ -1,6 +1,6 @@
-<p align="center">
-  <a href="https://homalos.github.io"><img src="assets/logo.png" width="350" height="233"  alt="homalos"></a>
-</p>
+<div align="center">
+  <a href="https://homalos.github.io" target="blank"><img alt="Homalos Logo" src="assets/logo.svg"/></a>
+</div>
 
 <p align="center">
   <font size="5px">✨ 基于Python的期货量化交易系统 ✨</font>
@@ -65,10 +65,12 @@ Homalos/
 ├── 📁 src/                   # 核心源代码目录
 │   ├── 📁 config/            # 配置管理
 │   ├── 📁 core/              # 系统核心模块
+│   ├── 📁 data_center/       # 数据中心模块
 │   ├── 📁 ctp/               # CTP接口模块
 │   ├── 📁 function/          # 核心函数
-│   ├── 📁 services/          # 服务模块
+│   ├── 📁 services/          # 数据服务模块
 │   ├── 📁 strategies/        # 策略实例模块
+│   ├── 📁 trade/             # 交易模块
 │   ├── 📁 tts/               # TTS接口模块
 │   ├── 📁 util/              # 工具模块
 │   └── 📁 web/               # Web界面

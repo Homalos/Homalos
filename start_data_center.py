@@ -11,13 +11,14 @@
 """
 
 import asyncio
-import os
 import signal
 import sys
+import types
 from pathlib import Path
 from typing import Optional
 
 from src.config.config_manager import ConfigManager
+from src.data_center.data_center import DataCenter
 from src.function.gateway_helper import get_enabled_gateways
 
 # 添加项目根目录到Python路径
@@ -26,9 +27,9 @@ sys.path.insert(0, str(project_root))
 
 from src.core.logger import get_logger
 from src.core.event_bus import EventBus
-from src.services.data_center import DataCenter
 
 logger = get_logger("DataCenterApplication")
+
 
 class DataCenterApplication:
     """数据中心应用程序"""
@@ -160,23 +161,34 @@ app = DataCenterApplication()
 # 全局关闭标志
 shutdown_requested = False
 
-def signal_handler(signum, frame):
+def signal_handler(signum, frame: Optional[types.FrameType]) -> None:
     """信号处理器"""
     global shutdown_requested
     logger.info(f"接收到信号 {signum}，开始关闭数据中心...")
     shutdown_requested = True
+
+    if not hasattr(app, 'running'):
+        logger.warning("应用实例未初始化")
+        sys.exit(1)
+
     # 设置应用停止标志
     app.running = False
     
-    # 获取当前事件循环并安排关闭任务
+    # 立即停止数据中心组件
     try:
-        loop = asyncio.get_running_loop()
-        # 在当前事件循环中安排关闭任务
-        loop.create_task(app.shutdown())
-    except RuntimeError:
-        # 如果没有运行的事件循环，直接退出
-        logger.warning("没有运行的事件循环，直接退出")
-        os._exit(0)
+        if app.data_center:
+            app.data_center.stop()
+        if app.event_bus:
+            app.event_bus.stop()
+        logger.info("数据中心组件已停止")
+    except AttributeError as e:
+        logger.error(f"组件未初始化: {e}")
+    except Exception as e:
+        logger.error(f"停止数据中心组件失败: {e}")
+    
+    # 强制退出
+    logger.info("进程退出")
+    sys.exit(0)
 
 async def main():
     """主函数"""
@@ -191,12 +203,25 @@ async def main():
         await app.start()
     except KeyboardInterrupt:
         logger.info("接收到键盘中断，开始关闭数据中心...")
+        shutdown_requested = True
     except Exception as e:
         logger.error(f"数据中心运行异常: {e}")
+        shutdown_requested = True
     finally:
-        if shutdown_requested:
-            logger.info("收到关闭信号，正在关闭数据中心...")
-        await app.shutdown()
+        if not shutdown_requested:
+            logger.info("正常关闭数据中心...")
+            await app.shutdown()
+        else:
+            logger.info("收到关闭信号，快速关闭数据中心...")
+            # 快速关闭，不等待异步操作
+            try:
+                if app.data_center:
+                    app.data_center.stop()
+                if app.event_bus:
+                    app.event_bus.stop()
+            except Exception as e:
+                logger.error(f"快速关闭失败: {e}")
+            logger.info("数据中心已关闭")
 
 if __name__ == "__main__":
     # 设置事件循环策略（Windows）
