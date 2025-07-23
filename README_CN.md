@@ -69,7 +69,8 @@ Homalos/
 │   ├── 📁 ctp/               # CTP接口模块
 │   ├── 📁 function/          # 核心函数
 │   ├── 📁 services/          # 数据服务模块
-│   ├── 📁 strategies/        # 策略实例模块
+│   ├── 📁 strategies/        # 策略实例
+│   ├── 📁 strategy/          # 策略模块
 │   ├── 📁 trade/             # 交易模块
 │   ├── 📁 tts/               # TTS接口模块
 │   ├── 📁 util/              # 工具模块

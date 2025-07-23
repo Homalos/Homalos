@@ -69,7 +69,8 @@ Homalos/
 │   ├── 📁 ctp/               # CTP interface module
 │   ├── 📁 function/          # Core function
 │   ├── 📁 services/          # Service modules
-│   ├── 📁 strategies/        # Strategy instance modules
+│   ├── 📁 strategies/        # Strategy instance
+│   ├── 📁 strategy/          # Strategy Module
 │   ├── 📁 trade/             # Trading Module
 │   ├── 📁 tts/               # TTS interface module
 │   ├── 📁 util/              # Utility modules
