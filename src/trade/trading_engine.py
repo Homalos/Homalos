@@ -3,7 +3,7 @@
 """
 @ProjectName: Homalos_v2
 @FileName   : trading_engine
-@Date       : 2025/7/6 20:30
+@Date       : 2025/7/23 00:08
 @Author     : Donny
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
@@ -47,7 +47,6 @@ class StrategyInfo:
 
 @dataclass
 class RiskCheckResult:
-
     """风控检查结果"""
     passed: bool
     order_id: str
@@ -67,62 +66,62 @@ class OrderInfo:
 
 class StrategyManager:
     """策略管理器"""
-    
+
     def __init__(self, event_bus: EventBus, config: ConfigManager):
         self.event_bus = event_bus
         self.config = config
         self.strategies: Dict[str, StrategyInfo] = {}
         self.strategy_subscriptions: Dict[str, set] = defaultdict(set)  # strategy_id -> symbols
-        
+
         # 初始化健康监控器
         self.health_monitor = StrategyHealthMonitor(event_bus, config)
-        
+
         # 初始化事件处理器
         self.event_handler = StrategyEventHandler(event_bus, config)
-        
+
         # 策略恢复配置
         self.auto_recovery_enabled = config.get("strategy_management.health_monitoring.auto_recovery", True)
         self.max_recovery_attempts = config.get("strategy_management.health_monitoring.max_recovery_attempts", 3)
         self.recovery_attempts: Dict[str, int] = {}  # 记录每个策略的恢复尝试次数
-        
+
         # 注册事件处理器
         self._register_event_handlers()
-        
+
         # 启动健康监控
         asyncio.create_task(self._start_health_monitoring())
-    
+
     def _register_event_handlers(self):
         """注册事件处理器"""
         self.event_bus.subscribe("market.tick", self._handle_market_tick)
         self.event_bus.subscribe("strategy.load", self._handle_load_strategy)
         self.event_bus.subscribe("strategy.start", self._handle_start_strategy)
         self.event_bus.subscribe("strategy.stop", self._handle_stop_strategy)
-        
+
         # 注册策略健康和恢复相关事件
         self.event_bus.subscribe(EventType.STRATEGY_ANOMALY_DETECTED, self._handle_strategy_anomaly)
         self.event_bus.subscribe(EventType.STRATEGY_RECOVERY_FAILED, self._handle_recovery_failed)
         self.event_bus.subscribe(EventType.STRATEGY_ERROR, self._handle_strategy_error)
-    
+
     def _find_strategy_class(self, module):
         """自动发现策略类 - 查找继承自BaseStrategy的类"""
         import inspect
         from src.strategies.base_strategy import BaseStrategy
-        
+
         for name, obj in inspect.getmembers(module):
-            if (inspect.isclass(obj) and 
-                issubclass(obj, BaseStrategy) and 
-                obj != BaseStrategy):
+            if (inspect.isclass(obj) and
+                    issubclass(obj, BaseStrategy) and
+                    obj != BaseStrategy):
                 logger.debug(f"发现策略类: {name}")
                 return obj
-        
+
         # 如果没找到继承自BaseStrategy的类，尝试查找名为Strategy的类
         strategy_class = getattr(module, 'Strategy', None)
         if strategy_class is not None:
             logger.debug("使用Strategy类作为回退选项")
             return strategy_class
-            
+
         return None
-    
+
     async def load_strategy(self,
                             strategy_path: str,
                             user_strategy_name: Optional[str] = None,
@@ -130,54 +129,54 @@ class StrategyManager:
                             ) -> tuple[bool, str]:
         """动态加载策略 - 自动生成UUID作为主键，增强异常处理"""
         params = params or {}
-        
+
         try:
             import importlib.util
             import os
-            
+
             # 验证策略文件存在性
             if not os.path.exists(strategy_path):
                 raise FileNotFoundError(f"策略文件不存在: {strategy_path}")
-            
+
             if not strategy_path.endswith('.py'):
                 raise ValueError(f"策略文件必须是Python文件: {strategy_path}")
-            
+
             # 动态导入策略模块
             spec = importlib.util.spec_from_file_location("strategy", strategy_path)
             if spec is None or spec.loader is None:
                 raise ImportError(f"无法创建模块规范: {strategy_path}")
-            
+
             module = importlib.util.module_from_spec(spec)
-            
+
             try:
                 spec.loader.exec_module(module)
             except SyntaxError as e:
                 raise SyntaxError(f"策略文件语法错误: {e}")
             except ImportError as e:
                 raise ImportError(f"策略文件依赖导入失败: {e}")
-            
+
             # 创建策略实例 - 自动发现策略类
             strategy_class = self._find_strategy_class(module)
             if strategy_class is None:
                 raise ValueError("策略文件中未找到继承自BaseStrategy的策略类")
-            
+
             # 创建策略实例，传入用户提供的策略名称或自动生成
             display_name = user_strategy_name or strategy_class.__name__
-            
+
             try:
                 strategy_instance = strategy_class(display_name, self.event_bus, params)
             except TypeError as e:
                 raise TypeError(f"策略类初始化参数错误: {e}")
             except Exception as e:
                 raise RuntimeError(f"策略实例创建失败: {e}")
-            
+
             # 获取策略自动生成的UUID
             strategy_uuid = strategy_instance.get_strategy_uuid()
-            
+
             # 检查UUID冲突
             if strategy_uuid in self.strategies:
                 raise ValueError(f"策略UUID冲突: {strategy_uuid}")
-            
+
             # 注册策略信息，使用UUID作为主键
             strategy_info = StrategyInfo(
                 strategy_id=display_name,  # 用于显示的友好名称
@@ -188,10 +187,10 @@ class StrategyManager:
                 strategy_uuid=strategy_uuid,  # 策略UUID作为唯一标识
                 strategy_path=strategy_path  # 保存策略文件路径
             )
-            
+
             # 使用UUID作为存储键
             self.strategies[strategy_uuid] = strategy_info
-            
+
             # 发布策略加载成功事件
             self.event_bus.publish(create_trading_event(
                 EventType.STRATEGY_LOADED,
@@ -204,15 +203,15 @@ class StrategyManager:
                 },
                 "StrategyManager"
             ))
-            
+
             logger.info(f"策略加载成功: {display_name} (UUID: {strategy_uuid})")
             return True, strategy_uuid
-            
+
         except (FileNotFoundError, ValueError, ImportError, SyntaxError, TypeError, RuntimeError) as e:
             # 分类处理已知异常类型
             error_msg = f"策略加载失败: {e}"
             logger.error(error_msg, exc_info=True)
-            
+
             # 发布策略加载失败事件
             self.event_bus.publish(create_trading_event(
                 EventType.STRATEGY_LOAD_FAILED,
@@ -224,13 +223,13 @@ class StrategyManager:
                 },
                 "StrategyManager"
             ))
-            
+
             return False, ""
         except Exception as e:
             # 处理未预期的异常
             error_msg = f"策略加载遇到未预期错误: {e}"
             logger.error(error_msg, exc_info=True)
-            
+
             # 发布策略加载失败事件
             self.event_bus.publish(create_trading_event(
                 EventType.STRATEGY_LOAD_FAILED,
@@ -242,20 +241,20 @@ class StrategyManager:
                 },
                 "StrategyManager"
             ))
-            
+
             return False, ""
-    
+
     async def start_strategy(self, strategy_uuid: str) -> bool:
         """启动策略 - 使用UUID作为标识符，增强网关状态检查和异常处理"""
         if strategy_uuid not in self.strategies:
             logger.error(f"策略不存在: {strategy_uuid}")
             return False
-        
+
         strategy_info = self.strategies[strategy_uuid]
         if strategy_info.status == "running":
             logger.warning(f"策略已在运行: {strategy_info.strategy_name} ({strategy_uuid})")
             return True
-        
+
         try:
             # 检查网关就绪状态
             try:
@@ -265,7 +264,7 @@ class StrategyManager:
                     # 继续启动，但发出警告，系统会自动处理重连
             except Exception as e:
                 logger.warning(f"网关状态检查失败: {e}，继续启动策略")
-            
+
             # 调用策略的start()方法，这会自动处理initialize() -> on_init() -> on_start()流程
             try:
                 await strategy_info.instance.start()
@@ -275,11 +274,11 @@ class StrategyManager:
                 raise TimeoutError(f"策略启动超时: {e}")
             except Exception as e:
                 raise RuntimeError(f"策略启动过程中发生错误: {e}")
-            
+
             strategy_info.status = "running"
             strategy_info.start_time = time.time()
             strategy_info.error_message = None  # 清除之前的错误信息
-            
+
             # 发布策略启动成功事件
             self.event_bus.publish(create_trading_event(
                 EventType.STRATEGY_STARTED,
@@ -291,22 +290,22 @@ class StrategyManager:
                 },
                 "StrategyManager"
             ))
-            
+
             # 将策略添加到健康监控
             self.health_monitor.add_strategy(strategy_info.instance)
-            
+
             # 重置恢复尝试计数
             self.recovery_attempts[strategy_uuid] = 0
-            
+
             logger.info(f"策略启动成功: {strategy_info.strategy_name} (UUID: {strategy_uuid})")
             return True
-            
+
         except (RuntimeError, TimeoutError) as e:
             # 处理已知的启动异常
             logger.error(f"策略启动失败 {strategy_info.strategy_name}: {e}", exc_info=True)
             strategy_info.status = "error"
             strategy_info.error_message = str(e)
-            
+
             # 发布策略启动失败事件
             self.event_bus.publish(create_trading_event(
                 EventType.STRATEGY_START_FAILED,
@@ -319,14 +318,14 @@ class StrategyManager:
                 },
                 "StrategyManager"
             ))
-            
+
             return False
         except Exception as e:
             # 处理未预期的异常
             logger.error(f"策略启动遇到未预期错误 {strategy_info.strategy_name}: {e}", exc_info=True)
             strategy_info.status = "error"
             strategy_info.error_message = str(e)
-            
+
             # 发布策略启动失败事件
             self.event_bus.publish(create_trading_event(
                 EventType.STRATEGY_START_FAILED,
@@ -339,22 +338,22 @@ class StrategyManager:
                 },
                 "StrategyManager"
             ))
-            
+
             return False
-    
+
     async def stop_strategy(self, strategy_uuid: str) -> bool:
         """停止策略 - 使用UUID作为标识符，增强异常处理"""
         if strategy_uuid not in self.strategies:
             logger.error(f"策略不存在: {strategy_uuid}")
             return False
-        
+
         strategy_info = self.strategies[strategy_uuid]
-        
+
         # 检查策略状态
         if strategy_info.status == "stopped":
             logger.warning(f"策略已停止: {strategy_info.strategy_name} ({strategy_uuid})")
             return True
-        
+
         try:
             # 调用策略的stop()方法
             try:
@@ -365,11 +364,11 @@ class StrategyManager:
                 raise TimeoutError(f"策略停止超时: {e}")
             except Exception as e:
                 raise RuntimeError(f"策略停止过程中发生错误: {e}")
-            
+
             strategy_info.status = "stopped"
             strategy_info.stop_time = time.time()
             strategy_info.error_message = None  # 清除错误信息
-            
+
             # 发布策略停止成功事件
             self.event_bus.publish(create_trading_event(
                 EventType.STRATEGY_STOPPED,
@@ -381,21 +380,21 @@ class StrategyManager:
                 },
                 "StrategyManager"
             ))
-            
+
             # 从健康监控中移除策略
             self.health_monitor.remove_strategy(strategy_info.instance.strategy_id)
-            
+
             # 清除恢复尝试计数
             self.recovery_attempts.pop(strategy_uuid, None)
-            
+
             logger.info(f"策略停止成功: {strategy_info.strategy_name} (UUID: {strategy_uuid})")
             return True
-            
+
         except (RuntimeError, TimeoutError) as e:
             # 处理已知的停止异常
             logger.error(f"策略停止失败 {strategy_info.strategy_name}: {e}", exc_info=True)
             strategy_info.error_message = str(e)
-            
+
             # 发布策略停止失败事件
             self.event_bus.publish(create_trading_event(
                 EventType.STRATEGY_STOP_FAILED,
@@ -408,13 +407,13 @@ class StrategyManager:
                 },
                 "StrategyManager"
             ))
-            
+
             return False
         except Exception as e:
             # 处理未预期的异常
             logger.error(f"策略停止遇到未预期错误 {strategy_info.strategy_name}: {e}", exc_info=True)
             strategy_info.error_message = str(e)
-            
+
             # 发布策略停止失败事件
             self.event_bus.publish(create_trading_event(
                 EventType.STRATEGY_STOP_FAILED,
@@ -427,15 +426,15 @@ class StrategyManager:
                 },
                 "StrategyManager"
             ))
-            
+
             return False
-    
+
     def _handle_market_tick(self, event: Event):
         """分发行情数据给相关策略"""
         tick_data = event.data
         if not isinstance(tick_data, TickData):
             return
-        
+
         # 分发给订阅此合约的策略
         for strategy_id, symbols in self.strategy_subscriptions.items():
             if tick_data.symbol in symbols:
@@ -445,31 +444,31 @@ class StrategyManager:
                         asyncio.create_task(strategy_info.instance.on_tick(tick_data))
                     except Exception as e:
                         logger.error(f"策略处理行情失败 {strategy_id}: {e}")
-    
+
     def _handle_load_strategy(self, event: Event):
         """处理策略加载请求"""
         data = event.data
         asyncio.create_task(self.load_strategy(
             data["strategy_path"],
-            data["strategy_id"], 
+            data["strategy_id"],
             data["params"]
         ))
-    
+
     def _handle_start_strategy(self, event: Event):
         """处理策略启动请求"""
         strategy_uuid = event.data["strategy_uuid"]
         asyncio.create_task(self.start_strategy(strategy_uuid))
-    
+
     def _handle_stop_strategy(self, event: Event):
         """处理策略停止请求"""
         strategy_uuid = event.data["strategy_uuid"]
         asyncio.create_task(self.stop_strategy(strategy_uuid))
-    
+
     def get_strategy_status(self, strategy_uuid: str) -> Optional[Dict[str, Any]]:
         """获取策略状态 - 使用UUID查找"""
         if strategy_uuid not in self.strategies:
             return None
-        
+
         strategy_info = self.strategies[strategy_uuid]
         return {
             "strategy_id": strategy_info.strategy_id,
@@ -482,7 +481,7 @@ class StrategyManager:
             "error_message": strategy_info.error_message,
             "params": strategy_info.params
         }
-    
+
     def get_all_strategies(self) -> Dict[str, Dict[str, Any]]:
         """获取所有策略状态"""
         result = {}
@@ -495,10 +494,10 @@ class StrategyManager:
     async def _check_gateway_ready_for_strategy(self, strategy) -> bool:
         """
         检查策略所需的网关是否就绪
-        
+
         Args:
             strategy: 策略实例
-            
+
         Returns:
             bool: 网关是否就绪
         """
@@ -508,7 +507,7 @@ class StrategyManager:
             if required_symbols:
                 if isinstance(required_symbols, str):
                     required_symbols = [required_symbols]
-                
+
                 # 发布网关状态查询事件
                 if self.event_bus:
                     query_event = create_trading_event(
@@ -520,15 +519,15 @@ class StrategyManager:
                         },
                         source="StrategyManager"
                     )
-                    
+
                     self.event_bus.publish(query_event)
-                    
+
                     # 等待一小段时间让网关响应
                     await asyncio.sleep(0.5)
-            
+
             # 暂时返回True，让系统处理连接问题
             return True
-            
+
         except Exception as e:
             logger.error(f"检查网关状态失败: {e}")
             return False
@@ -540,9 +539,9 @@ class StrategyManager:
             self.event_bus.subscribe(EventType.GATEWAY_CONNECTED, self._handle_gateway_connected)
             self.event_bus.subscribe(EventType.GATEWAY_DISCONNECTED, self._handle_gateway_disconnected)
             self.event_bus.subscribe(EventType.GATEWAY_READY, self._handle_gateway_ready)
-            
+
             logger.info("网关监控事件处理器已注册")
-            
+
         except Exception as e:
             logger.error(f"设置网关监控失败: {e}")
 
@@ -551,12 +550,12 @@ class StrategyManager:
         try:
             data = event.data
             gateway_name = data.get("gateway_name", "unknown")
-            
+
             logger.info(f"网关已连接: {gateway_name}")
-            
+
             # 通知所有运行中的策略网关状态变化
             self._notify_strategies_gateway_status(gateway_name, "connected")
-            
+
         except Exception as e:
             logger.error(f"处理网关连接事件失败: {e}")
 
@@ -565,12 +564,12 @@ class StrategyManager:
         try:
             data = event.data
             gateway_name = data.get("gateway_name", "unknown")
-            
+
             logger.warning(f"网关已断开: {gateway_name}")
-            
+
             # 通知所有运行中的策略网关状态变化
             self._notify_strategies_gateway_status(gateway_name, "disconnected")
-            
+
         except Exception as e:
             logger.error(f"处理网关断开事件失败: {e}")
 
@@ -579,12 +578,12 @@ class StrategyManager:
         try:
             data = event.data
             gateway_name = data.get("gateway_name", "unknown")
-            
+
             logger.info(f"网关已就绪: {gateway_name}")
-            
+
             # 重新处理待启动的策略
             self._retry_pending_strategy_starts()
-            
+
         except Exception as e:
             logger.error(f"处理网关就绪事件失败: {e}")
 
@@ -594,7 +593,7 @@ class StrategyManager:
             for strategy_uuid, strategy_info in self.strategies.items():
                 if strategy_info.status == "running":
                     strategy = strategy_info.instance
-                    
+
                     # 通知策略网关状态变化
                     if hasattr(strategy, 'on_gateway_status_change'):
                         try:
@@ -603,7 +602,7 @@ class StrategyManager:
                             )
                         except Exception as e:
                             logger.error(f"通知策略网关状态变化失败: {e}")
-                            
+
         except Exception as e:
             logger.error(f"通知策略网关状态变化失败: {e}")
 
@@ -613,10 +612,10 @@ class StrategyManager:
             # 这里可以实现重试逻辑
             # 目前只是记录日志
             logger.info("检查是否有待重试的策略启动")
-            
+
         except Exception as e:
             logger.error(f"重试策略启动失败: {e}")
-    
+
     async def _start_health_monitoring(self):
         """启动健康监控"""
         try:
@@ -624,46 +623,46 @@ class StrategyManager:
             logger.info("策略健康监控已启动")
         except Exception as e:
             logger.error(f"启动健康监控失败: {e}")
-    
+
     def _handle_strategy_anomaly(self, event: Event):
         """处理策略异常检测事件"""
         try:
             data = event.data
             strategy_uuid = data.get("strategy_uuid")
             anomaly_type = data.get("anomaly_type")
-            
+
             if not strategy_uuid or strategy_uuid not in self.strategies:
                 return
-            
+
             strategy_info = self.strategies[strategy_uuid]
             logger.warning(f"检测到策略异常: {strategy_info.strategy_name} - {anomaly_type}")
-            
+
             # 如果启用了自动恢复
             if self.auto_recovery_enabled:
                 asyncio.create_task(self._attempt_strategy_recovery(strategy_uuid, anomaly_type))
-            
+
         except Exception as e:
             logger.error(f"处理策略异常事件失败: {e}")
-    
+
     def _handle_recovery_failed(self, event: Event):
         """处理策略恢复失败事件"""
         try:
             data = event.data
             strategy_uuid = data.get("strategy_uuid")
-            
+
             if not strategy_uuid or strategy_uuid not in self.strategies:
                 return
-            
+
             strategy_info = self.strategies[strategy_uuid]
             attempts = self.recovery_attempts.get(strategy_uuid, 0)
-            
+
             logger.error(f"策略恢复失败: {strategy_info.strategy_name}, 尝试次数: {attempts}")
-            
+
             # 如果超过最大恢复尝试次数，停止策略
             if attempts >= self.max_recovery_attempts:
                 logger.error(f"策略 {strategy_info.strategy_name} 恢复尝试次数超限，停止策略")
                 asyncio.create_task(self.stop_strategy(strategy_uuid))
-                
+
                 # 发布策略恢复放弃事件
                 self.event_bus.publish(create_trading_event(
                     EventType.STRATEGY_RECOVERY_FAILED,
@@ -675,53 +674,53 @@ class StrategyManager:
                     },
                     "StrategyManager"
                 ))
-            
+
         except Exception as e:
             logger.error(f"处理策略恢复失败事件失败: {e}")
-    
+
     def _handle_strategy_error(self, event: Event):
         """处理策略错误事件"""
         try:
             data = event.data
             strategy_uuid = data.get("strategy_uuid")
             error_type = data.get("error_type")
-            
+
             if not strategy_uuid or strategy_uuid not in self.strategies:
                 return
-            
+
             strategy_info = self.strategies[strategy_uuid]
             logger.error(f"策略错误: {strategy_info.strategy_name} - {error_type}")
-            
+
             # 更新策略状态
             strategy_info.status = "error"
             strategy_info.error_message = data.get("error", "未知错误")
-            
+
             # 如果是严重错误，考虑自动恢复
             if error_type in ["RuntimeError", "ConnectionError", "TimeoutError"]:
                 if self.auto_recovery_enabled:
                     asyncio.create_task(self._attempt_strategy_recovery(strategy_uuid, error_type))
-            
+
         except Exception as e:
             logger.error(f"处理策略错误事件失败: {e}")
-    
+
     async def _attempt_strategy_recovery(self, strategy_uuid: str, issue_type: str):
         """尝试策略恢复"""
         try:
             if strategy_uuid not in self.strategies:
                 return
-            
+
             strategy_info = self.strategies[strategy_uuid]
             current_attempts = self.recovery_attempts.get(strategy_uuid, 0)
-            
+
             if current_attempts >= self.max_recovery_attempts:
                 logger.error(f"策略 {strategy_info.strategy_name} 已达到最大恢复尝试次数")
                 return
-            
+
             # 增加恢复尝试计数
             self.recovery_attempts[strategy_uuid] = current_attempts + 1
-            
+
             logger.info(f"开始恢复策略: {strategy_info.strategy_name}, 尝试次数: {current_attempts + 1}")
-            
+
             # 发布恢复开始事件
             self.event_bus.publish(create_trading_event(
                 EventType.STRATEGY_RECOVERY_STARTED,
@@ -733,13 +732,13 @@ class StrategyManager:
                 },
                 "StrategyManager"
             ))
-            
+
             # 尝试恢复策略
             recovery_success = await self.health_monitor.attempt_recovery(strategy_uuid)
-            
+
             if recovery_success:
                 logger.info(f"策略恢复成功: {strategy_info.strategy_name}")
-                
+
                 # 发布恢复成功事件
                 self.event_bus.publish(create_trading_event(
                     EventType.STRATEGY_RECOVERY_COMPLETED,
@@ -750,12 +749,12 @@ class StrategyManager:
                     },
                     "StrategyManager"
                 ))
-                
+
                 # 重置恢复尝试计数
                 self.recovery_attempts[strategy_uuid] = 0
             else:
                 logger.warning(f"策略恢复失败: {strategy_info.strategy_name}")
-                
+
                 # 发布恢复失败事件
                 self.event_bus.publish(create_trading_event(
                     EventType.STRATEGY_RECOVERY_FAILED,
@@ -766,10 +765,10 @@ class StrategyManager:
                     },
                     "StrategyManager"
                 ))
-            
+
         except Exception as e:
             logger.error(f"策略恢复过程中发生异常: {e}")
-    
+
     async def get_strategy_health_report(self, strategy_uuid: str) -> HealthReport:
         """
         获取策略健康报告
@@ -778,12 +777,12 @@ class StrategyManager:
         try:
             if strategy_uuid not in self.strategies:
                 return Optional[HealthReport]
-            
+
             return await self.health_monitor.check_strategy_health(strategy_uuid)
         except Exception as e:
             logger.error(f"获取策略健康报告失败: {e}")
             return Optional[HealthReport]
-    
+
     def get_all_strategy_health(self) -> Dict[str, Any]:
         """获取所有策略的健康状态"""
         try:
@@ -799,11 +798,11 @@ class StrategyManager:
 
 class RiskManager:
     """风控管理器"""
-    
+
     def __init__(self, event_bus: EventBus, config: ConfigManager):
         self.event_bus = event_bus
         self.config = config
-        
+
         # 风控配置
         self.enabled = config.get("risk.enabled", True)
         self.max_position_size = config.get("risk.max_position_size", 1000000)
@@ -814,7 +813,7 @@ class RiskManager:
         self.enable_self_trade_check = config.get("risk.enable_self_trade_check", True)
         self.enable_price_check = config.get("risk.enable_price_check", True)
         self.price_deviation_threshold = config.get("risk.price_deviation_threshold", 0.05)
-        
+
         # 新增：绝对价格限制配置
         self.absolute_price_limits = config.get("risk.absolute_price_limits", {
             "rb": {"min": 2000, "max": 6000},
@@ -822,56 +821,56 @@ class RiskManager:
             "i": {"min": 400, "max": 1000},
             "default": {"min": 1, "max": 100000}
         })
-        
+
         # 实时监控数据
         self.daily_loss = defaultdict(float)  # strategy_id -> daily_loss
         self.order_frequency = {}  # strategy_id -> {timestamp -> count}
         self.position_sizes = defaultdict(float)  # strategy_id -> total_position_value
         self.last_prices = {}  # symbol -> last_price
-        
+
         # 实盘级别额外风控
         self.max_total_position = config.get("risk.max_total_position", 5000000)  # 总持仓限制
         self.max_single_order_value = config.get("risk.max_single_order_value", 100000)  # 单笔订单价值限制
         self.trading_hours_check = config.get("risk.trading_hours_check", True)  # 交易时间检查
         self.instrument_risk_limits = {}  # 品种风险限制
-        
+
         # 异常计数和限制
         self.error_counts = defaultdict(int)  # strategy_id -> error_count
         self.max_errors_per_hour = config.get("risk.max_errors_per_hour", 50)
         self.strategy_suspend_threshold = config.get("risk.strategy_suspend_threshold", 100)
-        
+
         # 注册事件处理器
         self.event_bus.subscribe("risk.check", lambda event: asyncio.create_task(self._handle_risk_check(event)))
         self.event_bus.subscribe("strategy.error", self._handle_strategy_error)
         self.event_bus.subscribe("market.tick", self._update_market_prices)
-        
+
         # 启动风控监控任务
         asyncio.create_task(self._risk_monitoring_task())
-    
+
     async def _risk_monitoring_task(self):
         """实时风控监控任务"""
         while True:
             try:
                 await asyncio.sleep(10)  # 每10秒检查一次
-                
+
                 # 清理过期数据
                 self._cleanup_expired_data()
-                
+
                 # 检查策略错误频率
                 self._check_strategy_error_rates()
-                
+
                 # 检查市场异常情况
                 self._check_market_conditions()
-                
+
             except Exception as e:
                 logger.error(f"风控监控任务异常: {e}")
                 await asyncio.sleep(30)  # 异常后等待30秒再继续
-    
+
     def _cleanup_expired_data(self):
         """清理过期的监控数据"""
         current_time = time.time()
         one_hour_ago = current_time - 3600
-        
+
         # 清理1小时前的订单频率数据
         for strategy_id in list(self.order_frequency.keys()):
             if strategy_id in self.order_frequency:
@@ -879,7 +878,7 @@ class RiskManager:
                     ts: count for ts, count in self.order_frequency[strategy_id].items()
                     if ts > one_hour_ago
                 }
-    
+
     def _check_strategy_error_rates(self):
         """检查策略错误率"""
         for strategy_id, error_count in self.error_counts.items():
@@ -891,99 +890,101 @@ class RiskManager:
                     "error_count": error_count,
                     "reason": "错误次数超过阈值"
                 }))
-    
+
     def _check_market_conditions(self):
         """检查市场条件"""
         if not self.trading_hours_check:
             return
-        
+
         # 简化的交易时间检查
         import datetime
         now = datetime.datetime.now()
         hour = now.hour
-        
+
         # 期货交易时间：9:00-11:30, 13:30-15:00, 21:00-次日2:30
         is_trading_hours = (
-            (9 <= hour <= 11) or 
-            (13 <= hour <= 14) or 
-            (21 <= hour <= 23) or 
-            (0 <= hour <= 2)
+                (9 <= hour <= 11) or
+                (13 <= hour <= 14) or
+                (21 <= hour <= 23) or
+                (0 <= hour <= 2)
         )
-        
+
         if not is_trading_hours:
             # 非交易时间，暂停接受新订单
             logger.warning(f"当前非交易时间 {hour}:00，暂停接受新订单")
-    
+
     def _handle_strategy_error(self, event: Event):
         """处理策略错误事件"""
         data = event.data
         strategy_id = data.get("strategy_id", "unknown")
         error_type = data.get("error_type", "general")
-        
+
         # 增加错误计数
         self.error_counts[strategy_id] += 1
-        
+
         logger.warning(f"策略错误记录: {strategy_id} - {error_type}, 累计错误: {self.error_counts[strategy_id]}")
-    
+
     def _update_market_prices(self, event: Event):
         """更新市场价格"""
         tick_data = event.data
         if hasattr(tick_data, 'symbol') and hasattr(tick_data, 'last_price'):
             self.last_prices[tick_data.symbol] = tick_data.last_price
-    
+
     def _enhanced_price_check(self, order_request: OrderRequest) -> RiskCheckResult:
         """增强的价格合理性检查（支持绝对限制）"""
         if not self.enable_price_check:
             return RiskCheckResult(True, "", [], "low")
-        
+
         symbol = order_request.symbol
         order_price = order_request.price
         violations = []
-        
+
         # 1. 绝对价格合理性检查（适用于所有环境）
         # 获取品种前缀
         symbol_prefix = symbol[:2] if len(symbol) >= 2 else "default"
-        price_limit = self.absolute_price_limits.get(symbol_prefix, self.absolute_price_limits.get("default", {"min": 1, "max": 100000}))
-        
+        price_limit = self.absolute_price_limits.get(symbol_prefix, self.absolute_price_limits.get("default", {"min": 1,
+                                                                                                               "max": 100000}))
+
         if order_price < price_limit["min"] or order_price > price_limit["max"]:
             violations.append(f"订单价格 {order_price} 超出合理范围 [{price_limit['min']}, {price_limit['max']}]")
-        
+
         # 2. 相对价格偏离检查（需要市场数据）
         last_price = self.last_prices.get(symbol)
         if last_price:
             price_deviation = abs(order_price - last_price) / last_price
             if price_deviation > self.price_deviation_threshold:
-                violations.append(f"订单价格 {order_price} 偏离市场价格 {last_price} 超过 {self.price_deviation_threshold*100}%")
+                violations.append(
+                    f"订单价格 {order_price} 偏离市场价格 {last_price} 超过 {self.price_deviation_threshold * 100}%")
         else:
             # 无市场数据时记录警告，但依靠绝对限制
             logger.warning(f"无法获取 {symbol} 的最新价格，使用绝对价格限制检查")
-        
+
         if violations:
             return RiskCheckResult(False, "", violations, "high")
-        
+
         return RiskCheckResult(True, "", [], "low")
-    
+
     def _trading_hours_check(self) -> RiskCheckResult:
         """交易时间检查（支持测试模式覆盖）"""
         # 检查是否为测试模式
         test_mode = self.config.get("system.test_mode", False)
         test_trading_hours = self.config.get("system.test_trading_hours", True)
-        
+
         if test_mode and test_trading_hours:
             logger.debug("测试模式：跳过交易时间检查")
             return RiskCheckResult(True, "", ["测试模式：跳过交易时间检查"], "low")
-        
+
         if not self.trading_hours_check:
             return RiskCheckResult(True, "", [], "low")
-        
+
         import datetime
         now = datetime.datetime.now()
         hour = now.hour
         minute = now.minute
-        
+
         # 详细的期货交易时间检查
         is_trading_hours = False
-        
+
         # 上午：9:00-11:30
         if (hour == 9 and minute >= 0) or (hour == 10) or (hour == 11 and minute <= 30):
             is_trading_hours = True
@@ -996,61 +997,61 @@ class RiskManager:
                 is_trading_hours = False
             else:
                 is_trading_hours = True
-        
+
         if not is_trading_hours:
             return RiskCheckResult(False, "", [f"当前时间 {hour:02d}:{minute:02d} 不在交易时间内"], "critical")
-        
+
         return RiskCheckResult(True, "", [], "low")
-    
+
     def _check_order_value_limit(self, order_request: OrderRequest) -> RiskCheckResult:
         """检查单笔订单价值限制"""
         try:
             order_value = order_request.price * order_request.volume
-            
+
             # 根据不同合约类型设置不同的限制（这里简化处理）
             multiplier = 10  # 假设每手价值是价格*10（实际应根据合约规格）
             actual_order_value = order_value * multiplier
-            
+
             if actual_order_value > self.max_single_order_value:
                 return RiskCheckResult(False, "", [
                     f"订单价值 {actual_order_value} 超过单笔限制 {self.max_single_order_value}"
                 ], "high")
-            
+
             return RiskCheckResult(True, "", [], "low")
-            
+
         except Exception as e:
             logger.error(f"订单价值检查异常: {e}")
             return RiskCheckResult(False, "", [f"订单价值计算异常: {e}"], "critical")
-    
+
     def _check_order_frequency(self, strategy_id: str) -> RiskCheckResult:
         """检查订单频率"""
         current_time = time.time()
         one_minute_ago = current_time - 60
-        
+
         # 获取策略的订单历史
         if strategy_id not in self.order_frequency:
             self.order_frequency[strategy_id] = {}
-        
+
         # 清理过期数据
         self.order_frequency[strategy_id] = {
             ts: count for ts, count in self.order_frequency[strategy_id].items()
             if ts > one_minute_ago
         }
-        
+
         # 计算当前分钟的订单数
         current_minute = int(current_time // 60)
         orders_this_minute = self.order_frequency[strategy_id].get(current_minute, 0)
-        
+
         if orders_this_minute >= self.order_frequency_limit:
             return RiskCheckResult(False, "", [
                 f"策略 {strategy_id} 订单频率过高: {orders_this_minute}/{self.order_frequency_limit} 每分钟"
             ], "high")
-        
+
         # 更新计数
         self.order_frequency[strategy_id][current_minute] = orders_this_minute + 1
-        
+
         return RiskCheckResult(True, "", [], "low")
-    
+
     def _check_position_concentration(self, strategy_id: str, order_request: OrderRequest) -> RiskCheckResult:
         """检查持仓集中度"""
         # 简化实现
@@ -1060,70 +1061,76 @@ class RiskManager:
         """风控检查"""
         if not self.enabled:
             return RiskCheckResult(True, "", [], "low")
-        
+
         violations = []
         max_risk_level = "low"
         order_id = f"{strategy_id}_{int(time.time() * 1000)}"
-        
+
         try:
             # 1. 交易时间检查
             time_check = self._trading_hours_check()
             if not time_check.passed:
                 violations.extend(time_check.reasons)
-                max_risk_level = max(max_risk_level, time_check.risk_level, key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
-            
+                max_risk_level = max(max_risk_level, time_check.risk_level,
+                                     key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
+
             # 2. 订单大小检查
             if order_request.volume > self.max_order_size:
                 violations.append(f"订单手数 {order_request.volume} 超过限制 {self.max_order_size}")
-                max_risk_level = max(max_risk_level, "high", key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
-            
+                max_risk_level = max(max_risk_level, "high",
+                                     key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
+
             # 3. 订单价值检查
             value_check = self._check_order_value_limit(order_request)
             if not value_check.passed:
                 violations.extend(value_check.reasons)
-                max_risk_level = max(max_risk_level, value_check.risk_level, key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
-            
+                max_risk_level = max(max_risk_level, value_check.risk_level,
+                                     key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
+
             # 4. 增强价格检查
             price_check = self._enhanced_price_check(order_request)
             if not price_check.passed:
                 violations.extend(price_check.reasons)
-                max_risk_level = max(max_risk_level, price_check.risk_level, key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
-            
+                max_risk_level = max(max_risk_level, price_check.risk_level,
+                                     key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
+
             # 5. 订单频率检查
             freq_check = self._check_order_frequency(strategy_id)
             if not freq_check.passed:
                 violations.extend(freq_check.reasons)
-                max_risk_level = max(max_risk_level, freq_check.risk_level, key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
-            
+                max_risk_level = max(max_risk_level, freq_check.risk_level,
+                                     key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
+
             # 6. 持仓集中度检查（简化）
             concentration_check = self._check_position_concentration(strategy_id, order_request)
             if not concentration_check.passed:
                 violations.extend(concentration_check.reasons)
-                max_risk_level = max(max_risk_level, concentration_check.risk_level, key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
-            
+                max_risk_level = max(max_risk_level, concentration_check.risk_level,
+                                     key=lambda x: {"low": 0, "medium": 1, "high": 2, "critical": 3}[x])
+
             # 记录风控检查结果
             result = RiskCheckResult(len(violations) == 0, order_id, violations, max_risk_level)
-            
+
             if result.passed:
                 logger.debug(f"风控检查通过: {strategy_id} {order_request.symbol}")
             else:
                 logger.warning(f"风控检查失败: {strategy_id} {order_request.symbol} - {violations}")
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"风控检查异常: {e}")
             return RiskCheckResult(False, order_id, [f"风控检查异常: {e}"], "critical")
-    
+
     async def _handle_risk_check(self, event: Event):
         """处理风控检查请求（完整版）"""
         data = event.data
         order_request = data["order_request"]
         strategy_id = data["strategy_id"]
-        
+
         # 执行风控检查
         risk_result = await self.check_risk(order_request, strategy_id)
-        
+
         if risk_result.passed:
             # 风控通过，发布批准事件
             self.event_bus.publish(Event(EventType.RISK_APPROVED, {
@@ -1145,38 +1152,38 @@ class RiskManager:
 
 class OrderManager:
     """订单管理器"""
-    
+
     def __init__(self, event_bus: EventBus, config: ConfigManager):
         self.event_bus = event_bus
         self.config = config
-        
+
         self.orders: Dict[str, OrderInfo] = {}
         self.strategy_orders: Dict[str, set] = defaultdict(set)  # strategy_id -> order_ids
         # 添加订单ID映射：系统订单ID -> CTP订单ID
         self.system_to_ctp_orderid: Dict[str, str] = {}
         self.ctp_to_system_orderid: Dict[str, str] = {}
-        
+
         # 注册事件处理器
         self.event_bus.subscribe(EventType.RISK_APPROVED, self._handle_risk_approved)
         self.event_bus.subscribe(EventType.ORDER_FILLED, self._handle_order_filled)
         self.event_bus.subscribe(EventType.ORDER_CANCELLED, self._handle_order_cancelled)
         self.event_bus.subscribe("order.place", self._handle_order_request)
         self.event_bus.subscribe("order.cancel", self._handle_cancel_order)
-        
+
         # 订阅CTP网关回报事件
         self.event_bus.subscribe(EventType.ORDER, self._handle_ctp_order_update)
         self.event_bus.subscribe(EventType.TRADE, self._handle_ctp_trade_update)
         self.event_bus.subscribe("order.sent_to_ctp", self._handle_order_sent_to_ctp)
         self.event_bus.subscribe("order.send_failed", self._handle_order_send_failed)
-    
+
     async def place_order(self, order_request: OrderRequest, strategy_id: str) -> str:
         """下单"""
         order_id = str(uuid.uuid4())
         current_time = time.time()
-        
+
         # 创建订单数据
         order_data = order_request.create_order_data(order_id, "TradingEngine")
-        
+
         # 创建订单信息
         order_info = OrderInfo(
             order_data=order_data,
@@ -1184,10 +1191,10 @@ class OrderManager:
             create_time=current_time,
             update_time=current_time
         )
-        
+
         self.orders[order_id] = order_info
         self.strategy_orders[strategy_id].add(order_id)
-        
+
         # 发布下单事件（将由网关处理）
         self.event_bus.publish(create_trading_event(
             EventType.GATEWAY_SEND_ORDER,
@@ -1197,72 +1204,72 @@ class OrderManager:
             },
             "OrderManager"
         ))
-        
+
         # 发布订单提交事件（供监控器监听）
         self.event_bus.publish(Event(EventType.ORDER_SUBMITTED, order_data))
-        
+
         logger.info(f"订单已提交: {order_id} ({strategy_id})")
         return order_id
-    
+
     async def cancel_order(self, order_id: str) -> bool:
         """撤单"""
         if order_id not in self.orders:
             logger.error(f"订单不存在: {order_id}")
             return False
-        
+
         order_info = self.orders[order_id]
-        
+
         # 创建撤单请求
         cancel_request = order_info.order_data.create_cancel_request()
-        
+
         # 发布撤单事件
         self.event_bus.publish(create_trading_event(
             EventType.GATEWAY_CANCEL_ORDER,
             {"cancel_request": cancel_request},
             "OrderManager"
         ))
-        
+
         logger.info(f"撤单请求已发送: {order_id}")
         return True
-    
+
     def _handle_risk_approved(self, event: Event):
         """处理风控通过事件"""
         data = event.data
         order_request = data["order_request"]
         strategy_id = data["strategy_id"]
-        
+
         # 创建订单
         asyncio.create_task(self.place_order(order_request, strategy_id))
-    
+
     def _handle_order_filled(self, event: Event):
         """处理订单成交事件"""
         trade_data = event.data
         if isinstance(trade_data, TradeData):
             logger.info(f"订单成交: {trade_data.orderid} - {trade_data.volume}@{trade_data.price}")
-    
+
     def _handle_order_cancelled(self, event: Event):
         """处理订单撤销事件"""
         order_data = event.data
         if isinstance(order_data, OrderData):
             logger.info(f"订单已撤销: {order_data.orderid}")
-    
+
     def _handle_order_request(self, event: Event):
         """处理下单请求"""
         data = event.data
         order_request = data.get("order_request")
         strategy_id = data.get("strategy_id")
-        
+
         if not order_request or not strategy_id:
             logger.error("下单请求数据不完整")
             return
-        
+
         # 生成订单ID
         order_id = f"{strategy_id}_{int(time.time() * 1000)}"
-        
+
         # 创建订单数据
         order_data = order_request.create_order_data(order_id, "CTP_TD")
         order_data.datetime = datetime.now()
-        
+
         # 存储订单信息
         order_info = OrderInfo(
             order_data=order_data,
@@ -1272,10 +1279,10 @@ class OrderManager:
         )
         self.orders[order_id] = order_info
         self.strategy_orders[strategy_id].add(order_id)
-        
+
         # 发布订单提交事件
         self.event_bus.publish(Event(EventType.ORDER_SUBMITTED, order_data))
-        
+
         # 转发到CTP网关进行真实下单
         self.event_bus.publish(create_trading_event(
             EventType.GATEWAY_SEND_ORDER,
@@ -1285,14 +1292,15 @@ class OrderManager:
             },
             "OrderManager"
         ))
-        
-        logger.info(f"转发下单请求到CTP网关: {order_id} {order_request.symbol} {order_request.direction.value if order_request.direction else 'UNKNOWN'} {order_request.volume}@{order_request.price}")
-    
+
+        logger.info(
+            f"转发下单请求到CTP网关: {order_id} {order_request.symbol} {order_request.direction.value if order_request.direction else 'UNKNOWN'} {order_request.volume}@{order_request.price}")
+
     def _handle_cancel_order(self, event: Event):
         """处理撤单请求"""
         order_id = event.data["order_id"]
         asyncio.create_task(self.cancel_order(order_id))
-    
+
     def get_strategy_orders(self, strategy_id: str) -> List[Dict[str, Any]]:
         """获取策略的所有订单"""
         order_ids = self.strategy_orders.get(strategy_id, set())
@@ -1313,22 +1321,22 @@ class OrderManager:
             # 通过CTP订单ID找到系统订单ID
             ctp_order_id = order_data.orderid
             system_order_id = self.ctp_to_system_orderid.get(ctp_order_id)
-            
+
             if system_order_id and system_order_id in self.orders:
                 # 更新系统中的订单信息
                 order_info = self.orders[system_order_id]
                 order_info.order_data.status = order_data.status
                 order_info.order_data.traded = order_data.traded
                 order_info.update_time = time.time()
-                
+
                 logger.info(f"订单状态更新: {system_order_id} -> {order_data.status.value}")
-                
+
                 # 转发给策略
                 self.event_bus.publish(Event(EventType.ORDER_UPDATED, order_info.order_data))
             else:
                 # 可能是其他来源的订单，记录日志
                 logger.debug(f"收到未知CTP订单更新: {ctp_order_id}")
-    
+
     def _handle_ctp_trade_update(self, event: Event):
         """处理CTP成交回报"""
         trade_data = event.data
@@ -1336,131 +1344,132 @@ class OrderManager:
             # 通过CTP订单ID找到系统订单ID
             ctp_order_id = trade_data.orderid
             system_order_id = self.ctp_to_system_orderid.get(ctp_order_id)
-            
+
             if system_order_id and system_order_id in self.orders:
                 order_info = self.orders[system_order_id]
-                
+
                 logger.info(f"订单成交: {system_order_id} - {trade_data.volume}@{trade_data.price}")
-                
+
                 # 发布成交事件给AccountManager和策略
                 self.event_bus.publish(Event(EventType.ORDER_FILLED, trade_data))
-                
+
                 # 更新订单状态
                 if order_info.order_data.traded >= order_info.order_data.volume:
                     order_info.order_data.status = Status.ALL_TRADED
                 else:
                     order_info.order_data.status = Status.PART_TRADED
-                
+
                 order_info.update_time = time.time()
-                
+
                 # 通知策略
                 self.event_bus.publish(Event(EventType.ORDER_UPDATED, order_info.order_data))
             else:
                 logger.debug(f"收到未知CTP成交回报: {ctp_order_id}")
-    
+
     def _handle_order_sent_to_ctp(self, event: Event):
         """处理订单已发送到CTP的确认"""
         data = event.data
         ctp_order_id = data.get("order_id")
         order_data = data.get("order_data")
-        
+
         if ctp_order_id and order_data:
             system_order_id = order_data.orderid
-            
+
             # 建立订单ID映射
             self.system_to_ctp_orderid[system_order_id] = ctp_order_id
             self.ctp_to_system_orderid[ctp_order_id] = system_order_id
-            
+
             # 更新订单状态为已提交
             if system_order_id in self.orders:
                 self.orders[system_order_id].order_data.status = Status.SUBMITTING
                 self.orders[system_order_id].update_time = time.time()
-            
+
             logger.info(f"订单已发送到CTP: {system_order_id} -> {ctp_order_id}")
-    
+
     def _handle_order_send_failed(self, event: Event):
         """处理订单发送失败"""
         data = event.data
         order_data = data.get("order_data")
         reason = data.get("reason", "未知原因")
-        
+
         if order_data:
             system_order_id = order_data.orderid
-            
+
             # 更新订单状态为被拒绝
             if system_order_id in self.orders:
                 self.orders[system_order_id].order_data.status = Status.REJECTED
                 self.orders[system_order_id].update_time = time.time()
-                
+
                 # 通知策略
                 self.event_bus.publish(Event(EventType.ORDER_UPDATED, self.orders[system_order_id].order_data))
-            
+
             logger.error(f"订单发送失败: {system_order_id} - {reason}")
 
 
 class AccountManager:
     """账户管理器"""
-    
+
     def __init__(self, event_bus: EventBus, config: ConfigManager):
         self.event_bus = event_bus
         self.config = config
-        
+
         self.accounts: Dict[str, AccountData] = {}
         self.positions: Dict[str, PositionData] = {}
         self.strategy_pnl: Dict[str, float] = defaultdict(float)
-        
+
         # 注册事件处理器
         self.event_bus.subscribe(EventType.ACCOUNT_UPDATED, self._handle_account_update)
         self.event_bus.subscribe(EventType.POSITION_UPDATED, self._handle_position_update)
         self.event_bus.subscribe(EventType.ORDER_FILLED, self._handle_trade_update)
-        
+
         # 添加定期查询任务
         self._last_query_time = 0
         self._query_interval = 30  # 30秒查询一次
-        
+
         # 启动定期查询任务
         asyncio.create_task(self._periodic_query_task())
-    
+
     async def _periodic_query_task(self):
         """定期查询账户和持仓"""
         while True:
             try:
                 await asyncio.sleep(self._query_interval)
                 current_time = time.time()
-                
+
                 if current_time - self._last_query_time >= self._query_interval:
                     # 发布查询请求事件
                     self.event_bus.publish(Event(EventType.GATEWAY_QUERY_ACCOUNT, {}))
                     self.event_bus.publish(Event(EventType.GATEWAY_QUERY_POSITION, {}))
                     self._last_query_time = current_time
-                    
+
             except Exception as e:
                 from src.core.logger import get_logger
                 logger = get_logger("AccountManager")
                 logger.error(f"定期查询任务异常: {e}")
                 await asyncio.sleep(5)  # 异常后等待5秒再继续
-    
+
     def _handle_account_update(self, event: Event):
         """处理账户更新"""
         account_data = event.data
         if isinstance(account_data, AccountData):
             self.accounts[account_data.account_id] = account_data
-            
+
             from src.core.logger import get_logger
             logger = get_logger("AccountManager")
-            logger.info(f"账户更新: {account_data.account_id} 余额={account_data.balance} 可用={account_data.available}")
-    
+            logger.info(
+                f"账户更新: {account_data.account_id} 余额={account_data.balance} 可用={account_data.available}")
+
     def _handle_position_update(self, event: Event):
         """处理持仓更新"""
         position_data = event.data
         if isinstance(position_data, PositionData):
             position_key = f"{position_data.symbol}.{position_data.direction.value}"
             self.positions[position_key] = position_data
-            
+
             from src.core.logger import get_logger
             logger = get_logger("AccountManager")
             logger.info(f"持仓更新: {position_key} 数量={position_data.volume} 均价={position_data.price}")
-    
+
     def _handle_trade_update(self, event: Event):
         """处理成交更新，计算策略盈亏"""
         trade_data = event.data
@@ -1469,17 +1478,18 @@ class AccountManager:
             # 实际应用中需要根据具体的持仓和价格变化计算
             from src.core.logger import get_logger
             logger = get_logger("AccountManager")
-            logger.info(f"成交更新: {trade_data.symbol} {trade_data.direction.value if trade_data.direction else 'UNKNOWN'} {trade_data.volume}@{trade_data.price}")
-    
+            logger.info(
+                f"成交更新: {trade_data.symbol} {trade_data.direction.value if trade_data.direction else 'UNKNOWN'} {trade_data.volume}@{trade_data.price}")
+
     def get_strategy_pnl(self, strategy_id: str) -> float:
         """获取策略盈亏"""
         return self.strategy_pnl.get(strategy_id, 0.0)
-    
+
     def get_total_account_info(self) -> Dict[str, Any]:
         """获取总账户信息"""
         total_balance = sum(acc.balance for acc in self.accounts.values())
         total_frozen = sum(acc.frozen for acc in self.accounts.values())
-        
+
         return {
             "total_balance": total_balance,
             "total_frozen": total_frozen,
@@ -1490,34 +1500,34 @@ class AccountManager:
 
 class TradingEngine:
     """交易引擎核心 - 集成策略、风控、订单管理"""
-    
+
     def __init__(self, event_bus: EventBus, config: ConfigManager):
         self.event_bus = event_bus
         self.config = config
-        
+
         # 初始化各管理器
         self.strategy_manager = StrategyManager(event_bus, config)
         self.risk_manager = RiskManager(event_bus, config)
         self.order_manager = OrderManager(event_bus, config)
         self.account_manager = AccountManager(event_bus, config)
-        
+
         # 引擎状态
         self.is_running = False
         self.start_time: Optional[float] = None
-        
+
         # 初始化性能监控器
         self.performance_monitor = PerformanceMonitor(event_bus, config)
-        
+
         # 设置事件处理器
         self._setup_event_handlers()
-        
+
         logger.info("交易引擎核心初始化完成")
-    
+
     def _setup_event_handlers(self):
         """设置事件处理器链"""
         # 策略信号 -> 风控检查 -> 订单执行
         self.event_bus.subscribe(EventType.STRATEGY_SIGNAL, self._handle_strategy_signal)
-        
+
         # 系统控制事件
         self.event_bus.subscribe("engine.start", self._handle_engine_start)
         self.event_bus.subscribe("engine.stop", self._handle_engine_stop)
@@ -1527,88 +1537,88 @@ class TradingEngine:
         """初始化交易引擎"""
         try:
             logger.info("正在初始化交易引擎...")
-            
+
             # 可以在这里执行一些初始化任务
             # 例如：加载默认策略、连接数据库等
-            
+
             logger.info("交易引擎初始化完成")
             return True
         except Exception as e:
             logger.error(f"交易引擎初始化失败: {e}")
             return False
-    
+
     async def start(self):
         """启动交易引擎"""
         if self.is_running:
             logger.warning("交易引擎已在运行")
             return
-        
+
         self.is_running = True
         self.start_time = time.time()
-        
+
         # 启动性能监控
         self.performance_monitor.start_monitoring()
-        
+
         logger.info("交易引擎已启动")
-        
+
         # 发布引擎启动事件
         self.event_bus.publish(create_trading_event(
             EventType.ENGINE_STARTED,
             {"start_time": self.start_time},
             "TradingEngine"
         ))
-    
+
     async def stop(self):
         """停止交易引擎"""
         if not self.is_running:
             logger.warning("交易引擎未在运行")
             return
-        
+
         # 停止所有策略
         for strategy_uuid in list(self.strategy_manager.strategies.keys()):
             await self.strategy_manager.stop_strategy(strategy_uuid)
-        
+
         # 停止性能监控
         self.performance_monitor.stop_monitoring()
-        
+
         self.is_running = False
-        
+
         logger.info("交易引擎已停止")
-        
+
         # 发布引擎停止事件
         self.event_bus.publish(create_trading_event(
             EventType.ENGINE_STOPPED,
             {"stop_time": time.time()},
             "TradingEngine"
         ))
-    
+
     def _handle_strategy_signal(self, event: Event):
         """处理策略信号"""
         data = event.data
         action = data.get("action")
         strategy_id = data.get("strategy_id", "unknown")
-        
+
         # 记录订单处理开始时间（用于延迟计算）
         process_start_time = time.time()
-        
+
         if action == "place_order":
             # 策略请求下单 -> 风控检查
             order_request = data["order_request"]
-            
+
             # 记录订单下达事件
             self.event_bus.publish(Event(EventType.STRATEGY_ORDER_PLACED, {
                 "strategy_id": strategy_id,
                 "order_request": order_request.__dict__ if hasattr(order_request, '__dict__') else str(order_request),
                 "timestamp": process_start_time
             }))
-            
+
             # 发布风控检查事件
             self.event_bus.publish(create_trading_event(
                 EventType.RISK_CHECK,
                 {"order_request": order_request, "strategy_id": strategy_id},
                 "TradingEngine"
             ))
-        
+
         elif action == "cancel_order":
             # 策略请求撤单
             order_id = data["order_id"]
@@ -1617,15 +1627,15 @@ class TradingEngine:
                 {"order_id": order_id},
                 "TradingEngine"
             ))
-    
+
     def _handle_engine_start(self):
         """处理引擎启动请求"""
         asyncio.create_task(self.start())
-    
+
     def _handle_engine_stop(self):
         """处理引擎停止请求"""
         asyncio.create_task(self.stop())
-    
+
     def get_engine_status(self) -> Dict[str, Any]:
         """获取引擎状态"""
         base_status = {
@@ -1633,8 +1643,8 @@ class TradingEngine:
             "start_time": self.start_time,
             "strategies": self.strategy_manager.get_all_strategies(),
             "account_info": self.account_manager.get_total_account_info()
-        } 
-        
+        }
+
         # 集成性能监控数据
         if self.performance_monitor:
             base_status["performance"] = {
@@ -1644,15 +1654,15 @@ class TradingEngine:
                     for strategy_id in self.strategy_manager.strategies.keys()
                 }
             }
-        
+
         return base_status
-    
+
     def get_performance_metrics(self, strategy_id: str) -> Dict[str, Any]:
         """获取特定策略的性能指标"""
         if self.performance_monitor:
             return self.performance_monitor.get_performance_summary(strategy_id)
         return {}
-    
+
     def get_system_performance(self) -> Dict[str, Any]:
         """获取系统性能指标"""
         if self.performance_monitor:
