@@ -30,7 +30,7 @@ from src.config.config_manager import ConfigManager
 from src.core.event import Event, create_trading_event
 from src.core.event_bus import EventBus
 from src.core.logger import get_logger
-from src.strategies.base_strategy import BaseStrategy
+from src.strategy.base_strategy import BaseStrategy
 from src.trade.trading_engine import TradingEngine
 
 logger = get_logger("WebServer")
@@ -638,3 +638,19 @@ class WebServer:
             port=actual_port,
             log_level="info" if not debug else "debug"
         )
+
+# Web页面由start_homalos.py启动
+# if __name__ == "__main__":
+#     # 创建简单的配置管理器用于演示
+#     from src.config.config_manager import ConfigManager
+#     from src.core.event_bus import EventBus
+#     from src.trade.trading_engine import TradingEngine
+#
+#     # 初始化组件
+#     config = ConfigManager("config/system.yaml")
+#     event_bus = EventBus()
+#     trading_engine = TradingEngine(event_bus, config)
+#
+#     # 创建并启动Web服务器
+#     web_server = WebServer(trading_engine, event_bus, config)
+#     web_server.run_sync()

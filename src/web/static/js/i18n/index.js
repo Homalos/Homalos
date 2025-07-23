@@ -143,6 +143,11 @@ const messages = {
             initializingSystem: '正在初始化系统...',
             appInitialized: '应用初始化完成',
             appInitFailed: '应用初始化失败'
+        },
+        
+        // 版权信息
+        footer: {
+            copyright: '© 2025 Homalos量化交易系统'
         }
     },
     
@@ -286,6 +291,11 @@ const messages = {
             initializingSystem: 'Initializing system...',
             appInitialized: 'Application initialized',
             appInitFailed: 'Application initialization failed'
+        },
+        
+        // Footer
+        footer: {
+            copyright: '© 2025 Homalos Quantitative Trading System'
         }
     }
 }

@@ -33,6 +33,13 @@ const MainApp = {
             
             <!-- 策略加载对话框 -->
             <strategy-dialog-component></strategy-dialog-component>
+            
+            <!-- 版权声明 -->
+            <footer class="footer">
+                <div class="footer-content">
+                    <p class="copyright">{{ t('footer.copyright') }}</p>
+                </div>
+            </footer>
         </div>
     `,
     

@@ -130,6 +130,28 @@ body {
     }
 }
 
+/* 版权声明样式 */
+.footer {
+    background: #f8f9fa;
+    border-top: 1px solid var(--border-color);
+    margin-top: 2rem;
+    padding: 1rem 0;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
+    padding: 0 1rem;
+}
+
+.copyright {
+    margin: 0;
+    color: var(--info-color);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
 /* 工具类 */
 .text-center {
     text-align: center;
