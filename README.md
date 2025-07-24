@@ -19,7 +19,7 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
 
 <p align="center">
   English |
-  <a href="README_CN.md">简体中文</a>
+  <a href="i18n/README_CN.md">简体中文</a>
 </p>
 
 ## Overview

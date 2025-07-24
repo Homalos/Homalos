@@ -1,5 +1,5 @@
 <div align="center">
-  <a href="https://homalos.github.io" target="blank"><img alt="Homalos Logo" src="assets/logo.svg"/></a>
+  <a href="https://homalos.github.io" target="blank"><img alt="Homalos Logo" src="../assets/logo.svg"/></a>
 </div>
 <p>&nbsp;</p>
 
@@ -19,7 +19,7 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
 
 <p align="center">
   简体中文 |
-  <a href="README.md">English</a>
+  <a href="../README.md">English</a>
 </p>
 
 ## 概述
@@ -41,7 +41,7 @@ Homalos 目标是一个可投入生产的量化交易系统，具有以下主要
 
 ## Web 管理界面展示
 
-![homalos_dashboard](assets/homalos_dashboard_cn.png)
+![homalos_dashboard](../assets/homalos_dashboard_cn.png)
 
 ## 系统特色
 

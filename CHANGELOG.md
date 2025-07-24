@@ -1,508 +1,524 @@
-# 更新历史
+# Update History
 
 ## v0.0.1.202507231609
 
-### ✅ Web界面版权声明功能实现
+### ✅ Web interface copyright statement function implementation
 
-**核心功能实现**:
+**Core function implementation**:
 
-- ✅ **版权声明组件**: 在Web界面底部添加了完整的版权声明信息，包含版权年份和保留权利声明
-- ✅ **国际化支持**: 版权声明支持中英文双语显示，与系统语言设置同步切换
-- ✅ **响应式设计**: 版权声明在不同屏幕尺寸下都能正确显示，采用居中对齐的美观布局
-- ✅ **样式优化**: 使用半透明背景和适当的字体大小，与系统整体风格保持一致
+- ✅ **Copyright statement component**: Added complete copyright statement information at the bottom of the web interface, including copyright year and reserved rights statement
 
-**技术实现**:
+- ✅ **Internationalization support**: Copyright statement supports bilingual display in Chinese and English, and switches synchronously with system language settings
+- ✅ **Responsive design**: Copyright statement can be displayed correctly on different screen sizes, using a beautiful layout with center alignment
+- ✅ **Style optimization**: Use translucent background and appropriate font size to keep consistent with the overall style of the system
+
+**Technical implementation**:
 
 ```reStructuredText
-// 版权声明组件实现
-- 基于Vue 3 Composition API的响应式组件
-- 集成i18n国际化系统，支持动态语言切换
-- 使用CSS Grid布局实现底部固定定位
-- 采用半透明背景确保视觉层次清晰
+// Copyright statement component implementation
+- Responsive component based on Vue 3 Composition API
+- Integrated i18n internationalization system, support dynamic language switching
+- Use CSS Grid layout to achieve bottom fixed positioning
+- Use translucent background to ensure clear visual hierarchy
 ```
 
-**修改文件**:
+**Modified files**:
 
-- ✅ **index.js**: 添加版权声明相关的中英文翻译文本
-- ✅ **app.js**: 在主应用组件中集成CopyrightFooter组件
-- ✅ **app.css**: 为版权声明添加专用样式，包括背景、字体和布局设置
+- ✅ **index.js**: Add Chinese and English translation texts related to copyright statement
+- ✅ **app.js**: Integrate CopyrightFooter component in the main application component
+- ✅ **app.css**: Add special styles for copyright statement, including background, font and layout settings
 
-**功能特点**:
+**Features**:
 
-- 📄 **完整版权信息**: 显示"© 2025 Homalos量化交易系统. 保留所有权利."
-- 🌐 **双语支持**: 中文显示"保留所有权利"，英文显示"All rights reserved"
-- 🎨 **美观设计**: 半透明背景(rgba(0,0,0,0.1))，与系统主题协调
-- 📱 **响应式布局**: 在各种设备上都能正确显示
-- ⚡ **轻量实现**: 不影响系统性能，加载速度快
+- 📄 **Complete copyright information**: Display "© 2025 Homalos Quantitative Trading System. All rights reserved."
+- 🌐 **Bilingual support**: Display "All rights reserved" in Chinese and "All rights reserved" in English
+- 🎨 **Beautiful design**: Translucent background (rgba(0,0,0,0.1)), coordinated with the system theme
+- 📱 **Responsive layout**: Displays correctly on various devices
+- ⚡ **Lightweight implementation**: Does not affect system performance and loads quickly
 
-**验证结果**:
+**Verification results**:
 
-- ✅ 版权声明正确显示在Web界面底部
-- ✅ 中英文切换功能正常工作
-- ✅ 在不同浏览器和屏幕尺寸下显示正常
-- ✅ 与现有界面元素无冲突
-- ✅ 系统启动和运行完全正常
+- ✅ Copyright statement is correctly displayed at the bottom of the web interface
+- ✅ Chinese and English switching function works normally
+- ✅ Displays normally in different browsers and screen sizes
+- ✅ No conflict with existing interface elements
+- ✅ System startup and operation are completely normal
 
 ---
 
 ## v0.0.1.202507221030
 
-### ✅ 数据中心Ctrl+C退出功能修复
+### ✅ Data center Ctrl+C exit function repair
 
-**核心问题解决**:
+**Core problem solved**:
 
-- ✅ **Windows下信号处理修复**: 解决了数据中心在Windows环境下无法通过Ctrl+C正常退出的问题
-- ✅ **事件循环冲突修复**: 修复了信号处理器中异步任务调用导致的事件循环冲突错误
-- ✅ **优雅关闭流程完善**: 确保数据中心各组件（数据库、监控线程、网关等）按序正确关闭
-- ✅ **信号处理器优化**: 重构信号处理逻辑，使用`loop.create_task()`在当前事件循环中安排关闭任务
+- ✅ **Signal processing repair under Windows**: Solved the problem that the data center could not exit normally through Ctrl+C under Windows environment
+- ✅ **Event loop conflict repair**: Fixed the event loop conflict error caused by asynchronous task call in signal processor
+- ✅ **Elegant shutdown process improvement**: Ensure that all components of the data center (database, monitoring thread, gateway, etc.) are closed in order
+- ✅ **Signal processor optimization**: Reconstruct the signal processing logic and use `loop.create_task()` to schedule the shutdown task in the current event loop
 
-**技术实现**:
+**Technical implementation**:
 
 ```python
-# 修复前的问题
+# Problems before repair
 Cannot run the event loop while another loop is running
 RuntimeWarning: coroutine 'DataCenterApplication.shutdown' was never awaited
 
-# 修复后的解决方案
-- 使用 loop.create_task() 在当前事件循环中安排关闭任务
-- 避免创建新事件循环导致的冲突
-- 正确处理异步关闭流程
+# Solution after fix
+- Use loop.create_task() to schedule shutdown tasks in the current event loop
+- Avoid conflicts caused by creating new event loops
+- Correctly handle asynchronous shutdown processes
 ```
 
-**修复内容**:
+**Fixed content**:
 
-- ✅ **信号处理器重构**: 在 start_data_center.py 中优化了 `signal_handler` 函数
-- ✅ **事件循环管理**: 使用 `asyncio.get_running_loop()` 获取当前事件循环，避免创建新循环
-- ✅ **异步任务调度**: 通过 `loop.create_task(app.shutdown())` 正确安排关闭任务
-- ✅ **错误处理增强**: 添加了对没有运行事件循环情况的处理
+- ✅ **Signal handler refactoring**: Optimized `signal_handler` function in start_data_center.py
+- ✅ **Event loop management**: Use `asyncio.get_running_loop()` to get the current event loop to avoid creating a new loop
+- ✅ **Asynchronous task scheduling**: Correctly schedule shutdown tasks through `loop.create_task(app.shutdown())`
+- ✅ **Error handling enhancement**: Added handling for the case where the event loop is not running
 
-**验证结果**:
+**Verification results**:
 
-- ✅ Ctrl+C信号正确接收（SIGINT信号2）
-- ✅ 数据中心各组件按序关闭：
-  - 数据库写入线程停止
-  - 监控线程停止
-  - 网关连接断开
-  - 事件总线停止
-- ✅ 显示完整关闭日志："数据中心应用已关闭"
-- ✅ 进程正常退出，无异常错误
-- ✅ 资源正确清理和释放
+- ✅ Ctrl+C signal is received correctly (SIGINT signal 2)
+- ✅ Data center components are shut down in order:
+- Database write thread stops
+- Monitoring thread stops
+- Gateway connection is disconnected
+- Event bus stopped
+- ✅ Show complete shutdown log: "Data center application has been closed"
+- ✅ The process exits normally without abnormal errors
+- ✅ Resources are cleaned up and released correctly
 
-**功能特点**:
+**Features**:
 
-- 🛡️ **安全退出**: 确保所有资源正确释放，避免数据丢失
-- ⚡ **快速响应**: Ctrl+C信号能够立即被识别和处理
-- 📊 **完整日志**: 提供详细的关闭过程日志，便于监控和调试
-- 🔄 **优雅关闭**: 按照正确顺序关闭各个组件，避免资源冲突
-- 🖥️ **跨平台兼容**: 在Windows环境下完美工作
+- 🛡️ **Safe exit**: Ensure that all resources are released correctly to avoid data loss
+- ⚡ **Quick response**: Ctrl+C signals can be recognized and processed immediately
+- 📊 **Complete log**: Provide detailed shutdown process log for easy monitoring and debugging
+- 🔄 **Elegant shutdown**: Close each component in the correct order to avoid resource conflicts
+- 🖥️ **Cross-platform compatibility**: Works perfectly in Windows environment
 
-**技术改进**:
+**Technical improvements**:
 
-- **消除事件循环冲突**: 不再创建新的事件循环，避免运行时错误
-- **提高信号响应性**: 优化信号处理逻辑，确保及时响应用户中断
-- **增强错误处理**: 添加异常捕获和降级处理机制
-- **改善用户体验**: 用户现在可以安全地使用Ctrl+C停止数据中心
+- **Eliminate event loop conflicts**: No longer create new event loops to avoid runtime errors
+- **Improve signal responsiveness**: Optimize signal processing logic to ensure timely response to user interrupts
+- **Enhance error handling**: Add exception capture and downgrade processing mechanism
+- **Improve user experience**: Users can now safely stop the data center using Ctrl+C
 
 ---
 
 ## v0.0.1.202507220100
 
-### ✅ Web界面国际化功能完整实现
+### ✅ Web interface internationalization function is fully implemented
 
-**核心功能实现**:
+**Core function implementation**:
 
-- ✅ **完整国际化架构**: 实现了基于Vue 3的完整国际化解决方案，支持中英文动态切换
-- ✅ **语言切换器组件**: 创建了独立的LanguageSwitcher组件，位于Web界面右上角，提供直观的语言切换功能
-- ✅ **组件国际化改造**: 完成了所有核心组件的国际化改造，包括Dashboard、StrategyTable、StrategyDialog、LogPanel等
-- ✅ **翻译内容覆盖**: 提供了400+条完整的中英文翻译，覆盖系统所有用户界面文本
-- ✅ **界面布局优化**: 重构了头部布局，采用flexbox设计，实现了美观的响应式界面
+- ✅ **Complete internationalization architecture**: Implemented a complete internationalization solution based on Vue 3, supporting dynamic switching between Chinese and English
 
-**技术实现**:
+- ✅ **Language switcher component**: Created an independent LanguageSwitcher component, located in the upper right corner of the Web interface, providing intuitive language switching function
+
+- ✅ **Component internationalization transformation**: Completed the internationalization transformation of all core components, including Dashboard, StrategyTable, StrategyDialog, LogPanel, etc.
+
+- ✅ **Translation content coverage**: Provided 400+ complete Chinese and English translations, covering all user interface texts in the system
+
+- ✅ **Interface layout optimization**: Reconstructed the header layout, using flexbox design to achieve a beautiful responsive interface
+
+**Technical implementation**:
 
 ```javascript
-// 国际化核心架构
-- 基于Vue 3 Composition API的i18n实现
-- 支持参数化翻译和复数形式处理
-- 实现了语言状态的全局管理和持久化
-- 提供了统一的翻译函数接口
+// International core architecture
+- Based on Vue 3 Composition i18n implementation of API
+- Support parameterized translation and plural form processing
+- Global management and persistence of language status
+- Provide a unified translation function interface
 ```
 
-**修复的关键问题**:
+**Key issues fixed**:
 
-- ✅ **标题显示错误修复**: 解决了Web界面左上角显示"app.title"和"app.subtitle"而非实际标题的问题
-- ✅ **组件注册完善**: 修复了LanguageSwitcher组件的注册和集成问题
-- ✅ **样式美化**: 为语言切换器添加了半透明背景和白色文字的美观样式
-- ✅ **脚本引用集成**: 正确集成了i18n模块和语言切换器的脚本引用
+- ✅ **Title display error fix**: Solved the problem that "app.title" and "app.subtitle" were displayed in the upper left corner of the web interface instead of the actual title
+- ✅ **Component registration improvement**: Fixed the registration and integration issues of the LanguageSwitcher component
+- ✅ **Style beautification**: Added beautiful styles with semi-transparent background and white text to the language switcher
+- ✅ **Script reference integration**: Correctly integrated the script reference of the i18n module and the language switcher
 
-**功能特点**:
+**Features**:
 
-- 🌐 **双语支持**: 完整的简体中文和英文界面支持
-- 🔄 **动态切换**: 实时语言切换，无需刷新页面
-- 💾 **状态持久化**: 语言选择自动保存到localStorage
-- 📱 **响应式设计**: 在不同屏幕尺寸下都能正常显示
-- 🎨 **美观界面**: 与系统主题完美融合的设计风格
-- ⚡ **性能优化**: 轻量级实现，不影响系统性能
+- 🌐 **Bilingual support**: Complete simplified Chinese and English interface support
+- 🔄 **Dynamic switching**: Real-time language switching without refreshing the page
+- 💾 **State persistence**: Language selection is automatically saved to localStorage
+- 📱 **Responsive design**: Can be displayed normally on different screen sizes
+- 🎨 **Beautiful interface**: Design style that perfectly integrates with the system theme
+- ⚡ **Performance optimization**: Lightweight implementation, does not affect system performance
 
-**文件结构**:
+**File structure**:
 
 ```reStructuredText
 src/web/static/js/
 ├── i18n/
-│   └── index.js              # 国际化核心模块
+│ └── index.js # Internationalization core module
 ├── components/
-│   ├── LanguageSwitcher.js   # 语言切换器组件
-│   ├── ComponentRegistry.js  # 组件注册表
-│   └── app.js               # 主应用组件
+│ ├── LanguageSwitcher.js # Language switcher component
+│ ├── ComponentRegistry.js # Component registry
+│ └── app.js # Main application component
 └── css/
-    └── app.css              # 样式文件
+└── app.css # Style file
 ```
 
-**验证结果**:
+**Verification result**:
 
-- ✅ Web界面成功显示中文标题"Homalos量化交易系统"
-- ✅ 语言切换器正确显示在右上角位置
-- ✅ 中英文切换功能完全正常
-- ✅ 所有组件文本都能正确国际化显示
-- ✅ 系统启动和运行完全正常
+- ✅ The web interface successfully displays the Chinese title "Homalos Quantitative Trading System"
+- ✅ The language switcher is correctly displayed in the upper right corner
+- ✅ The Chinese and English switching functions are completely normal
+- ✅ All component texts can be correctly displayed in internationalized format
+- ✅ The system starts and runs completely normally
 
 ---
 
-### ✅ JSON序列化修复 (2025-07-14)
+### ✅ JSON serialization fix (2025-07-14)
 
-**核心问题解决**:
+**Core problem solved**:
 
-- ✅ **WebSocket事件推送JSON序列化错误修复**: 解决了`OrderRequest`和`Exchange`对象无法JSON序列化的`TypeError`异常
-- ✅ **事件序列化增强**: 重构`_serialize_event_data`方法，支持复杂数据类型的递归序列化
-- ✅ **枚举类型支持**: 完善对`Exchange`等枚举类型的JSON序列化处理
-- ✅ **dataclass对象支持**: 添加对`OrderRequest`等dataclass对象的序列化支持
-- ✅ **datetime对象支持**: 实现datetime对象的ISO格式字符串转换
-- ✅ **容器类型递归处理**: 支持列表、元组、字典等容器类型的递归序列化
+- ✅ **WebSocket event push JSON serialization error fix**: Solved the `TypeError` exception that `OrderRequest` and `Exchange` objects cannot be JSON serialized
+- ✅ **Event serialization enhancement**: Refactor the `_serialize_event_data` method to support recursive serialization of complex data types
+- ✅ **Enumeration type support**: Improve JSON serialization processing for enumeration types such as `Exchange`
+- ✅ **Dataclass object support**: Add serialization support for dataclass objects such as `OrderRequest`
+- ✅ **Datetime object support**: Implement ISO format string conversion for datetime objects
+- ✅ **Container type recursive processing**: Support recursive serialization of container types such as lists, tuples, dictionaries, etc.
 
-**技术实现**:
+**Technical implementation**:
 
 ```python
-# 修复前的问题
+# Problems before fix
 TypeError: Object of type OrderRequest is not JSON serializable
 TypeError: Object of type Exchange is not JSON serializable
 
-# 修复后的解决方案
-- 枚举类型 → .value 属性值
-- dataclass对象 → asdict() 字典转换
-- datetime对象 → ISO格式字符串
-- 容器类型 → 递归序列化处理
+# Solution after repair
+- Enumeration type → .value attribute value
+- Dataclass object → asdict() dictionary conversion
+- Datetime object → ISO format string
+- Container type → recursive serialization processing
 ```
 
-**验证结果**:
+**Verification results**:
 
-- ✅ 系统启动正常，无JSON序列化错误
-- ✅ WebSocket事件推送100%成功率
-- ✅ 策略操作实时日志反馈正常
-- ✅ 风险事件推送正常工作
-- ✅ API请求响应正常(200 OK)
+- ✅ System startup is normal, no JSON serialization error
+- ✅ WebSocket event push 100% success rate
+- ✅ Strategy operation real-time log feedback is normal
+- ✅ Risk event push is normal
+- ✅ API request response is normal (200 OK)
 
 ---
 
 ## v0.0.1.202507181030
 
-### ✅ 数据中心表缓存机制修复
+### ✅ Data center table cache mechanism repair
 
-**核心问题解决**:
+**Core problem solved**:
 
-- ✅ **数据中心'no such table'错误修复**: 解决了`_flush_contract_batch`方法中bar数据批量写入失败的表不存在错误
-- ✅ **表缓存机制优化**: 修复了表缓存键不区分数据类型导致的竞态条件问题
-- ✅ **参数匹配修复**: 解决了`_create_contract_table`和`_get_table_name`方法调用时缺少`data_type`参数的问题
-- ✅ **数据库隔离增强**: 确保tick和bar数据库的表创建状态独立跟踪
+- ✅ **Data center 'no such table' error repair**: Solved the table does not exist error in the `_flush_contract_batch` method where bar data batch write failed
+- ✅ **Table cache mechanism optimization**: Fixed the race condition problem caused by the table cache key not distinguishing data types
+- ✅ **Parameter matching fix**: Solved the problem of missing `data_type` parameter when calling `_create_contract_table` and `_get_table_name` methods
+- ✅ **Database isolation enhancement**: Ensure independent tracking of table creation status for tick and bar databases
 
-**技术实现**:
+**Technical implementation**:
 
 ```python
-# 修复前的问题
+# Problem before fix
 no such table: ss2604
 no such table: jd2602
-# 表缓存键: (date_str, table_name)
+# Table cache key: (date_str, table_name)
 
-# 修复后的解决方案
-# 表缓存键: (data_type, date_str, table_name)
-- tick数据库和bar数据库表创建状态独立管理
-- 消除不同数据库间的缓存冲突
-- 避免多线程环境下的竞态条件
+# Solution after fix
+# Table cache key: (data_type, date_str, table_name)
+- Independent management of table creation status for tick and bar databases
+- Eliminate cache conflicts between different databases
+- Avoid race conditions in multi-threaded environments
 ```
 
-**修复内容**:
+**Fixed content**:
 
-- ✅ **表缓存键格式更新**: 从`(date_str, table_name)`改为`(data_type, date_str, table_name)`
-- ✅ **方法参数修正**: 为`_create_contract_table`和`_get_table_name`调用添加缺失的`data_type`参数
-- ✅ **并发安全增强**: 解决了多线程环境下的表创建竞态条件
-- ✅ **数据库隔离**: tick和bar数据现在在各自数据库中独立创建和管理表
+- ✅ **Table cache key format update**: Changed from `(date_str, table_name)` to `(data_type, date_str, table_name)`
+- ✅ **Method parameter correction**: Add missing `data_type` parameter to `_create_contract_table` and `_get_table_name` calls
+- ✅ **Concurrency safety enhancement**: Solved table creation race condition in multi-threaded environment
+- ✅ **Database isolation**: Tick and bar data now create and manage tables independently in their own databases
 
-**验证结果**:
+**Verification results**:
 
-- ✅ 数据中心成功启动并订阅935个合约
-- ✅ 正常处理tick数据（已处理8000+个tick）
-- ✅ 完全消除"no such table"错误
-- ✅ tick和bar数据都能正常写入各自的数据库
-- ✅ 系统稳定运行，无表创建相关错误
+- ✅ Data center successfully started and subscribed to 935 contracts
+- ✅ Tick data is processed normally (8000+ ticks have been processed)
+- ✅ "no such table" error is completely eliminated
+- ✅ Tick and bar data can be written to their own databases normally
+- ✅ System runs stably without table creation related errors
 
-**技术改进**:
+**Technical improvements**:
 
-- **消除竞态条件**: 不同数据类型的表创建现在完全独立
-- **提高并发安全性**: 避免了多线程环境下的缓存冲突
-- **增强可维护性**: 更清晰的缓存键结构便于调试和扩展
-- **架构优化**: 统一表结构设计，通过`data_type`字段区分tick和bar数据
+- **Eliminate race conditions**: Table creation of different data types is now completely independent
+- **Improve concurrency safety**: Avoid cache conflicts in multi-threaded environment
+- **Enhance maintainability**: Clearer cache key structure for easier debugging and expansion
+- **Architecture optimization**: Unified table structure design, distinguishing tick and bar data through the `data_type` field
 
 ---
 
 ## v0.0.1.202507111312
 
-### ✅ 主要修复成果
+### ✅ Main fixes
 
-1. **✅ 线程安全问题解决**:
-   - 没有再出现`RuntimeError: no running event loop`错误
-   - 成功实现了CTP API回调与Python事件循环的线程安全桥接
+1. **✅ Thread safety issue resolution**:
+- No more `RuntimeError: no running event loop` errors
+- Successfully implemented thread-safe bridging between CTP API callbacks and Python event loops
 
-2. **✅ 枚举类型安全处理**:
-   - 实现了`_safe_get_direction_value`和`_safe_get_status_value`方法
-   - 修复了Exchange枚举的正确使用
+2. **✅ Enumeration type safety processing**:
+- Implemented `_safe_get_direction_value` and `_safe_get_status_value` methods
+- Fixed the correct use of Exchange enumeration
 
-3. **✅ 测试模式配置**:
-   - 成功添加了测试模式配置项
-   - 实现了交易时间检查的测试模式覆盖
+3. **✅ Test mode configuration**:
+- Successfully added test mode configuration items
+- Implemented test mode coverage for transaction time checks
 
-4. **✅ 错误处理增强**:
-   - 改进了测试用例的错误分析
-   - 增强了测试报告的诊断信息
+4. **✅ Error handling enhancement**:
+- Improved error analysis of test cases
+- Enhanced diagnostic information in test reports
 
-### ⚠️ 发现的兼容性问题
+### ⚠️ Compatibility issues found
 
-测试运行中发现了一些方法缺失的问题（如`on_contract`），这是因为简化BaseGateway类时移除了一些原有方法。但这些是次要的兼容性问题，不影响核心功能。
+During the test run, some missing methods were found (such as `on_contract`), because some original methods were removed when simplifying the BaseGateway class. However, these are minor compatibility issues and do not affect the core functionality.
 
-### 📊 实施状态总结
+### 📊 Implementation Status Summary
 
-**阶段1: 核心基础设施修复** - ✅ 100%完成
+**Phase 1: Core Infrastructure Fix** - ✅ 100% Completed
 
-- 线程安全回调处理器已实现
-- MarketDataGateway心跳监控已修复
-- OrderTradingGateway事件发布已优化
+- Thread-safe callback handler implemented
+- MarketDataGateway heartbeat monitoring fixed
+- OrderTradingGateway event publishing optimized
 
-**阶段2: 类型安全增强** - ✅ 100%完成  
+**Phase 2: Type safety enhancement** - ✅ 100% Completed
 
-- 测试代码枚举处理已修复
-- 日志输出安全处理已实现
-- 类型检查和容错机制已添加
+- Test code enumeration processing fixed
+- Log output safety processing implemented
+- Type checking and fault tolerance mechanisms added
 
-**阶段3: 测试环境优化** - ✅ 100%完成
+**Phase 3: Test environment optimization** - ✅ 100% Completed
 
-- 测试模式配置已添加
-- 风控系统测试覆盖已实现
-- 测试报告诊断信息已增强
+- Test mode configuration added
+- Risk control system test coverage implemented
+- Test report diagnostic information enhanced
 
-**阶段4: 集成验证** - ✅ 80%完成
+**Phase 4: Integration verification** - ✅ 80% Completed
 
-- 核心线程安全问题已解决
-- 主要功能验证已通过
-- 需要后续完善兼容性细节
+- Core thread safety issues resolved
+- Major functional verification passed
+- Compatibility details need to be improved later
 
-### 🎉 关键成就
+### 🎉 Key achievements
 
-**解决的核心问题**:
+** Core issues resolved**:
 
-- ✅ **CTP API回调线程安全**: 通过ThreadSafeCallback类彻底解决
-- ✅ **枚举类型访问错误**: 通过安全获取方法完全修复
-- ✅ **测试环境限制**: 通过测试模式配置有效绕过
+- ✅ ** CTP API callback thread safety**: Completely solved through ThreadSafeCallback class
+- ✅ **Enumeration type access error**: Completely fixed through safe acquisition method
+- ✅ **Test environment restriction**: Effectively bypassed through test mode configuration
 
-**技术架构改进**:
+**Technical architecture improvement**:
 
-- ✅ 建立了线程安全的CTP回调桥接机制
-- ✅ 实现了类型安全的枚举处理框架
-- ✅ 创建了灵活的测试环境配置系统
+- ✅ Established a thread-safe CTP callback bridge mechanism
+- ✅ Implemented a type-safe enumeration processing framework
+- ✅ Created a flexible test environment configuration system
 
 ---
 
 ## v0.0.1.202507111252
 
-### ✅ 已完成实施项目
+### ✅ Completed implementation projects
 
-1.移除模拟成交逻辑
+1. Removed simulated transaction logic
 
-- ✅ 删除了OrderManager中的`_mock_trade_fill`方法
-- ✅ 修改了`_handle_order_request`直接转发到CTP网关
-- ✅ 建立了真实的订单执行路径
+- ✅ Deleted the `_mock_trade_fill` method in OrderManager
 
-2.完善CTP网关事件发布
+- ✅ Modified `_handle_order_request` to forward directly to CTP gateway
 
-- ✅ 添加了`gateway.send_order`事件处理
-- ✅ 完善了订单发送确认和失败事件发布
-- ✅ 验证了BaseGateway的事件发布机制正常工作
+- ✅ Established a real order execution path
 
-3.建立真实订单执行链路**
+2. Improved CTP gateway event publishing
 
-- ✅ 建立了系统订单ID和CTP订单ID的映射机制
-- ✅ 完善了OrderManager对CTP回报事件的处理
-- ✅ 实现了完整的订单生命周期管理
+- ✅ Added `gateway.send_order` event processing
 
-4.完善账户持仓实时同步**
+- ✅ Improved order sending confirmation and failure event publishing
+- ✅ Verified that BaseGateway's event publishing mechanism works properly
 
-- ✅ 添加了定期查询任务（30秒间隔）
-- ✅ 完善了AccountManager的账户和持仓更新处理
-- ✅ 建立了CTP网关查询事件处理机制
+3. Established a real order execution link**
 
-5.优化策略交易接口
+- ✅ Established a mapping mechanism between system order ID and CTP order ID
+- ✅ Improved OrderManager's processing of CTP return events
+- ✅ Implemented complete order life cycle management
 
-- ✅ 改进了BaseStrategy的订单跟踪机制
-- ✅ 完善了策略订单和成交事件处理
-- ✅ 建立了正确的订单归属判断逻辑
+4. Improved real-time synchronization of account positions**
 
-6.加强风控和异常处理
+- ✅ Added regular query tasks (30 seconds interval)
+- ✅ Improved the account and position update processing of AccountManager
+- ✅ Established the CTP gateway query event processing mechanism
 
-- ✅ 实现了实盘级别的风控规则
-- ✅ 添加了交易时间检查、订单价值限制、价格合理性检查
-- ✅ 建立了异常监控和策略错误统计机制
-- ✅ 实现了实时风控监控任务
+5. Optimized the strategy trading interface
 
-7.集成测试和验证
+- ✅ Improved the order tracking mechanism of BaseStrategy
+- ✅ Improved the strategy order and transaction event processing
+- ✅ Established the correct order attribution judgment logic
 
-- ✅ 创建了完整的CTP实盘级别集成测试脚本
-- ✅ 包含订单执行链路、风控系统、账户同步测试
-- ✅ 建立了详细的测试报告和监控机制
+6. Strengthened risk control and exception handling
 
-### 技术成果
+- ✅ Implemented the risk control rules at the real level
+- ✅ Added transaction time check, order value limit, price rationality check
+- ✅ Established anomaly monitoring and strategy error statistics mechanism
+- ✅ Implemented real-time risk control monitoring tasks
 
-**完整的实盘交易链路：**
+7. Integration testing and verification
+
+- ✅ Created a complete CTP real-level integration test script
+- ✅ Including order execution link, risk control system, account synchronization test
+- ✅ Established a detailed test report and monitoring mechanism
+
+### Technical achievements
+
+**Complete real-time trading link:**
 
 ```reStructuredText
-策略信号 → 风控检查 → OrderManager → CTP网关 → SimNow撮合 → 真实成交回报 → 持仓更新
+Strategy signal → Risk control check → OrderManager → CTP gateway → SimNow matching → Real transaction return → Position update
 ```
 
-**核心改进：**
+**Core improvements:**
 
-- ❌ **移除**: 模拟成交逻辑（`_mock_trade_fill`）
-- ✅ **建立**: 真实CTP订单执行链路
-- ✅ **完善**: 订单ID映射和状态同步
-- ✅ **加强**: 实盘级别风控规则
-- ✅ **优化**: 策略交易接口和事件处理
+- ❌ **Remove**: Mock transaction logic (`_mock_trade_fill`)
 
-**实盘就绪特性：**
+- ✅ **Establish**: Real CTP order execution link
+- ✅ **Improve**: Order ID mapping and status synchronization
+- ✅ **Strengthen**: Real-level risk control rules
+- ✅ **Optimize**: Strategy trading interface and event processing
 
-- 🕐 交易时间检查（9:00-11:30, 13:30-15:00, 21:00-2:30）
-- 💰 订单价值限制和价格合理性检查
-- 📊 账户持仓实时同步（30秒间隔）
-- 🛡️ 多层级风控机制（订单大小、频率、价格偏离）
-- 📈 异常监控和自动错误统计
+**Real-time ready features:**
+
+- 🕐 Trading time check (9:00-11:30, 13:30-15:00, 21:00-2:30)
+- 💰 Order value limit and price rationality check
+- 📊 Real-time synchronization of account positions (30-second intervals)
+- 🛡️ Multi-level risk control mechanism (order size, frequency, price deviation)
+- 📈 Abnormal monitoring and automatic error statistics
 
 ---
 
 ## v0.0.1.202507111125
 
-### ✅ 已完成的实施项目
+### ✅ Completed implementation projects
 
-1. **修复CTP网关配置字段不匹配问题**
-   - 解决了userid/user_id字段兼容性问题
-   - 添加了向后兼容支持
+1. **Fix CTP gateway configuration field mismatch problem**
+- Solved the compatibility problem of userid/user_id fields
+- Added backward compatibility support
 
-2. **调整测试环境监控阈值配置**
-   - 优化了内存和CPU阈值适应开发环境
-   - 调整了告警敏感度
+2. **Adjust the test environment monitoring threshold configuration**
+- Optimized the memory and CPU thresholds to adapt to the development environment
+- Adjusted the alarm sensitivity
 
-3. **修复start.py类型注解错误**
-   - 修复了类型注解问题
-   - 增强了代码质量
+3. **Fixed the start.py type annotation error**
+- Fixed the type annotation problem
+- Enhanced code quality
 
-4. **验证系统基本功能正常**
-   - 确认了Web服务、API接口正常运行
-   - 验证了核心组件功能
+4. **Verify that the basic functions of the system are normal**
+- Confirmed that the Web service and API interface are running normally
+- Verified the core component functions
 
-5. **增强CTP网关连接稳定性**
-   - 实现了智能自动重连机制
-   - 添加了指数退避重连策略
-   - 增强了连接状态监控
+5. **Enhance the connection stability of CTP gateway**
+- Implemented the intelligent automatic reconnection mechanism
+- Added the exponential backoff reconnection strategy
+- Enhanced the connection status monitoring
 
-6. **完善系统监控和告警机制**
-   - 实现了告警抑制机制（5分钟防重复）
-   - 添加了告警升级规则（基于频次）
-   - 增强了多级别告警系统
+6. **Improve the system monitoring and alarm mechanism**
+- Implemented the alarm suppression mechanism (5 minutes anti-repetition)
+- Added alarm upgrade rules (based on frequency)
+- Enhanced the multi-level alarm system
 
-7. **优化系统启动和错误处理**
-   - 重构了分步骤启动流程
-   - 增强了错误处理和恢复机制
-   - 实现了优雅关闭功能
+7. **Optimized system startup and error handling**
+- Refactored the step-by-step startup process
+- Enhanced error handling and recovery mechanism
+- Implemented elegant shutdown function
 
-8. **创建策略开发辅助工具**
-   - 完整的策略开发模板
-   - 详细的开发指南文档（460+行）
-   - 完整的API参考和最佳实践
+8. **Created strategy development auxiliary tools**
+- Complete strategy development templates
+- Detailed development guide documents (460+ lines)
+- Complete API reference and best practices
 
-9. **运行完整的系统测试**
-   - 创建了综合测试框架
-   - 验证了所有核心组件功能
-   - 确认了系统集成测试通过
+9. **Run complete system tests**
+- Created a comprehensive test framework
+- Verified all core component functions
+- Confirmed that the system integration test passed
 
-10. **项目完成状态总结和文档更新**
-    - 创建了完整的项目完成总结文档
-    - 更新了系统状态和后续规划
-    - 提供了部署指导
+10. **Project completion status summary and document update**
+- Created a complete project completion summary document
+- Updated system status and subsequent planning
+- Provided deployment guidance
 
 ---
 
 ## v0.0.1.202507081831
 
-我已经成功完成了Homalos量化交易系统的核心重构工作，按照设计文档的MVP架构要求实现了以下组件：
+I have successfully completed the core reconstruction of the Homalos quantitative trading system, and implemented the following components according to the MVP architecture requirements of the design document:
 
-### ✅ 已完成的实施项目
+### ✅ Completed implementation projects
 
-1. **事件系统优化** - 添加了事件优先级支持和便利函数
-2. **配置管理器** - 实现了统一配置管理和热重载功能  
-3. **系统配置模板** - 创建了完整的YAML配置文件
-4. **TradingEngine核心** - 集成了策略管理器、风控管理器、订单管理器和账户管理器
-5. **DataService重构** - 统一的数据服务，集成行情接收、存储和查询
-6. **Web管理界面** - FastAPI后端 + Vue前端的完整Web界面
-7. **main.py重写** - 新的系统启动流程，支持MVP架构
-8. **策略基类更新** - 适配新架构的BaseStrategy类
-9. **示例策略** - 移动平均和网格交易策略示例
+1. **Event system optimization** - added event priority support and convenience functions
+2. **Configuration manager** - implemented unified configuration management and hot reload functions
+3. **System configuration template** - created a complete YAML configuration file
+4. **TradingEngine core** - integrated strategy manager, risk control manager, order manager and account manager
+5. **DataService refactoring** - unified data service, integrated market reception, storage and query
+6. **Web management interface** - FastAPI backend + Vue front-end complete web interface
+7. **main.py rewrite** - new system startup process, support MVP architecture
+8. **Strategy base class update** - BaseStrategy class adapted to the new architecture
+9. **Sample strategy** - moving average and grid trading strategy examples
 
-### 🔧 技术改进要点
+### 🔧 Technical improvement points
 
-- **架构简化**: 从复杂微服务简化为模块化单体架构
-- **事件驱动**: 完整的事件总线机制支持优先级处理
-- **风控集成**: 内置风控管理器与订单流程自动集成
-- **数据管理**: SQLite数据库 + 批量写入优化
-- **Web界面**: 实时监控 + WebSocket推送
-- **策略框架**: 事件驱动的策略基类，支持生命周期管理
+- **Architecture simplification**: simplified from complex microservices to modular monolithic architecture
+- **Event-driven**: complete event bus mechanism supports priority processing
+- **Risk control integration**: built-in risk control manager is automatically integrated with order process
+- **Data management**: SQLite database + batch write optimization
+- **Web interface**: real-time monitoring + WebSocket push
+- **Strategy framework**: event-driven strategy base class, support lifecycle management
 
-### 📁 新增的核心文件
+### 📁 New core files
 
 ```reStructuredText
 src/
 ├── core/
-│   ├── config_manager.py      # 配置管理器  
-│   └── trading_engine.py      # 交易引擎核心
+│ ├── config_manager.py # Configuration manager
+│ └── trading_engine.py # Trading engine core
 ├── services/
-│   └── data_service.py        # 统一数据服务
+│ └── data_service.py # Unified data service
 ├── web/
-│   ├── __init__.py
-│   └── web_server.py          # Web服务器
+│ ├── __init__.py
+│ └── web_server.py # Web server
 └── strategies/
-    ├── base_strategy.py       # 更新的策略基类
-    └── example_strategy_v2.py # 示例策略
+├── base_strategy.py # Updated strategy base class
+└── example_strategy_v2.py # Example strategy
 
 config/
-└── system.yaml               # 系统配置文件
+└── system.yaml # System configuration file
 
-main.py                       # 重写的启动程序
+main.py # Rewritten startup program
 ```
 
-### 🎯 系统效果
+### 🎯 System effect
 
-- **开发效率**: 架构复杂度降低约60%，开发周期从6-12个月缩短到4-6周
-- **性能优化**: 模块化单体避免过度服务间通信开销
-- **易于维护**: 集中式部署，调试和运维更简单  
-- **渐进演进**: 保留目标架构设计，支持未来微服务化
+- **Development efficiency**: The architecture complexity is reduced by about 60%, and the development cycle is shortened from 6-12 months to 4-6 weeks
 
-现在系统已经具备了MVP架构的所有核心功能，可以启动运行并通过Web界面进行管理。用户可以：
+- **Performance optimization**: Modular monomers avoid excessive communication overhead between services
 
-1. 通过 `python main.py` 启动系统
-2. 访问 `http://localhost:8000` 查看Web管理界面
-3. 加载和管理策略
-4. 实时监控系统状态
-5. 查看交易数据和统计信息
+- **Easy to maintain**: Centralized deployment, debugging and operation are simpler
 
-整个重构工作严格按照设计文档的MVP架构要求实施，既保证了快速交付，又为未来扩展留有充分空间。
+- **Gradual evolution**: Keep the target architecture design and support future microservices
+
+The system now has all the core functions of the MVP architecture and can be started and managed through the Web interface. Users can:
+
+1. Start the system through `python main.py`
+
+2. Visit `http://localhost:8000` to view the Web management interface
+
+3. Load and manage strategies
+
+4. Real-time monitoring of system status
+
+5. View transaction data and statistics
+
+The entire reconstruction work is strictly implemented in accordance with the MVP architecture requirements of the design document, which not only ensures fast delivery, but also leaves ample room for future expansion.
