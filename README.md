@@ -1,6 +1,7 @@
 <div align="center">
   <a href="https://homalos.github.io" target="blank"><img alt="Homalos Logo" src="assets/logo.svg"/></a>
 </div>
+<p>&nbsp;</p>
 
 <p align="center">
   <font size="5px">✨ Python-based Futures Quantitative Trading System ✨</font>

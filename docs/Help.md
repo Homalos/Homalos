@@ -59,6 +59,7 @@ Invoke-WebRequest -Uri "http://localhost:8001/api/v1/strategies/98bccd20-61a0-47
 Invoke-WebRequest -Uri "http://localhost:8001/api/v1/strategies" -Method GET 
 
 ```bash
+git rm --cached -r .vercel
 git rm --cached logs/debug.log
 git commit -m "Stop tracking debug.log"
 ```
