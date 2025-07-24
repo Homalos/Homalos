@@ -1,7 +1,7 @@
-# 报告安全问题
+# Reporting Security Issues
 
-Homalos 团队和社区非常重视 Homalos 中的安全漏洞。我们感谢您以负责任的方式披露发现，并将竭尽全力感谢您的贡献。
+The Homalos team and community take security bugs in Homalos seriously. We appreciate your efforts to responsibly disclose your findings, and will make every effort to acknowledge your contributions.
 
-如需报告安全问题，请发送电子邮件至 [donnymoving@gmail.com](mailto:donnymoving@gmail.com)，并在邮件主题中注明“安全”。
+To report a security issue, email [donnymoving@gmail.com](mailto:donnymoving@gmail.com) and include the word "SECURITY" in the subject line.
 
-Homalos 团队将评估您的报告，并向您发送回复，告知后续处理步骤。在对您的报告进行初步回复后，如果需要修复，我们将随时向您通报进度，并可能要求您提供更多信息。
+The Homalos team will evaluate your report and send you a response indicating the next steps in handling your report. After the initial reply to your report, we will keep you informed of the progress if a fix is necessary, and may ask for additional information.
