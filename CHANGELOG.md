@@ -1,7 +1,58 @@
 # Update History
+## v0.0.1.202507251513
+### ✅ Language Menu Font Color Enhancement
+
+**Core improvement**:
+
+- ✅ **Enhanced language menu visibility**: Improved language switcher font color to pure white for better visibility against blue gradient background
+- ✅ **Consistent button styling**: Applied white color styling to all language button elements including icons and text
+- ✅ **Improved user experience**: Enhanced visual clarity of language menu in header navigation
+
+**Technical implementation**:
+
+```css
+// Language button color enhancement
+- Applied !important white color to language button and all child elements
+- Added hover and focus states with consistent white color
+- Enhanced visibility with rgba background on hover
+- Ensured all icons and text maintain white color
+```
+
+**Updated files**:
+
+- ✅ **app.css**: Added comprehensive white color styling for language switcher button and all child elements
+
+**Style improvements**:
+
+- ✅ **Button text color**: Set language button text to pure white with !important priority
+- ✅ **Icon color**: Ensured all icons (language icon, dropdown arrow) display in white
+- ✅ **Hover effects**: Maintained white color during hover and focus states
+- ✅ **Background consistency**: Added subtle white background on hover for better interaction feedback
+
+**Features**:
+
+- 🎨 **Enhanced visibility**: Language menu now clearly visible against blue gradient background
+- 🔄 **Consistent styling**: All language switcher elements maintain uniform white color
+- 📱 **Better accessibility**: Improved contrast for better readability
+- ⚡ **Smooth interactions**: Hover and focus states provide clear visual feedback
+
+**Verification results**:
+
+- ✅ Language switcher button text now displays in clear white color
+- ✅ All icons and dropdown elements maintain consistent white styling
+- ✅ Hover and focus states work properly with white color maintained
+- ✅ Enhanced visual contrast against blue gradient header background
+
+**Technical improvements**:
+
+- **Better user experience**: Clear language menu visibility reduces user confusion
+- **Enhanced accessibility**: Improved color contrast meets accessibility standards
+- **Consistent design**: Language menu styling aligns with overall header design
+- **Future-proof styling**: !important declarations ensure color consistency across updates
+
+---
 
 ## v0.0.1.202507251512
-
 ### ✅ Menu Style Unification and Favicon Consistency
 
 **Core function implementation**:
@@ -29,7 +80,7 @@
 
 **Style improvements**:
 
-- ✅ **Header background**: Applied gradient background (linear-gradient(135deg, #667eea 0%, #764ba2 100%)) to main interface
+- ✅ **Header background**: Applied gradient background (linear-gradient(135deg, #409EFF 0%, #1890ff 100%)) to main interface
 - ✅ **Enhanced shadows**: Added consistent box-shadow effects across all page headers
 - ✅ **Menu button styling**: Unified nav-item styling with white text, padding, border-radius, and hover effects
 - ✅ **Navigation structure**: Standardized menu structure using header-nav, nav-menu, and nav-item classes

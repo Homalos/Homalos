@@ -18,7 +18,7 @@ body {
 
 /* 主要布局 */
 .header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #409EFF 0%, #1890ff 100%);
     color: white;
     padding: 1rem 0;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
@@ -117,6 +117,33 @@ body {
 
 .language-switcher .el-select__caret {
     color: white;
+}
+
+/* 语言按钮样式 */
+.language-switcher .language-button {
+    color: white !important;
+    border: none !important;
+    background: transparent !important;
+    padding: 0.5rem 1rem !important;
+}
+
+.language-switcher .language-button:hover {
+    color: white !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.language-switcher .language-button:focus {
+    color: white !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.language-switcher .language-icon,
+.language-switcher .language-text {
+    color: white !important;
+}
+
+.language-switcher .el-icon {
+    color: white !important;
 }
 
 .container {
