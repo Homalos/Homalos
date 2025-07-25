@@ -46,7 +46,7 @@ const MainApp = {
                             <div class="chart-entry-content">
                                 <h3>📈 交易图表</h3>
                                 <p>查看实时K线图表、交易信号和策略绩效</p>
-                                <el-button type="primary" @click="currentPage = 'chart'" size="large">
+                                <el-button type="primary" @click="openChartPage" size="large">
                                     <i class="el-icon-data-line"></i>
                                     打开交易图表
                                 </el-button>
@@ -58,19 +58,7 @@ const MainApp = {
                     <log-panel-component></log-panel-component>
                 </div>
                 
-                <div v-if="currentPage === 'chart'">
-                    <!-- 返回按钮 -->
-                    <div class="page-header">
-                        <el-button @click="currentPage = 'main'" type="text" size="large">
-                            <i class="el-icon-arrow-left"></i>
-                            返回主页
-                        </el-button>
-                        <h2>交易图表</h2>
-                    </div>
-                    
-                    <!-- 交易图表组件 -->
-                    <trading-chart-component></trading-chart-component>
-                </div>
+
             </div>
             
             <!-- 策略加载对话框 -->
@@ -175,9 +163,15 @@ const MainApp = {
             window.wsService.disconnect()
         })
         
+        // 打开图表页面
+        const openChartPage = () => {
+            window.open('/chart.html', '_blank')
+        }
+        
         return {
             state,
             currentPage,
+            openChartPage,
             t
         }
     }

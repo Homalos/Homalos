@@ -153,10 +153,10 @@ const TradingChartComponent = {
         const loading = Vue.ref(false)
         
         // 图表配置
-        const selectedSymbol = Vue.ref('rb2501')
+        const selectedSymbol = Vue.ref('FG509')
         const selectedStrategies = Vue.ref([])
         const selectedTimeframe = Vue.ref('1m')
-        const availableSymbols = Vue.ref(['rb2501', 'hc2501', 'i2501', 'j2501'])
+        const availableSymbols = Vue.ref(['FG509', 'rb2501', 'hc2501', 'i2501', 'j2501', 'fg2501'])
         
         // 数据存储
         const klineData = Vue.ref([])
@@ -215,14 +215,29 @@ const TradingChartComponent = {
                     formatter: function(params) {
                         const data = params[0]
                         if (data && data.data) {
-                            const [time, open, close, low, high, volume] = data.data
+                            // ECharts candlestick数据格式: [open, close, low, high]
+                            const [open, close, low, high] = data.data
+                            const timeIndex = data.dataIndex
+                            const originalData = klineData.value[timeIndex]
+                            
+                            let time, volume
+                            if (Array.isArray(originalData)) {
+                                // API返回格式: [timestamp, open, high, low, close, volume]
+                                time = new Date(originalData[0]).toLocaleString()
+                                volume = originalData[5]
+                            } else {
+                                // 对象格式
+                                time = new Date(originalData.datetime).toLocaleString()
+                                volume = originalData.volume
+                            }
+                            
                             return `
-                                时间: ${new Date(time).toLocaleString()}<br/>
+                                时间: ${time}<br/>
                                 开盘: ${open}<br/>
                                 收盘: ${close}<br/>
                                 最低: ${low}<br/>
                                 最高: ${high}<br/>
-                                成交量: ${volume}
+                                成交量: ${volume || '-'}
                             `
                         }
                         return ''
@@ -320,14 +335,27 @@ const TradingChartComponent = {
         const updateChart = () => {
             if (!chart.value) return
             
-            // 准备K线数据
-            const candlestickData = klineData.value.map(bar => [
-                bar.open, bar.close, bar.low, bar.high
-            ])
+            // 准备K线数据 - API返回格式: [timestamp, open, high, low, close, volume]
+            const candlestickData = klineData.value.map(bar => {
+                if (Array.isArray(bar)) {
+                    // 数组格式: [timestamp, open, high, low, close, volume]
+                    const [timestamp, open, high, low, close, volume] = bar
+                    return [open, close, low, high]
+                } else {
+                    // 对象格式
+                    return [bar.open, bar.close, bar.low, bar.high]
+                }
+            })
             
-            const timeData = klineData.value.map(bar => 
-                new Date(bar.datetime).toLocaleTimeString()
-            )
+            const timeData = klineData.value.map(bar => {
+                if (Array.isArray(bar)) {
+                    // 数组格式: [timestamp, open, high, low, close, volume]
+                    return new Date(bar[0]).toLocaleTimeString()
+                } else {
+                    // 对象格式
+                    return new Date(bar.datetime).toLocaleTimeString()
+                }
+            })
             
             // 准备交易信号数据
             const buySignals = []
@@ -379,24 +407,43 @@ const TradingChartComponent = {
             try {
                 loading.value = true
                 
-                const response = await window.ApiService.request(
-                    `/api/v1/market/kline/${selectedSymbol.value}`,
-                    {
-                        method: 'GET',
-                        params: {
-                            timeframe: selectedTimeframe.value,
-                            limit: 200
-                        }
-                    }
+                // 使用正确的API调用方式
+                const response = await window.ApiService.getKlineData(
+                    selectedSymbol.value,
+                    selectedTimeframe.value,
+                    200
                 )
                 
                 if (window.ApiResponse.isSuccess(response)) {
-                    klineData.value = window.ApiResponse.getData(response).bars || []
+                    const data = window.ApiResponse.getData(response)
+                    // 后端返回的数据格式：{symbol, interval, klines: []}
+                    klineData.value = data.klines || []
+                    console.log('K线数据获取成功:', data.klines?.length || 0, '条数据')
                     updateChart()
+                } else {
+                    console.warn('K线数据为空或获取失败')
+                    // 显示空数据提示
+                    if (chart.value) {
+                        chart.value.setOption({
+                            title: {
+                                text: `${selectedSymbol.value} - ${selectedTimeframe.value} (暂无数据)`,
+                                subtext: '策略运行中，等待数据生成...'
+                            }
+                        })
+                    }
                 }
             } catch (error) {
                 console.error('获取K线数据失败:', error)
                 window.ElMessage.error('获取K线数据失败')
+                // 显示错误提示
+                if (chart.value) {
+                    chart.value.setOption({
+                        title: {
+                            text: `${selectedSymbol.value} - ${selectedTimeframe.value} (数据获取失败)`,
+                            subtext: '请检查网络连接或稍后重试'
+                        }
+                    })
+                }
             } finally {
                 loading.value = false
             }

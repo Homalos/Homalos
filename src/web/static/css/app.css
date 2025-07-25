@@ -18,18 +18,19 @@ body {
 
 /* 主要布局 */
 .header {
-    background: var(--primary-color);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 1rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 1rem 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
 .header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    max-width: 1200px;
-    margin: 0 auto;
 }
 
 .header-title h1 {
@@ -65,29 +66,25 @@ body {
 }
 
 .nav-item {
-    display: flex !important;
+    color: white;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: background 0.3s;
+    display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    color: rgba(255, 255, 255, 0.9) !important;
-    text-decoration: none;
-    border-radius: 4px;
-    transition: all 0.3s ease;
-    font-size: 0.9rem;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.05);
 }
 
 .nav-item:hover {
-    background: rgba(255, 255, 255, 0.1) !important;
-    color: white !important;
+    background: rgba(255,255,255,0.2);
+    color: white;
     text-decoration: none;
-    transform: translateY(-1px);
 }
 
 .nav-item.active {
-    background: rgba(255, 255, 255, 0.2) !important;
-    color: white !important;
+    background: rgba(255,255,255,0.2);
+    color: white;
     font-weight: 500;
 }
 

@@ -52,6 +52,11 @@ class IntegratedWebServer(WebServer):
             """事件监控仪表板页面"""
             return self._get_dashboard_html()
         
+        @self.app.get("/chart.html", response_class=HTMLResponse)
+        async def chart_page():
+            """交易图表页面"""
+            return self._get_chart_html()
+        
         @self.app.get("/api/dashboard/stats")
         async def dashboard_stats():
             """获取事件统计数据"""
@@ -302,12 +307,8 @@ class IntegratedWebServer(WebServer):
         ):
             """获取K线数据"""
             try:
-                # 从数据中心获取K线数据
-                kline_data = []
-                # TODO: 实现从Redis/SQLite获取K线数据的逻辑
-                # data_center = getattr(self.trading_engine, 'data_center', None)
-                # if data_center:
-                #     kline_data = data_center.get_kline_data(symbol, interval, limit)
+                # 生成模拟K线数据用于演示
+                kline_data = self._generate_mock_kline_data(symbol, interval, limit)
                 
                 return SystemResponse(
                     success=True,
@@ -462,6 +463,75 @@ class IntegratedWebServer(WebServer):
             logger.error(f"序列化仪表板数据失败: {e}, 数据类型: {type(data)}, 数据内容: {repr(data)}")
             return str(data)
     
+    def _generate_mock_kline_data(self, symbol: str, interval: str, limit: int) -> list:
+        """生成模拟K线数据用于演示"""
+        import random
+        from datetime import datetime, timedelta
+        
+        # 基础价格（根据不同品种设置不同的基础价格）
+        base_prices = {
+            'rb2501': 3500,  # 螺纹钢
+            'hc2501': 3200,  # 热卷
+            'i2501': 800,    # 铁矿石
+            'j2501': 2000,   # 焦炭
+            'jm2501': 1400,  # 焦煤
+            'fg2501': 1200,  # 玻璃
+            'fg509': 1361,   # 玻璃509合约（当前策略使用）
+            'sa2501': 1800,  # 纯碱
+        }
+        
+        base_price = base_prices.get(symbol.lower(), 3000)
+        
+        # 时间间隔映射（分钟）
+        interval_minutes = {
+            '1m': 1, '5m': 5, '15m': 15, '30m': 30, 
+            '1h': 60, '4h': 240, '1d': 1440
+        }
+        
+        minutes = interval_minutes.get(interval, 1)
+        
+        # 生成K线数据
+        klines = []
+        current_time = datetime.now()
+        current_price = base_price
+        
+        for i in range(limit):
+            # 计算时间戳
+            bar_time = current_time - timedelta(minutes=minutes * (limit - i - 1))
+            timestamp = int(bar_time.timestamp() * 1000)  # 毫秒时间戳
+            
+            # 生成价格波动（模拟真实市场波动）
+            price_change = random.uniform(-0.02, 0.02)  # ±2%的价格波动
+            current_price = current_price * (1 + price_change)
+            
+            # 生成OHLC数据
+            open_price = current_price
+            high_price = open_price * (1 + random.uniform(0, 0.01))  # 最高价
+            low_price = open_price * (1 - random.uniform(0, 0.01))   # 最低价
+            close_price = open_price + random.uniform(-20, 20)       # 收盘价
+            
+            # 确保价格逻辑正确
+            high_price = max(high_price, open_price, close_price)
+            low_price = min(low_price, open_price, close_price)
+            
+            # 生成成交量
+            volume = random.randint(100, 1000)
+            
+            # K线数据格式：[timestamp, open, high, low, close, volume]
+            kline = [
+                timestamp,
+                round(open_price, 2),
+                round(high_price, 2),
+                round(low_price, 2),
+                round(close_price, 2),
+                volume
+            ]
+            
+            klines.append(kline)
+            current_price = close_price
+        
+        return klines
+    
     def _get_dashboard_html(self) -> str:
         """获取事件监控仪表板HTML页面"""
         # 返回静态文件路径，实现前后端分离
@@ -476,6 +546,45 @@ class IntegratedWebServer(WebServer):
         except Exception as e:
             logger.error(f"读取仪表板HTML文件失败: {e}")
             return self._get_fallback_dashboard_html()
+    
+    def _get_chart_html(self) -> str:
+        """获取交易图表HTML页面"""
+        # 返回静态文件路径，实现前后端分离
+        static_path = Path(__file__).parent / "static" / "chart.html"
+        
+        try:
+            with open(static_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except FileNotFoundError:
+            logger.error(f"图表HTML文件未找到: {static_path}")
+            return self._get_fallback_chart_html()
+        except Exception as e:
+            logger.error(f"读取图表HTML文件失败: {e}")
+            return self._get_fallback_chart_html()
+    
+    def _get_fallback_chart_html(self) -> str:
+        """获取备用图表HTML页面"""
+        return """
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易图表 - Homalos量化交易系统</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 2rem; }
+        .error { color: #e74c3c; background: #fdf2f2; padding: 1rem; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="error">
+        <h2>图表页面加载失败</h2>
+        <p>无法加载图表页面，请检查静态文件是否存在。</p>
+        <a href="/">返回主页</a>
+    </div>
+</body>
+</html>
+        """
     
     def _get_fallback_dashboard_html(self) -> str:
         """获取备用仪表板HTML页面"""

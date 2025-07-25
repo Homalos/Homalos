@@ -18,19 +18,25 @@ const DashboardApp = {
                     </h1>
                     <p>实时事件监控与性能分析</p>
                 </div>
-                <div class="nav-links">
-                    <a href="/" class="nav-link">
-                        <i class="el-icon-house"></i>
-                        主页
-                    </a>
-                    <a href="/dashboard" class="nav-link active">
-                        <i class="el-icon-data-analysis"></i>
-                        事件监控
-                    </a>
-                    <a href="/api/docs" class="nav-link">
-                        <i class="el-icon-document"></i>
-                        API文档
-                    </a>
+                <div class="header-nav">
+                    <nav class="nav-menu">
+                        <a href="/" class="nav-item">
+                            <i class="el-icon-house"></i>
+                            主页
+                        </a>
+                        <a href="/dashboard" class="nav-item active">
+                            <i class="el-icon-data-analysis"></i>
+                            事件监控
+                        </a>
+                        <a href="/chart.html" class="nav-item" target="_blank">
+                            <i class="el-icon-data-line"></i>
+                            交易图表
+                        </a>
+                        <a href="/api/docs" class="nav-item">
+                            <i class="el-icon-document"></i>
+                            API文档
+                        </a>
+                    </nav>
                 </div>
             </div>
         </div>

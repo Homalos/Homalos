@@ -218,3 +218,11 @@ $response = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/trading/orders"
 测试性能API接口
 
 $response = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/trading/performance" -Method GET -ContentType "application/json"; $response | ConvertTo-Json -Depth 10 
+
+
+
+Invoke-WebRequest -Uri "http://127.0.0.1:8000/api/v1/market/kline?symbol=rb2501" -Method GET
+
+
+
+Invoke-WebRequest -Uri "http://127.0.0.1:8000/api/v1/market/kline?symbol=FG509&interval=1m&limit=50" -Method GET 
