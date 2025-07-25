@@ -408,6 +408,7 @@ class MyStrategy(BaseStrategy):
 ### P1 High Priority
 
 - **Strategy Backtesting Engine**: Historical data validation and performance evaluation
+- **Visualization**: Visualization of the trading process, including: chart marking of buy and sell transaction points, order list display (order number, transaction time, type, number of lots, transaction type, price, stop loss price, take profit price, handling fee)
 
 ### P2 Low Priority
 
