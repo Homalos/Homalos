@@ -1,0 +1,376 @@
+/* 交易图表组件样式 */
+.trading-chart-container {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    margin: 20px 0;
+    overflow: hidden;
+    border: 2px solid #409EFF;
+}
+
+/* 组件标题样式 */
+.chart-header {
+    background: linear-gradient(135deg, #409EFF, #67C23A);
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+
+.chart-header h2 {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.chart-header p {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+/* 控制面板样式 */
+.chart-controls {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 16px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    flex-wrap: wrap;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 150px;
+}
+
+.control-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    white-space: nowrap;
+}
+
+.control-group .el-select {
+    min-width: 120px;
+}
+
+.control-group .el-button {
+    margin-left: 10px;
+}
+
+/* 图表容器样式 */
+.chart-wrapper {
+    padding: 20px;
+    background: #fff;
+}
+
+.chart-container {
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    background: #fff;
+}
+
+/* 订单列表样式 */
+.orders-section {
+    padding: 20px;
+    border-top: 1px solid #e9ecef;
+}
+
+.orders-section h3 {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.orders-section .el-table {
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+}
+
+/* 策略绩效样式 */
+.performance-section {
+    padding: 20px;
+    border-top: 1px solid #e9ecef;
+    background: #f8f9fa;
+}
+
+.performance-section h3 {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.performance-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.performance-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.performance-card h4 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 8px;
+}
+
+.metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.metric .label {
+    font-size: 14px;
+    color: #666;
+    font-weight: 500;
+}
+
+.metric .value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.metric .value.profit {
+    color: #67c23a;
+}
+
+.metric .value.loss {
+    color: #f56c6c;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .chart-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    
+    .control-group {
+        min-width: auto;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+    }
+    
+    .control-group label {
+        font-size: 13px;
+    }
+    
+    .chart-container {
+        height: 400px !important;
+    }
+    
+    .performance-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .metrics {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .trading-chart-container {
+        margin: 10px 0;
+    }
+    
+    .chart-wrapper,
+    .orders-section,
+    .performance-section {
+        padding: 12px;
+    }
+    
+    .chart-container {
+        height: 350px !important;
+    }
+    
+    .orders-section h3,
+    .performance-section h3 {
+        font-size: 16px;
+    }
+}
+
+/* 加载状态样式 */
+.chart-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 500px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+}
+
+.chart-loading .el-loading-spinner {
+    margin-top: -20px;
+}
+
+/* 空数据状态样式 */
+.chart-empty {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 500px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    color: #999;
+}
+
+.chart-empty .el-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.chart-empty p {
+    font-size: 16px;
+    margin: 0;
+}
+
+/* 表格自定义样式 */
+.orders-section .el-table .el-table__header {
+    background: #f8f9fa;
+}
+
+.orders-section .el-table .el-table__header th {
+    background: #f8f9fa;
+    color: #333;
+    font-weight: 600;
+}
+
+.orders-section .el-table .el-table__row:hover {
+    background: #f0f9ff;
+}
+
+/* 标签样式优化 */
+.el-tag {
+    font-weight: 500;
+}
+
+.el-tag.el-tag--success {
+    background: #f0f9ff;
+    border-color: #67c23a;
+    color: #67c23a;
+}
+
+.el-tag.el-tag--danger {
+    background: #fef0f0;
+    border-color: #f56c6c;
+    color: #f56c6c;
+}
+
+.el-tag.el-tag--info {
+    background: #f4f4f5;
+    border-color: #909399;
+    color: #909399;
+}
+
+.el-tag.el-tag--warning {
+    background: #fdf6ec;
+    border-color: #e6a23c;
+    color: #e6a23c;
+}
+
+/* 图表工具栏样式 */
+.chart-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px 16px 20px;
+}
+
+.chart-toolbar .toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.chart-toolbar .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chart-toolbar .el-button {
+    padding: 8px 16px;
+    font-size: 13px;
+}
+
+/* 滚动条样式 */
+.orders-section .el-table__body-wrapper::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.orders-section .el-table__body-wrapper::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.orders-section .el-table__body-wrapper::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.orders-section .el-table__body-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* 动画效果 */
+.trading-chart-container {
+    animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.performance-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.performance-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 图表容器悬浮效果 */
+.chart-container {
+    transition: box-shadow 0.2s ease;
+}
+
+.chart-container:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}

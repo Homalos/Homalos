@@ -200,6 +200,54 @@ body {
     line-height: 1.5;
 }
 
+/* 交易图表入口样式 */
+.trading-chart-entry {
+    margin: 1rem 0;
+}
+
+.chart-entry-card {
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.chart-entry-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.chart-entry-content {
+    padding: 2rem;
+}
+
+.chart-entry-content h3 {
+    margin: 0 0 1rem 0;
+    color: var(--primary-color);
+    font-size: 1.5rem;
+}
+
+.chart-entry-content p {
+    margin: 0 0 1.5rem 0;
+    color: var(--info-color);
+    font-size: 1rem;
+}
+
+/* 页面头部样式 */
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.page-header h2 {
+    margin: 0;
+    color: var(--primary-color);
+    font-size: 1.5rem;
+}
+
 /* 工具类 */
 .text-center {
     text-align: center;

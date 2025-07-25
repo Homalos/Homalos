@@ -94,6 +94,15 @@ class WebSocketService {
             case 'event':
                 this.handleEventMessage(data)
                 break
+            case 'kline':
+                this.handleKlineMessage(data)
+                break
+            case 'trading_signal':
+                this.handleTradingSignalMessage(data)
+                break
+            case 'order_update':
+                this.handleOrderUpdateMessage(data)
+                break
             case 'pong':
                 // 心跳响应，无需处理
                 break
@@ -325,11 +334,90 @@ class WebSocketService {
         this.messageHandlers.delete(type)
     }
     
+    // 处理K线数据消息
+    handleKlineMessage(data) {
+        console.log('收到K线数据:', data)
+        this.emit('kline', data)
+    }
+    
+    // 处理交易信号消息
+    handleTradingSignalMessage(data) {
+        console.log('收到交易信号:', data)
+        this.emit('trading_signal', data)
+    }
+    
+    // 处理订单更新消息
+    handleOrderUpdateMessage(data) {
+        console.log('收到订单更新:', data)
+        this.emit('order_update', data)
+    }
+    
+    // 订阅K线数据
+    subscribeKline(symbol, interval = '1m') {
+        this.send({
+            type: 'subscribe',
+            channel: 'kline',
+            symbol: symbol,
+            interval: interval
+        })
+    }
+    
+    // 取消订阅K线数据
+    unsubscribeKline(symbol, interval = '1m') {
+        this.send({
+            type: 'unsubscribe',
+            channel: 'kline',
+            symbol: symbol,
+            interval: interval
+        })
+    }
+    
+    // 订阅交易信号
+    subscribeTradingSignals(strategyUuid) {
+        this.send({
+            type: 'subscribe',
+            channel: 'trading_signals',
+            strategy_uuid: strategyUuid
+        })
+    }
+    
+    // 取消订阅交易信号
+    unsubscribeTradingSignals(strategyUuid) {
+        this.send({
+            type: 'unsubscribe',
+            channel: 'trading_signals',
+            strategy_uuid: strategyUuid
+        })
+    }
+    
+    // 订阅订单更新
+    subscribeOrderUpdates(strategyUuid) {
+        this.send({
+            type: 'subscribe',
+            channel: 'order_updates',
+            strategy_uuid: strategyUuid
+        })
+    }
+    
+    // 取消订阅订单更新
+    unsubscribeOrderUpdates(strategyUuid) {
+        this.send({
+            type: 'unsubscribe',
+            channel: 'order_updates',
+            strategy_uuid: strategyUuid
+        })
+    }
+    
     // 事件发射器（简单实现）
     emit(event, data) {
         // 这里可以实现一个简单的事件系统
         // 目前直接通过console输出
         console.log(`WebSocket事件 [${event}]:`, data)
+        
+        // 触发自定义事件，供组件监听
+        window.dispatchEvent(new CustomEvent(`ws_${event}`, {
+            detail: data
+        }))
     }
     
     // 断开连接
@@ -359,4 +447,4 @@ class WebSocketService {
 
 // 全局WebSocket实例
 window.WebSocketService = WebSocketService
-window.wsService = new WebSocketService() 
+window.wsService = new WebSocketService()

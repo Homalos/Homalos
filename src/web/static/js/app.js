@@ -33,14 +33,44 @@ const MainApp = {
             
             <!-- 主容器 -->
             <div class="container">
-                <!-- 仪表板组件 -->
-                <dashboard-component></dashboard-component>
+                <div v-if="currentPage === 'main'">
+                    <!-- 仪表板组件 -->
+                    <dashboard-component></dashboard-component>
+                    
+                    <!-- 策略管理组件 -->
+                    <strategy-table-component></strategy-table-component>
+                    
+                    <!-- 交易图表入口 -->
+                    <div class="trading-chart-entry">
+                        <el-card class="chart-entry-card">
+                            <div class="chart-entry-content">
+                                <h3>📈 交易图表</h3>
+                                <p>查看实时K线图表、交易信号和策略绩效</p>
+                                <el-button type="primary" @click="currentPage = 'chart'" size="large">
+                                    <i class="el-icon-data-line"></i>
+                                    打开交易图表
+                                </el-button>
+                            </div>
+                        </el-card>
+                    </div>
+                    
+                    <!-- 日志面板组件 -->
+                    <log-panel-component></log-panel-component>
+                </div>
                 
-                <!-- 策略管理组件 -->
-                <strategy-table-component></strategy-table-component>
-                
-                <!-- 日志面板组件 -->
-                <log-panel-component></log-panel-component>
+                <div v-if="currentPage === 'chart'">
+                    <!-- 返回按钮 -->
+                    <div class="page-header">
+                        <el-button @click="currentPage = 'main'" type="text" size="large">
+                            <i class="el-icon-arrow-left"></i>
+                            返回主页
+                        </el-button>
+                        <h2>交易图表</h2>
+                    </div>
+                    
+                    <!-- 交易图表组件 -->
+                    <trading-chart-component></trading-chart-component>
+                </div>
             </div>
             
             <!-- 策略加载对话框 -->
@@ -61,6 +91,12 @@ const MainApp = {
         
         // 当前页面状态
         const currentPage = Vue.ref('main')
+        
+        // 系统状态数据
+        const systemStatus = Vue.ref({})
+        const strategies = Vue.ref([])
+        const accountInfo = Vue.ref({})
+        const refreshTimer = Vue.ref(null)
         
         // 初始化数据加载
         const initializeApp = async () => {
@@ -215,6 +251,10 @@ function createVueApp() {
             if (registry.LanguageSwitcherComponent) {
                 app.component('language-switcher-component', registry.LanguageSwitcherComponent)
                 console.log('✅ language-switcher-component 已注册到Vue应用')
+            }
+            if (registry.TradingChartComponent) {
+                app.component('trading-chart-component', registry.TradingChartComponent)
+                console.log('✅ trading-chart-component 已注册到Vue应用')
             }
         }
         

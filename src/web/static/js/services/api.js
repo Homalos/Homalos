@@ -88,6 +88,47 @@ class ApiService {
     static async getMonitoringStats() {
         return await this.request('/api/v1/monitoring/stats')
     }
+    
+    // 交易图表相关API
+    static async getKlineData(symbol, interval = '1m', limit = 200) {
+        const params = new URLSearchParams({
+            symbol: symbol,
+            interval: interval,
+            limit: limit.toString()
+        })
+        return await this.request(`/api/v1/market/kline?${params}`)
+    }
+    
+    static async getTradingSignals(strategyUuid, symbol, startTime, endTime) {
+        const params = new URLSearchParams({
+            strategy_uuid: strategyUuid,
+            symbol: symbol
+        })
+        if (startTime) params.append('start_time', startTime)
+        if (endTime) params.append('end_time', endTime)
+        return await this.request(`/api/v1/trading/signals?${params}`)
+    }
+    
+    static async getOrderHistory(strategyUuid, symbol, limit = 100) {
+        const params = new URLSearchParams({
+            limit: limit.toString()
+        })
+        if (strategyUuid) params.append('strategy_uuid', strategyUuid)
+        if (symbol) params.append('symbol', symbol)
+        return await this.request(`/api/v1/orders/history?${params}`)
+    }
+    
+    static async getStrategyPerformance(strategyUuid) {
+        return await this.request(`/api/v1/strategies/${strategyUuid}/performance`)
+    }
+    
+    static async getAllStrategyPerformance() {
+        return await this.request('/api/v1/strategies/performance')
+    }
+    
+    static async getAvailableSymbols() {
+        return await this.request('/api/v1/market/symbols')
+    }
 }
 
 // API响应处理工具类

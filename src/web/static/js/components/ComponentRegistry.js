@@ -22,7 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'StrategyTableComponent', 
             'StrategyDialogComponent',
             'LogPanelComponent',
-            'LanguageSwitcherComponent'
+            'LanguageSwitcherComponent',
+            'TradingChartComponent'
         ]
         
         const allLoaded = componentsToCheck.every(name => 
@@ -72,13 +73,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('✅ LanguageSwitcherComponent 已注册')
             }
             
+            if (window.TradingChartComponent) {
+                tempApp.component('trading-chart-component', window.TradingChartComponent)
+                console.log('✅ TradingChartComponent 已注册')
+            }
+            
             // 将注册的组件存储到全局，供主应用使用
             window.VueComponentRegistry = {
                 DashboardComponent: window.DashboardComponent,
                 StrategyTableComponent: window.StrategyTableComponent,
                 StrategyDialogComponent: window.StrategyDialogComponent,
                 LogPanelComponent: window.LogPanelComponent,
-                LanguageSwitcherComponent: window.LanguageSwitcherComponent
+                LanguageSwitcherComponent: window.LanguageSwitcherComponent,
+                TradingChartComponent: window.TradingChartComponent
             }
             
             console.log('🎉 所有Vue组件注册完成')

@@ -83,3 +83,138 @@ git checkout -b feature/new origin/feature/new
 # 或使用 switch 命令（Git 2.23+）
 git switch -c feature/new origin/feature/new
 ```
+
+我需要在Web界面实现多策略交易过程的可视化(与当前Web主界面集成)，包括：在1分钟K线图上动态标出买卖点，订单列表展示(订单号、交易时间、类型、手数、交易品种、价格、止损价、止盈价、手续费)，策略绩效展示
+
+推荐使用以下技术方案：
+
+1. 前端图表库
+
+   ECharts 5 + Vue3，建议先用ECharts快速实现原型，再根据实际交易频率优化通信和数据处理模块。后期考虑Lightweight Charts (TradingView开源版)：专为金融数据设计，性能优异。支持直接标记交易操作。
+
+2. 数据传输
+
+   WebSocket + json (实时更新)，FastAPI实现
+
+3. 数据处理: 优先Polars，其次Pandas/Numpy
+
+4. 后端处理
+
+   根据策略实时计算买卖信号、数据对齐(使用Pandas进行时间序列对齐，确保K线与信号点时间戳精确匹配)
+
+5. 数据源
+
+   Redis(实时获取1分钟K线数据) + Sqlite(历史)
+
+6. 动态更新：
+
+   当新的1分钟K线生成时，图表会追加新的K线，并移除最旧的一根（只显示固定数量的K线，如果K线数量很大，需要限制显示的数量例如200条，避免前端性能问题）。
+
+   时间同步，确保前后端时间同步，使用统一的时间格式
+
+   当有新的交易信号时，在对应的K线上标记买卖点。
+
+7. 错误处理：网络波动可能导致WebSocket断开，需要实现重连机制。
+
+8. 交易信号的准确性：确保信号与K线时间戳对齐，避免标记错位。
+
+9. 针对多策略同时运行的买卖点可视化，推荐采用分层交互式可视化方案，在单图表中智能切换展示多策略信号的同时保持可读性。
+
+   核心设计原则
+
+   策略信号分层：不同策略使用独立视觉层
+
+   动态焦点管理：用户可交互控制显示哪个策略
+
+   绩效关联展示：交易点与策略绩效联动
+
+10. 扩展功能
+
+    多周期联动：同步显示5分钟/15分钟图标记
+
+    策略回放：历史信号重放控制条
+
+    绩效标注：用不同颜色标记盈利/亏损交易
+
+    
+
+ENTER RESEARCH MODE
+我需要实现多策略交易过程的可视化，包括：在1分钟K线图上动态标出买卖点，订单列表展示(订单号、交易时间、类型、手数、交易品种、价格、止损价、止盈价、手续费)，策略绩效展示
+
+推荐使用以下技术方案：
+
+\1. 前端图表库
+
+   ECharts 5 + Vue3，建议先用ECharts快速实现原型，再根据实际交易频率优化通信和数据处理模块。后期考虑Lightweight Charts (TradingView开源版)：专为金融数据设计，性能优异。支持直接标记交易操作。
+
+\2. 数据传输
+
+   WebSocket + json (实时更新)，FastAPI实现
+
+\3. 数据处理: 优先Polars，其次Pandas/Numpy
+
+\4. 后端处理
+
+   根据策略实时计算买卖信号、数据对齐(使用Pandas进行时间序列对齐，确保K线与信号点时间戳精确匹配)
+
+\5. 数据源
+
+   Redis(实时获取1分钟K线数据) + Sqlite(历史)
+
+\6. 动态更新：
+
+   当新的1分钟K线生成时，图表会追加新的K线，并移除最旧的一根（只显示固定数量的K线，如果K线数量很大，需要限制显示的数量例如200条，避免前端性能问题）。
+
+   时间同步，确保前后端时间同步，使用统一的时间格式
+
+   当有新的交易信号时，在对应的K线上标记买卖点。
+
+\7. 错误处理：网络波动可能导致WebSocket断开，需要实现重连机制。
+
+\8. 交易信号的准确性：确保信号与K线时间戳对齐，避免标记错位。
+
+\9. 针对多策略同时运行的买卖点可视化，推荐采用分层交互式可视化方案，在单图表中智能切换展示多策略信号的同时保持可读性。
+
+   多策略核心设计原则
+
+   策略信号分层：不同策略使用独立视觉层
+
+   动态焦点管理：用户可交互控制显示哪个策略
+
+   绩效关联展示：交易点与策略绩效联动
+
+\10. 扩展功能
+
+​    多周期联动：同步显示5分钟/15分钟图标记
+
+​    策略回放：历史信号重放控制条
+
+​    绩效标注：用不同颜色标记盈利/亏损交易
+
+
+
+
+
+$response = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/strategies/discover" -Method GET; $response | ConvertTo-Json -Depth 10 
+
+
+
+重新加载策略
+
+$body = @{ strategy_path = 'src/strategies/minimal_strategy.py'; strategy_name = 'MinimalStrategy'; params = @{} } | ConvertTo-Json; $response = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/strategies" -Method POST -Body $body -ContentType "application/json"; $response | ConvertTo-Json -Depth 10 
+
+启动策略。
+
+$response = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/strategies/ad0215ea-df19-4465-8413-99f5059781c5/start" -Method POST -ContentType "application/json"; $response | ConvertTo-Json -Depth 10 
+
+测试修复后的交易信号API。
+
+$response = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/trading/signals" -Method GET -ContentType "application/json"; $response | ConvertTo-Json -Depth 10 
+
+测试其他API接口确保修复完整。
+
+$response = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/trading/orders" -Method GET -ContentType "application/json"; $response | ConvertTo-Json -Depth 10 
+
+测试性能API接口
+
+$response = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/trading/performance" -Method GET -ContentType "application/json"; $response | ConvertTo-Json -Depth 10 

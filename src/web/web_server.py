@@ -121,6 +121,45 @@ class WebSocketManager:
         # 清理断开的连接
         for connection in disconnected:
             self.disconnect(connection)
+    
+    async def broadcast_kline_update(self, symbol: str, interval: str, kline_data: Dict[str, Any]):
+        """广播K线数据更新"""
+        message = {
+            "type": "kline_update",
+            "symbol": symbol,
+            "interval": interval,
+            "data": kline_data,
+            "timestamp": time.time()
+        }
+        await self.broadcast(message)
+    
+    async def broadcast_trading_signal(self, signal_data: Dict[str, Any]):
+        """广播交易信号"""
+        message = {
+            "type": "trading_signal",
+            "data": signal_data,
+            "timestamp": time.time()
+        }
+        await self.broadcast(message)
+    
+    async def broadcast_order_update(self, order_data: Dict[str, Any]):
+        """广播订单更新"""
+        message = {
+            "type": "order_update",
+            "data": order_data,
+            "timestamp": time.time()
+        }
+        await self.broadcast(message)
+    
+    async def broadcast_strategy_performance(self, strategy_name: str, performance_data: Dict[str, Any]):
+        """广播策略绩效更新"""
+        message = {
+            "type": "strategy_performance",
+            "strategy_name": strategy_name,
+            "data": performance_data,
+            "timestamp": time.time()
+        }
+        await self.broadcast(message)
 
 
 class WebServer:
@@ -376,6 +415,206 @@ class WebServer:
                 logger.error(f"获取监控统计失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
+        # 交易图表相关API
+        @app.get("/api/v1/chart/kline")
+        async def get_kline_data(
+            symbol: str,
+            interval: str = "1m",
+            limit: int = 200,
+            start_time: Optional[int] = None,
+            end_time: Optional[int] = None
+        ):
+            """获取K线数据"""
+            try:
+                # 从数据中心获取K线数据
+                data_center = getattr(self.trading_engine, 'data_center', None)
+                if not data_center:
+                    raise HTTPException(status_code=500, detail="数据中心未初始化")
+                
+                # 构造K线数据请求参数
+                params = {
+                    "symbol": symbol,
+                    "interval": interval,
+                    "limit": limit
+                }
+                
+                if start_time:
+                    params["start_time"] = start_time
+                if end_time:
+                    params["end_time"] = end_time
+                
+                # 获取K线数据（这里需要根据实际的数据中心接口调整）
+                kline_data = []
+                # TODO: 实现从Redis/SQLite获取K线数据的逻辑
+                # kline_data = data_center.get_kline_data(**params)
+                
+                return SystemResponse(
+                    success=True,
+                    message="K线数据获取成功",
+                    data={
+                        "symbol": symbol,
+                        "interval": interval,
+                        "data": kline_data
+                    }
+                )
+                
+            except Exception as e:
+                logger.error(f"获取K线数据失败: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @app.get("/api/v1/chart/signals")
+        async def get_trading_signals(
+            symbol: str,
+            strategy_name: Optional[str] = None,
+            start_time: Optional[int] = None,
+            end_time: Optional[int] = None,
+            limit: int = 100
+        ):
+            """获取交易信号"""
+            try:
+                # 从交易引擎获取交易信号
+                signals = []
+                # TODO: 实现从数据库或缓存获取交易信号的逻辑
+                # signals = self.trading_engine.get_trading_signals(
+                #     symbol=symbol,
+                #     strategy_name=strategy_name,
+                #     start_time=start_time,
+                #     end_time=end_time,
+                #     limit=limit
+                # )
+                
+                return SystemResponse(
+                    success=True,
+                    message="交易信号获取成功",
+                    data={
+                        "symbol": symbol,
+                        "strategy_name": strategy_name,
+                        "signals": signals
+                    }
+                )
+                
+            except Exception as e:
+                logger.error(f"获取交易信号失败: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @app.get("/api/v1/chart/orders")
+        async def get_order_history(
+            symbol: Optional[str] = None,
+            strategy_name: Optional[str] = None,
+            start_time: Optional[int] = None,
+            end_time: Optional[int] = None,
+            limit: int = 100
+        ):
+            """获取订单历史"""
+            try:
+                # 从交易引擎获取订单历史
+                orders = []
+                # TODO: 实现从数据库获取订单历史的逻辑
+                # orders = self.trading_engine.get_order_history(
+                #     symbol=symbol,
+                #     strategy_name=strategy_name,
+                #     start_time=start_time,
+                #     end_time=end_time,
+                #     limit=limit
+                # )
+                
+                return SystemResponse(
+                    success=True,
+                    message="订单历史获取成功",
+                    data={
+                        "symbol": symbol,
+                        "strategy_name": strategy_name,
+                        "orders": orders
+                    }
+                )
+                
+            except Exception as e:
+                logger.error(f"获取订单历史失败: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @app.get("/api/v1/chart/performance")
+        async def get_strategy_performance(
+            strategy_name: str,
+            start_time: Optional[int] = None,
+            end_time: Optional[int] = None
+        ):
+            """获取策略绩效"""
+            try:
+                # 从交易引擎获取策略绩效
+                performance = {}
+                # TODO: 实现策略绩效计算逻辑
+                # performance = self.trading_engine.get_strategy_performance(
+                #     strategy_name=strategy_name,
+                #     start_time=start_time,
+                #     end_time=end_time
+                # )
+                
+                return SystemResponse(
+                    success=True,
+                    message="策略绩效获取成功",
+                    data={
+                        "strategy_name": strategy_name,
+                        "performance": performance
+                    }
+                )
+                
+            except Exception as e:
+                logger.error(f"获取策略绩效失败: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @app.get("/api/v1/chart/performance/all")
+        async def get_all_strategy_performance(
+            start_time: Optional[int] = None,
+            end_time: Optional[int] = None
+        ):
+            """获取所有策略绩效"""
+            try:
+                # 获取所有活跃策略的绩效
+                all_performance = {}
+                # TODO: 实现获取所有策略的逻辑
+                # active_strategies = self.trading_engine.get_active_strategies()
+                
+                # for strategy_name in active_strategies:
+                #     performance = self.trading_engine.get_strategy_performance(
+                #         strategy_name=strategy_name,
+                #         start_time=start_time,
+                #         end_time=end_time
+                #     )
+                #     all_performance[strategy_name] = performance
+                
+                return SystemResponse(
+                    success=True,
+                    message="所有策略绩效获取成功",
+                    data={
+                        "strategies": all_performance
+                    }
+                )
+                
+            except Exception as e:
+                logger.error(f"获取所有策略绩效失败: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @app.get("/api/v1/chart/symbols")
+        async def get_available_symbols():
+            """获取可用交易品种"""
+            try:
+                # 从交易引擎或数据中心获取可用交易品种
+                symbols = []
+                # TODO: 实现获取可用交易品种的逻辑
+                # symbols = self.trading_engine.get_available_symbols()
+                
+                return SystemResponse(
+                    success=True,
+                    message="可用交易品种获取成功",
+                    data={
+                        "symbols": symbols
+                    }
+                )
+                
+            except Exception as e:
+                logger.error(f"获取可用交易品种失败: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
         @app.websocket("/ws/realtime")
         async def websocket_endpoint(websocket: WebSocket):
             """WebSocket实时数据推送"""
@@ -414,7 +653,9 @@ class WebServer:
                     "strategy.load_failed", "strategy.start_failed", "strategy.stop_failed",
                     "strategy.load_error", "strategy.start_error", "strategy.stop_error",
                     "strategy.signal", "order.submitted", "order.filled", "order.cancelled",
-                    "risk.rejected", "system.error", "engine.started", "engine.stopped"
+                    "risk.rejected", "system.error", "engine.started", "engine.stopped",
+                    "kline.update", "bar.generated", "tick.received", "signal.generated",
+                    "order.update", "strategy.performance"
                 ]
                 
                 # 处理不同格式的事件数据
@@ -458,11 +699,29 @@ class WebServer:
                         "timestamp": timestamp_seconds
                     }
                     
-                    # 调试日志：记录推送的消息内容
-                    logger.debug(f"WebSocket推送消息: {message}")
-                    
-                    # 异步广播消息
-                    asyncio.create_task(self.ws_manager.broadcast(message))
+                    # 根据事件类型使用特殊的广播方法
+                    if event_type in ["kline.update", "bar.generated"]:
+                        # K线数据更新
+                        symbol = event_data.get('symbol', '')
+                        interval = event_data.get('interval', '1m')
+                        kline_data = event_data.get('bar', event_data.get('kline', {}))
+                        asyncio.create_task(self.ws_manager.broadcast_kline_update(symbol, interval, kline_data))
+                    elif event_type in ["strategy.signal", "signal.generated"]:
+                        # 交易信号
+                        asyncio.create_task(self.ws_manager.broadcast_trading_signal(event_data))
+                    elif event_type in ["order.submitted", "order.filled", "order.cancelled", "order.update"]:
+                        # 订单更新
+                        asyncio.create_task(self.ws_manager.broadcast_order_update(event_data))
+                    elif event_type == "strategy.performance":
+                        # 策略绩效更新
+                        strategy_name = event_data.get('strategy_name', '')
+                        performance_data = event_data.get('performance', {})
+                        asyncio.create_task(self.ws_manager.broadcast_strategy_performance(strategy_name, performance_data))
+                    else:
+                        # 其他事件使用通用广播
+                        # 调试日志：记录推送的消息内容
+                        logger.debug(f"WebSocket推送消息: {message}")
+                        asyncio.create_task(self.ws_manager.broadcast(message))
                     
             except Exception as e:
                 logger.error(f"事件推送失败: {e}")

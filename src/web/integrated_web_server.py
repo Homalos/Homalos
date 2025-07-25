@@ -22,9 +22,10 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.middleware.cors import CORSMiddleware
+from websockets.exceptions import ConnectionClosedOK
 
 from src.core.event_monitor import EventMonitor
-from src.web.web_server import WebServer
+from src.web.web_server import WebServer, SystemResponse
 
 logger = logging.getLogger(__name__)
 
@@ -164,10 +165,182 @@ class IntegratedWebServer(WebServer):
                 logger.error(f"批量发布测试事件失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
+        # 交易图表相关API - 只有在策略运行时才返回数据
+        @self.app.get("/api/v1/trading/signals")
+        async def get_trading_signals(
+            strategy_uuid: Optional[str] = None,
+            symbol: Optional[str] = None,
+            start_time: Optional[str] = None,
+            end_time: Optional[str] = None
+        ):
+            """获取交易信号 - 只有在策略运行时才返回数据"""
+            try:
+                # 检查是否有运行中的策略
+                running_strategies = []
+                if hasattr(self.trading_engine, 'strategy_manager'):
+                    all_strategies = self.trading_engine.strategy_manager.get_all_strategies()
+                    running_strategies = [s for s in all_strategies.values() if s.get('status') == 'running']
+                
+                # 如果没有运行中的策略，返回空数据
+                if not running_strategies:
+                    return SystemResponse(
+                        success=True,
+                        message="当前没有运行中的策略",
+                        data={
+                            "signals": [],
+                            "running_strategies": []
+                        }
+                    )
+                
+                # 如果有运行中的策略，返回交易信号（这里暂时返回空数据，实际应从数据库获取）
+                signals = []
+                # TODO: 实现从数据库或缓存获取交易信号的逻辑
+                # signals = self.trading_engine.get_trading_signals(...)
+                
+                return SystemResponse(
+                    success=True,
+                    message="交易信号获取成功",
+                    data={
+                        "signals": signals,
+                        "running_strategies": [s.get('strategy_uuid') for s in running_strategies]
+                    }
+                )
+            except Exception as e:
+                logger.error(f"获取交易信号失败: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @self.app.get("/api/v1/trading/orders")
+        async def get_trading_orders(
+            strategy_uuid: Optional[str] = None,
+            symbol: Optional[str] = None,
+            start_time: Optional[str] = None,
+            end_time: Optional[str] = None
+        ):
+            """获取交易订单 - 只有在策略运行时才返回数据"""
+            try:
+                # 检查是否有运行中的策略
+                running_strategies = []
+                if hasattr(self.trading_engine, 'strategy_manager'):
+                    all_strategies = self.trading_engine.strategy_manager.get_all_strategies()
+                    running_strategies = [s for s in all_strategies.values() if s.get('status') == 'running']
+                
+                # 如果没有运行中的策略，返回空数据
+                if not running_strategies:
+                    return SystemResponse(
+                        success=True,
+                        message="当前没有运行中的策略",
+                        data={
+                            "orders": [],
+                            "running_strategies": []
+                        }
+                    )
+                
+                # 如果有运行中的策略，获取订单数据
+                orders = []
+                if strategy_uuid and hasattr(self.trading_engine, 'order_manager'):
+                    orders = self.trading_engine.order_manager.get_strategy_orders(strategy_uuid)
+                
+                return SystemResponse(
+                    success=True,
+                    message="交易订单获取成功",
+                    data={
+                        "orders": orders,
+                        "running_strategies": [s.get('strategy_uuid') for s in running_strategies]
+                    }
+                )
+            except Exception as e:
+                logger.error(f"获取交易订单失败: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @self.app.get("/api/v1/trading/performance")
+        async def get_trading_performance(
+            strategy_uuid: Optional[str] = None,
+            start_time: Optional[str] = None,
+            end_time: Optional[str] = None
+        ):
+            """获取策略绩效 - 只有在策略运行时才返回数据"""
+            try:
+                # 检查是否有运行中的策略
+                running_strategies = []
+                if hasattr(self.trading_engine, 'strategy_manager'):
+                    all_strategies = self.trading_engine.strategy_manager.get_all_strategies()
+                    running_strategies = [s for s in all_strategies.values() if s.get('status') == 'running']
+                
+                # 如果没有运行中的策略，返回空数据
+                if not running_strategies:
+                    return SystemResponse(
+                        success=True,
+                        message="当前没有运行中的策略",
+                        data={
+                            "performance": {},
+                            "running_strategies": []
+                        }
+                    )
+                
+                # 如果有运行中的策略，返回绩效数据（这里暂时返回空数据，实际应计算绩效）
+                performance = {}
+                # TODO: 实现策略绩效计算逻辑
+                # performance = self.trading_engine.get_strategy_performance(...)
+                
+                return SystemResponse(
+                    success=True,
+                    message="策略绩效获取成功",
+                    data={
+                        "performance": performance,
+                        "running_strategies": [s.get('strategy_uuid') for s in running_strategies]
+                    }
+                )
+            except Exception as e:
+                logger.error(f"获取策略绩效失败: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @self.app.get("/api/v1/market/kline")
+        async def get_market_kline(
+            symbol: str,
+            interval: str = "1m",
+            limit: int = 200
+        ):
+            """获取K线数据"""
+            try:
+                # 从数据中心获取K线数据
+                kline_data = []
+                # TODO: 实现从Redis/SQLite获取K线数据的逻辑
+                # data_center = getattr(self.trading_engine, 'data_center', None)
+                # if data_center:
+                #     kline_data = data_center.get_kline_data(symbol, interval, limit)
+                
+                return SystemResponse(
+                    success=True,
+                    message="K线数据获取成功",
+                    data={
+                        "symbol": symbol,
+                        "interval": interval,
+                        "klines": kline_data
+                    }
+                )
+            except Exception as e:
+                logger.error(f"获取K线数据失败: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
         @self.app.websocket("/ws/dashboard")
         async def dashboard_websocket(websocket: WebSocket):
             """事件监控仪表板WebSocket连接"""
             await websocket.accept()
+            
+            async def safe_send_json(data: dict):
+                """安全发送JSON数据，检查连接状态"""
+                try:
+                    # 检查WebSocket连接状态
+                    if websocket.client_state.name != 'CONNECTED':
+                        return False
+                    await websocket.send_json(data)
+                    return True
+                except (WebSocketDisconnect, RuntimeError, ConnectionClosedOK) as e:
+                    logger.debug(f"WebSocket连接已断开，停止发送数据: {e}")
+                    return False
+                except Exception as e:
+                    logger.error(f"发送WebSocket数据失败: {e}")
+                    return False
             
             try:
                 # 发送初始数据
@@ -175,40 +348,53 @@ class IntegratedWebServer(WebServer):
                     try:
                         stats = self.event_monitor.get_statistics()
                         serialized_data = self._serialize_dashboard_data(stats)
-                        await websocket.send_json({
+                        success = await safe_send_json({
                             "type": "stats",
                             "data": serialized_data
                         })
+                        if not success:
+                            return
                     except Exception as serialize_error:
                         import traceback
                         logger.error(f"序列化初始统计数据失败: {serialize_error}")
                         logger.error(f"完整堆栈跟踪:\n{traceback.format_exc()}")
-                        await websocket.send_json({
+                        success = await safe_send_json({
                             "type": "error",
                             "message": "获取统计数据失败"
                         })
+                        if not success:
+                            return
                 
                 # 保持连接并定期发送更新
                 while True:
                     await asyncio.sleep(5)  # 每5秒更新一次
                     
+                    # 检查连接状态
+                    if websocket.client_state.name != 'CONNECTED':
+                        logger.debug("WebSocket连接已断开，退出循环")
+                        break
+                    
                     if self.event_monitor:
                         try:
                             stats = self.event_monitor.get_statistics()
                             serialized_data = self._serialize_dashboard_data(stats)
-                            await websocket.send_json({
+                            success = await safe_send_json({
                                 "type": "stats_update",
                                 "data": serialized_data,
                                 "timestamp": time.time()
                             })
+                            if not success:
+                                break
                         except Exception as serialize_error:
                             import traceback
                             logger.error(f"序列化更新统计数据失败: {serialize_error}")
                             logger.error(f"完整堆栈跟踪:\n{traceback.format_exc()}")
-                            await websocket.send_json({
+                            success = await safe_send_json({
                                 "type": "error",
                                 "message": "获取统计数据失败"
                             })
+                            if not success:
+                                break
                         
             except WebSocketDisconnect:
                 logger.info("仪表板WebSocket连接断开")
