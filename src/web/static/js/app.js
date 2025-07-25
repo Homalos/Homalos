@@ -10,9 +10,21 @@ const MainApp = {
             <header class="header">
                 <div class="header-content">
                     <div class="header-title">
-                            <h1>🚀 {{ t('header.title') }}</h1>
-                            <p>{{ t('header.subtitle') }}</p>
-                        </div>
+                        <h1>{{ t('header.title') || 'Homalos量化交易系统' }}</h1>
+                        <p>{{ t('header.subtitle') || '基于Python的期货量化交易系统 v0.0.1' }}</p>
+                    </div>
+                    <div class="header-nav">
+                        <nav class="nav-menu">
+                            <a href="#" @click="currentPage = 'main'" class="nav-item" :class="{ active: currentPage === 'main' }">
+                                <i class="el-icon-house"></i>
+                                {{ t('navigation.home') || '主页' }}
+                            </a>
+                            <a href="/dashboard" class="nav-item" target="_blank">
+                                <i class="el-icon-data-analysis"></i>
+                                {{ t('navigation.eventMonitor') || '事件监控' }}
+                            </a>
+                        </nav>
+                    </div>
                     <div class="header-actions">
                         <language-switcher-component></language-switcher-component>
                     </div>
@@ -46,6 +58,9 @@ const MainApp = {
     setup() {
         const { state, actions } = window.useGlobalState()
         const { t } = window.useI18n()
+        
+        // 当前页面状态
+        const currentPage = Vue.ref('main')
         
         // 初始化数据加载
         const initializeApp = async () => {
@@ -126,6 +141,7 @@ const MainApp = {
         
         return {
             state,
+            currentPage,
             t
         }
     }

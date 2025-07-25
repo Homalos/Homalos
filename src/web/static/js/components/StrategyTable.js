@@ -45,7 +45,6 @@ const StrategyTableComponent = {
                                 size="small"
                                 @click="copyUuid(scope.row.strategy_uuid)"
                                 :title="t('strategy.copyUuid')">
-                                📋
                             </el-button>
                         </div>
                     </template>

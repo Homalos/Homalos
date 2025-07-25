@@ -28,7 +28,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from src.core.event_bus import EventBus
 from src.core.service_registry import ServiceRegistry
 from src.services.data_service import DataService
-from src.web.web_server import WebServer
+from src.web.integrated_web_server import IntegratedWebServer
+from src.core.event_monitor import EventMonitor
 from src.core.logger import get_logger
 
 # 网关导入和可用性检测
@@ -93,7 +94,8 @@ class HomalosSystem:
         self.service_registry: Optional[ServiceRegistry] = None
         self.trading_engine: Optional[TradingEngine] = None
         self.data_service: Optional[DataService] = None
-        self.web_server: Optional[WebServer] = None
+        self.event_monitor: Optional[EventMonitor] = None
+        self.web_server: Optional[IntegratedWebServer] = None
         
         # 网关组件（支持多个网关）
         self.market_gateways: Dict[str, Any] = {}
@@ -191,13 +193,25 @@ class HomalosSystem:
             self.trading_engine = TradingEngine(self.event_bus, self.config)
             await self.trading_engine.initialize()
             
-            # 6. 初始化交易网关（如果可用）
+            # 6. 初始化事件监控器
+            logger.info("初始化事件监控器...")
+            from src.core.event_monitor import EventMonitor, EventMonitorIntegration
+            self.event_monitor = EventMonitor(name="HomalosSystem")
+            # 创建事件监控集成器，将监控器与事件总线集成
+            self.event_monitor_integration = EventMonitorIntegration(self.event_bus, self.event_monitor)
+            
+            # 7. 初始化交易网关（如果可用）
             await self._initialize_gateways()
             
-            # 7. 初始化Web管理界面
+            # 8. 初始化集成Web管理界面
             if self.config.get("web.enabled", True):
-                logger.info("初始化Web管理界面...")
-                self.web_server = WebServer(self.trading_engine, self.event_bus, self.config)
+                logger.info("初始化集成Web管理界面...")
+                self.web_server = IntegratedWebServer(
+                    self.trading_engine, 
+                    self.event_bus, 
+                    self.config, 
+                    self.event_monitor
+                )
             
             logger.info("系统组件初始化完成")
             return True
@@ -542,6 +556,14 @@ class HomalosSystem:
             if self.data_service:
                 logger.info("关闭数据服务...")
                 await self.data_service.shutdown()
+            
+            # 停止事件监控器
+            if hasattr(self, 'event_monitor_integration') and self.event_monitor_integration:
+                logger.info("停止事件监控集成器...")
+                self.event_monitor_integration.stop()
+            if self.event_monitor:
+                logger.info("停止事件监控器...")
+                self.event_monitor.stop_monitoring()
 
             # 关闭所有行情网关
             self._close_gateways(self.market_gateways, "行情网关")
@@ -578,6 +600,7 @@ class HomalosSystem:
 🎯 Homalos量化交易系统
 📁 配置文件: {self.config_file}
 🌐 Web界面: {'启用' if self.web_server else '禁用'}
+📊 事件监控: {'启用' if self.event_monitor else '禁用'}
 🔌 CTP网关: {'可用' if CTP_AVAILABLE else '不可用'}
 ⚙️ 事件总线: {self.event_bus.name}
 💾 数据库: {self.config.get('database.path', 'N/A')}
@@ -587,7 +610,8 @@ class HomalosSystem:
         if self.web_server:
             host = self.config.get("web.host", "127.0.0.1")
             port = self.config.get("web.port", 8000)
-            info += "Web地址: http:" + f"//{host}:{port}\n"
+            info += f"Web地址: http://{host}:{port}\n"
+            info += f"事件监控仪表板: http://{host}:{port}/dashboard\n"
         
         info += "="*60
         logger.info(info)
@@ -602,6 +626,7 @@ class HomalosSystem:
             "ctp_available": CTP_AVAILABLE,
             "components": {
                 "event_bus": self.event_bus is not None,
+                "event_monitor": self.event_monitor is not None,
                 "trade": self.trading_engine is not None,
                 "data_service": self.data_service is not None,
                 "web_server": self.web_server is not None,

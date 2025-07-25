@@ -417,23 +417,45 @@ class WebServer:
                     "risk.rejected", "system.error", "engine.started", "engine.stopped"
                 ]
                 
+                # 处理不同格式的事件数据
+                if isinstance(event, dict):
+                    # EnhancedEventBus格式的事件数据
+                    event_type = event.get('type', 'unknown')
+                    event_data = event.get('data', {})
+                    event_source = event.get('source', 'unknown')
+                    event_timestamp = event.get('timestamp', time.time())
+                else:
+                    # Event对象格式
+                    event_type = getattr(event, 'type', getattr(event, 'event_type', 'unknown'))
+                    event_data = getattr(event, 'data', {})
+                    event_source = getattr(event, 'source', 'unknown')
+                    event_timestamp = getattr(event, 'timestamp', time.time() * 1_000_000_000)
+                
                 # 调试日志：记录所有接收到的事件
-                logger.debug(f"WebSocket事件监控器收到事件: {event.type} from {event.source}")
+                logger.debug(f"WebSocket事件监控器收到事件: {event_type} from {event_source}")
                 
                 # 使用更宽松的匹配条件，确保策略事件能被捕获
-                should_push = (any(event.type.startswith(prefix) for prefix in push_events) or 
-                              "strategy." in event.type or 
-                              event.type in push_events)
+                should_push = (any(event_type.startswith(prefix) for prefix in push_events) or 
+                              "strategy." in event_type or 
+                              event_type in push_events)
                 
                 if should_push:
-                    logger.info(f"WebSocket推送事件: {event.type} -> {len(self.ws_manager.active_connections)} 个连接")
+                    logger.info(f"WebSocket推送事件: {event_type} -> {len(self.ws_manager.active_connections)} 个连接")
+                    
+                    # 处理时间戳格式
+                    if isinstance(event_timestamp, (int, float)) and event_timestamp > 1e12:
+                        # 纳秒时间戳，转换为秒
+                        timestamp_seconds = event_timestamp / 1_000_000_000
+                    else:
+                        # 已经是秒时间戳
+                        timestamp_seconds = event_timestamp
                     
                     message = {
                         "type": "event",
-                        "event_type": event.type,
-                        "data": self._serialize_event_data(event.data),
-                        "source": event.source,
-                        "timestamp": event.timestamp / 1_000_000_000  # 转换为秒
+                        "event_type": event_type,
+                        "data": self._serialize_event_data(event_data),
+                        "source": event_source,
+                        "timestamp": timestamp_seconds
                     }
                     
                     # 调试日志：记录推送的消息内容
@@ -447,8 +469,15 @@ class WebServer:
                 import traceback
                 logger.error(f"错误详情: {traceback.format_exc()}")
         
-        # 注册事件监控器
-        self.event_bus.add_monitor(event_monitor)
+        # 注册事件监控器 - 兼容不同类型的事件总线
+        if hasattr(self.event_bus, 'add_monitor'):
+            # 普通EventBus
+            self.event_bus.add_monitor(event_monitor)
+        elif hasattr(self.event_bus, 'subscribe_global'):
+            # EnhancedEventBus
+            self.event_bus.subscribe_global(event_monitor)
+        else:
+            logger.warning("Event bus does not support monitoring")
         logger.info("WebSocket事件监控器已注册")
     
     def _serialize_event_data(self, data: Any) -> Any:

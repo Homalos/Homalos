@@ -69,3 +69,17 @@ sqlite3 data/market_data.db "SELECT symbol, datetime, last_price, volume FROM ti
 netstat -ano | findstr :8000 
 
 taskkill /F /PID 11968
+
+```
+# 1. 获取远程仓库最新分支信息
+git fetch origin
+
+# 2. 查看所有分支（包括远程）
+git branch -a   # 远程分支会显示为 `remotes/origin/分支名`
+
+# 3. 创建并切换到远程分支的本地副本（例如切换到远程的 feature/new 分支）
+git checkout -b feature/new origin/feature/new
+
+# 或使用 switch 命令（Git 2.23+）
+git switch -c feature/new origin/feature/new
+```

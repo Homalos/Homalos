@@ -54,6 +54,13 @@ const messages = {
             language: '语言'
         },
         
+        // 导航菜单
+        navigation: {
+            home: '主页',
+            eventMonitor: '事件监控',
+            dashboard: '监控仪表板'
+        },
+        
         // 仪表板
         dashboard: {
             systemStatus: '系统状态',
@@ -200,6 +207,13 @@ const messages = {
             title: 'Homalos Quantitative Trading System',
             subtitle: 'Python-based Futures Quantitative Trading System v2.0',
             language: 'Language'
+        },
+        
+        // Navigation
+        navigation: {
+            home: 'Home',
+            eventMonitor: 'Event Monitor',
+            dashboard: 'Monitor Dashboard'
         },
         
         // Dashboard
