@@ -30,7 +30,7 @@ class MovingAverageStrategy(BaseStrategy):
     strategy_name = "MovingAverageStrategy"
     authors = ["Donny"]
     version = "0.0.1"
-    description = "基于移动平均线的双线交叉策略"
+    description = "Two-line crossover strategy based on moving average"
     
     def __init__(self, strategy_id: str, event_bus, params: Dict[str, Any] = None):
         # 默认参数

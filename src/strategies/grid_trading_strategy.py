@@ -30,7 +30,7 @@ class GridTradingStrategy(BaseStrategy):
     strategy_name = "GridTradingStrategy"
     authors = ["Donny"]
     version = "0.0.1"
-    description = "基于价格网格的震荡交易策略"
+    description = "Swing trading strategy based on price grid"
     
     def __init__(self, strategy_id: str, event_bus, params: Dict[str, Any] = None):
         # 默认参数

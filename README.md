@@ -41,7 +41,13 @@ Homalos aims to be a production-ready quantitative trading system with the follo
 
 ## Web management interface display
 
+Main Interface
+
 ![homalos_dashboard](assets/homalos_en.png)
+
+Loading strategy
+
+![homalos_dashboard](assets/load_strategy_en.png)
 
 ## System Features
 

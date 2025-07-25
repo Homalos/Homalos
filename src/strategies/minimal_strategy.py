@@ -30,7 +30,7 @@ class MinimalStrategy(BaseStrategy):
     strategy_name = "MinimalStrategy"
     authors = ["Donny"]
     version = "0.0.1"
-    description = "最小策略 - 用于测试交易引擎全链路功能"
+    description = "Minimum strategy - used to test the full-link functionality of the trading engine"
     
     def __init__(self, strategy_id: str, event_bus, params: Dict[str, Any] | None = None):
         # 默认参数定义
