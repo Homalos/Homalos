@@ -78,7 +78,7 @@ class TradingEngine:
     async def start(self):
         """启动交易引擎"""
         if self.is_running:
-            logger.warning("交易引擎已在运行")
+            logger.debug("交易引擎已在运行")
             return
 
         self.is_running = True

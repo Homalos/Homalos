@@ -702,10 +702,6 @@ class DataService:
         except Exception as e:
             logger.error(f"bar查询失败: {e}")
     
-
-    
-
-    
     def _handle_data_center_connected(self, event: Event):
         """处理数据中心连接事件"""
         try:

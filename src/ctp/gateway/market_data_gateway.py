@@ -657,6 +657,7 @@ class CtpMdApi(MdApi):
         """用户登录请求回报（修复版本）"""
         try:
             if error["ErrorID"] == 0:
+                global_var.md_login_success = True
                 self.login_status = True
                 self.gateway.login_state = LoginState.LOGGED_IN
                 self.gateway._update_connection_state(ConnectionState.LOGGED_IN)
@@ -688,7 +689,7 @@ class CtpMdApi(MdApi):
                     # 更新日期
                     self.update_date()
                     
-                    # 修复：无论是否有重新订阅的合约，都要发布网关就绪事件
+                    # 无论是否有重新订阅的合约，都要发布网关就绪事件
                     self.gateway.event_bus.publish(Event(
                         EventType.GATEWAY_READY,
                         {"gateway_name": self.gateway.gateway_name}

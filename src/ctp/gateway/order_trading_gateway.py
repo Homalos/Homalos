@@ -199,13 +199,13 @@ class OrderTradingGateway(BaseGateway):
         """设置网关事件处理器"""
         try:
             # 订阅交易相关事件
-            self.event_bus.subscribe("gateway.order", self._handle_gateway_order)
-            self.event_bus.subscribe("gateway.send_order", self._handle_gateway_send_order)
-            self.event_bus.subscribe("gateway.cancel", self._handle_gateway_cancel)
+            self.event_bus.subscribe(EventType.GATEWAY_ORDER, self._handle_gateway_order)
+            self.event_bus.subscribe(EventType.GATEWAY_SEND_ORDER, self._handle_gateway_send_order)
+            self.event_bus.subscribe(EventType.GATEWAY_CANCEL_ORDER, self._handle_gateway_cancel)
             
             # 订阅查询相关事件
-            self.event_bus.subscribe("gateway.query_account", self._handle_query_account)
-            self.event_bus.subscribe("gateway.query_position", self._handle_query_position)
+            self.event_bus.subscribe(EventType.GATEWAY_QUERY_ACCOUNT, self._handle_query_account)
+            self.event_bus.subscribe(EventType.GATEWAY_QUERY_POSITION, self._handle_query_position)
             
             logger.info(f"{self.gateway_name} 交易网关事件处理器已注册")
         except Exception as e:
@@ -262,7 +262,7 @@ class OrderTradingGateway(BaseGateway):
             # 检查网关状态和合约信息就绪状态
             if self._gateway_state != ConnectionState.READY:
                 self.write_log(f"网关状态未就绪: {self._gateway_state.value}，拒绝下单请求")
-                self._safe_publish_event("order.send_failed", {
+                self._safe_publish_event(EventType.ORDER_SEND_FAILED, {
                     "order_request": order_request,
                     "order_data": order_data,
                     "reason": f"网关状态未就绪: {self._gateway_state.value}"
@@ -272,7 +272,7 @@ class OrderTradingGateway(BaseGateway):
             # 检查合约信息是否就绪
             if not self.is_contracts_ready():
                 self.write_log("合约信息未就绪，拒绝下单请求")
-                self._safe_publish_event("order.send_failed", {
+                self._safe_publish_event(EventType.ORDER_SEND_FAILED, {
                     "order_request": order_request,
                     "order_data": order_data,
                     "reason": "合约信息未就绪"
@@ -283,7 +283,7 @@ class OrderTradingGateway(BaseGateway):
             symbol = order_request.symbol
             if symbol not in symbol_contract_map:
                 self.write_log(f"合约 {symbol} 不存在于合约映射中，拒绝下单请求")
-                self._safe_publish_event("order.send_failed", {
+                self._safe_publish_event(EventType.ORDER_SEND_FAILED, {
                     "order_request": order_request,
                     "order_data": order_data,
                     "reason": f"合约 {symbol} 不存在"
@@ -299,7 +299,7 @@ class OrderTradingGateway(BaseGateway):
                 if order_id:
                     self.write_log(f"订单已发送到CTP: {order_id}")
                     # 使用线程安全的方式发布订单已发送到CTP的事件
-                    self._safe_publish_event("order.sent_to_ctp", {
+                    self._safe_publish_event(EventType.ORDER_SENT_TO_CTP, {
                         "order_id": order_id,
                         "order_request": order_request,
                         "order_data": order_data
@@ -307,14 +307,14 @@ class OrderTradingGateway(BaseGateway):
                 else:
                     self.write_log("订单发送失败")
                     # 使用线程安全的方式发布订单发送失败事件
-                    self._safe_publish_event("order.send_failed", {
+                    self._safe_publish_event(EventType.ORDER_SEND_FAILED, {
                         "order_request": order_request,
                         "order_data": order_data,
                         "reason": "CTP send_order返回空"
                     })
             else:
                 self.write_log("CTP API未初始化")
-                self._safe_publish_event("order.send_failed", {
+                self._safe_publish_event(EventType.ORDER_SEND_FAILED, {
                     "order_request": order_request,
                     "order_data": order_data,
                     "reason": "CTP API未初始化"
@@ -323,7 +323,7 @@ class OrderTradingGateway(BaseGateway):
         except Exception as e:
             self.write_log(f"处理下单请求失败: {e}")
             # 使用线程安全的方式发布订单发送失败事件
-            self._safe_publish_event("order.send_failed", {
+            self._safe_publish_event(EventType.ORDER_SEND_FAILED, {
                 "reason": f"异常: {e}"
             })
 

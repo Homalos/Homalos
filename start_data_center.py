@@ -36,7 +36,7 @@ class DataCenterApplication:
     
     def __init__(self,
                  gateway_config_file: str = "config/system.yaml",
-                 data_center_config_file = "data_center_config.yaml"):
+                 data_center_config_file = "config/data_center_config.yaml"):
         self.gateway_config_file = gateway_config_file
         self.data_center_config_file = data_center_config_file
         self.gateway_config: Optional[ConfigManager] = None
@@ -48,7 +48,7 @@ class DataCenterApplication:
     async def initialize(self):
         """初始化数据中心应用"""
         try:
-            # 加载配置
+            # 加载系统配置
             self.gateway_config = ConfigManager(self.gateway_config_file)
 
             # 获取启用的网关

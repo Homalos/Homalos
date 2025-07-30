@@ -22,6 +22,7 @@ class GlobalPath(object):
 
     # log，日志目录完整路径
     log_dir_path = project_root_path / Params.log_dir_name
+
     # data，数据目录完整路径
     data_dir_path = project_root_path / Params.data_dir_name
 

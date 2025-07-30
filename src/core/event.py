@@ -80,6 +80,8 @@ class EventType:
     RISK_CHECKED = "risk.checked"  # 风控检查事件
     RISK_APPROVED = "risk.approved"  # 风控批准事件
     ORDER_FAILED = "order.failed"
+    ORDER_SEND_FAILED = "order.send_failed"
+    ORDER_SENT_TO_CTP = "order.sent_to_ctp"
 
     # 高优先级事件
     ORDER = "order"
@@ -111,8 +113,9 @@ class EventType:
     GATEWAY_QUERY_ACCOUNT = "gateway.query_account"  # 网关查询账户事件
     GATEWAY_QUERY_POSITION = "gateway.query_position"  # 网关查询持仓事件
 
+    GATEWAY_ORDER = "gateway.order"
     GATEWAY_SEND_ORDER = "gateway.send_order"       # 网关发送订单事件
-    GATEWAY_CANCEL_ORDER = "gateway.cancel_order"   #
+    GATEWAY_CANCEL_ORDER = "gateway.cancel_order"   # 网关取消订单事件
     GATEWAY_CONTRACTS_READY = "gateway.contracts_ready"
 
     DATA_SUBSCRIBE = "data.subscribe"  # 数据订阅事件
@@ -122,12 +125,6 @@ class EventType:
     DATA_QUERY_TICK_RESULT = "data.query.tick.result"  # 数据查询Tick结果事件
     DATA_QUERY_BAR_RESULT = "data.query.bar.result"  # 数据查询Bar结果事件
     DATA_SUBSCRIBE_SUCCESS = "data.subscribe.success"  # 数据订阅成功事件
-    
-    # 数据中心事件（第一组）
-    DATA_CENTER_QUERY_TICK = "data_center.query.tick"  # 数据中心查询Tick事件
-    DATA_CENTER_QUERY_BAR = "data_center.query.bar"  # 数据中心查询Bar事件
-    DATA_CENTER_TICK_RESULT = "data_center.tick.result"  # 数据中心Tick结果事件
-    DATA_CENTER_BAR_RESULT = "data_center.bar.result"  # 数据中心Bar结果事件
     
     # 行情数据事件
     TICK_DATA = "tick.data"  # Tick数据事件
@@ -145,6 +142,8 @@ class EventType:
     DATA_CENTER_BAR = "data_center.bar"  # 数据中心bar数据事件
     DATA_CENTER_QUERY_TICK = "data_center.query.tick"  # 数据中心查询tick事件
     DATA_CENTER_QUERY_BAR = "data_center.query.bar"  # 数据中心查询bar事件
+    DATA_CENTER_TICK_RESULT = "data_center.tick.result"  # 数据中心Tick结果事件
+    DATA_CENTER_BAR_RESULT = "data_center.bar.result"  # 数据中心Bar结果事件
     DATA_CENTER_QUERY_TICK_RESULT = "data_center.query.tick.result"  # 数据中心查询tick结果事件
     DATA_CENTER_QUERY_BAR_RESULT = "data_center.query.bar.result"  # 数据中心查询bar结果事件
 
@@ -174,10 +173,7 @@ class EventType:
     
     # 普通事件
     MARKET_TICK = "market.tick"
-    MARKET_TICK_RAW = "market.tick.raw"     # tick行情数据处理
     MARKET_BAR = "market.bar"
-    MARKET_BAR_RAW = "market.bar.raw"       # bar行情数据处理
-
     TICK_UPDATED = "tick.updated"
     POSITION_UPDATED = "position.updated"
     ACCOUNT_UPDATED = "account.updated"

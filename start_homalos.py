@@ -406,7 +406,7 @@ class HomalosSystem:
     async def start(self) -> None:
         """启动系统（增强错误处理）"""
         if self.is_running:
-            logger.warning("系统已在运行")
+            logger.debug("系统已在运行")
             return
 
         try:

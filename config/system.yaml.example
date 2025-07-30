@@ -207,6 +207,7 @@ strategy_management:
 data:
   # 行情数据
   market:
+    enable_data_center: true                         # 启用数据中心
     buffer_size: 1000                                # 行情数据缓冲区大小
     enable_persistence: true                         # 启用行情数据持久化
     tick_storage_days: 30                            # 行情数据保存天数
