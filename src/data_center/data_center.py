@@ -53,23 +53,19 @@ class DataCenter:
         self.bar_config = self.data_center_config.get('bar_generation', {})
 
         log_config_dict = self.data_center_config.get('log', {})
-        print("[DEBUG] 开始创建数据中心日志器...")
 
         data_logger = Logger(log_config_dict)
         self.logger = data_logger.get_gateway_logger(gateway_name=__name__)
-        print("[DEBUG] 数据中心日志器创建完成")
 
         # 运行状态
         self.is_running = False
         self.is_connected = False
 
         # 数据库管理器 - 传递完整配置，让DataCenterDatabase自己提取database段
-        print("[DEBUG] 开始创建数据库管理器...")
         database_full_config = {
             'database': self.database_config
         }
         self.database = DataCenterDatabase(database_full_config)
-        print("[DEBUG] 数据库管理器创建完成")
 
         # K线合成器
         interval_strings = self.bar_config.get('intervals', ["1m", "5m", "15m", "30m", "1h"])
@@ -87,9 +83,9 @@ class DataCenter:
         self.all_contracts: Dict[str, ContractData] = {}
 
         # 全市场合约列表
-        print("[DEBUG] 开始加载市场合约列表...")
+        self.logger.info("开始加载市场合约列表...")
         self.market_symbols = self._load_market_symbols()
-        print("[DEBUG] 市场合约列表加载完成")
+        self.logger.info("市场合约列表加载完成")
 
         # 统计信息
         self.stats = {
@@ -106,20 +102,20 @@ class DataCenter:
         self.health_check_thread: Optional[threading.Thread] = None
 
         # 注册事件处理器
-        print("[DEBUG] 开始注册事件处理器...")
+        self.logger.info("开始注册事件处理器...")
         self._register_event_handlers()
-        print("[DEBUG] 事件处理器注册完成")
+        self.logger.info("事件处理器注册完成")
 
         # 验证配置
-        print("[DEBUG] 开始验证配置...")
+        self.logger.info("开始验证配置...")
         self._validate_config()
-        print("[DEBUG] 配置验证完成")
+        self.logger.info("配置验证完成")
 
         self.logger.info("数据中心初始化完成")
 
     def _validate_config(self):
         """验证配置完整性"""
-        print("[DEBUG] 开始验证必需配置段...")
+        self.logger.debug("开始验证必需配置段...")
         required_sections = {
             'data_center': ['database', 'bar_generation']
         }
@@ -134,7 +130,7 @@ class DataCenter:
                 if key not in section_config:
                     self.logger.warning(f"配置 {section}.{key} 缺失，将使用默认值")
 
-        print("[DEBUG] 开始验证数据库配置...")
+        self.logger.debug("开始验证数据库配置...")
         # 验证数据库配置
         db_config = self.database_config
         sqlite_config = db_config.get('sqlite') if db_config else None
@@ -154,12 +150,12 @@ class DataCenter:
         elif not 'bar_db' in sqlite_config:
             self.logger.error("bar_data数据库配置缺失，请检查配置文件")
 
-        print("[DEBUG] 开始验证K线配置...")
+        self.logger.debug("开始验证K线配置...")
         # 验证K线配置
         bar_config = self.bar_config
         if not bar_config or not bar_config.get('intervals'):
             self.logger.warning("K线间隔未配置，使用默认间隔: [1m, 5m, 15m, 30m, 1h]")
-        print("[DEBUG] 配置验证完成")
+        self.logger.debug("配置验证完成")
 
     def _convert_intervals_to_minutes(self, interval_strings: List[str]) -> List[int]:
         """将时间间隔字符串转换为分钟数"""

@@ -517,7 +517,7 @@ class EventMonitorIntegration:
             # 普通EventBus
             self.event_bus.add_monitor(self._monitor_callback)
         elif hasattr(self.event_bus, 'subscribe_global'):
-            # EnhancedEventBus
+            # EnhancedEventBusV2
             self.event_bus.subscribe_global(self._enhanced_monitor_callback)
         else:
             logger.warning("Event bus does not support monitoring")
@@ -544,9 +544,9 @@ class EventMonitorIntegration:
         )
     
     def _enhanced_monitor_callback(self, event_data: dict) -> None:
-        """增强监控回调函数 - 处理EnhancedEventBus的事件（字典格式）"""
+        """增强监控回调函数 - 处理EnhancedEventBusV2的事件（字典格式）"""
         try:
-            # 从EnhancedEventBus获取的是字典格式的事件数据
+            # 从EnhancedEventBusV2获取的是字典格式的事件数据
             from src.core.event import Event, EventPriority
             
             # 创建Event对象
@@ -571,7 +571,7 @@ class EventMonitorIntegration:
         """指标收集循环 - 从EnhancedEventBus获取详细指标"""
         while self._metrics_active:
             try:
-                # 检查是否是EnhancedEventBus，如果是则获取详细指标
+                # 检查是否是EnhancedEventBusV2，如果是则获取详细指标
                 if hasattr(self.event_bus, 'get_processing_results'):
                     self._collect_enhanced_v2_metrics()
                 elif hasattr(self.event_bus, '_event_metrics'):
@@ -582,42 +582,6 @@ class EventMonitorIntegration:
             except Exception as e:
                 logger.error(f"Metrics collection error: {e}", exc_info=True)
                 time.sleep(1.0)
-    
-    def _collect_enhanced_v2_metrics(self) -> None:
-        """从EnhancedEventBus收集详细指标"""
-        try:
-            # 获取处理结果
-            processing_results = self.event_bus.get_processing_results(limit=100)
-            current_time = time.time()
-            
-            # 过滤出新的结果
-            new_results = [result for result in processing_results 
-                          if result.timestamp > self._last_metrics_check]
-            
-            # 记录新结果到EventMonitor
-            for result in new_results:
-                # 创建一个临时事件对象
-                from src.core.event import Event, EventPriority
-                temp_event = Event(
-                    event_type=result.event_type,
-                    priority=EventPriority.NORMAL
-                )
-                
-                # 转换执行时间为纳秒
-                processing_time_ns = int(result.execution_time * 1_000_000_000)
-                
-                self.monitor.record_event(
-                    event=temp_event,
-                    processing_time_ns=processing_time_ns,
-                    queue_wait_time_ns=0,  # EnhancedEventBus暂时没有队列等待时间
-                    success=result.success,
-                    error_message=result.errors[0] if result.errors else None
-                )
-            
-            self._last_metrics_check = current_time
-            
-        except Exception as e:
-            logger.error(f"Enhanced V2 metrics collection error: {e}", exc_info=True)
     
     def _collect_enhanced_metrics(self) -> None:
         """从EnhancedEventBus收集详细指标"""

@@ -7,7 +7,7 @@
 @Author     : Donny
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 统一数据服务 - 集成行情和存储
+@Description: 数据服务 - 整合行情
 """
 import asyncio
 import time
@@ -26,7 +26,7 @@ logger = get_logger("DataService")
 
 
 class DataService:
-    """统一的数据服务 - 整合行情和存储"""
+    """数据服务 - 整合行情"""
     
     def __init__(self, event_bus: EventBus, config: ConfigManager):
         self.event_bus = event_bus

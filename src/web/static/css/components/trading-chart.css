@@ -5,27 +5,6 @@
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
     margin: 20px 0;
     overflow: hidden;
-    border: 2px solid #409EFF;
-}
-
-/* 组件标题样式 */
-.chart-header {
-    background: linear-gradient(135deg, #409EFF, #67C23A);
-    color: white;
-    padding: 20px;
-    text-align: center;
-}
-
-.chart-header h2 {
-    margin: 0 0 8px 0;
-    font-size: 24px;
-    font-weight: 600;
-}
-
-.chart-header p {
-    margin: 0;
-    font-size: 14px;
-    opacity: 0.9;
 }
 
 /* 控制面板样式 */

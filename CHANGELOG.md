@@ -1,5 +1,66 @@
 # Update History
+
+## v0.0.1.202507301112
+
+### ✅ Data Storage Format Migration: Parquet to CSV
+
+**Core improvement**:
+
+- ✅ **Storage format migration**: Successfully migrated data center storage from Parquet to CSV format
+- ✅ **Library transition**: Replaced pandas with polars for improved performance and CSV handling
+- ✅ **Configuration updates**: Updated all configuration files to reflect CSV storage settings
+- ✅ **Method standardization**: Converted all Parquet-related methods to CSV equivalents
+
+**Technical implementation**:
+
+```python
+// Core storage format changes
+- Replaced pandas DataFrame operations with polars for better CSV performance
+- Updated file extensions from .parquet to .csv throughout the system
+- Modified buffer management from parquet_buffer to csv_buffer
+- Changed compression settings to cache_size configuration
+```
+
+**Updated files**:
+
+- ✅ **data_center_database.py**: Complete migration of storage methods from Parquet to CSV
+- ✅ **data_center_config.yaml**: Updated configuration from parquet to csv block
+- ✅ **test_data_center.py**: Updated test configurations for CSV format
+- ✅ **pyproject.toml**: Verified polars dependency for CSV operations
+
+**Method conversions**:
+
+- ✅ **Storage initialization**: `_init_parquet_storage` → `_init_csv_storage`
+- ✅ **Background writer**: `_background_parquet_writer` → `_background_csv_writer`
+- ✅ **Buffer management**: `_add_tick_to_parquet_buffer` → `_add_tick_to_csv_buffer`
+- ✅ **Flush operations**: `_flush_all_parquet_buffers` → `_flush_all_csv_buffers`
+- ✅ **Data flushing**: `_flush_tick_parquet_buffer` → `_flush_tick_csv_buffer`
+
+**Features**:
+
+- 🚀 **Improved performance**: Polars provides faster CSV operations compared to pandas
+- 💾 **Better compatibility**: CSV format offers wider compatibility across systems
+- 🔧 **Simplified configuration**: Replaced compression settings with cache_size for better control
+- 📊 **Maintained functionality**: All data operations preserved during format migration
+
+**Verification results**:
+
+- ✅ Successfully imported DataCenterDatabase after migration
+- ✅ All Parquet references replaced with CSV equivalents
+- ✅ Configuration files updated to reflect new storage format
+- ✅ Dependencies properly installed and verified
+
+**Technical improvements**:
+
+- **Enhanced performance**: Polars library provides superior CSV handling capabilities
+- **Better maintainability**: Simplified storage format reduces complexity
+- **Improved compatibility**: CSV format ensures broader system compatibility
+- **Streamlined operations**: Unified buffer management with cache_size configuration
+
+---
+
 ## v0.0.1.202507251513
+
 ### ✅ Language Menu Font Color Enhancement
 
 **Core improvement**:
@@ -53,6 +114,7 @@
 ---
 
 ## v0.0.1.202507251512
+
 ### ✅ Menu Style Unification and Favicon Consistency
 
 **Core function implementation**:
@@ -169,7 +231,7 @@
 
 **Verification results**:
 
-- ✅ System successfully started and running at http://127.0.0.1:8000
+- ✅ System successfully started and running at <http://127.0.0.1:8000>
 - ✅ Trading chart functionality fully integrated into the quantitative trading platform
 - ✅ All API interfaces now return data correctly without `'str' object has no attribute 'get'` errors
 - ✅ Web server successfully restarted and loaded test strategies
@@ -498,19 +560,23 @@ no such table: jd2602
 
 ### ✅ Main fixes
 
-1. **✅ Thread safety issue resolution**:
+1.**✅ Thread safety issue resolution**:
+
 - No more `RuntimeError: no running event loop` errors
 - Successfully implemented thread-safe bridging between CTP API callbacks and Python event loops
 
-2. **✅ Enumeration type safety processing**:
+2.**✅ Enumeration type safety processing**:
+
 - Implemented `_safe_get_direction_value` and `_safe_get_status_value` methods
 - Fixed the correct use of Exchange enumeration
 
-3. **✅ Test mode configuration**:
+3.**✅ Test mode configuration**:
+
 - Successfully added test mode configuration items
 - Implemented test mode coverage for transaction time checks
 
-4. **✅ Error handling enhancement**:
+4.**✅ Error handling enhancement**:
+
 - Improved error analysis of test cases
 - Enhanced diagnostic information in test reports
 
@@ -546,9 +612,9 @@ During the test run, some missing methods were found (such as `on_contract`), be
 
 ### 🎉 Key achievements
 
-** Core issues resolved**:
+**Core issues resolved**:
 
-- ✅ ** CTP API callback thread safety**: Completely solved through ThreadSafeCallback class
+- ✅ **CTP API callback thread safety**: Completely solved through ThreadSafeCallback class
 - ✅ **Enumeration type access error**: Completely fixed through safe acquisition method
 - ✅ **Test environment restriction**: Effectively bypassed through test mode configuration
 
@@ -564,7 +630,7 @@ During the test run, some missing methods were found (such as `on_contract`), be
 
 ### ✅ Completed implementation projects
 
-1. Removed simulated transaction logic
+1.Removed simulated transaction logic
 
 - ✅ Deleted the `_mock_trade_fill` method in OrderManager
 
@@ -572,39 +638,39 @@ During the test run, some missing methods were found (such as `on_contract`), be
 
 - ✅ Established a real order execution path
 
-2. Improved CTP gateway event publishing
+2.Improved CTP gateway event publishing
 
 - ✅ Added `gateway.send_order` event processing
 
 - ✅ Improved order sending confirmation and failure event publishing
 - ✅ Verified that BaseGateway's event publishing mechanism works properly
 
-3. Established a real order execution link**
+3.Established a real order execution link**
 
 - ✅ Established a mapping mechanism between system order ID and CTP order ID
 - ✅ Improved OrderManager's processing of CTP return events
 - ✅ Implemented complete order life cycle management
 
-4. Improved real-time synchronization of account positions**
+4.Improved real-time synchronization of account positions**
 
 - ✅ Added regular query tasks (30 seconds interval)
 - ✅ Improved the account and position update processing of AccountManager
 - ✅ Established the CTP gateway query event processing mechanism
 
-5. Optimized the strategy trading interface
+5.Optimized the strategy trading interface
 
 - ✅ Improved the order tracking mechanism of BaseStrategy
 - ✅ Improved the strategy order and transaction event processing
 - ✅ Established the correct order attribution judgment logic
 
-6. Strengthened risk control and exception handling
+6.Strengthened risk control and exception handling
 
 - ✅ Implemented the risk control rules at the real level
 - ✅ Added transaction time check, order value limit, price rationality check
 - ✅ Established anomaly monitoring and strategy error statistics mechanism
 - ✅ Implemented real-time risk control monitoring tasks
 
-7. Integration testing and verification
+7.Integration testing and verification
 
 - ✅ Created a complete CTP real-level integration test script
 - ✅ Including order execution link, risk control system, account synchronization test
@@ -641,48 +707,58 @@ Strategy signal → Risk control check → OrderManager → CTP gateway → SimN
 
 ### ✅ Completed implementation projects
 
-1. **Fix CTP gateway configuration field mismatch problem**
+1.**Fix CTP gateway configuration field mismatch problem**
+
 - Solved the compatibility problem of userid/user_id fields
 - Added backward compatibility support
 
-2. **Adjust the test environment monitoring threshold configuration**
+2.**Adjust the test environment monitoring threshold configuration**
+
 - Optimized the memory and CPU thresholds to adapt to the development environment
 - Adjusted the alarm sensitivity
 
-3. **Fixed the start.py type annotation error**
+3.**Fixed the start.py type annotation error**
+
 - Fixed the type annotation problem
 - Enhanced code quality
 
-4. **Verify that the basic functions of the system are normal**
+4.**Verify that the basic functions of the system are normal**
+
 - Confirmed that the Web service and API interface are running normally
 - Verified the core component functions
 
-5. **Enhance the connection stability of CTP gateway**
+5.**Enhance the connection stability of CTP gateway**
+
 - Implemented the intelligent automatic reconnection mechanism
 - Added the exponential backoff reconnection strategy
 - Enhanced the connection status monitoring
 
-6. **Improve the system monitoring and alarm mechanism**
+6.**Improve the system monitoring and alarm mechanism**
+
 - Implemented the alarm suppression mechanism (5 minutes anti-repetition)
 - Added alarm upgrade rules (based on frequency)
 - Enhanced the multi-level alarm system
 
-7. **Optimized system startup and error handling**
+7.**Optimized system startup and error handling**
+
 - Refactored the step-by-step startup process
 - Enhanced error handling and recovery mechanism
 - Implemented elegant shutdown function
 
-8. **Created strategy development auxiliary tools**
+8.**Created strategy development auxiliary tools**
+
 - Complete strategy development templates
 - Detailed development guide documents (460+ lines)
 - Complete API reference and best practices
 
-9. **Run complete system tests**
+9.**Run complete system tests**
+
 - Created a comprehensive test framework
 - Verified all core component functions
 - Confirmed that the system integration test passed
 
-10. **Project completion status summary and document update**
+10.**Project completion status summary and document update**
+
 - Created a complete project completion summary document
 - Updated system status and subsequent planning
 - Provided deployment guidance

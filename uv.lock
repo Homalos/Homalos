@@ -286,6 +286,7 @@ name = "homalos"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
+    { name = "colorama" },
     { name = "fastapi" },
     { name = "hatch" },
     { name = "hatchling" },
@@ -311,6 +312,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "aiosqlite", specifier = ">=0.21.0" },
+    { name = "colorama", specifier = ">=0.4.6" },
     { name = "fastapi", specifier = ">=0.116.0" },
     { name = "hatch", specifier = ">=1.14.1" },
     { name = "hatchling", specifier = ">=1.27.0" },

@@ -18,7 +18,7 @@ from pathlib import Path
 from queue import Queue, Empty
 from typing import List, Dict, Any, Optional
 
-import pandas as pd
+import polars as pl
 
 from src.core.logger import get_logger
 from src.core.object import TickData, BarData
@@ -69,10 +69,10 @@ class DataCenterDatabase:
         self.tick_db_config = tick_db_config
         self.bar_db_config = bar_db_config
 
-        # Parquet配置
-        parquet_config = config.get("parquet", {})
-        self.parquet_base_path = Path(parquet_config.get("base_path", "data"))
-        self.parquet_compression = parquet_config.get("compression", "snappy")
+        # CSV配置
+        csv_config = config.get("csv", {})
+        self.csv_base_path = Path(csv_config.get("base_path", "data"))
+        self.csv_cache_size = 100  # 缓存100条数据后写入CSV
 
         # 批量写入配置
         batch_write_config = config.get("batch_write", {})
@@ -87,10 +87,10 @@ class DataCenterDatabase:
         self._bar_batches = defaultdict(lambda: defaultdict(list))  # {date_str: {contract_key: [data_list]}}
         self._batch_lock = threading.Lock()
 
-        # Parquet缓存
-        self._tick_parquet_buffer: List[Dict[str, Any]] = []
-        self._bar_parquet_buffer: List[Dict[str, Any]] = []
-        self._parquet_lock = threading.Lock()
+        # CSV缓存
+        self._tick_csv_buffer: List[Dict[str, Any]] = []
+        self._bar_csv_buffer: List[Dict[str, Any]] = []
+        self._csv_lock = threading.Lock()
 
         # 表缓存 - 记录已创建的表
         self._created_tables = set()  # {(data_type, date_str, table_name)}
@@ -99,11 +99,11 @@ class DataCenterDatabase:
         # 后台写入线程
         self._write_queue = Queue()
         self._write_thread = None
-        self._parquet_thread = None
+        self._csv_thread = None
         self._running = False
 
         self._init_database_dirs()
-        self._init_parquet_storage()
+        self._init_csv_storage()
 
     def _init_database_dirs(self):
         """初始化数据库目录"""
@@ -290,20 +290,20 @@ class DataCenterDatabase:
             logger.error(f"创建bar表失败 - 合约: {symbol}.{exchange}, 日期: {trade_date}, 错误: {e}")
             raise
 
-    def _init_parquet_storage(self):
-        """初始化Parquet存储"""
+    def _init_csv_storage(self):
+        """初始化CSV存储"""
         try:
-            # 确保Parquet目录存在
-            self.parquet_base_path.mkdir(parents=True, exist_ok=True)
+            # 确保CSV目录存在
+            self.csv_base_path.mkdir(parents=True, exist_ok=True)
 
             # 创建主目录
-            (self.parquet_base_path / "tick_parquet").mkdir(exist_ok=True)
-            (self.parquet_base_path / "bar_parquet").mkdir(exist_ok=True)
+            (self.csv_base_path / "tick_csv").mkdir(exist_ok=True)
+            (self.csv_base_path / "bar_csv").mkdir(exist_ok=True)
 
-            logger.info(f"Parquet存储初始化成功: {self.parquet_base_path}")
+            logger.info(f"CSV存储初始化成功: {self.csv_base_path}")
 
         except Exception as e:
-            logger.error(f"Parquet存储初始化失败: {e}")
+            logger.error(f"CSV存储初始化失败: {e}")
             raise
 
     def start(self):
@@ -317,11 +317,11 @@ class DataCenterDatabase:
         self._write_thread = threading.Thread(target=self._background_writer, daemon=True)
         self._write_thread.start()
 
-        # 启动Parquet写入线程
-        self._parquet_thread = threading.Thread(target=self._background_parquet_writer, daemon=True)
-        self._parquet_thread.start()
+        # 启动CSV写入线程
+        self._csv_thread = threading.Thread(target=self._background_csv_writer, daemon=True)
+        self._csv_thread.start()
 
-        logger.info("数据库写入线程已启动（SQLite + Parquet）")
+        logger.info("数据库写入线程已启动（SQLite + CSV）")
 
     def stop(self):
         """停止后台写入线程"""
@@ -336,9 +336,9 @@ class DataCenterDatabase:
 
         # 刷新剩余批次
         self._flush_all_batches()
-        self._flush_all_parquet_buffers()
+        self._flush_all_csv_buffers()
 
-        logger.info("数据库写入线程已停止（SQLite + Parquet）")
+        logger.info("数据库写入线程已停止（SQLite + CSV）")
 
     def get_status(self) -> Dict[str, Any]:
         """获取数据库状态"""
@@ -370,17 +370,17 @@ class DataCenterDatabase:
                 'table_strategy': self.table_strategy,
                 'tick_db_path': str(self.tick_db_path),
                 'bar_db_path': str(self.bar_db_path),
-                'parquet_path': str(self.parquet_base_path),
+                'csv_path': str(self.csv_base_path),
                 'tick_batch_size': total_tick_batch_size,
                 'bar_batch_size': total_bar_batch_size,
                 'tick_batches_by_contract': tick_batches_by_contract,
                 'bar_batches_by_contract': bar_batches_by_contract,
                 'created_tables_count': len(self._created_tables),
-                'tick_parquet_buffer_size': len(self._tick_parquet_buffer),
-                'bar_parquet_buffer_size': len(self._bar_parquet_buffer),
+                'tick_csv_buffer_size': len(self._tick_csv_buffer),
+                'bar_csv_buffer_size': len(self._bar_csv_buffer),
                 'write_queue_size': self._write_queue.qsize(),
                 'write_thread_alive': self._write_thread.is_alive() if self._write_thread else False,
-                'parquet_thread_alive': self._parquet_thread.is_alive() if self._parquet_thread else False
+                'csv_thread_alive': self._csv_thread.is_alive() if self._csv_thread else False
             }
         except Exception as e:
             logger.error(f"获取数据库状态失败: {e}")
@@ -409,8 +409,8 @@ class DataCenterDatabase:
                 logger.error(f"后台写入线程异常: {e}")
                 time.sleep(1)
 
-    def _background_parquet_writer(self):
-        """Parquet后台写入线程"""
+    def _background_csv_writer(self):
+        """CSV后台写入线程"""
         last_flush = time.time()
 
         while self._running:
@@ -418,13 +418,13 @@ class DataCenterDatabase:
                 # 检查是否需要定时刷新
                 current_time = time.time()
                 if current_time - last_flush >= max(self.tick_flush_interval, self.bar_flush_interval):
-                    self._flush_all_parquet_buffers()
+                    self._flush_all_csv_buffers()
                     last_flush = current_time
 
                 time.sleep(1)
 
             except Exception as e:
-                logger.error(f"Parquet后台写入线程异常: {e}")
+                logger.error(f"CSV后台写入线程异常: {e}")
                 time.sleep(1)
 
     def _execute_write_task(self, task: Dict[str, Any]):
@@ -471,7 +471,7 @@ class DataCenterDatabase:
         """保存tick数据（同步版本）"""
         # 支持TickData对象和字典两种格式
         if hasattr(tick_data, 'symbol'):  # TickData对象
-            # 从datetime中提取UpdateTime（保持完整的ISO格式用于Parquet）
+            # 从datetime中提取UpdateTime（保持完整的ISO格式用于CSV）
             update_time = tick_data.datetime.isoformat() if hasattr(tick_data.datetime, 'isoformat') else str(
                 tick_data.datetime)
             update_millisec = tick_data.datetime.microsecond // 1000 if hasattr(tick_data.datetime,
@@ -552,8 +552,8 @@ class DataCenterDatabase:
         # 添加到按合约和日期分组的批量写入缓存
         self._add_to_contract_batch('tick', contract_key, date_str, trade_date, tick_dict)
 
-        # 同时添加到Parquet缓冲区
-        self._add_tick_to_parquet_buffer(tick_dict)
+        # 同时添加到CSV缓冲区
+        self._add_tick_to_csv_buffer(tick_dict)
 
     async def save_tick_data_async(self, tick_data: TickData):
         """异步保存tick数据"""
@@ -563,7 +563,7 @@ class DataCenterDatabase:
         """保存bar数据（同步版本）"""
         # 支持BarData对象和字典两种格式
         if hasattr(bar_data, 'symbol'):  # BarData对象
-            # 从datetime中提取UpdateTime（保持完整的ISO格式用于Parquet）
+            # 从datetime中提取UpdateTime（保持完整的ISO格式用于CSV）
             update_time = bar_data.datetime.isoformat() if hasattr(bar_data.datetime, 'isoformat') else str(
                 bar_data.datetime)
 
@@ -600,7 +600,7 @@ class DataCenterDatabase:
             if 'datetime' in bar_dict and hasattr(bar_dict['datetime'], 'isoformat'):
                 bar_dict['datetime'] = bar_dict['datetime'].isoformat()
 
-            # 从datetime中提取UpdateTime（保持完整的ISO格式用于Parquet）
+            # 从datetime中提取UpdateTime（保持完整的ISO格式用于CSV）
             dt = datetime.fromisoformat(bar_dict['datetime'])
             update_time = dt.isoformat()
 
@@ -638,8 +638,8 @@ class DataCenterDatabase:
         # 添加到按合约和日期分组的批量写入缓存
         self._add_to_contract_batch('bar', contract_key, date_str, trade_date, bar_dict)
 
-        # 同时添加到Parquet缓冲区
-        self._add_bar_to_parquet_buffer(bar_dict)
+        # 同时添加到CSV缓冲区
+        self._add_bar_to_csv_buffer(bar_dict)
 
     async def save_bar_data_async(self, bar_data: BarData):
         """异步保存bar数据"""
@@ -1002,40 +1002,40 @@ class DataCenterDatabase:
         except Exception as e:
             logger.error(f"执行直接SQL失败: {e}")
 
-    def _add_tick_to_parquet_buffer(self, data: Dict[str, Any]):
-        """添加tick数据到Parquet缓冲区"""
-        with self._parquet_lock:
-            self._tick_parquet_buffer.append(data)
-            if len(self._tick_parquet_buffer) >= self.tick_batch_size:
-                self._flush_tick_parquet_buffer()
+    def _add_tick_to_csv_buffer(self, data: Dict[str, Any]):
+        """添加tick数据到CSV缓冲区"""
+        with self._csv_lock:
+            self._tick_csv_buffer.append(data)
+            if len(self._tick_csv_buffer) >= self.csv_cache_size:
+                self._flush_tick_csv_buffer()
 
-    def _add_bar_to_parquet_buffer(self, data: Dict[str, Any]):
-        """添加bar数据到Parquet缓冲区"""
-        with self._parquet_lock:
-            self._bar_parquet_buffer.append(data)
-            if len(self._bar_parquet_buffer) >= self.bar_batch_size:
-                self._flush_bar_parquet_buffer()
+    def _add_bar_to_csv_buffer(self, data: Dict[str, Any]):
+        """添加bar数据到CSV缓冲区"""
+        with self._csv_lock:
+            self._bar_csv_buffer.append(data)
+            if len(self._bar_csv_buffer) >= self.csv_cache_size:
+                self._flush_bar_csv_buffer()
 
-    def _flush_all_parquet_buffers(self):
-        """刷新所有Parquet缓冲区"""
-        with self._parquet_lock:
+    def _flush_all_csv_buffers(self):
+        """刷新所有CSV缓冲区"""
+        with self._csv_lock:
             try:
-                if self._tick_parquet_buffer:
-                    self._flush_tick_parquet_buffer()
-                if self._bar_parquet_buffer:
-                    self._flush_bar_parquet_buffer()
+                if self._tick_csv_buffer:
+                    self._flush_tick_csv_buffer()
+                if self._bar_csv_buffer:
+                    self._flush_bar_csv_buffer()
             except Exception as e:
-                logger.error(f"Parquet批量刷新失败: {e}")
+                logger.error(f"CSV批量刷新失败: {e}")
 
-    def _flush_tick_parquet_buffer(self):
-        """刷新tick数据Parquet缓冲区"""
-        if not self._tick_parquet_buffer:
+    def _flush_tick_csv_buffer(self):
+        """刷新tick数据CSV缓冲区"""
+        if not self._tick_csv_buffer:
             return
 
         try:
             # 按日期和合约分组
             date_symbol_groups = {}
-            for data in self._tick_parquet_buffer:
+            for data in self._tick_csv_buffer:
                 dt = datetime.fromisoformat(data['UpdateTime'])
                 date_str = dt.strftime('%Y%m%d')
                 symbol = data['InstrumentID']
@@ -1050,26 +1050,25 @@ class DataCenterDatabase:
             # 分别写入每个日期和合约的文件
             for date_str, symbol_groups in date_symbol_groups.items():
                 # 创建日期目录
-                date_dir = self.parquet_base_path / "tick_parquet" / date_str
+                date_dir = self.csv_base_path / "tick_csv" / date_str
                 date_dir.mkdir(parents=True, exist_ok=True)
 
                 for symbol, symbol_data in symbol_groups.items():
-                    df = pd.DataFrame(symbol_data)
-                    file_path = date_dir / f"{symbol}.parquet"
+                    df = pl.DataFrame(symbol_data)
+                    file_path = date_dir / f"{symbol}.csv"
 
                     # 如果文件已存在，追加数据
                     if file_path.exists():
                         try:
                             # 尝试读取现有文件，如果失败则备份并重新创建
-                            existing_df = pd.read_parquet(file_path)
-                            df = pd.concat([existing_df, df], ignore_index=True)
+                            existing_df = pl.read_csv(file_path)
+                            df = pl.concat([existing_df, df])
                             # 去重并排序
-                            df = df.drop_duplicates(subset=['InstrumentID', 'ExchangeID', 'UpdateTime']).sort_values(
-                                'UpdateTime')
+                            df = df.unique(subset=['InstrumentID', 'ExchangeID', 'UpdateTime']).sort('UpdateTime')
                         except Exception as read_error:
-                            logger.warning(f"读取现有Parquet文件失败 {file_path}: {read_error}，将备份并重新创建")
+                            logger.warning(f"读取现有CSV文件失败 {file_path}: {read_error}，将备份并重新创建")
                             # 备份损坏的文件
-                            backup_path = file_path.with_suffix(f'.backup_{int(time.time())}.parquet')
+                            backup_path = file_path.with_suffix(f'.backup_{int(time.time())}.csv')
                             try:
                                 file_path.rename(backup_path)
                                 logger.info(f"损坏文件已备份到: {backup_path}")
@@ -1086,7 +1085,7 @@ class DataCenterDatabase:
                     # 写入文件（使用临时文件确保原子性）
                     temp_path = file_path.with_suffix('.tmp')
                     try:
-                        df.to_parquet(temp_path, compression=self.parquet_compression, index=False)
+                        df.write_csv(temp_path)
                         # 原子性移动临时文件到目标位置，添加重试机制
                         max_retries = 3
                         for retry in range(max_retries):
@@ -1102,7 +1101,7 @@ class DataCenterDatabase:
                                 else:
                                     raise move_error
                     except Exception as write_error:
-                        logger.error(f"写入Parquet文件失败 {file_path}: {write_error}")
+                        logger.error(f"写入CSV文件失败 {file_path}: {write_error}")
                         # 清理临时文件
                         if temp_path.exists():
                             try:
@@ -1111,24 +1110,24 @@ class DataCenterDatabase:
                                 pass
                         raise
 
-            buffer_count = len(self._tick_parquet_buffer)
-            self._tick_parquet_buffer.clear()
-            logger.debug(f"Tick Parquet数据写入完成，共{buffer_count}条")
+            buffer_count = len(self._tick_csv_buffer)
+            self._tick_csv_buffer.clear()
+            logger.debug(f"Tick CSV数据写入完成，共{buffer_count}条")
 
         except Exception as e:
-            logger.error(f"Tick Parquet写入失败: {e}")
+            logger.error(f"Tick CSV写入失败: {e}")
             # 不清空缓冲区，让数据在下次尝试时重新写入
-            # self._tick_parquet_buffer.clear()
+            # self._tick_csv_buffer.clear()
 
-    def _flush_bar_parquet_buffer(self):
-        """刷新bar数据Parquet缓冲区"""
-        if not self._bar_parquet_buffer:
+    def _flush_bar_csv_buffer(self):
+        """刷新bar数据CSV缓冲区"""
+        if not self._bar_csv_buffer:
             return
 
         try:
             # 按日期和合约分组
             date_symbol_groups = {}
-            for data in self._bar_parquet_buffer:
+            for data in self._bar_csv_buffer:
                 dt = datetime.fromisoformat(data['UpdateTime'])
                 date_str = dt.strftime('%Y%m%d')
                 symbol = data['InstrumentID']
@@ -1143,26 +1142,25 @@ class DataCenterDatabase:
             # 分别写入每个日期和合约的文件
             for date_str, symbol_groups in date_symbol_groups.items():
                 # 创建日期目录
-                date_dir = self.parquet_base_path / "bar_parquet" / date_str
+                date_dir = self.csv_base_path / "bar_csv" / date_str
                 date_dir.mkdir(parents=True, exist_ok=True)
 
                 for symbol, symbol_data in symbol_groups.items():
-                    df = pd.DataFrame(symbol_data)
-                    file_path = date_dir / f"{symbol}.parquet"
+                    df = pl.DataFrame(symbol_data)
+                    file_path = date_dir / f"{symbol}.csv"
 
                     # 如果文件已存在，追加数据
                     if file_path.exists():
                         try:
                             # 尝试读取现有文件，如果失败则备份并重新创建
-                            existing_df = pd.read_parquet(file_path)
-                            df = pd.concat([existing_df, df], ignore_index=True)
+                            existing_df = pl.read_csv(file_path)
+                            df = pl.concat([existing_df, df])
                             # 去重并排序
-                            df = df.drop_duplicates(subset=['InstrumentID', 'BarType', 'UpdateTime']).sort_values(
-                                'UpdateTime')
+                            df = df.unique(subset=['InstrumentID', 'BarType', 'UpdateTime']).sort('UpdateTime')
                         except Exception as read_error:
-                            logger.warning(f"读取现有Parquet文件失败 {file_path}: {read_error}，将备份并重新创建")
+                            logger.warning(f"读取现有CSV文件失败 {file_path}: {read_error}，将备份并重新创建")
                             # 备份损坏的文件
-                            backup_path = file_path.with_suffix(f'.backup_{int(time.time())}.parquet')
+                            backup_path = file_path.with_suffix(f'.backup_{int(time.time())}.csv')
                             try:
                                 file_path.rename(backup_path)
                                 logger.info(f"损坏文件已备份到: {backup_path}")
@@ -1179,7 +1177,7 @@ class DataCenterDatabase:
                     # 写入文件（使用临时文件确保原子性）
                     temp_path = file_path.with_suffix('.tmp')
                     try:
-                        df.to_parquet(temp_path, compression=self.parquet_compression, index=False)
+                        df.write_csv(temp_path)
                         # 原子性移动临时文件到目标位置，添加重试机制
                         max_retries = 3
                         for retry in range(max_retries):
@@ -1195,7 +1193,7 @@ class DataCenterDatabase:
                                 else:
                                     raise move_error
                     except Exception as write_error:
-                        logger.error(f"写入Parquet文件失败 {file_path}: {write_error}")
+                        logger.error(f"写入CSV文件失败 {file_path}: {write_error}")
                         # 清理临时文件
                         if temp_path.exists():
                             try:
@@ -1204,14 +1202,14 @@ class DataCenterDatabase:
                                 pass
                         raise
 
-            buffer_count = len(self._bar_parquet_buffer)
-            self._bar_parquet_buffer.clear()
-            logger.debug(f"Bar Parquet数据写入完成，共{buffer_count}条")
+            buffer_count = len(self._bar_csv_buffer)
+            self._bar_csv_buffer.clear()
+            logger.debug(f"Bar CSV数据写入完成，共{buffer_count}条")
 
         except Exception as e:
-            logger.error(f"Bar Parquet写入失败: {e}")
+            logger.error(f"Bar CSV写入失败: {e}")
             # 不清空缓冲区，让数据在下次尝试时重新写入
-            # self._bar_parquet_buffer.clear()
+            # self._bar_csv_buffer.clear()
 
     def _get_date_range(self, start_date: date, end_date: date) -> List[date]:
         """获取日期范围内的所有日期"""

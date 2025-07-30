@@ -558,9 +558,6 @@ class HomalosSystem:
                 await self.data_service.shutdown()
             
             # 停止事件监控器
-            if hasattr(self, 'event_monitor_integration') and self.event_monitor_integration:
-                logger.info("停止事件监控集成器...")
-                self.event_monitor_integration.stop()
             if self.event_monitor:
                 logger.info("停止事件监控器...")
                 self.event_monitor.stop_monitoring()

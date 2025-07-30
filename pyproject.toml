@@ -4,7 +4,7 @@ dynamic = ["version"]
 description = "基于Python的期货量化交易系统"
 readme = "README.md"
 license = { file = "LICENSE" }
-authors = [{ name = "Donny", email = "donnymoving@gmail.com" }]
+authors = [{ name = "Lumosylva", email = "donnymoving@gmail.com" }]
 requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -22,6 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "aiosqlite>=0.21.0",
+    "colorama>=0.4.6",
     "fastapi>=0.116.0",
     "hatch>=1.14.1",
     "hatchling>=1.27.0",
@@ -76,7 +77,7 @@ packages = ["src*"]
 [tool.hatch.envs.default]
 dependencies = [
   "pytest>=7.4.0",
-  "ruff>=0.3.0",  # 静态代码分析工具
+  "ruff>=0.3.0",    # 静态代码分析工具
   "mypy>=1.8.0",    # 类型检查工具
 ]
 
@@ -107,7 +108,7 @@ select = [
     "B",  # flake8-bugbear
     "E",  # pycodestyle error
     "F",  # pyflakes
-    "UP",  # pyupgrade
+    "UP", # pyupgrade
     "W",  # pycodestyle warning
 ]
 ignore = ["E501", "W293"]

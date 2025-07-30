@@ -119,33 +119,6 @@ body {
     color: white;
 }
 
-/* 语言按钮样式 */
-.language-switcher .language-button {
-    color: white !important;
-    border: none !important;
-    background: transparent !important;
-    padding: 0.5rem 1rem !important;
-}
-
-.language-switcher .language-button:hover {
-    color: white !important;
-    background: rgba(255, 255, 255, 0.1) !important;
-}
-
-.language-switcher .language-button:focus {
-    color: white !important;
-    background: rgba(255, 255, 255, 0.1) !important;
-}
-
-.language-switcher .language-icon,
-.language-switcher .language-text {
-    color: white !important;
-}
-
-.language-switcher .el-icon {
-    color: white !important;
-}
-
 .container {
     padding: 1rem;
     max-width: 1200px;

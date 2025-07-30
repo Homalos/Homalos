@@ -163,15 +163,9 @@ const MainApp = {
             window.wsService.disconnect()
         })
         
-        // 打开图表页面
-        const openChartPage = () => {
-            window.open('/chart.html', '_blank')
-        }
-        
         return {
             state,
             currentPage,
-            openChartPage,
             t
         }
     }

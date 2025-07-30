@@ -27,10 +27,10 @@ data_center:
         cache_size: 10000                                    # 缓存大小，单位KB
         timeout: 30                                          # 超时时间，单位秒
         
-  # Parquet配置
-  parquet:
+  # CSV配置
+  csv:
     base_path: "data"                                        # 数据存储基础路径
-    compression: "snappy"                                    # 压缩算法：snappy, gzip, gzip, lz4
+    cache_size: 100                                          # CSV缓存大小
     partition_by: "date"                                     # 分区字段：date, symbol, none
       
   # 批量写入配置

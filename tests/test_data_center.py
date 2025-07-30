@@ -32,7 +32,7 @@ def test_data_center():
         config = {
             'database': {
                 'path': 'data/test_data_center.db',
-                'parquet_path': 'data/parquet_test',
+                'csv_path': 'data/csv_test',
                 'tick_batch_size': 100,
                 'bar_batch_size': 50,
                 'flush_interval': 5
