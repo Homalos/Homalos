@@ -559,46 +559,79 @@ class IntegratedWebServer(WebServer):
     
     def _get_fallback_chart_html(self) -> str:
         """获取备用图表HTML页面"""
-        return """
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>交易图表 - Homalos量化交易系统</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 2rem; }
-        .error { color: #e74c3c; background: #fdf2f2; padding: 1rem; border-radius: 4px; }
-    </style>
-</head>
-<body>
-    <div class="error">
-        <h2>图表页面加载失败</h2>
-        <p>无法加载图表页面，请检查静态文件是否存在。</p>
-        <a href="/">返回主页</a>
-    </div>
-</body>
-</html>
-        """
+        fallback_path = Path(__file__).parent / "static" / "fallback_chart.html"
+        
+        try:
+            with open(fallback_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except FileNotFoundError:
+            logger.error(f"备用图表HTML文件未找到: {fallback_path}")
+            # 如果备用文件也不存在，返回最简单的错误页面
+            return self._get_minimal_error_html("图表页面加载失败", "无法加载图表页面，请检查静态文件是否存在。")
+        except Exception as e:
+            logger.error(f"读取备用图表HTML文件失败: {e}")
+            return self._get_minimal_error_html("图表页面加载失败", "无法加载图表页面，请检查静态文件是否存在。")
     
     def _get_fallback_dashboard_html(self) -> str:
         """获取备用仪表板HTML页面"""
-        return """
+        fallback_path = Path(__file__).parent / "static" / "fallback_dashboard.html"
+        
+        try:
+            with open(fallback_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except FileNotFoundError:
+            logger.error(f"备用仪表板HTML文件未找到: {fallback_path}")
+            # 如果备用文件也不存在，返回最简单的错误页面
+            return self._get_minimal_error_html("仪表板加载失败", "无法加载仪表板页面，请检查静态文件是否存在。")
+        except Exception as e:
+            logger.error(f"读取备用仪表板HTML文件失败: {e}")
+            return self._get_minimal_error_html("仪表板加载失败", "无法加载仪表板页面，请检查静态文件是否存在。")
+    
+    def _get_minimal_error_html(self, title: str, message: str) -> str:
+        """获取最简单的错误页面HTML（最后的备用方案）"""
+        return f"""
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Homalos 事件监控仪表板</title>
+    <title>{title} - Homalos量化交易系统</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 2rem; }
-        .error { color: #e74c3c; background: #fdf2f2; padding: 1rem; border-radius: 4px; }
+        body {{ 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            text-align: center; 
+            padding: 2rem; 
+            background: #f8f9fa;
+            margin: 0;
+        }}
+        .error {{ 
+            color: #e74c3c; 
+            background: #fdf2f2; 
+            padding: 2rem; 
+            border-radius: 8px; 
+            border: 1px solid #f5c6cb;
+            max-width: 500px;
+            margin: 2rem auto;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }}
+        .error h2 {{
+            margin-top: 0;
+            color: #721c24;
+        }}
+        .error a {{
+            color: #409EFF;
+            text-decoration: none;
+            font-weight: 500;
+        }}
+        .error a:hover {{
+            text-decoration: underline;
+        }}
     </style>
 </head>
 <body>
     <div class="error">
-        <h2>仪表板加载失败</h2>
-        <p>无法加载仪表板页面，请检查静态文件是否存在。</p>
+        <h2>{title}</h2>
+        <p>{message}</p>
         <a href="/">返回主页</a>
     </div>
 </body>
