@@ -26,22 +26,23 @@ database:
   connection_pool_size: 5
   enable_wal: true
 
-# 交易网关配置 - 测试环境
+# 行情和交易网关配置，enabled_broker: "simnow" 表示默认使用 simnow 服务器节点配置
 gateway:
-  # CTP配置 - 模拟环境
-  ctp:
-    broker_id: "9999"
-    md_address: "tcp://182.254.243.31:30011"
-    td_address: "tcp://182.254.243.31:30001"
-    app_id: "simnow_client_test"
-    auth_code: "0000000000000000"
-    user_id: ""
-    password: ""
-    product_info: ""
-    md_timeout: 10
-    td_timeout: 10
-    reconnect_interval: 2
-    max_reconnect_attempts: 3
+  enabled_broker: "simnow"                           # 默认使用的行情和交易服务器节点配置名称
+  brokers:                                           # 行情和交易服务器节点配置列表
+    simnow:                                          # simnow 服务器节点前置配置(行情和实盘交易一致)
+      broker_id: "9999"                              # 经纪商ID
+      md_address: "tcp://182.254.243.31:30011"       # 行情服务器地址和端口
+      td_address: "tcp://182.254.243.31:30001"       # 交易服务器地址和端口
+      app_id: "simnow_client_test"                   # 应用ID
+      auth_code: "0000000000000000"                  # 授权码
+      user_id: ""                                    # 用户ID
+      password: ""                                   # 密码
+      product_info: ""                               # 产品信息
+      md_timeout: 30                                 # 行情服务器超时时间（秒）
+      td_timeout: 30                                 # 交易服务器超时时间（秒）
+      reconnect_interval: 5                          # 重连间隔时间（秒）
+      max_reconnect_attempts: 10                     # 最大重连次数
 
 # 风控配置 - 测试环境宽松设置
 risk:

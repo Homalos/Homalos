@@ -31,78 +31,79 @@ database:
   enable_wal: true                                 # 启用WAL模式提高并发性能
   timezone: "Asia/Shanghai"                        # 数据库时区
 
-# 行情和交易网关配置，enabled: true 表示启用，false表示禁用
+# 行情和交易网关配置，enabled_broker: "simnow" 表示默认使用 simnow 服务器节点配置
 gateway:
-  simnow:                                          # simnow 服务器节点前置配置(行情和实盘交易一致)
-    enabled: true                                  # 启用simnow前置配置
-    broker_id: "9999"                              # 经纪商ID
-    md_address: "tcp://182.254.243.31:30011"       # 行情服务器地址和端口
-    td_address: "tcp://182.254.243.31:30001"       # 交易服务器地址和端口
-    app_id: "simnow_client_test"                   # 应用ID
-    auth_code: "0000000000000000"                  # 授权码
-    user_id: ""                                    # 用户ID
-    password: ""                                   # 密码
-    product_info: ""                               # 产品信息
-    md_timeout: 30                                 # 行情服务器超时时间（秒）
-    td_timeout: 30                                 # 交易服务器超时时间（秒）
-    reconnect_interval: 5                          # 重连间隔时间（秒）
-    max_reconnect_attempts: 10                     # 最大重连次数
-  simnow7x24:                                      # simnow 7x24服务器节点前置配置(16:00-02:00开放)
-    enabled: false
-    broker_id: "9999"
-    md_address: "tcp://182.254.243.31:40011"
-    td_address: "tcp://182.254.243.31:40001"
-    app_id: "simnow_client_test"
-    auth_code: "0000000000000000"
-    user_id: ""
-    password: ""
-    product_info: ""
-    md_timeout: 30
-    td_timeout: 30
-    reconnect_interval: 5
-    max_reconnect_attempts: 10
-  tts:                                             # TTS服务器节点前置配置(行情和实盘交易一致)
-    enabled: false
-    broker_id: "9999"
-    md_address: "tcp://180.166.37.178:41215"
-    td_address: "tcp://121.37.90.193:20002"
-    app_id: "tts_client_test"
-    auth_code: "0000000000000000"
-    user_id: ""
-    password: ""
-    product_info: ""
-    md_timeout: 30
-    td_timeout: 30
-    reconnect_interval: 5
-    max_reconnect_attempts: 10
-  tts7x24:                                         # TTS 7x24服务器节点前置配置（非交易时间循环回放前一个交易日的行情）
-    enabled: false
-    broker_id: "9999"
-    md_address: "tcp://121.37.80.177:20004"
-    td_address: "tcp://121.37.80.177:20002"
-    app_id: "tts_client_test"
-    auth_code: "0000000000000000"
-    user_id: ""
-    password: ""
-    product_info: ""
-    md_timeout: 30
-    td_timeout: 30
-    reconnect_interval: 5
-    max_reconnect_attempts: 10
-  real:                                             # 实盘节点配置，具体信息请咨询所在期货公司获取
-    enabled: false
-    broker_id: "9999"
-    md_address: "tcp://xxx"
-    td_address: "tcp://xxx"
-    app_id: "xxxx"
-    auth_code: "123456789"
-    user_id: "123456"
-    password: "123456"
-    product_info: "xxxx"
-    md_timeout: 30
-    td_timeout: 30
-    reconnect_interval: 5
-    max_reconnect_attempts: 10
+  enabled_broker: "simnow"                           # 默认使用的行情和交易服务器节点配置名称
+  brokers:                                           # 行情和交易服务器节点配置列表
+    simnow:                                          # simnow 服务器节点前置配置(行情和实盘交易一致)
+      broker_id: "9999"                              # 经纪商ID
+      md_address: "tcp://182.254.243.31:30011"       # 行情服务器地址和端口
+      td_address: "tcp://182.254.243.31:30001"       # 交易服务器地址和端口
+      app_id: "simnow_client_test"                   # 应用ID
+      auth_code: "0000000000000000"                  # 授权码
+      user_id: ""                                    # 用户ID
+      password: ""                                   # 密码
+      product_info: ""                               # 产品信息
+      md_timeout: 30                                 # 行情服务器超时时间（秒）
+      td_timeout: 30                                 # 交易服务器超时时间（秒）
+      reconnect_interval: 5                          # 重连间隔时间（秒）
+      max_reconnect_attempts: 10                     # 最大重连次数
+    simnow7x24:                                      # simnow 7x24服务器节点前置配置(16:00-02:00开放)
+      enabled: false
+      broker_id: "9999"
+      md_address: "tcp://182.254.243.31:40011"
+      td_address: "tcp://182.254.243.31:40001"
+      app_id: "simnow_client_test"
+      auth_code: "0000000000000000"
+      user_id: ""
+      password: ""
+      product_info: ""
+      md_timeout: 30
+      td_timeout: 30
+      reconnect_interval: 5
+      max_reconnect_attempts: 10
+    tts:                                             # TTS服务器节点前置配置(行情和实盘交易一致)
+      enabled: false
+      broker_id: "9999"
+      md_address: "tcp://180.166.37.178:41215"
+      td_address: "tcp://121.37.90.193:20002"
+      app_id: "tts_client_test"
+      auth_code: "0000000000000000"
+      user_id: ""
+      password: ""
+      product_info: ""
+      md_timeout: 30
+      td_timeout: 30
+      reconnect_interval: 5
+      max_reconnect_attempts: 10
+    tts7x24:                                         # TTS 7x24服务器节点前置配置（非交易时间循环回放前一个交易日的行情）
+      enabled: false
+      broker_id: "9999"
+      md_address: "tcp://121.37.80.177:20004"
+      td_address: "tcp://121.37.80.177:20002"
+      app_id: "tts_client_test"
+      auth_code: "0000000000000000"
+      user_id: ""
+      password: ""
+      product_info: ""
+      md_timeout: 30
+      td_timeout: 30
+      reconnect_interval: 5
+      max_reconnect_attempts: 10
+    real:                                             # 实盘节点配置，具体信息请咨询所在期货公司获取
+      enabled: false
+      broker_id: "9999"
+      md_address: "tcp://xxx"
+      td_address: "tcp://xxx"
+      app_id: "xxxx"
+      auth_code: "123456789"
+      user_id: "123456"
+      password: "123456"
+      product_info: "xxxx"
+      md_timeout: 30
+      td_timeout: 30
+      reconnect_interval: 5
+      max_reconnect_attempts: 10
 
 # 风控配置
 risk:
