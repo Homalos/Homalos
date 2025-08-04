@@ -9,19 +9,14 @@
 """
 
 import asyncio
-import json
 import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional
 
-import uvicorn
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-from starlette.middleware.cors import CORSMiddleware
+from fastapi import HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
 from websockets.exceptions import ConnectionClosedOK
 
 from src.core.event_monitor import EventMonitor

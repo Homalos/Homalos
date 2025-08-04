@@ -10,7 +10,6 @@
 @Description: 事件类型安全系统 - 第二阶段优化核心组件
 提供强类型事件定义、验证和序列化机制
 """
-
 import json
 import time
 import uuid
@@ -22,8 +21,6 @@ from pydantic import BaseModel, ValidationError, validator
 
 from src.core.event import Event, EventPriority
 from src.core.logger import get_logger
-
-# GenericModel已移至BaseModel，无需单独导入
 
 logger = get_logger("EventTypes")
 

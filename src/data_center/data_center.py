@@ -23,6 +23,7 @@ from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.logger import Logger
 from src.core.object import TickData, BarData, ContractData
+from src.ctp.gateway.order_trading_gateway import OrderTradingGateway
 from src.ctp.gateway.market_data_gateway import MarketDataGateway
 from src.data_center.data_center_bar_generator import DataCenterBarGenerator
 from src.data_center.data_center_database import DataCenterDatabase
@@ -76,7 +77,8 @@ class DataCenter:
         )
 
         # 网关
-        self.gateway: Optional[MarketDataGateway] = None
+        self.market_gateway: Optional[MarketDataGateway] = None
+        self.trading_gateway: Optional[OrderTradingGateway] = None
 
         # 订阅管理
         self.subscribed_symbols: Set[str] = set()
@@ -259,9 +261,13 @@ class DataCenter:
             self.is_running = False
 
             # 停止网关
-            if self.gateway:
-                self.gateway.close()
-                self.gateway = None
+            if self.market_gateway:
+                self.market_gateway.close()
+                self.market_gateway = None
+
+            if self.trading_gateway:
+                self.trading_gateway.close()
+                self.trading_gateway = None
 
             # 停止数据库
             self.database.stop()
@@ -283,14 +289,23 @@ class DataCenter:
             # 从配置获取网关设置
             gateway_config = self.config.get('gateway', {})
 
+            # 创建交易网关实例
+            self.trading_gateway = OrderTradingGateway(
+                event_bus=self.event_bus,
+                gateway_name="DATA_CENTER_TD"
+            )
+
+            # 连接交易网关
+            self.trading_gateway.connect(gateway_config)
+
             # 创建行情网关实例
-            self.gateway = MarketDataGateway(
+            self.market_gateway = MarketDataGateway(
                 event_bus=self.event_bus,
                 gateway_name="DATA_CENTER_MD"
             )
 
-            # 连接网关
-            self.gateway.connect(gateway_config)
+            # 连接行情网关
+            self.market_gateway.connect(gateway_config)
 
             self.logger.info("网关初始化成功")
 
@@ -482,7 +497,7 @@ class DataCenter:
     def _subscribe_market_data(self):
         """订阅全市场行情数据"""
         try:
-            if not self.gateway:
+            if not self.market_gateway:
                 self.logger.warning("网关未初始化，无法订阅行情")
                 return
 
@@ -544,7 +559,7 @@ class DataCenter:
                         exchange=exchange
                     )
 
-                    self.gateway.subscribe(subscribe_req)
+                    self.market_gateway.subscribe(subscribe_req)
                     self.subscribed_symbols.add(symbol)
                     subscribed_count += 1
 
@@ -614,7 +629,7 @@ class DataCenter:
                         size=1,
                         price_tick=0.01,
                         min_volume=1,
-                        gateway_name=self.gateway.gateway_name if self.gateway else "DATA_CENTER_MD"
+                        gateway_name=self.market_gateway.gateway_name if self.market_gateway else "DATA_CENTER_MD"
                     )
 
                     # 添加到全局缓存
