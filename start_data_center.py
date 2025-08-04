@@ -86,6 +86,7 @@ class DataCenterApplication:
                 'password': enabled_gateway_config.get('password'),
                 'broker_id': enabled_gateway_config.get('broker_id'),
                 'md_address': enabled_gateway_config.get('md_address'),
+                'td_address': enabled_gateway_config.get('td_address'),
                 'appid': enabled_gateway_config.get('app_id'),
                 'auth_code': enabled_gateway_config.get('auth_code'),
             }

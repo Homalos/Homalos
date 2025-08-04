@@ -188,15 +188,37 @@ class DataCenter:
         try:
             # 直接从instrument_exchange_id.json获取所有合约
             instrument_exchange_json = get_instrument_exchange_id()
+            
+            # 如果文件不存在或为空，尝试从全局缓存获取
+            if not instrument_exchange_json:
+                self.logger.warning("instrument_exchange_id.json文件不存在或为空，尝试从全局缓存获取合约列表")
+                from src.ctp.gateway.order_trading_gateway import symbol_contract_map
+                if symbol_contract_map:
+                    symbols = list(symbol_contract_map.keys())
+                    self.logger.info(f"从全局缓存加载了 {len(symbols)} 个期货合约")
+                    return symbols
+                else:
+                    self.logger.warning("全局缓存也为空，返回空合约列表")
+                    return []
+            
             symbols = list(instrument_exchange_json.keys())
-
             self.logger.info(f"从instrument_exchange_id.json加载了 {len(symbols)} 个期货合约")
             return symbols
 
         except Exception as e:
             self.logger.error(f"加载合约列表失败: {e}")
-            # 如果加载失败，返回默认的测试合约
-            return [""]
+            # 如果加载失败，尝试从全局缓存获取
+            try:
+                from src.ctp.gateway.order_trading_gateway import symbol_contract_map
+                if symbol_contract_map:
+                    symbols = list(symbol_contract_map.keys())
+                    self.logger.info(f"从全局缓存加载了 {len(symbols)} 个期货合约")
+                    return symbols
+            except Exception as cache_e:
+                self.logger.error(f"从全局缓存获取合约列表也失败: {cache_e}")
+            
+            # 最后返回空列表而不是包含空字符串的列表
+            return []
 
     def _register_event_handlers(self):
         """注册事件处理器"""
@@ -207,6 +229,7 @@ class DataCenter:
         # 网关事件
         self.event_bus.subscribe(EventType.GATEWAY_CONNECTED, self._handle_gateway_connected)
         self.event_bus.subscribe(EventType.GATEWAY_READY, self._handle_gateway_ready)
+        self.event_bus.subscribe(EventType.GATEWAY_CONTRACTS_READY, self._handle_gateway_contracts_ready)
         self.event_bus.subscribe(EventType.GATEWAY_DISCONNECTED, self._handle_gateway_disconnected)
         self.event_bus.subscribe(EventType.CONTRACT_INFO, self._handle_contract_info)
 
@@ -450,6 +473,8 @@ class DataCenter:
         try:
             self.is_connected = True
             self.stats['gateway_status'] = 'connected'
+            connected_data = event.data
+            self.logger.info(f"网关连接事件: {connected_data}")
 
             self.logger.info("网关已连接，等待登录完成...")
 
@@ -460,20 +485,35 @@ class DataCenter:
         """处理网关就绪事件（登录完成后）"""
         try:
             self.stats['gateway_status'] = 'ready'
-
-            # 网关登录完成后才开始订阅全市场行情
-            self._subscribe_market_data()
-
-            self.logger.info("网关已就绪（登录完成），开始订阅全市场行情")
+            ready_data = event.data
+            self.logger.info(f"网关就绪事件: {ready_data}")
+            self.logger.info("网关已就绪（登录完成），等待合约信息处理完成")
 
         except Exception as e:
             self.logger.error(f"处理网关就绪事件失败: {e}")
+
+    def _handle_gateway_contracts_ready(self, event: Event):
+        """处理网关合约就绪事件（合约信息处理完成后）"""
+        try:
+            self.stats['gateway_status'] = 'contracts_ready'
+            contracts_data = event.data
+            self.logger.info(f"网关合约就绪事件: {contracts_data}")
+            
+            # 合约信息处理完成后才开始订阅全市场行情
+            self._subscribe_market_data()
+            
+            self.logger.info("网关合约信息已就绪，开始订阅全市场行情")
+
+        except Exception as e:
+            self.logger.error(f"处理网关合约就绪事件失败: {e}")
 
     def _handle_gateway_disconnected(self, event: Event):
         """处理网关断开事件"""
         try:
             self.is_connected = False
             self.stats['gateway_status'] = 'disconnected'
+            disconnected_data = event.data
+            self.logger.info(f"网关断开事件: {disconnected_data}")
 
             self.logger.warning("网关已断开连接")
 
@@ -504,6 +544,25 @@ class DataCenter:
             # 预加载合约数据到全局缓存
             self._preload_contracts()
 
+            # 如果market_symbols为空，尝试重新加载或从全局缓存获取
+            if not self.market_symbols or (len(self.market_symbols) == 1 and self.market_symbols[0] == ""):
+                self.logger.warning("market_symbols为空，尝试重新加载合约列表")
+                self.market_symbols = self._load_market_symbols()
+                
+                # 如果仍然为空，尝试从全局缓存获取
+                if not self.market_symbols:
+                    try:
+                        from src.ctp.gateway.order_trading_gateway import symbol_contract_map
+                        if symbol_contract_map:
+                            self.market_symbols = list(symbol_contract_map.keys())
+                            self.logger.info(f"从全局缓存获取了 {len(self.market_symbols)} 个合约")
+                        else:
+                            self.logger.error("无法获取任何合约列表，取消订阅")
+                            return
+                    except Exception as e:
+                        self.logger.error(f"从全局缓存获取合约失败: {e}")
+                        return
+
             # 获取订阅配置
             subscribe_config = self.data_center_config.get('market_subscription', {})
             max_subscriptions = subscribe_config.get('max_subscriptions', 100)  # 默认最多订阅100个合约
@@ -516,12 +575,12 @@ class DataCenter:
             if subscribe_all:
                 # 订阅所有合约，忽略数量限制
                 for symbol in self.market_symbols:
-                    if symbol not in symbols_to_subscribe:
+                    if symbol and symbol.strip() and symbol not in symbols_to_subscribe:  # 过滤空字符串
                         symbols_to_subscribe.append(symbol)
             elif len(symbols_to_subscribe) < max_subscriptions:
                 # 在数量限制内添加其他合约
                 for symbol in self.market_symbols:
-                    if symbol not in symbols_to_subscribe:
+                    if symbol and symbol.strip() and symbol not in symbols_to_subscribe:  # 过滤空字符串
                         symbols_to_subscribe.append(symbol)
                         if len(symbols_to_subscribe) >= max_subscriptions:
                             break
