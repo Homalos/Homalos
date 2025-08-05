@@ -55,6 +55,10 @@ class WebSocketService {
     onMessage(event) {
         try {
             const data = JSON.parse(event.data)
+            
+            // 🔍 添加全局消息接收调试
+            console.log('📨 WebSocket收到原始消息:', data)
+            
             this.handleMessage(data)
         } catch (error) {
             console.error('WebSocket消息解析失败:', error, event.data)
@@ -90,6 +94,9 @@ class WebSocketService {
     handleMessage(data) {
         const { type } = data
         
+        // 🔍 添加消息路由调试
+        console.log(`🎯 处理消息类型: ${type}`, data)
+        
         switch (type) {
             case 'event':
                 this.handleEventMessage(data)
@@ -102,6 +109,9 @@ class WebSocketService {
                 break
             case 'order_update':
                 this.handleOrderUpdateMessage(data)
+                break
+            case 'strategy_log':
+                this.handleStrategyLogMessage(data)
                 break
             case 'pong':
                 // 心跳响应，无需处理
@@ -142,6 +152,11 @@ class WebSocketService {
                 message: eventData?.message,
                 complete_data: eventData
             })
+            
+            // 强制添加调试日志，确保启动/停止事件能被看到
+            if (window.stateActions && window.stateActions.addLog) {
+                window.stateActions.addLog('info', `🔍 [调试] 接收到事件: ${event_type} - ${eventData?.message || '无消息'}`)
+            }
         }
         
         // 格式化事件消息 - 改进策略事件的用户友好消息
@@ -164,9 +179,11 @@ class WebSocketService {
                         break
                     case 'strategy.started':
                         message = `策略 "${strategyDisplay}" 已启动`
+                        logLevel = 'success'  // 确保启动事件使用成功级别
                         break
                     case 'strategy.stopped':
                         message = `策略 "${strategyDisplay}" 已停止`
+                        logLevel = 'info'     // 确保停止事件使用信息级别
                         break
                     case 'strategy.load_failed':
                         message = `策略 "${strategyDisplay}" 加载失败`
@@ -253,7 +270,12 @@ class WebSocketService {
         }
         
         // 添加到日志面板
-        window.stateActions.addLog(logLevel, message)
+        if (window.stateActions && window.stateActions.addLog) {
+            console.log(`✅ 将事件日志添加到界面: [${logLevel}] ${message}`)
+            window.stateActions.addLog(logLevel, message)
+        } else {
+            console.error('❌ stateActions.addLog 不可用，无法添加事件日志到界面')
+        }
         
         // 调用其他事件处理器
         this.emit('event', data)
@@ -352,6 +374,64 @@ class WebSocketService {
         this.emit('order_update', data)
     }
     
+    // 处理策略日志消息
+    handleStrategyLogMessage(data) {
+        console.log('🔍 收到策略日志消息:', data)
+        
+        const { strategy_id, strategy_name, level, message, full_message, timestamp } = data
+        
+        // 特别关注启动/停止相关的策略日志
+        if (message && (message.includes('启动成功') || message.includes('停止成功') || message.includes('启动') || message.includes('停止'))) {
+            console.info(`🚀 策略生命周期日志:`, {
+                strategy_id,
+                strategy_name,
+                level,
+                message,
+                full_message
+            })
+        }
+        
+        // 确定日志级别映射
+        let logLevel = 'info' // 默认级别
+        switch (level?.toUpperCase()) {
+            case 'ERROR':
+                logLevel = 'error'
+                break
+            case 'WARNING':
+            case 'WARN':
+                logLevel = 'warning'
+                break
+            case 'INFO':
+                logLevel = 'info'
+                break
+            case 'DEBUG':
+                logLevel = 'debug'
+                break
+            case 'SUCCESS':
+                logLevel = 'success'
+                break
+            default:
+                logLevel = 'info'
+        }
+        
+        // 构建显示消息
+        const displayMessage = full_message || message || '策略日志消息'
+        
+        console.log(`📝 策略日志处理: [${logLevel}] ${displayMessage}`)
+        
+        // 添加到日志面板 - 这是关键！
+        if (window.stateActions && window.stateActions.addLog) {
+            console.log('✅ 调用 stateActions.addLog 添加日志到界面')
+            window.stateActions.addLog(logLevel, displayMessage)
+        } else {
+            console.error('❌ stateActions.addLog 不可用，无法添加策略日志到界面')
+            console.log('当前 window.stateActions:', window.stateActions)
+        }
+        
+        // 触发自定义事件
+        this.emit('strategy_log', data)
+    }
+    
     // 订阅K线数据
     subscribeKline(symbol, interval = '1m') {
         this.send({
@@ -448,3 +528,26 @@ class WebSocketService {
 // 全局WebSocket实例
 window.WebSocketService = WebSocketService
 window.wsService = new WebSocketService()
+
+// 自动连接WebSocket
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM加载完成，初始化WebSocket连接...')
+    
+    // 等待一小段时间确保页面完全加载
+    setTimeout(() => {
+        if (window.wsService && !window.wsService.connected) {
+            console.log('开始连接WebSocket...')
+            window.wsService.connect()
+        }
+    }, 1000)
+})
+
+// 也可以在窗口加载完成后连接（备用）
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        if (window.wsService && !window.wsService.connected) {
+            console.log('窗口加载完成，尝试连接WebSocket...')
+            window.wsService.connect()
+        }  
+    }, 500)
+})

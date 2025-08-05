@@ -223,8 +223,12 @@ class EventMonitor:
         """更新时间序列数据"""
         current_time = time.time()
         
+        # 使用锁保护对deque的访问，并创建快照
+        with self._lock:
+            recent_events_snapshot = list(self._recent_events)
+        
         # 计算最近一秒的统计数据
-        recent_events = [e for e in self._recent_events 
+        recent_events = [e for e in recent_events_snapshot 
                         if current_time - e["timestamp"] <= 1.0]
         
         if not recent_events:
@@ -255,9 +259,13 @@ class EventMonitor:
         """检查告警条件"""
         current_time = time.time()
         
+        # 使用锁保护对deque的访问，并创建快照
+        with self._lock:
+            recent_events_snapshot = list(self._recent_events)
+        
         # 检查最近时间窗口内的数据
         window_start = current_time - (self._alert_window_minutes * 60)
-        recent_data = [e for e in self._recent_events 
+        recent_data = [e for e in recent_events_snapshot 
                       if e["timestamp"] >= window_start]
         
         if not recent_data:
@@ -365,7 +373,8 @@ class EventMonitor:
     
     def get_recent_alerts(self, limit: int = 50) -> List[Dict[str, Any]]:
         """获取最近的告警"""
-        recent_alerts = list(self._alerts)[-limit:]
+        with self._lock:
+            recent_alerts = list(self._alerts)[-limit:]
         return [asdict(alert) for alert in recent_alerts]
     
     def get_statistics(self) -> Dict[str, Any]:
@@ -376,13 +385,19 @@ class EventMonitor:
         """获取仪表板数据"""
         current_time = time.time()
         
+        # 使用锁保护对数据结构的访问，并创建快照
+        with self._lock:
+            event_stats_snapshot = dict(self._event_stats)
+            recent_events_snapshot = list(self._recent_events)
+            alerts_snapshot = list(self._alerts)
+        
         # 基础统计
-        total_events = sum(stats.count for stats in self._event_stats.values())
-        total_errors = sum(stats.error_count for stats in self._event_stats.values())
+        total_events = sum(stats.count for stats in event_stats_snapshot.values())
+        total_errors = sum(stats.error_count for stats in event_stats_snapshot.values())
         overall_error_rate = total_errors / total_events if total_events > 0 else 0
         
         # 最近5分钟的数据
-        recent_events = [e for e in self._recent_events 
+        recent_events = [e for e in recent_events_snapshot 
                         if current_time - e["timestamp"] <= 300]
         
         recent_count = len(recent_events)
@@ -397,7 +412,7 @@ class EventMonitor:
         
         # 事件类型分布
         event_type_distribution = {}
-        for event_type, stats in self._event_stats.items():
+        for event_type, stats in event_stats_snapshot.items():
             event_type_distribution[event_type] = {
                 "count": stats.count,
                 "percentage": (stats.count / total_events * 100) if total_events > 0 else 0

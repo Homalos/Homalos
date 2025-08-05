@@ -20,3 +20,5 @@ config/brokers.json
 config/instrument_exchange_id.json
 config/product_info.ini
 .vercel/
+CLAUDE.md
+.claude/

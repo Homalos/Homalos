@@ -647,6 +647,25 @@ class BaseStrategy(ABC):
             logger.error(log_msg)
         else:
             logger.info(log_msg)
+        
+        # 同时发布日志事件到事件总线，用于WebSocket实时推送
+        if self.event_bus:
+            try:
+                self.event_bus.publish(create_trading_event(
+                    "strategy.log",
+                    {
+                        "strategy_id": self.strategy_id,
+                        "strategy_name": getattr(self, 'strategy_name', self.strategy_id),
+                        "level": level,
+                        "message": msg,
+                        "full_message": log_msg,
+                        "timestamp": time.time()
+                    },
+                    f"Strategy_{self.strategy_id}"
+                ))
+            except Exception as e:
+                # 避免日志事件发布失败影响主要功能
+                logger.debug(f"发布日志事件失败: {e}")
     
     def get_strategy_stats(self) -> Dict[str, Any]:
         """获取策略统计信息"""

@@ -135,18 +135,53 @@ class WebSocketManager:
     
     async def broadcast_trading_signal(self, signal_data: Dict[str, Any]):
         """广播交易信号"""
+        # 处理信号数据中的OrderRequest对象
+        processed_data = self._process_signal_data(signal_data)
+        
         message = {
             "type": "trading_signal",
-            "data": signal_data,
+            "data": processed_data,
             "timestamp": time.time()
         }
         await self.broadcast(message)
     
+    def _process_signal_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """处理信号数据，转换不可序列化对象"""
+        return self._convert_to_serializable(data)
+    
+    def _convert_to_serializable(self, obj):
+        """递归转换对象为可序列化格式"""
+        if obj is None:
+            return None
+        elif isinstance(obj, dict):
+            return {key: self._convert_to_serializable(value) for key, value in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [self._convert_to_serializable(item) for item in obj]
+        elif hasattr(obj, 'to_dict') and callable(getattr(obj, 'to_dict')):
+            # 对于有to_dict方法的对象（如OrderRequest）
+            return obj.to_dict()
+        elif hasattr(obj, 'value'):
+            # 对于枚举类型
+            return obj.value
+        elif hasattr(obj, '__dict__'):
+            # 对于其他对象，尝试转换其属性
+            return {
+                key: self._convert_to_serializable(value) 
+                for key, value in obj.__dict__.items()
+                if not key.startswith('_')
+            }
+        else:
+            # 基本类型直接返回
+            return obj
+    
     async def broadcast_order_update(self, order_data: Dict[str, Any]):
         """广播订单更新"""
+        # 处理订单数据中的枚举对象
+        processed_data = self._process_signal_data(order_data)
+        
         message = {
             "type": "order_update",
-            "data": order_data,
+            "data": processed_data,
             "timestamp": time.time()
         }
         await self.broadcast(message)
@@ -172,6 +207,9 @@ class WebServer:
         
         # WebSocket管理器
         self.ws_manager = WebSocketManager()
+        
+        # 保存事件循环引用
+        self._main_loop: Optional[asyncio.AbstractEventLoop] = None
         
         # 创建FastAPI应用
         self.app = self._create_app()
@@ -652,7 +690,7 @@ class WebServer:
                     "strategy.loaded", "strategy.started", "strategy.stopped", "strategy.error",
                     "strategy.load_failed", "strategy.start_failed", "strategy.stop_failed",
                     "strategy.load_error", "strategy.start_error", "strategy.stop_error",
-                    "strategy.signal", "order.submitted", "order.filled", "order.cancelled",
+                    "strategy.signal", "strategy.log", "order.submitted", "order.filled", "order.cancelled",
                     "risk.rejected", "system.error", "engine.started", "engine.stopped",
                     "kline.update", "bar.generated", "tick.received", "signal.generated",
                     "order.update", "strategy.performance"
@@ -675,10 +713,17 @@ class WebServer:
                 # 调试日志：记录所有接收到的事件
                 logger.debug(f"WebSocket事件监控器收到事件: {event_type} from {event_source}")
                 
+                # 特别关注策略启动/停止事件的详细调试
+                if event_type in ['strategy.started', 'strategy.stopped', 'strategy.log']:
+                    logger.info(f"🔍 策略关键事件: {event_type}")
+                    logger.info(f"   事件数据: {event_data}")
+                    logger.info(f"   事件来源: {event_source}")
+                    logger.info(f"   WebSocket连接数: {len(self.ws_manager.active_connections)}")
+                
                 # 使用更宽松的匹配条件，确保策略事件能被捕获
-                should_push = (any(event_type.startswith(prefix) for prefix in push_events) or 
-                              "strategy." in event_type or 
-                              event_type in push_events)
+                should_push = (event_type in push_events or 
+                              any(event_type.startswith(prefix.split('.')[0] + '.') for prefix in push_events) or 
+                              "strategy." in event_type)
                 
                 if should_push:
                     logger.info(f"WebSocket推送事件: {event_type} -> {len(self.ws_manager.active_connections)} 个连接")
@@ -705,23 +750,35 @@ class WebServer:
                         symbol = event_data.get('symbol', '')
                         interval = event_data.get('interval', '1m')
                         kline_data = event_data.get('bar', event_data.get('kline', {}))
-                        asyncio.create_task(self.ws_manager.broadcast_kline_update(symbol, interval, kline_data))
+                        self._safe_schedule_task(self.ws_manager.broadcast_kline_update(symbol, interval, kline_data))
                     elif event_type in ["strategy.signal", "signal.generated"]:
                         # 交易信号
-                        asyncio.create_task(self.ws_manager.broadcast_trading_signal(event_data))
+                        self._safe_schedule_task(self.ws_manager.broadcast_trading_signal(event_data))
                     elif event_type in ["order.submitted", "order.filled", "order.cancelled", "order.update"]:
                         # 订单更新
-                        asyncio.create_task(self.ws_manager.broadcast_order_update(event_data))
+                        self._safe_schedule_task(self.ws_manager.broadcast_order_update(event_data))
                     elif event_type == "strategy.performance":
                         # 策略绩效更新
                         strategy_name = event_data.get('strategy_name', '')
                         performance_data = event_data.get('performance', {})
-                        asyncio.create_task(self.ws_manager.broadcast_strategy_performance(strategy_name, performance_data))
+                        self._safe_schedule_task(self.ws_manager.broadcast_strategy_performance(strategy_name, performance_data))
+                    elif event_type == "strategy.log":
+                        # 策略日志事件 - 专门处理
+                        log_message = {
+                            "type": "strategy_log",
+                            "strategy_id": event_data.get('strategy_id', ''),
+                            "strategy_name": event_data.get('strategy_name', ''),
+                            "level": event_data.get('level', 'INFO'),
+                            "message": event_data.get('message', ''),
+                            "full_message": event_data.get('full_message', ''),
+                            "timestamp": event_data.get('timestamp', timestamp_seconds)
+                        }
+                        self._safe_schedule_task(self.ws_manager.broadcast(log_message))
                     else:
                         # 其他事件使用通用广播
                         # 调试日志：记录推送的消息内容
                         logger.debug(f"WebSocket推送消息: {message}")
-                        asyncio.create_task(self.ws_manager.broadcast(message))
+                        self._safe_schedule_task(self.ws_manager.broadcast(message))
                     
             except Exception as e:
                 logger.error(f"事件推送失败: {e}")
@@ -738,6 +795,48 @@ class WebServer:
         else:
             logger.warning("Event bus does not support monitoring")
         logger.info("WebSocket事件监控器已注册")
+    
+    def _safe_schedule_task(self, coro):
+        """安全地调度异步任务"""
+        try:
+            # 方法1: 尝试获取当前事件循环
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(coro)
+                return
+            except RuntimeError:
+                # 当前线程没有运行的事件循环
+                pass
+            
+            # 方法2: 使用保存的主事件循环
+            if self._main_loop and not self._main_loop.is_closed():
+                try:
+                    if self._main_loop.is_running():
+                        # 事件循环正在运行，使用线程安全调用
+                        self._main_loop.call_soon_threadsafe(
+                            lambda: self._main_loop.create_task(coro)
+                        )
+                    else:
+                        # 事件循环没有运行，直接创建任务
+                        self._main_loop.create_task(coro)
+                    return
+                except Exception as e:
+                    logger.debug(f"使用主事件循环失败: {e}")
+            
+            # 方法3: 同步回退 - 记录但不执行异步操作
+            logger.debug("无法调度WebSocket异步任务，跳过此次推送")
+            # 安全关闭协程
+            if hasattr(coro, 'close'):
+                coro.close()
+                    
+        except Exception as e:
+            logger.debug(f"调度异步任务失败: {e}")
+            # 安全关闭协程
+            try:
+                if hasattr(coro, 'close'):
+                    coro.close()
+            except:
+                pass
     
     def _serialize_event_data(self, data: Any) -> Any:
         """序列化事件数据"""
@@ -896,6 +995,13 @@ class WebServer:
     
     async def start(self, host: Optional[str] = None, port: Optional[int] = None):
         """启动Web服务器"""
+        # 保存当前事件循环引用
+        try:
+            self._main_loop = asyncio.get_running_loop()
+            logger.debug("已保存Web服务器事件循环引用")
+        except RuntimeError:
+            logger.warning("无法获取运行中的事件循环")
+        
         actual_host: str = host or self.config.get("web.host", "0.0.0.0")
         actual_port: int = port or self.config.get("web.port", 8000)
         debug = self.config.get("web.debug", False)

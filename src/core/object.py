@@ -378,6 +378,20 @@ class OrderRequest:
         """"""
         self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典格式，用于JSON序列化"""
+        return {
+            "symbol": self.symbol,
+            "exchange": self.exchange.value if hasattr(self.exchange, 'value') else str(self.exchange),
+            "direction": self.direction.value if hasattr(self.direction, 'value') else str(self.direction),
+            "type": self.type.value if hasattr(self.type, 'value') else str(self.type),
+            "volume": self.volume,
+            "price": self.price,
+            "offset": self.offset.value if hasattr(self.offset, 'value') else str(self.offset),
+            "reference": self.reference,
+            "ho_symbol": getattr(self, 'ho_symbol', f"{self.symbol}.{self.exchange}")
+        }
+
     def create_order_data(self, orderid: str, gateway_name: str) -> OrderData:
         """
         根据请求创建订单数据。

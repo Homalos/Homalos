@@ -303,7 +303,7 @@ const StrategyDialogComponent = {
                     const responseData = window.ApiResponse.getData(response)
                     const strategyUuid = responseData.strategy_uuid
                     
-                    window.ElMessage.success(t('strategy.loadSuccess') || '策略加载成功')
+                    window.ElMessage.success(t('strategyDialog.loadSuccess') || '策略加载成功')
                     closeDialog()
                     
                     // 通知父组件刷新策略列表

@@ -277,7 +277,6 @@ class RiskManager:
 
         return RiskCheckResult(True, "", [], "low")
 
-    @staticmethod
     def _check_position_concentration(self, strategy_id: str, order_request: OrderRequest) -> RiskCheckResult:
         """检查持仓集中度"""
         # 简化实现

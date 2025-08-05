@@ -1054,14 +1054,108 @@ class DataCenterDatabase:
                 date_dir.mkdir(parents=True, exist_ok=True)
 
                 for symbol, symbol_data in symbol_groups.items():
-                    df = pl.DataFrame(symbol_data)
+                    # 创建新的DataFrame，明确指定数据类型
+                    df = pl.DataFrame(symbol_data, schema_overrides={
+                        'InstrumentID': pl.Utf8,
+                        'ExchangeID': pl.Utf8,
+                        'TradingDay': pl.Utf8,
+                        'UpdateTime': pl.Utf8,
+                        'UpdateMillisec': pl.Int64,
+                        'PreSettlementPrice': pl.Float64,
+                        'PreClosePrice': pl.Float64,
+                        'PreOpenInterest': pl.Float64,
+                        'OpenPrice': pl.Float64,
+                        'ClosePrice': pl.Float64,
+                        'SettlementPrice': pl.Float64,
+                        'UpperLimitPrice': pl.Float64,
+                        'LowerLimitPrice': pl.Float64,
+                        'HighestPrice': pl.Float64,
+                        'LowestPrice': pl.Float64,
+                        'LastPrice': pl.Float64,
+                        'Volume': pl.Float64,
+                        'LastVolume': pl.Float64,
+                        'Turnover': pl.Float64,
+                        'OpenInterest': pl.Float64,
+                        'LastOpenInterest': pl.Float64,
+                        'BidPrice1': pl.Float64,
+                        'BidVolume1': pl.Float64,
+                        'AskPrice1': pl.Float64,
+                        'AskVolume1': pl.Float64,
+                        'BidPrice2': pl.Float64,
+                        'BidVolume2': pl.Float64,
+                        'AskPrice2': pl.Float64,
+                        'AskVolume2': pl.Float64,
+                        'BidPrice3': pl.Float64,
+                        'BidVolume3': pl.Float64,
+                        'AskPrice3': pl.Float64,
+                        'AskVolume3': pl.Float64,
+                        'BidPrice4': pl.Float64,
+                        'BidVolume4': pl.Float64,
+                        'AskPrice4': pl.Float64,
+                        'AskVolume4': pl.Float64,
+                        'BidPrice5': pl.Float64,
+                        'BidVolume5': pl.Float64,
+                        'AskPrice5': pl.Float64,
+                        'AskVolume5': pl.Float64,
+                        'AveragePrice': pl.Float64,
+                        'symbol': pl.Utf8,
+                        'exchange': pl.Utf8,
+                        'datetime': pl.Utf8
+                    })
+                    
                     file_path = date_dir / f"{symbol}.csv"
 
                     # 如果文件已存在，追加数据
                     if file_path.exists():
                         try:
-                            # 尝试读取现有文件，如果失败则备份并重新创建
-                            existing_df = pl.read_csv(file_path)
+                            # 读取现有文件时也指定数据类型
+                            existing_df = pl.read_csv(file_path, schema_overrides={
+                                'InstrumentID': pl.Utf8,
+                                'ExchangeID': pl.Utf8,
+                                'TradingDay': pl.Utf8,
+                                'UpdateTime': pl.Utf8,
+                                'UpdateMillisec': pl.Int64,
+                                'PreSettlementPrice': pl.Float64,
+                                'PreClosePrice': pl.Float64,
+                                'PreOpenInterest': pl.Float64,
+                                'OpenPrice': pl.Float64,
+                                'ClosePrice': pl.Float64,
+                                'SettlementPrice': pl.Float64,
+                                'UpperLimitPrice': pl.Float64,
+                                'LowerLimitPrice': pl.Float64,
+                                'HighestPrice': pl.Float64,
+                                'LowestPrice': pl.Float64,
+                                'LastPrice': pl.Float64,
+                                'Volume': pl.Float64,
+                                'LastVolume': pl.Float64,
+                                'Turnover': pl.Float64,
+                                'OpenInterest': pl.Float64,
+                                'LastOpenInterest': pl.Float64,
+                                'BidPrice1': pl.Float64,
+                                'BidVolume1': pl.Float64,
+                                'AskPrice1': pl.Float64,
+                                'AskVolume1': pl.Float64,
+                                'BidPrice2': pl.Float64,
+                                'BidVolume2': pl.Float64,
+                                'AskPrice2': pl.Float64,
+                                'AskVolume2': pl.Float64,
+                                'BidPrice3': pl.Float64,
+                                'BidVolume3': pl.Float64,
+                                'AskPrice3': pl.Float64,
+                                'AskVolume3': pl.Float64,
+                                'BidPrice4': pl.Float64,
+                                'BidVolume4': pl.Float64,
+                                'AskPrice4': pl.Float64,
+                                'AskVolume4': pl.Float64,
+                                'BidPrice5': pl.Float64,
+                                'BidVolume5': pl.Float64,
+                                'AskPrice5': pl.Float64,
+                                'AskVolume5': pl.Float64,
+                                'AveragePrice': pl.Float64,
+                                'symbol': pl.Utf8,
+                                'exchange': pl.Utf8,
+                                'datetime': pl.Utf8
+                            })
                             df = pl.concat([existing_df, df])
                             # 去重并排序
                             df = df.unique(subset=['InstrumentID', 'ExchangeID', 'UpdateTime']).sort('UpdateTime')
@@ -1146,14 +1240,44 @@ class DataCenterDatabase:
                 date_dir.mkdir(parents=True, exist_ok=True)
 
                 for symbol, symbol_data in symbol_groups.items():
-                    df = pl.DataFrame(symbol_data)
+                    # 创建新的DataFrame，明确指定数据类型
+                    df = pl.DataFrame(symbol_data, schema_overrides={
+                        'BarType': pl.Utf8,
+                        'UpdateTime': pl.Utf8,
+                        'InstrumentID': pl.Utf8,
+                        'Volume': pl.Float64,
+                        'OpenInterest': pl.Float64,
+                        'OpenPrice': pl.Float64,
+                        'HighestPrice': pl.Float64,
+                        'LowestPrice': pl.Float64,
+                        'ClosePrice': pl.Float64,
+                        'LastVolume': pl.Float64,
+                        'symbol': pl.Utf8,
+                        'exchange': pl.Utf8,
+                        'datetime': pl.Utf8
+                    })
+                    
                     file_path = date_dir / f"{symbol}.csv"
 
                     # 如果文件已存在，追加数据
                     if file_path.exists():
                         try:
-                            # 尝试读取现有文件，如果失败则备份并重新创建
-                            existing_df = pl.read_csv(file_path)
+                            # 读取现有文件时也指定数据类型
+                            existing_df = pl.read_csv(file_path, schema_overrides={
+                                'BarType': pl.Utf8,
+                                'UpdateTime': pl.Utf8,
+                                'InstrumentID': pl.Utf8,
+                                'Volume': pl.Float64,
+                                'OpenInterest': pl.Float64,
+                                'OpenPrice': pl.Float64,
+                                'HighestPrice': pl.Float64,
+                                'LowestPrice': pl.Float64,
+                                'ClosePrice': pl.Float64,
+                                'LastVolume': pl.Float64,
+                                'symbol': pl.Utf8,
+                                'exchange': pl.Utf8,
+                                'datetime': pl.Utf8
+                            })
                             df = pl.concat([existing_df, df])
                             # 去重并排序
                             df = df.unique(subset=['InstrumentID', 'BarType', 'UpdateTime']).sort('UpdateTime')

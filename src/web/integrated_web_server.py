@@ -7,7 +7,6 @@
 作者: Homalos Team
 创建时间: 2024-01-20
 """
-
 import asyncio
 import logging
 import time
@@ -38,6 +37,18 @@ class IntegratedWebServer(WebServer):
         
         # 添加事件监控相关路由
         self._setup_dashboard_routes()
+    
+    async def start(self, host: Optional[str] = None, port: Optional[int] = None):
+        """启动集成Web服务器"""
+        # 保存当前事件循环引用（确保IntegratedWebServer也能正确保存）
+        try:
+            self._main_loop = asyncio.get_running_loop()
+            logger.debug("集成Web服务器已保存事件循环引用")
+        except RuntimeError:
+            logger.warning("集成Web服务器无法获取运行中的事件循环")
+        
+        # 调用父类的启动方法
+        await super().start(host, port)
     
     def _setup_dashboard_routes(self):
         """设置事件监控仪表板路由"""
@@ -126,7 +137,7 @@ class IntegratedWebServer(WebServer):
                     ("test.error", {"message": "错误测试事件", "error_code": 500}),
                     ("strategy.update", {"strategy_id": "test_strategy", "status": "running"}),
                     ("trading.order", {"order_id": "test_order_001", "symbol": "BTCUSDT", "side": "buy"}),
-                    ("market.tick", {"symbol": "BTCUSDT", "price": 45000.0, "volume": 1.5}),
+                    ("market.tick", {"symbol": "FG509", "price": 2400.0, "volume": 1.5}),
                     ("risk.alert", {"message": "风险警告", "level": "high"}),
                     ("system.info", {"message": "系统信息", "component": "web_server"})
                 ]

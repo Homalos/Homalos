@@ -24,6 +24,7 @@ log:
     event_bus: "DEBUG"                  # 事件总线模块日志级别
     trading_engine: "DEBUG"             # 交易引擎模块日志级别
     strategy_manager: "DEBUG"           # 策略管理器模块日志级别
+    base_strategy: "INFO"               # 基础策略模块日志级别，显示策略启动等重要信息
     risk_manager: "WARNING"             # 风险管理模块日志级别
     order_manager: "DEBUG"              # 订单管理器模块日志级别
     data_service: "DEBUG"               # 数据服务模块日志级别
