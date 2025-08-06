@@ -237,7 +237,6 @@ const StrategyDialogComponent = {
                         // 检查完整路径匹配
                         if (loadedStrategyPaths.has(strategyPath) || 
                             loadedStrategyPaths.has(normalizedStrategyPath)) {
-                            console.debug(`策略已加载(完整路径匹配): ${strategyPath}`)
                             return false
                         }
                         
@@ -249,7 +248,6 @@ const StrategyDialogComponent = {
                             return false
                         }
                         
-                        console.debug(`策略可加载: ${strategyPath}`)
                         return true
                     })
                     

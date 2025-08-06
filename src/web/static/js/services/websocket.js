@@ -59,6 +59,17 @@ class WebSocketService {
             // 🔍 添加全局消息接收调试
             console.log('📨 WebSocket收到原始消息:', data)
             
+            // 特别调试策略启动相关事件
+            if (data.type === 'event' && data.event_type && data.event_type.includes('strategy')) {
+                console.info('🎯 策略相关事件详细信息:', {
+                    type: data.type,
+                    event_type: data.event_type,
+                    source: data.source,
+                    data: data.data,
+                    timestamp: data.timestamp
+                })
+            }
+            
             this.handleMessage(data)
         } catch (error) {
             console.error('WebSocket消息解析失败:', error, event.data)
@@ -143,6 +154,19 @@ class WebSocketService {
             timestamp
         })
         
+        // 🔍 特别调试strategy.started事件
+        if (event_type === 'strategy.started') {
+            console.warn('🎯 [CRITICAL DEBUG] 收到strategy.started事件!', {
+                complete_data: data,
+                event_type,
+                eventData,
+                source,
+                timestamp,
+                window_stateActions: window.stateActions,
+                addLog_function: window.stateActions?.addLog
+            })
+        }
+        
         // 特别关注策略启动/停止事件的调试
         if (event_type.includes('strategy.start') || event_type.includes('strategy.stop')) {
             console.info(`🔍 策略操作事件详情:`, {
@@ -157,6 +181,21 @@ class WebSocketService {
             if (window.stateActions && window.stateActions.addLog) {
                 window.stateActions.addLog('info', `🔍 [调试] 接收到事件: ${event_type} - ${eventData?.message || '无消息'}`)
             }
+        }
+        
+        // 确定日志级别 - 在函数开始处声明
+        let logLevel = 'info'
+        
+        // 🔍 特别调试strategy.started事件的处理开始
+        if (event_type === 'strategy.started') {
+            console.warn('🎯 [CRITICAL DEBUG] 开始处理strategy.started事件:', {
+                event_type,
+                eventData,
+                source,
+                timestamp,
+                stateActions_exists: !!window.stateActions,
+                addLog_exists: !!(window.stateActions && window.stateActions.addLog)
+            })
         }
         
         // 格式化事件消息 - 改进策略事件的用户友好消息
@@ -187,36 +226,42 @@ class WebSocketService {
                         break
                     case 'strategy.load_failed':
                         message = `策略 "${strategyDisplay}" 加载失败`
+                        logLevel = 'error'
                         if (eventData.error) {
                             message += `: ${eventData.error}`
                         }
                         break
                     case 'strategy.start_failed':
                         message = `策略 "${strategyDisplay}" 启动失败`
+                        logLevel = 'error'
                         if (eventData.error) {
                             message += `: ${eventData.error}`
                         }
                         break
                     case 'strategy.stop_failed':
                         message = `策略 "${strategyDisplay}" 停止失败`
+                        logLevel = 'error'
                         if (eventData.error) {
                             message += `: ${eventData.error}`
                         }
                         break
                     case 'strategy.load_error':
                         message = `策略 "${strategyDisplay}" 加载出错`
+                        logLevel = 'error'
                         if (eventData.error) {
                             message += `: ${eventData.error}`
                         }
                         break
                     case 'strategy.start_error':
                         message = `策略 "${strategyDisplay}" 启动出错`
+                        logLevel = 'error'
                         if (eventData.error) {
                             message += `: ${eventData.error}`
                         }
                         break
                     case 'strategy.stop_error':
                         message = `策略 "${strategyDisplay}" 停止出错`
+                        logLevel = 'error'
                         if (eventData.error) {
                             message += `: ${eventData.error}`
                         }
@@ -226,12 +271,15 @@ class WebSocketService {
                         break
                     case 'order.filled':
                         message = `订单成交: ${eventData.symbol || ''} ${eventData.direction || ''} ${eventData.volume || ''}`
+                        logLevel = 'success'
                         break
                     case 'order.cancelled':
                         message = `订单撤销: ${eventData.order_id || 'Unknown'}`
+                        logLevel = 'warning'
                         break
                     case 'risk.rejected':
                         message = `风控拒绝: ${eventData.reason || '未知原因'}`
+                        logLevel = 'error'
                         break
                     default:
                         if (eventData.strategy_name || eventData.strategy_id || eventData.strategy_uuid) {
@@ -246,35 +294,65 @@ class WebSocketService {
             message = String(eventData || '系统事件')
         }
         
-        // 确定日志级别 - 改进策略事件的级别判断
-        let logLevel = 'info'
+        // 如果还没有设置日志级别，基于事件类型进行设置
+        if (logLevel === 'info') {
+            // 错误级别事件
+            if (event_type.includes('error') || event_type.includes('failed') || event_type.includes('rejected')) {
+                logLevel = 'error'
+            }
+            // 警告级别事件  
+            else if (event_type.includes('warning')) {
+                logLevel = 'warning'
+            }
+            // 成功级别事件
+            else if (event_type.includes('success') || 
+                     event_type.includes('started') || 
+                     event_type.includes('loaded') || 
+                     event_type.includes('filled')) {
+                logLevel = 'success'
+            }
+            // 停止事件使用info级别
+            else if (event_type.includes('stopped')) {
+                logLevel = 'info'
+            }
+        }
         
-        // 错误级别事件
-        if (event_type.includes('error') || event_type.includes('failed') || event_type.includes('rejected')) {
-            logLevel = 'error'
-        }
-        // 警告级别事件  
-        else if (event_type.includes('warning')) {
-            logLevel = 'warning'
-        }
-        // 成功级别事件
-        else if (event_type.includes('success') || 
-                 event_type.includes('started') || 
-                 event_type.includes('loaded') || 
-                 event_type.includes('filled')) {
-            logLevel = 'success'
-        }
-        // 停止事件使用info级别
-        else if (event_type.includes('stopped')) {
-            logLevel = 'info'
+        // 🔍 特别调试strategy.started事件的addLog调用前状态
+        if (event_type === 'strategy.started') {
+            console.warn('🎯 [CRITICAL DEBUG] 准备调用addLog:', {
+                logLevel,
+                message,
+                stateActions_exists: !!window.stateActions,
+                addLog_exists: !!(window.stateActions && window.stateActions.addLog),
+                globalState_logs_before: window.globalState?.realtimeLogs?.length || 'undefined',
+                current_logs: window.globalState?.realtimeLogs || 'undefined'
+            })
         }
         
         // 添加到日志面板
         if (window.stateActions && window.stateActions.addLog) {
             console.log(`✅ 将事件日志添加到界面: [${logLevel}] ${message}`)
             window.stateActions.addLog(logLevel, message)
+            
+            // 🔍 特别调试strategy.started事件的addLog调用后状态
+            if (event_type === 'strategy.started') {
+                console.warn('🎯 [CRITICAL DEBUG] addLog调用完成:', {
+                    globalState_logs_after: window.globalState?.realtimeLogs?.length || 'undefined',
+                    latest_log: window.globalState?.realtimeLogs?.[0] || 'undefined',
+                    all_logs: window.globalState?.realtimeLogs || 'undefined'
+                })
+            }
         } else {
             console.error('❌ stateActions.addLog 不可用，无法添加事件日志到界面')
+            
+            // 🔍 特别调试strategy.started事件的addLog失败情况
+            if (event_type === 'strategy.started') {
+                console.error('🎯 [CRITICAL DEBUG] addLog调用失败!', {
+                    stateActions: window.stateActions,
+                    addLog: window.stateActions?.addLog,
+                    window_keys: Object.keys(window).filter(k => k.includes('state') || k.includes('action'))
+                })
+            }
         }
         
         // 调用其他事件处理器

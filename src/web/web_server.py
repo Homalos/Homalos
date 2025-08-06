@@ -331,7 +331,9 @@ class WebServer:
         async def start_strategy(strategy_uuid: str):
             """启动策略 - 使用UUID"""
             try:
+                logger.info(f"🚀 [API] 收到策略启动请求: {strategy_uuid}")
                 success = await self.trading_engine.strategy_manager.start_strategy(strategy_uuid)
+                logger.info(f"🚀 [API] 策略启动结果: {success}")
                 
                 if success:
                     return SystemResponse(
@@ -696,29 +698,36 @@ class WebServer:
                     "order.update", "strategy.performance"
                 ]
                 
-                # 处理不同格式的事件数据
-                if isinstance(event, dict):
-                    # EnhancedEventBus格式的事件数据
-                    event_type = event.get('type', 'unknown')
-                    event_data = event.get('data', {})
-                    event_source = event.get('source', 'unknown')
-                    event_timestamp = event.get('timestamp', time.time())
-                else:
-                    # Event对象格式
-                    event_type = getattr(event, 'type', getattr(event, 'event_type', 'unknown'))
-                    event_data = getattr(event, 'data', {})
-                    event_source = getattr(event, 'source', 'unknown')
-                    event_timestamp = getattr(event, 'timestamp', time.time() * 1_000_000_000)
+                # 处理Event对象格式（EnhancedEventBus会将字典转换为Event对象）
+                # 由于参数名为'event'，EnhancedEventBus会自动转换字典为Event对象
+                event_type = getattr(event, 'type', getattr(event, 'event_type', 'unknown'))
+                event_data = getattr(event, 'data', {})
+                event_source = getattr(event, 'source', 'unknown')
+                event_timestamp = getattr(event, 'timestamp', time.time() * 1_000_000_000)
+                
+                # 转换纳秒时间戳为秒
+                if event_timestamp > 1e12:  # 如果是纳秒时间戳
+                    event_timestamp = event_timestamp / 1_000_000_000
                 
                 # 调试日志：记录所有接收到的事件
                 logger.debug(f"WebSocket事件监控器收到事件: {event_type} from {event_source}")
                 
                 # 特别关注策略启动/停止事件的详细调试
                 if event_type in ['strategy.started', 'strategy.stopped', 'strategy.log']:
-                    logger.info(f"🔍 策略关键事件: {event_type}")
+                    logger.info(f"🔍 [WebSocket] 策略关键事件: {event_type}")
                     logger.info(f"   事件数据: {event_data}")
                     logger.info(f"   事件来源: {event_source}")
+                    logger.info(f"   事件时间戳: {event_timestamp}")
                     logger.info(f"   WebSocket连接数: {len(self.ws_manager.active_connections)}")
+                    logger.info(f"   原始事件对象类型: {type(event)}")
+                    if isinstance(event, dict):
+                        logger.info(f"   原始事件字典: {event}")
+                    else:
+                        logger.info(f"   原始事件对象: {event}")
+                    
+                    # 添加即将发送的WebSocket消息调试
+                    if event_type == 'strategy.started':
+                        logger.info(f"🚀 [WebSocket] 即将发送strategy.started事件到前端")
                 
                 # 使用更宽松的匹配条件，确保策略事件能被捕获
                 should_push = (event_type in push_events or 
@@ -743,6 +752,10 @@ class WebServer:
                         "source": event_source,
                         "timestamp": timestamp_seconds
                     }
+                    
+                    # 特别调试strategy.started事件的消息内容
+                    if event_type == 'strategy.started':
+                        logger.info(f"🚀 [WebSocket] strategy.started消息内容: {message}")
                     
                     # 根据事件类型使用特殊的广播方法
                     if event_type in ["kline.update", "bar.generated"]:
@@ -774,6 +787,10 @@ class WebServer:
                             "timestamp": event_data.get('timestamp', timestamp_seconds)
                         }
                         self._safe_schedule_task(self.ws_manager.broadcast(log_message))
+                    elif event_type in ["strategy.started", "strategy.stopped", "strategy.loaded"]:
+                        # 策略状态事件 - 确保被正确发送
+                        logger.info(f"🎯 [WebSocket] 发送策略状态事件: {event_type}")
+                        self._safe_schedule_task(self.ws_manager.broadcast(message))
                     else:
                         # 其他事件使用通用广播
                         # 调试日志：记录推送的消息内容

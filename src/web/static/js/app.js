@@ -54,6 +54,24 @@ const MainApp = {
                         </el-card>
                     </div>
                     
+                    <!-- 调试面板 -->
+                    <div class="debug-panel" style="margin: 20px 0;">
+                        <el-card>
+                            <template #header>
+                                <span>🔍 WebSocket调试工具</span>
+                            </template>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <el-button type="primary" @click="testWebSocketMessages" size="small">
+                                    测试WebSocket消息接收
+                                </el-button>
+                                <el-button type="success" @click="clearDebugLogs" size="small">
+                                    清空调试日志
+                                </el-button>
+                                <span style="margin-left: 10px; color: #666;">检查浏览器控制台查看详细调试信息</span>
+                            </div>
+                        </el-card>
+                    </div>
+                    
                     <!-- 日志面板组件 -->
                     <log-panel-component></log-panel-component>
                 </div>
@@ -168,11 +186,62 @@ const MainApp = {
             window.open('/chart', '_blank')
         }
         
+        // 调试方法：测试WebSocket消息接收
+        const testWebSocketMessages = () => {
+            console.log('🔍 开始测试WebSocket消息接收...')
+            
+            // 添加调试日志
+            actions.addLog('info', '🔍 [调试] 开始测试WebSocket消息接收')
+            
+            // 检查WebSocket连接状态
+            if (window.wsService && window.wsService.isConnected()) {
+                console.log('✅ WebSocket连接正常')
+                actions.addLog('success', '✅ WebSocket连接状态正常')
+                
+                // 模拟发送一个测试事件
+                const testEvent = {
+                    type: 'event',
+                    event_type: 'strategy.started',
+                    data: {
+                        strategy_id: 'test_strategy',
+                        strategy_uuid: 'test-uuid-12345',
+                        strategy_name: 'TestStrategy',
+                        message: '策略 TestStrategy 启动成功',
+                        timestamp: Date.now() / 1000
+                    },
+                    source: 'DebugTest',
+                    timestamp: Date.now() / 1000
+                }
+                
+                console.log('🧪 模拟处理strategy.started事件:', testEvent)
+                actions.addLog('info', '🧪 [调试] 模拟处理strategy.started事件')
+                
+                // 直接调用WebSocket的事件处理方法
+                if (window.wsService.handleEventMessage) {
+                    window.wsService.handleEventMessage(testEvent)
+                } else {
+                    console.error('❌ WebSocket事件处理方法不存在')
+                    actions.addLog('error', '❌ WebSocket事件处理方法不存在')
+                }
+            } else {
+                console.error('❌ WebSocket连接异常')
+                actions.addLog('error', '❌ WebSocket连接异常，请检查连接状态')
+            }
+        }
+        
+        // 调试方法：清空调试日志
+        const clearDebugLogs = () => {
+            console.clear()
+            actions.addLog('info', '🧹 [调试] 浏览器控制台已清空')
+        }
+        
         return {
             state,
             currentPage,
             t,
-            openChartPage
+            openChartPage,
+            testWebSocketMessages,
+            clearDebugLogs
         }
     }
 }

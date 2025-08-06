@@ -128,9 +128,23 @@ const DashboardApp = {
             };
             
             websocket.onmessage = (event) => {
+                console.log('Dashboard WebSocket收到原始消息:', event.data);
                 const message = JSON.parse(event.data);
+                console.log('Dashboard WebSocket解析后的消息:', message);
+                
+                // 处理仪表板统计数据
                 if (message.type === 'stats' || message.type === 'stats_update') {
                     updateDashboard(message.data);
+                }
+                
+                // 处理事件类型消息（包括策略事件）
+                if (message.type === 'event') {
+                    console.log('Dashboard处理事件消息:', message);
+                    // 如果有全局的WebSocket服务，也让它处理这个消息
+                    if (window.wsService && window.wsService.handleMessage) {
+                        console.log('转发消息给全局WebSocket服务');
+                        window.wsService.handleMessage(message);
+                    }
                 }
             };
             

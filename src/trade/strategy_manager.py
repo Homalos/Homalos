@@ -240,16 +240,25 @@ class StrategyManager:
             strategy_info.error_message = None  # 清除之前的错误信息
 
             # 发布策略启动成功事件
+            event_data = {
+                "strategy_id": strategy_info.strategy_id,
+                "strategy_uuid": strategy_uuid,
+                "strategy_name": strategy_info.strategy_name,
+                "message": f"策略 {strategy_info.strategy_name} 启动成功",
+                "timestamp": time.time()
+            }
+            
+            # 添加详细的调试日志
+            logger.info(f"🚀 [调试] 准备发布策略启动事件: {EventType.STRATEGY_STARTED}")
+            logger.info(f"   事件数据: {event_data}")
+            
             self.event_bus.publish(create_trading_event(
                 EventType.STRATEGY_STARTED,
-                {
-                    "strategy_id": strategy_info.strategy_id,
-                    "strategy_uuid": strategy_uuid,
-                    "strategy_name": strategy_info.strategy_name,
-                    "message": f"策略 {strategy_info.strategy_name} 启动成功"
-                },
+                event_data,
                 "StrategyManager"
             ))
+            
+            logger.info(f"✅ [调试] 策略启动事件已发布: {EventType.STRATEGY_STARTED}")
 
             # 将策略添加到健康监控
             self.health_monitor.add_strategy(strategy_info.instance)
@@ -330,16 +339,25 @@ class StrategyManager:
             strategy_info.error_message = None  # 清除错误信息
 
             # 发布策略停止成功事件
+            event_data = {
+                "strategy_id": strategy_info.strategy_id,
+                "strategy_uuid": strategy_uuid,
+                "strategy_name": strategy_info.strategy_name,
+                "message": f"策略 {strategy_info.strategy_name} 停止成功",
+                "timestamp": time.time()
+            }
+            
+            # 添加详细的调试日志
+            logger.info(f"🛑 [调试] 准备发布策略停止事件: {EventType.STRATEGY_STOPPED}")
+            logger.info(f"   事件数据: {event_data}")
+            
             self.event_bus.publish(create_trading_event(
                 EventType.STRATEGY_STOPPED,
-                {
-                    "strategy_id": strategy_info.strategy_id,
-                    "strategy_uuid": strategy_uuid,
-                    "strategy_name": strategy_info.strategy_name,
-                    "message": f"策略 {strategy_info.strategy_name} 停止成功"
-                },
+                event_data,
                 "StrategyManager"
             ))
+            
+            logger.info(f"✅ [调试] 策略停止事件已发布: {EventType.STRATEGY_STOPPED}")
 
             # 从健康监控中移除策略
             self.health_monitor.remove_strategy(strategy_info.instance.strategy_id)

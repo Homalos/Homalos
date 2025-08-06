@@ -50,7 +50,7 @@ const messages = {
         // 头部
         header: {
             title: 'Homalos量化交易系统',
-            subtitle: '基于Python的期货量化交易系统 v2.0',
+            subtitle: '基于Python的期货量化交易系统 v0.0.1',
             language: '语言'
         },
         
@@ -154,7 +154,7 @@ const messages = {
         
         // 版权信息
         footer: {
-            copyright: '© 2025 Homalos量化交易系统'
+            copyright: '© 2025 Homalos期货量化交易系统'
         }
     },
     
