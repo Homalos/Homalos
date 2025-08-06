@@ -163,10 +163,16 @@ const MainApp = {
             window.wsService.disconnect()
         })
         
+        // 打开交易图表页面
+        const openChartPage = () => {
+            window.open('/chart', '_blank')
+        }
+        
         return {
             state,
             currentPage,
-            t
+            t,
+            openChartPage
         }
     }
 }

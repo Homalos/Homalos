@@ -9,7 +9,7 @@ const LanguageSwitcherComponent = {
                 <el-button type="text" class="language-button">
                     <span class="language-icon">🌐</span>
                     <span class="language-text">{{ currentLanguageDisplay }}</span>
-                    <el-icon class="el-icon--right"><arrow-down /></el-icon>
+                    <span class="el-icon-arrow-down"></span>
                 </el-button>
                 <template #dropdown>
                     <el-dropdown-menu>
@@ -20,9 +20,7 @@ const LanguageSwitcherComponent = {
                             :class="{ 'is-active': locale === currentLocale }">
                             <span class="locale-flag">{{ getLocaleFlag(locale) }}</span>
                             <span class="locale-name">{{ getLocaleDisplayName(locale) }}</span>
-                            <el-icon v-if="locale === currentLocale" class="check-icon">
-                                <check />
-                            </el-icon>
+                            <span v-if="locale === currentLocale" class="el-icon-check check-icon"></span>
                         </el-dropdown-item>
                     </el-dropdown-menu>
                 </template>
