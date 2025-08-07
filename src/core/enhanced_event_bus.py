@@ -19,7 +19,7 @@ import weakref
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Callable, Set, TypeVar
+from typing import Any, Dict, List, Optional, Callable, Set, TypeVar, TypeVarTuple
 
 from src.core.async_handler_pool import AsyncHandlerPool, ExecutionResult
 from src.core.event_router import EventRouter, RoutingStrategy
@@ -364,9 +364,9 @@ class EnhancedEventBus:
                 # 在事件循环中执行清理
                 future = asyncio.run_coroutine_threadsafe(self._cleanup_components(), self._loop)
                 future.result(timeout=timeout)
-                
+
                 # 停止事件循环
-                self._loop.call_soon_threadsafe(self._shutdown_event.set)
+                self._loop.call_soon_threadsafe(self._shutdown_event.set)  # type: ignore
             
             # 等待事件循环线程结束
             if self._loop_thread and self._loop_thread.is_alive():
@@ -608,28 +608,27 @@ class EnhancedEventBus:
     async def _execute_handlers_direct(self, event_data: Dict[str, Any], handlers: List[Callable]) -> List[ExecutionResult]:
         """直接执行处理器"""
         results = []
+        start_time: float = 0.0
         
         for handler in handlers:
             try:
                 # 直接调用处理器，不使用AsyncHandlerPool
                 # 因为AsyncHandlerPool需要Event对象，而我们这里有的是字典数据
                 start_time = time.time()
-                handler_result = None
-                
+
                 # 检查处理器是否期望Event对象（通过检查参数名称）
                 import inspect
                 sig = inspect.signature(handler)
                 param_names = list(sig.parameters.keys())
                 
-                # 如果处理器的第一个参数名为'event'，则创建Event对象
+                # 如果处理器的第一个参数名为event，则创建Event对象
                 if param_names and param_names[0] == 'event':
                     from src.core.event import Event, EventPriority
                     event_obj = Event(
                         event_type=event_data.get('type', 'unknown'),
                         data=event_data.get('data', {}),
                         source=event_data.get('source', 'unknown'),
-                        priority=EventPriority.NORMAL,
-                        timestamp=int(event_data.get('timestamp', time.time()) * 1_000_000_000)
+                        priority=EventPriority.NORMAL
                     )
                     
                     if asyncio.iscoroutinefunction(handler):

@@ -30,12 +30,12 @@ logger = get_logger("EventRouter")
 
 class RoutingStrategy(Enum):
     """路由策略枚举"""
-    BROADCAST = "broadcast"  # 广播到所有匹配的处理器
-    ROUND_ROBIN = "round_robin"  # 轮询分发
-    LOAD_BALANCED = "load_balanced"  # 负载均衡
-    PRIORITY_BASED = "priority_based"  # 基于优先级
-    FIRST_MATCH = "first_match"  # 第一个匹配
-    RANDOM = "random"  # 随机选择
+    BROADCAST = "broadcast"             # 广播到所有匹配的处理器
+    ROUND_ROBIN = "round_robin"         # 轮询分发
+    LOAD_BALANCED = "load_balanced"     # 负载均衡
+    PRIORITY_BASED = "priority_based"   # 基于优先级
+    FIRST_MATCH = "first_match"         # 第一个匹配
+    RANDOM = "random"                   # 随机选择
 
 
 class FilterOperator(Enum):
@@ -78,8 +78,9 @@ class RouteFilter:
         except Exception as e:
             logger.debug(f"Filter matching error: {e}")
             return False
-    
-    def _get_field_value(self, data: Dict[str, Any], field_path: str) -> Any:
+
+    @staticmethod
+    def _get_field_value(data: Dict[str, Any], field_path: str) -> Any:
         """获取嵌套字段值"""
         keys = field_path.split('.')
         value = data
@@ -166,14 +167,15 @@ class RouteRule:
                     return False
         
         return True
-    
-    def _get_event_data(self, event: Union[Event, TypedEvent]) -> Dict[str, Any]:
+
+    @staticmethod
+    def _get_event_data(event: Union[Event, TypedEvent]) -> Dict[str, Any]:
         """获取事件数据"""
         if isinstance(event, TypedEvent):
             # 安全地获取data，支持字典和对象
             data = event.data
             if hasattr(data, 'dict'):
-                data = data.dict()
+                data = data.model_dump()
             elif hasattr(data, '__dict__'):
                 data = data.__dict__
             
@@ -590,7 +592,7 @@ class EventRouter:
             # 可以选择等待结果或继续（这里选择继续以提高性能）
             # future.result(timeout=rule.timeout)  # 如果需要同步等待
     
-    def _call_handler(self, handler: Callable, event: Union[Event, TypedEvent], 
+    def _call_handler(self, handler: Callable, event: Union[Event, TypedEvent],
                      handler_name: str, rule: RouteRule) -> None:
         """调用单个处理器"""
         start_time = time.time()
@@ -650,8 +652,9 @@ class EventRouter:
             'success': result.success,
             'routing_time': routing_time
         })
-    
-    def _get_event_type(self, event: Union[Event, TypedEvent]) -> str:
+
+    @staticmethod
+    def _get_event_type(event: Union[Event, TypedEvent]) -> str:
         """获取事件类型"""
         return event.event_type if isinstance(event, TypedEvent) else event.type
     
@@ -687,7 +690,7 @@ class EventRouter:
         
         return rule_stats
     
-    def shutdown(self, timeout: float = 30.0) -> None:
+    def shutdown(self) -> None:
         """关闭路由器"""
         logger.info(f"Shutting down EventRouter '{self._name}'...")
         
@@ -729,10 +732,10 @@ def create_filtered_rule(name: str, pattern: str, handlers: List[str],
     )
 
 
-def create_filter(field: str, operator: FilterOperator, value: Any, **kwargs) -> RouteFilter:
+def create_filter(field_str: str, operator: FilterOperator, value: Any, **kwargs) -> RouteFilter:
     """创建路由过滤器"""
     return RouteFilter(
-        field=field,
+        field=field_str,
         operator=operator,
         value=value,
         **kwargs
