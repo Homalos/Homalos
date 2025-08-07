@@ -10,7 +10,6 @@
 @Description: 增强事件总线 V2 - 第二阶段优化版本
 整合异步处理池、事件调度器、类型安全、路由机制和健康监控
 """
-
 import json
 import threading
 import time
@@ -19,7 +18,7 @@ import weakref
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Callable, Set, TypeVar, TypeVarTuple
+from typing import Any, Dict, List, Optional, Callable, Set, TypeVar
 
 from src.core.async_handler_pool import AsyncHandlerPool, ExecutionResult
 from src.core.event_router import EventRouter, RoutingStrategy
@@ -208,8 +207,8 @@ class EventBusHealthCheck(HealthCheck):
             avg_time = metrics.avg_processing_time
             
             # 判断状态
-            status = HealthStatus.HEALTHY
-            messages = []
+            status: HealthStatus = HealthStatus.HEALTHY
+            messages: list = []
             
             if queue_usage > 80:
                 status = HealthStatus.WARNING if queue_usage < 95 else HealthStatus.CRITICAL

@@ -488,7 +488,9 @@ class HealthMonitor:
         logger.info(f"HealthMonitor '{self._name}' started")
     
     def stop(self, timeout: float = 30.0) -> None:
-        """停止健康监控"""
+        """
+        停止健康监控
+        """
         if not self._running:
             return
         
@@ -552,7 +554,7 @@ class HealthMonitor:
         check_time = time.time() - start_time
         self._update_stats(results, check_time)
     
-    def _run_checks_sync(self, checks: List[tuple]) -> List[HealthCheckResult]:
+    def _run_checks_sync(self, checks: List[tuple]) -> None:
         """在新线程中同步运行检查"""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -587,8 +589,9 @@ class HealthMonitor:
                 processed_results.append(result)
         
         return processed_results
-    
-    async def _run_single_check(self, check: HealthCheck) -> HealthCheckResult:
+
+    @staticmethod
+    async def _run_single_check(check: HealthCheck) -> HealthCheckResult:
         """运行单个检查"""
         start_time = time.time()
         
@@ -640,7 +643,7 @@ class HealthMonitor:
                 if asyncio.iscoroutinefunction(callback):
                     # 异步回调需要在事件循环中执行
                     try:
-                        loop = asyncio.get_running_loop()
+                        asyncio.get_running_loop()
                         asyncio.create_task(callback(result))
                     except RuntimeError:
                         # 没有运行中的事件循环，在线程池中执行
