@@ -11,9 +11,13 @@
 """
 import asyncio
 import inspect
+import os
+import sys
 import time
+import importlib.util
 from collections import defaultdict
 from typing import Dict, Optional, Any
+from uuid import uuid4
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, EventType, create_trading_event
@@ -22,7 +26,7 @@ from src.core.logger import get_logger
 from src.core.object import TickData, StrategyInfo
 from src.strategy.base_strategy import BaseStrategy
 from src.strategy.strategy_event_handler import StrategyEventHandler
-from src.strategy.strategy_health_monitor import StrategyHealthMonitor, HealthReport
+from src.strategy.strategy_health_monitor import StrategyHealthMonitor, HealthReport, AnomalyType
 
 logger = get_logger("StrategyManager")
 
@@ -32,7 +36,8 @@ class StrategyManager:
     def __init__(self, event_bus: EventBus, config: ConfigManager):
         self.event_bus = event_bus
         self.config = config
-        self.strategies: Dict[str, StrategyInfo] = {}
+
+        self.strategies: Dict[str, StrategyInfo] = {}   # 策略信息 - strategy_uuid -> strategy_info
         self.strategy_subscriptions: Dict[str, set] = defaultdict(set)  # strategy_id -> symbols
 
         # 初始化健康监控器
@@ -54,10 +59,10 @@ class StrategyManager:
 
     def _register_event_handlers(self):
         """注册事件处理器"""
-        self.event_bus.subscribe("market.tick", self._handle_market_tick)
-        self.event_bus.subscribe("strategy.load", self._handle_load_strategy)
-        self.event_bus.subscribe("strategy.start", self._handle_start_strategy)
-        self.event_bus.subscribe("strategy.stop", self._handle_stop_strategy)
+        self.event_bus.subscribe(EventType.MARKET_TICK, self._handle_market_tick)
+        self.event_bus.subscribe(EventType.STRATEGY_LOADED, self._handle_load_strategy)
+        self.event_bus.subscribe(EventType.STRATEGY_STARTED, self._handle_start_strategy)
+        self.event_bus.subscribe(EventType.STRATEGY_STOPPED, self._handle_stop_strategy)
 
         # 注册策略健康和恢复相关事件
         self.event_bus.subscribe(EventType.STRATEGY_ANOMALY_DETECTED, self._handle_strategy_anomaly)
@@ -91,9 +96,6 @@ class StrategyManager:
         params = params or {}
 
         try:
-            import importlib.util
-            import os
-
             # 验证策略文件存在性
             if not os.path.exists(strategy_path):
                 raise FileNotFoundError(f"策略文件不存在: {strategy_path}")
@@ -101,19 +103,26 @@ class StrategyManager:
             if not strategy_path.endswith('.py'):
                 raise ValueError(f"策略文件必须是Python文件: {strategy_path}")
 
-            # 动态导入策略模块
-            spec = importlib.util.spec_from_file_location("strategy", strategy_path)
-            if spec is None or spec.loader is None:
-                raise ImportError(f"无法创建模块规范: {strategy_path}")
+            # 避免重复加载相同模块
+            module_name = f"strategy_{uuid4().hex}"
+            if strategy_path in sys.modules:
+                spec = importlib.util.spec_from_file_location(module_name, strategy_path)
+                module = sys.modules[strategy_path]
+            else:
+                # 动态导入策略模块
+                spec = importlib.util.spec_from_file_location(module_name, strategy_path)
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"无法创建模块规范: {strategy_path}")
 
-            module = importlib.util.module_from_spec(spec)
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module  # 缓存模块防止重复导入
 
-            try:
-                spec.loader.exec_module(module)
-            except SyntaxError as e:
-                raise SyntaxError(f"策略文件语法错误: {e}")
-            except ImportError as e:
-                raise ImportError(f"策略文件依赖导入失败: {e}")
+                try:
+                    spec.loader.exec_module(module)
+                except SyntaxError as e:
+                    raise SyntaxError(f"策略文件语法错误: {e}")
+                except ImportError as e:
+                    raise ImportError(f"策略文件依赖导入失败: {e}")
 
             # 创建策略实例 - 自动发现策略类
             strategy_class = self._find_strategy_class(module)
@@ -133,9 +142,14 @@ class StrategyManager:
             # 获取策略自动生成的UUID
             strategy_uuid = strategy_instance.get_strategy_uuid()
 
-            # 检查UUID冲突
+            # 检查UUID冲突并尝试重试
+            retry_count = 3
+            while strategy_uuid in self.strategies and retry_count > 0:
+                strategy_uuid = str(uuid4())
+                retry_count -= 1
+
             if strategy_uuid in self.strategies:
-                raise ValueError(f"策略UUID冲突: {strategy_uuid}")
+                raise ValueError(f"策略UUID冲突且重试失败: {strategy_uuid}")
 
             # 注册策略信息，使用UUID作为主键
             strategy_info = StrategyInfo(
@@ -152,7 +166,7 @@ class StrategyManager:
             self.strategies[strategy_uuid] = strategy_info
 
             # 发布策略加载成功事件
-            self.event_bus.publish(create_trading_event(
+            self._publish_strategy_event(
                 EventType.STRATEGY_LOADED,
                 {
                     "strategy_id": display_name,
@@ -160,9 +174,8 @@ class StrategyManager:
                     "strategy_name": strategy_info.strategy_name,
                     "strategy_path": strategy_path,
                     "message": f"策略 {display_name} 加载成功"
-                },
-                "StrategyManager"
-            ))
+                }
+            )
 
             logger.info(f"策略加载成功: {display_name} (UUID: {strategy_uuid})")
             return True, strategy_uuid
@@ -173,17 +186,15 @@ class StrategyManager:
             logger.error(error_msg, exc_info=True)
 
             # 发布策略加载失败事件
-            self.event_bus.publish(create_trading_event(
+            self._publish_strategy_event(
                 EventType.STRATEGY_LOAD_FAILED,
                 {
                     "strategy_path": strategy_path,
                     "error": str(e),
                     "error_type": type(e).__name__,
                     "message": error_msg
-                },
-                "StrategyManager"
-            ))
-
+                }
+            )
             return False, ""
         except Exception as e:
             # 处理未预期的异常
@@ -191,18 +202,25 @@ class StrategyManager:
             logger.error(error_msg, exc_info=True)
 
             # 发布策略加载失败事件
-            self.event_bus.publish(create_trading_event(
+            self._publish_strategy_event(
                 EventType.STRATEGY_LOAD_FAILED,
                 {
                     "strategy_path": strategy_path,
                     "error": str(e),
                     "error_type": "UnexpectedError",
                     "message": error_msg
-                },
-                "StrategyManager"
-            ))
+                }
+            )
 
             return False, ""
+
+    def _publish_strategy_event(self, event_type, data):
+        """辅助函数：发布策略事件"""
+        self.event_bus.publish(create_trading_event(
+            event_type,
+            data,
+            "StrategyManager"
+        ))
 
     async def start_strategy(self, strategy_uuid: str) -> bool:
         """启动策略 - 使用UUID作为标识符，增强网关状态检查和异常处理"""
@@ -249,8 +267,8 @@ class StrategyManager:
             }
             
             # 添加详细的调试日志
-            logger.info(f"🚀 [调试] 准备发布策略启动事件: {EventType.STRATEGY_STARTED}")
-            logger.info(f"   事件数据: {event_data}")
+            logger.info(f"[调试] 准备发布策略启动事件: {EventType.STRATEGY_STARTED}")
+            logger.info(f"事件数据: {event_data}")
             
             self.event_bus.publish(create_trading_event(
                 EventType.STRATEGY_STARTED,
@@ -258,7 +276,7 @@ class StrategyManager:
                 "StrategyManager"
             ))
             
-            logger.info(f"✅ [调试] 策略启动事件已发布: {EventType.STRATEGY_STARTED}")
+            logger.info(f"[调试] 策略启动事件已发布: {EventType.STRATEGY_STARTED}")
 
             # 将策略添加到健康监控
             self.health_monitor.add_strategy(strategy_info.instance)
@@ -348,7 +366,7 @@ class StrategyManager:
             }
             
             # 添加详细的调试日志
-            logger.info(f"🛑 [调试] 准备发布策略停止事件: {EventType.STRATEGY_STOPPED}")
+            logger.info(f"[调试] 准备发布策略停止事件: {EventType.STRATEGY_STOPPED}")
             logger.info(f"   事件数据: {event_data}")
             
             self.event_bus.publish(create_trading_event(
@@ -357,7 +375,7 @@ class StrategyManager:
                 "StrategyManager"
             ))
             
-            logger.info(f"✅ [调试] 策略停止事件已发布: {EventType.STRATEGY_STOPPED}")
+            logger.info(f"[调试] 策略停止事件已发布: {EventType.STRATEGY_STOPPED}")
 
             # 从健康监控中移除策略
             self.health_monitor.remove_strategy(strategy_info.instance.strategy_id)
@@ -675,7 +693,9 @@ class StrategyManager:
             strategy_info.error_message = data.get("error", "未知错误")
 
             # 如果是严重错误，考虑自动恢复
-            if error_type in ["RuntimeError", "ConnectionError", "TimeoutError"]:
+            if error_type in [AnomalyType.RUNTIME_ERROR.value,
+                              AnomalyType.CONNECTION_ERROR.value,
+                              AnomalyType.TIMEOUT_ERROR.value]:
                 if self.auto_recovery_enabled:
                     asyncio.create_task(self._attempt_strategy_recovery(strategy_uuid, error_type))
 
