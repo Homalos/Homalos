@@ -54,7 +54,6 @@ class DataCenter:
         self.bar_config = self.data_center_config.get('bar_generation', {})
 
         log_config_dict = self.data_center_config.get('log', {})
-
         data_logger = Logger(log_config_dict)
         self.logger = data_logger.get_gateway_logger(gateway_name=__name__)
 
@@ -686,7 +685,7 @@ class DataCenter:
                         size=1,
                         price_tick=0.01,
                         min_volume=1,
-                        gateway_name=self.market_gateway.gateway_name if self.market_gateway else "DATA_CENTER_MD"
+                        gateway_name=self.market_gateway.gateway_name if self.market_gateway else "DATA_CENTER"
                     )
 
                     # 添加到全局缓存
