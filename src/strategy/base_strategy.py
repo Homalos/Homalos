@@ -603,7 +603,7 @@ class BaseStrategy(ABC):
         try:
             # 发布取消订阅请求
             self.event_bus.publish(create_market_event(
-                "data.unsubscribe",
+                EventType.DATA_UNSUBSCRIBE,
                 {"symbols": symbols, "strategy_id": self.strategy_id},
                 f"Strategy_{self.strategy_id}"
             ))
@@ -659,7 +659,7 @@ class BaseStrategy(ABC):
         if self.event_bus:
             try:
                 self.event_bus.publish(create_trading_event(
-                    "strategy.log",
+                    EventType.STRATEGY_LOG,
                     {
                         "strategy_id": self.strategy_id,
                         "strategy_name": getattr(self, 'strategy_name', self.strategy_id),
@@ -676,14 +676,14 @@ class BaseStrategy(ABC):
     
     def get_strategy_stats(self) -> Dict[str, Any]:
         """获取策略统计信息"""
-        runtime = None
+        runtime: float = 0.0
         if self.start_time:
             if self.stop_time:
                 runtime = self.stop_time - self.start_time
             elif self.active:
                 runtime = time.time() - self.start_time
         
-        win_rate = 0.0
+        win_rate: float = 0.0
         if self.stats["win_count"] + self.stats["loss_count"] > 0:
             win_rate = self.stats["win_count"] / (self.stats["win_count"] + self.stats["loss_count"])
         
