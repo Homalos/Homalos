@@ -52,7 +52,6 @@ class Logger:
         log_setting: dict = log_config_settings.get("log", {})
         # 如果传入了日志配置字典，则使用该字典，否则使用全局配置
         self.log_settings: dict = log_config_dict if log_config_dict else log_setting
-        # self.log_settings: dict = log_config_settings.get("log", {})
         # 输出的最低日志级别（例如，"DEBUG"、"INFO"）。
         self.level: str = self.log_settings.get("level", "INFO")
         self.log_rotation: str = "100 MB"  # 当文件超过 100MB 时(Rotate when file exceeds 100MB)
@@ -65,7 +64,7 @@ class Logger:
     def _get_log_format(self, record: Any) -> str:
         """动态获取日志格式，根据是否有网关名决定格式"""
         # 检查是否有有效的网关名
-        has_gateway = "gateway_name" in record["extra"] and record["extra"]["gateway_name"]
+        has_gateway: bool = "gateway_name" in record["extra"] and record["extra"]["gateway_name"]
 
         if has_gateway:
             # 带网关名的格式
@@ -95,9 +94,9 @@ class Logger:
         # 文件日志配置
         if self.log_settings.get("file", {}).get("enabled", True):
             # 获取日志文件名格式
-            log_file_name = self.log_settings.get("file", {}).get("name_format", "{time:YYYYMMDD}.log")
+            log_file_name: str = self.log_settings.get("file", {}).get("name_format", "{time:YYYYMMDD}.log")
             log_path: Path = GlobalPath.log_dir_path
-            file_sink = log_path.joinpath(f"{self.module_name}_{log_file_name}")
+            file_sink: Path = log_path.joinpath(f"{self.module_name}_{log_file_name}")
             # 信息日志（按天轮转）
             logger.add(
                 sink=file_sink,
@@ -117,14 +116,14 @@ class Logger:
             return True
 
         # 检查是否有模块特定的日志级别设置
-        module_name = record["extra"].get("module_name", "")
+        module_name: str = record["extra"].get("module_name", "")
         if module_name in self.module_loggers:
             min_level = self.module_loggers[module_name]["level_no"]
             if record["level"].no < min_level:
                 return False
 
         # 检查是否有网关特定的日志级别设置
-        gateway_name = record["extra"].get("gateway_name", "")
+        gateway_name: str = record["extra"].get("gateway_name", "")
         if gateway_name in self.gateway_loggers:
             min_level = self.gateway_loggers[gateway_name]["level_no"]
             if record["level"].no < min_level:
@@ -154,7 +153,7 @@ class Logger:
 
         # 设置模块特定日志级别
         if level:
-            level = level.upper()
+            level: str = level.upper()
             if level in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
                 # 如果有网关名，优先设置网关级别
                 if gateway_name:
@@ -271,7 +270,6 @@ def log_exceptions(module_name: Optional[str] = None) -> Callable[[Callable[...,
     自动记录函数异常的装饰器（支持模块名）
     :param module_name: 模块名称，用于日志标识
     """
-
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         # 获取模块名（如果未提供则使用函数所在模块）
         mod_name = module_name or (cast(Any, func).__module__ if hasattr(func, '__module__') else None)
