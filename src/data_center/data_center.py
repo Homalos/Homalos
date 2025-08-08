@@ -407,8 +407,6 @@ class DataCenter:
             # 如果是字典，转换为TickData对象
             elif isinstance(tick_data, dict):
                 from src.core.object import TickData as TickDataClass
-                from src.config.constant import Exchange
-
                 # 转换字典为TickData对象
                 processed_tick = TickDataClass(
                     symbol=tick_data.get('symbol', ''),
