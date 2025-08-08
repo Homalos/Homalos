@@ -126,11 +126,11 @@ class DependencyChecker:
             timeout = check_config.get("timeout", 10)
 
             # 发送网关状态查询事件
-            event = Event(
-                event_type=EventType.GATEWAY_STATUS_REQUEST,
+            self.event_bus.publish(Event(
+                event_type=EventType.GATEWAY_STATUS_QUERY,
                 data={"gateway_name": gateway_name},
                 source="dependency_checker"
-            )
+            ))
 
             # 等待网关响应
             response = await asyncio.wait_for(
@@ -627,7 +627,7 @@ class DependencyChecker:
             )
 
             # 生成建议
-            result.recommendations = self._generate_recommendations(result)
+            result.recommendations = self._generate_recommendations()
 
             # 缓存结果
             self._check_cache[strategy_id] = result
@@ -640,7 +640,7 @@ class DependencyChecker:
                     "result": result,
                     "status": result.overall_status.value
                 },
-                source="dependency_checker"
+                source="DependencyChecker"
             )
             self.event_bus.publish(event)
 
@@ -682,7 +682,8 @@ class DependencyChecker:
             self._check_cache.clear()
             self.logger.info("清除所有依赖检查缓存")
 
-    def _generate_recommendations(self, result: DependencyCheckResult) -> List[str]:
+    @staticmethod
+    def _generate_recommendations(result: DependencyCheckResult) -> List[str]:
         """生成建议"""
         recommendations = []
 
