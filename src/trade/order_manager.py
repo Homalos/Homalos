@@ -41,14 +41,14 @@ class OrderManager:
         self.event_bus.subscribe(EventType.RISK_APPROVED, self._handle_risk_approved)
         self.event_bus.subscribe(EventType.ORDER_FILLED, self._handle_order_filled)
         self.event_bus.subscribe(EventType.ORDER_CANCELLED, self._handle_order_cancelled)
-        self.event_bus.subscribe("order.place", self._handle_order_request)
-        self.event_bus.subscribe("order.cancel", self._handle_cancel_order)
+        self.event_bus.subscribe(EventType.ORDER_PLACE, self._handle_order_request)
+        self.event_bus.subscribe(EventType.ORDER_CANCEL, self._handle_cancel_order)
 
         # 订阅CTP网关回报事件
         self.event_bus.subscribe(EventType.ORDER, self._handle_ctp_order_update)
         self.event_bus.subscribe(EventType.TRADE, self._handle_ctp_trade_update)
-        self.event_bus.subscribe("order.sent_to_ctp", self._handle_order_sent_to_ctp)
-        self.event_bus.subscribe("order.send_failed", self._handle_order_send_failed)
+        self.event_bus.subscribe(EventType.ORDER_SENT_TO_CTP, self._handle_order_sent_to_ctp)
+        self.event_bus.subscribe(EventType.ORDER_SEND_FAILED, self._handle_order_send_failed)
 
     async def place_order(self, order_request: OrderRequest, strategy_id: str) -> str:
         """下单"""
