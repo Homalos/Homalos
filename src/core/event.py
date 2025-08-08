@@ -30,12 +30,12 @@ class Event:
 
     def __init__(self, event_type: str, data: Any = None, source: Optional[str] = None, 
                  trace_id: Optional[str] = None, priority: EventPriority = EventPriority.NORMAL):
-        self.type = event_type  # 初始化事件类型
-        self.data = data  # 初始化事件数据
-        self.source = source or "unknown"  # 初始化事件来源，如果没有提供来源，则默认为"unknown"
-        self.trace_id = trace_id or str(uuid.uuid4())  # 初始化事件追踪ID，如果没有提供追踪ID，则生成一个新的UUID
-        self.timestamp = time.time_ns()  # 初始化事件时间戳
-        self.priority = priority  # 初始化事件优先级
+        self.type = event_type                          # 初始化事件类型
+        self.data = data                                # 初始化事件数据
+        self.source = source or "unknown"               # 初始化事件来源，如果没有提供来源，则默认为"unknown"
+        self.trace_id = trace_id or str(uuid.uuid4())   # 初始化事件追踪ID，如果没有提供追踪ID，则生成一个新的UUID
+        self.timestamp = time.time_ns()                 # 初始化事件时间戳
+        self.priority = priority                        # 初始化事件优先级
 
     def __repr__(self):
         """
@@ -75,130 +75,133 @@ class EventType:
     """事件类型常量，按优先级分类"""
     
     # 紧急事件
-    SYSTEM_ERROR = "system.error"
-    RISK_REJECTED = "risk.rejected"
-    RISK_CHECKED = "risk.checked"  # 风控检查事件
-    RISK_APPROVED = "risk.approved"  # 风控批准事件
-    ORDER_FAILED = "order.failed"
-    ORDER_SEND_FAILED = "order.send_failed"
-    ORDER_SENT_TO_CTP = "order.sent_to_ctp"
+    SYSTEM_ERROR = "system.error"               # 系统错误事件
+    RISK_REJECTED = "risk.rejected"             # 风控拒绝事件
+    RISK_CHECKED = "risk.checked"               # 风控检查事件
+    RISK_APPROVED = "risk.approved"             # 风控批准事件
+    ORDER_FAILED = "order.failed"               # 订单失败事件
+    ORDER_SEND_FAILED = "order.send_failed"     # 订单发送失败事件
+    ORDER_SENT_TO_CTP = "order.sent_to_ctp"     # 订单发送到CTP事件
 
     # 高优先级事件
     ORDER = "order"
     TRADE = "trade"
     QUOTE = "quote"
-    ORDER_FILLED = "order.filled"
-    RISK_CHECK = "risk.check"
-    ORDER_SUBMITTED = "order.submitted"
-    ORDER_CANCELLED = "order.cancelled"
-    ORDER_CANCEL = "order.cancel"  # 订单撤销事件
-    ORDER_UPDATED = "order.updated"
-    TRADE_UPDATED = "trade.updated"
+    ORDER_FILLED = "order.filled"           # 订单成交事件
+    RISK_CHECK = "risk.check"               # 风控检查事件
+    ORDER_SUBMITTED = "order.submitted"     # 订单提交事件
+    ORDER_CANCELLED = "order.cancelled"     # 订单取消事件
+    ORDER_CANCEL = "order.cancel"           # 订单撤销事件
+    ORDER_UPDATED = "order.updated"         # 订单更新事件
+    ORDER_PLACE = "order.place"             # 订单提交事件
+    TRADE_UPDATED = "trade.updated"         # 成交更新事件
 
     RISK_STRATEGY_SUSPEND_RECOMMENDED = "risk.strategy_suspend_recommended"  # 风控策略暂停建议事件
 
-    GATEWAY_SUBSCRIBE = "gateway.subscribe"  # 网关订阅事件
-    GATEWAY_UNSUBSCRIBE = "gateway.unsubscribe"  # 网关取消订阅事件
-    GATEWAY_CONNECTED = "gateway.connected"  # 网关连接成功事件
-    GATEWAY_DISCONNECTED = "gateway.disconnected"  # 网关断开连接事件
-    GATEWAY_READY = "gateway.ready"  # 网关就绪事件
-    GATEWAY_STATE_CHANGED = "gateway.state_changed"  # 网关状态变更事件
-    # gateway.connection_failed
-    GATEWAY_RECONNECT_FAILED = "gateway.reconnect_failed"  # 网关重连失败事件
-    GATEWAY_SUBSCRIPTION_SUCCESS = "gateway.subscription.success"  # 网关订阅成功事件
-    GATEWAY_SUBSCRIPTION_FAILED = "gateway.subscription.failed"  # 网关订阅失败事件
-    GATEWAY_STATUS_QUERY = "gateway.status_query"  # 网关状态查询事件
-    GATEWAY_READY_CHECK = "gateway.ready_check"  # 网关就绪检查事件
+    GATEWAY_SUBSCRIBE = "gateway.subscribe"             # 网关订阅事件
+    GATEWAY_UNSUBSCRIBE = "gateway.unsubscribe"         # 网关取消订阅事件
+    GATEWAY_CONNECTED = "gateway.connected"             # 网关连接成功事件
+    GATEWAY_DISCONNECTED = "gateway.disconnected"       # 网关断开连接事件
+    GATEWAY_READY = "gateway.ready"                     # 网关就绪事件
+    GATEWAY_STATE_CHANGED = "gateway.state_changed"     # 网关状态变更事件
+    GATEWAY_RECONNECT_FAILED = "gateway.reconnect_failed"           # 网关重连失败事件
+    GATEWAY_SUBSCRIPTION_SUCCESS = "gateway.subscription.success"   # 网关订阅成功事件
+    GATEWAY_SUBSCRIPTION_FAILED = "gateway.subscription.failed"     # 网关订阅失败事件
+    GATEWAY_STATUS_QUERY = "gateway.status_query"                   # 网关状态查询事件
+    GATEWAY_READY_CHECK = "gateway.ready_check"                     # 网关就绪检查事件
 
-    GATEWAY_QUERY_ACCOUNT = "gateway.query_account"  # 网关查询账户事件
-    GATEWAY_QUERY_POSITION = "gateway.query_position"  # 网关查询持仓事件
+    GATEWAY_QUERY_ACCOUNT = "gateway.query_account"     # 网关查询账户事件
+    GATEWAY_QUERY_POSITION = "gateway.query_position"   # 网关查询持仓事件
 
     GATEWAY_ORDER = "gateway.order"
-    GATEWAY_SEND_ORDER = "gateway.send_order"       # 网关发送订单事件
-    GATEWAY_CANCEL_ORDER = "gateway.cancel_order"   # 网关取消订单事件
-    GATEWAY_CONTRACTS_READY = "gateway.contracts_ready"
+    GATEWAY_SEND_ORDER = "gateway.send_order"               # 网关发送订单事件
+    GATEWAY_CANCEL_ORDER = "gateway.cancel_order"           # 网关取消订单事件
+    GATEWAY_CONTRACTS_READY = "gateway.contracts_ready"     # 合约信息就绪事件
 
-    DATA_SUBSCRIBE = "data.subscribe"  # 数据订阅事件
-    DATA_UNSUBSCRIBE = "data.unsubscribe"  # 数据取消订阅事件
-    DATA_QUERY_TICK = "data.query.tick"  # 数据查询Tick事件
-    DATA_QUERY_BAR = "data.query.bar"  # 数据查询Bar事件
-    DATA_QUERY_TICK_RESULT = "data.query.tick.result"  # 数据查询Tick结果事件
-    DATA_QUERY_BAR_RESULT = "data.query.bar.result"  # 数据查询Bar结果事件
-    DATA_SUBSCRIBE_SUCCESS = "data.subscribe.success"  # 数据订阅成功事件
+    DATA_SUBSCRIBE = "data.subscribe"       # 数据订阅事件
+    DATA_UNSUBSCRIBE = "data.unsubscribe"   # 数据取消订阅事件
+    DATA_QUERY_TICK = "data.query.tick"     # 数据查询Tick事件
+    DATA_QUERY_BAR = "data.query.bar"       # 数据查询Bar事件
+    DATA_QUERY_TICK_RESULT = "data.query.tick.result"   # 数据查询Tick结果事件
+    DATA_QUERY_BAR_RESULT = "data.query.bar.result"     # 数据查询Bar结果事件
+    DATA_SUBSCRIBE_SUCCESS = "data.subscribe.success"   # 数据订阅成功事件
     
     # 行情数据事件
-    MARKET_TICK = "market.tick"
-    MARKET_BAR = "market.bar"
-    TICK_UPDATED = "tick.updated"
-    CONTRACT_INFO = "contract.info"  # 合约信息事件
-    MARKET_TICK_RAW = "market.tick.raw"  # 原始Tick数据事件
-    MARKET_BAR_RAW = "market.bar.raw"  # 原始Bar数据事件
-    DATA_PERSIST = "data.persist"  # 数据持久化事件
-    DATA_SUBSCRIBE_FAILED = "data.subscribe.failed"  # 数据订阅失败事件
+    MARKET_TICK = "market.tick"                         # Tick数据
+    MARKET_BAR = "market.bar"                           # Bar数据
+    TICK_UPDATED = "tick.updated"                       # Tick数据更新事件
+    CONTRACT_INFO = "contract.info"                     # 合约信息事件
+    MARKET_TICK_RAW = "market.tick.raw"                 # 原始Tick数据事件
+    MARKET_BAR_RAW = "market.bar.raw"                   # 原始Bar数据事件
+    DATA_PERSIST = "data.persist"                       # 数据持久化事件
+    DATA_SUBSCRIBE_FAILED = "data.subscribe.failed"     # 数据订阅失败事件
     
     # 数据中心事件
-    DATA_CENTER_CONNECTED = "data_center.connected"  # 数据中心连接成功事件
-    DATA_CENTER_DISCONNECTED = "data_center.disconnected"  # 数据中心断开连接事件
-    DATA_CENTER_CHECK = "data_center.check"  # 数据中心连接检查事件
-    DATA_CENTER_TICK = "data_center.tick"  # 数据中心tick数据事件
-    DATA_CENTER_BAR = "data_center.bar"  # 数据中心bar数据事件
-    DATA_CENTER_QUERY_TICK = "data_center.query.tick"  # 数据中心查询tick事件
-    DATA_CENTER_QUERY_BAR = "data_center.query.bar"  # 数据中心查询bar事件
-    DATA_CENTER_TICK_RESULT = "data_center.tick.result"  # 数据中心Tick结果事件
-    DATA_CENTER_BAR_RESULT = "data_center.bar.result"  # 数据中心Bar结果事件
-    DATA_CENTER_QUERY_TICK_RESULT = "data_center.query.tick.result"  # 数据中心查询tick结果事件
-    DATA_CENTER_QUERY_BAR_RESULT = "data_center.query.bar.result"  # 数据中心查询bar结果事件
+    DATA_CENTER_CONNECTED = "data_center.connected"                     # 数据中心连接成功事件
+    DATA_CENTER_DISCONNECTED = "data_center.disconnected"               # 数据中心断开连接事件
+    DATA_CENTER_CHECK = "data_center.check"                             # 数据中心连接检查事件
+    DATA_CENTER_TICK = "data_center.tick"                               # 数据中心tick数据事件
+    DATA_CENTER_BAR = "data_center.bar"                                 # 数据中心bar数据事件
+    DATA_CENTER_QUERY_TICK = "data_center.query.tick"                   # 数据中心查询tick事件
+    DATA_CENTER_QUERY_BAR = "data_center.query.bar"                     # 数据中心查询bar事件
+    DATA_CENTER_TICK_RESULT = "data_center.tick.result"                 # 数据中心Tick结果事件
+    DATA_CENTER_BAR_RESULT = "data_center.bar.result"                   # 数据中心Bar结果事件
+    DATA_CENTER_QUERY_TICK_RESULT = "data_center.query.tick.result"     # 数据中心查询tick结果事件
+    DATA_CENTER_QUERY_BAR_RESULT = "data_center.query.bar.result"       # 数据中心查询bar结果事件
 
-    STRATEGY_SIGNAL = "strategy.signal"
-    STRATEGY_LOADED = "strategy.loaded"             # 策略加载事件
-    STRATEGY_LOAD_FAILED = "strategy.load_failed"   # 策略加载失败事件
-    STRATEGY_STARTED = "strategy.started"           # 策略启动成功事件
-    STRATEGY_START_FAILED = "strategy.start_failed" # 策略启动失败事件
-    STRATEGY_STOPPED = "strategy.stopped"           # 策略停止事件
-    STRATEGY_STOP_FAILED = "strategy.stop_failed"   # 策略停止失败事件
-    STRATEGY_ORDER_PLACED = "strategy.order_placed"  # 策略下单事件
-    STRATEGY_ERROR = "strategy.error"               # 策略错误事件
+    STRATEGY_SIGNAL = "strategy.signal"                     # 策略信号事件
+    STRATEGY_LOADED = "strategy.loaded"                     # 策略加载事件
+    STRATEGY_LOAD_FAILED = "strategy.load_failed"           # 策略加载失败事件
+    STRATEGY_STARTED = "strategy.started"                   # 策略启动成功事件
+    STRATEGY_START_FAILED = "strategy.start_failed"         # 策略启动失败事件
+    STRATEGY_STOPPED = "strategy.stopped"                   # 策略停止事件
+    STRATEGY_STOP_FAILED = "strategy.stop_failed"           # 策略停止失败事件
+    STRATEGY_ORDER_PLACED = "strategy.order_placed"         # 策略下单事件
+    STRATEGY_ORDER_FILLED = "strategy.order_filled"         # 策略订单成交事件
+    STRATEGY_ERROR = "strategy.error"                       # 策略错误事件
+    STRATEGY_TRADE_EXECUTED = "strategy.trade_executed"     # 交易执行事件
     
     # 策略生命周期事件
-    STRATEGY_DEPENDENCY_CHECK = "strategy.dependency_check"
-    STRATEGY_VALIDATION_PASSED = "strategy.validation_passed"
-    STRATEGY_VALIDATION_FAILED = "strategy.validation_failed"
-    STRATEGY_HEALTH_CHECK = "strategy.health_check"
-    STRATEGY_ANOMALY_DETECTED = "strategy.anomaly_detected"
-    STRATEGY_RECOVERY_STARTED = "strategy.recovery_started"
-    STRATEGY_RECOVERY_COMPLETED = "strategy.recovery_completed"
-    STRATEGY_RECOVERY_FAILED = "strategy.recovery_failed"
-    STRATEGY_PERFORMANCE_UPDATE = "strategy.performance_update"
+    STRATEGY_DEPENDENCY_CHECK = "strategy.dependency_check"         # 策略依赖检查事件
+    STRATEGY_VALIDATION_PASSED = "strategy.validation_passed"       # 策略验证通过事件
+    STRATEGY_VALIDATION_FAILED = "strategy.validation_failed"       # 策略验证失败事件
+    STRATEGY_HEALTH_CHECK = "strategy.health_check"                 # 策略健康检查事件
+    STRATEGY_ANOMALY_DETECTED = "strategy.anomaly_detected"         # 策略异常检测事件
+
+    STRATEGY_RECOVERY_STARTED = "strategy.recovery_started"         # 策略恢复开始事件
+    STRATEGY_RECOVERY_COMPLETED = "strategy.recovery_completed"     # 策略恢复完成事件
+    STRATEGY_RECOVERY_FAILED = "strategy.recovery_failed"           # 策略恢复失败事件
+    STRATEGY_PERFORMANCE_UPDATE = "strategy.performance_update"     # 策略性能更新事件
 
     ENGINE_STOPPED = "engine.stopped"   # 引擎停止事件
     ENGINE_STARTED = "engine.started"   # 引擎启动事件
     
     # 普通事件
-    POSITION_UPDATED = "position.updated"
-    ACCOUNT_UPDATED = "account.updated"
-    CONTRACT = "contract"
-    CONTRACT_UPDATED = "contract.updated"
-    MODULE_LOADED = "module.loaded"
-    MODULE_UNLOAD = "module.unload"
-    TIMER = "timer"
-    SHUTDOWN = "shutdown"
-    SERVICE_REGISTER = "service.register"
-    SERVICE_UNREGISTER = "service.unregister"
-    SERVICE_HEART_BEAT = "service.heartbeat"
-    SERVICE_DISCOVERY = "service.discovery"
+    SYSTEM_STARTUP = "system.startup"               # 系统启动事件
+    SYSTEM_SHUTDOWN = "system.shutdown"             # 系统关闭事件
 
-    SERVICE_UPDATED = "service.updated"  # 广播服务更新事件
-    SERVICE_DISCOVERY_RESPONSE = "service.discovery.response"  # 服务发现响应事件
-    SERVICE_FAILED = "service.failed"  # 广播服务失败事件
+    POSITION_UPDATED = "position.updated"           # 持仓信息更新事件
+    ACCOUNT_UPDATED = "account.updated"             # 账户信息更新事件
+    CONTRACT = "contract"                           # 合约信息事件
+    CONTRACT_UPDATED = "contract.updated"           # 合约信息更新事件
+    MODULE_LOADED = "module.loaded"                 # 模块加载事件
+    MODULE_UNLOAD = "module.unload"                 # 模块卸载事件
+    TIMER = "timer"                                 # 定时事件
+    SHUTDOWN = "shutdown"                           # 系统关闭事件
+
+    # 服务事件
+    SERVICE_REGISTER = "service.register"           # 服务注册事件
+    SERVICE_UNREGISTER = "service.unregister"       # 服务注销事件
+    SERVICE_HEART_BEAT = "service.heartbeat"        # 服务心跳事件
+    SERVICE_DISCOVERY = "service.discovery"         # 服务发现事件
+    SERVICE_UPDATED = "service.updated"                         # 广播服务更新事件
+    SERVICE_DISCOVERY_RESPONSE = "service.discovery.response"   # 服务发现响应事件
+    SERVICE_FAILED = "service.failed"                           # 广播服务失败事件
 
     # 低优先级事件
-    LOG_MESSAGE = "log.message"
-    HEARTBEAT = "service.heartbeat"
-    STATISTICS = "system.statistics"
-    PERFORMANCE_ALERT = "performance.alert"  # 性能告警事件
-
-    SYSTEM_GATEWAY_CONNECTION_FAILED = "system.gateway_connection_failed"  # 系统网关连接失败事件
-    SYSTEM_STARTUP_COMPLETE = "system.startup_complete"  # 系统启动成功事件
+    LOG_MESSAGE = "log.message"                 # 日志消息事件
+    STATISTICS = "system.statistics"            # 系统统计事件
+    PERFORMANCE_ALERT = "performance.alert"     # 性能告警事件
 
 
 # 便利函数
