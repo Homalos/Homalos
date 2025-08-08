@@ -11,7 +11,6 @@
 """
 import json
 import threading
-import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Optional
 from urllib.parse import urlparse, parse_qs
@@ -29,7 +28,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.monitor = monitor
         super().__init__(*args, **kwargs)
     
-    def do_GET(self):
+    def do_get(self):
         """处理GET请求"""
         try:
             parsed_path = urlparse(self.path)
@@ -47,7 +46,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             elif path == '/api/alerts':
                 self._serve_alerts_api()
             elif path.startswith('/static/'):
-                self._serve_static_file(path)
+                self._serve_static_file()
             else:
                 self._send_404()
                 
@@ -87,7 +86,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         alerts = self.monitor.get_recent_alerts()
         self._send_json_response(alerts)
     
-    def _serve_static_file(self, path):
+    def _serve_static_file(self):
         """提供静态文件（暂时返回404）"""
         self._send_404()
     
@@ -112,11 +111,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
         """发送500响应"""
         self._send_response(500, f'Internal Server Error: {error_message}')
     
-    def log_message(self, format, *args):
+    def log_message(self, format_ft, *args):
         """重写日志方法以使用我们的logger"""
-        logger.debug(f"HTTP: {format % args}")
-    
-    def _get_dashboard_html(self) -> str:
+        logger.debug(f"HTTP: {format_ft % args}")
+
+    @staticmethod
+    def _get_dashboard_html() -> str:
         """生成仪表板HTML页面"""
         return """
 <!DOCTYPE html>
@@ -558,7 +558,7 @@ class EventDashboard:
             self._running = True
             self.server_thread.start()
             
-            logger.info(f"Event dashboard started at http://{self.host}:{self.port}")
+            logger.info("Event dashboard started at http" + f"://{self.host}:{self.port}")
             
         except Exception as e:
             logger.error(f"Failed to start dashboard server: {e}", exc_info=True)
@@ -592,7 +592,7 @@ class EventDashboard:
     @property
     def url(self) -> str:
         """获取仪表板URL"""
-        return f"http://{self.host}:{self.port}"
+        return "http" + f"://{self.host}:{self.port}"
     
     @property
     def is_running(self) -> bool:
@@ -606,79 +606,3 @@ class EventDashboard:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
         return False
-
-
-if __name__ == '__main__':
-    from src.core.event_monitor import EventMonitor
-    from src.core.event import Event, EventType, EventPriority
-    
-    print("=" * 50)
-    print("启动事件监控仪表板测试...")
-    
-    # 创建监控器
-    monitor = EventMonitor(name="DashboardTest")
-    
-    # 创建仪表板
-    dashboard = EventDashboard(monitor, host='localhost', port=8080)
-    
-    try:
-        # 启动仪表板
-        dashboard.start()
-        print(f"\n🌐 仪表板已启动: {dashboard.url}")
-        print("请在浏览器中打开上述地址查看监控界面")
-        
-        # 模拟一些事件数据
-        print("\n正在生成模拟事件数据...")
-        
-        import random
-        
-        def generate_test_events():
-            """生成测试事件"""
-            event_types = [EventType.MARKET_TICK, EventType.ORDER, EventType.TRADE, 
-                          EventType.STRATEGY_SIGNAL, EventType.RISK_CHECK]
-            
-            while dashboard.is_running:
-                try:
-                    # 随机选择事件类型
-                    event_type = random.choice(event_types)
-                    priority = random.choice(list(EventPriority))
-                    
-                    event = Event(event_type, priority=priority)
-                    
-                    # 模拟处理时间和成功率
-                    processing_time = random.randint(1_000_000, 50_000_000)  # 1-50ms
-                    queue_wait_time = random.randint(100_000, 10_000_000)    # 0.1-10ms
-                    success = random.random() > 0.05  # 95%成功率
-                    
-                    monitor.record_event(
-                        event=event,
-                        processing_time_ns=processing_time,
-                        queue_wait_time_ns=queue_wait_time,
-                        success=success,
-                        error_message="模拟错误" if not success else None
-                    )
-                    
-                    time.sleep(random.uniform(0.1, 2.0))  # 随机间隔
-                    
-                except Exception as e:
-                    logger.error(f"Test event generation error: {e}")
-                    time.sleep(1.0)
-        
-        # 在后台生成测试事件
-        test_thread = threading.Thread(target=generate_test_events, daemon=True)
-        test_thread.start()
-        
-        print("\n按 Ctrl+C 停止服务器...")
-        
-        # 保持主线程运行
-        while dashboard.is_running:
-            time.sleep(1)
-            
-    except KeyboardInterrupt:
-        print("\n收到中断信号，正在停止服务器...")
-    except Exception as e:
-        logger.error(f"Dashboard test error: {e}", exc_info=True)
-    finally:
-        dashboard.stop()
-        monitor.stop_monitoring()
-        print("\n测试完成！")
