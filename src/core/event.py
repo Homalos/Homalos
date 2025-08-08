@@ -160,6 +160,7 @@ class EventType:
     STRATEGY_ORDER_FILLED = "strategy.order_filled"         # 策略订单成交事件
     STRATEGY_ERROR = "strategy.error"                       # 策略错误事件
     STRATEGY_TRADE_EXECUTED = "strategy.trade_executed"     # 交易执行事件
+    STRATEGY_LOG = "strategy.log"                           # 策略日志事件
     
     # 策略生命周期事件
     STRATEGY_DEPENDENCY_CHECK = "strategy.dependency_check"         # 策略依赖检查事件
