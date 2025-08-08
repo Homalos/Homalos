@@ -93,8 +93,9 @@ class DataService:
         except Exception as e:
             logger.error(f"数据服务初始化失败: {e}")
             return False
-    
-    async def shutdown(self):
+
+    @staticmethod
+    async def shutdown():
         """关闭数据服务"""
         try:
             logger.info("数据服务已关闭")
