@@ -10,7 +10,7 @@
 @Description: 最小策略 - 用于测试交易引擎全链路功能
 """
 import time
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from src.config.constant import Direction, Offset, OrderType, Exchange
 from src.core.object import TickData, BarData, OrderData, TradeData, OrderRequest
@@ -34,7 +34,8 @@ class MinimalStrategy(BaseStrategy):
     
     def __init__(self, strategy_id: str, event_bus, params: Dict[str, Any] | None = None):
         # 默认参数
-        self.symbol = "FG509"
+        self.symbol1 = "FG509"
+        self.symbol: List[str] = [self.symbol1]
         self.exchange: Exchange = Exchange.CZCE
         self.volume = 1             # 交易手数
         self.order_interval = 20    # 下单间隔（秒）
@@ -72,7 +73,7 @@ class MinimalStrategy(BaseStrategy):
         self.write_log("最小策略启动")
         
         # 订阅行情数据
-        await self.subscribe_symbols([self.symbol])
+        await self.subscribe_symbols(self.symbol)
         
         # 重置状态
         self.last_order_time = 0
@@ -112,7 +113,7 @@ class MinimalStrategy(BaseStrategy):
         
         # 下单买入
         self.write_log(f"准备下单: {self.symbol} @ {tick.last_price}", "INFO")
-        await self.place_buy_order(tick.last_price)
+        await self.place_buy_order(self.symbol1, tick.last_price)
         
         # 更新状态
         self.last_order_time = current_time
@@ -150,12 +151,12 @@ class MinimalStrategy(BaseStrategy):
             self.active_orders.pop(trade.orderid, None)
             self.write_log(f"订单已成交: {trade.orderid}")
     
-    async def place_buy_order(self, price: float):
+    async def place_buy_order(self, symbol: str, price: float):
         """下单买入"""
         self.write_log(f"开始创建买入订单: 合约={self.symbol}, 价格={price}, 手数={self.volume}", "INFO")
         
         order_request = OrderRequest(
-            symbol=self.symbol,
+            symbol=symbol,
             exchange=self.exchange,
             direction=Direction.LONG,
             type=OrderType.LIMIT,
@@ -178,7 +179,7 @@ class MinimalStrategy(BaseStrategy):
     
     def _sync_on_tick(self, tick_data: TickData):
         """同步版本的tick处理 - 应急回退逻辑"""
-        if tick_data.symbol != self.symbol:
+        if tick_data.symbol not in self.symbol:
             return
         
         current_time = time.time()
@@ -199,7 +200,7 @@ class MinimalStrategy(BaseStrategy):
         """同步版本的下单 - 发布策略信号事件"""
         # 创建订单请求
         order_request = OrderRequest(
-            symbol=self.symbol,
+            symbol=self.symbol1,
             exchange=self.exchange,
             direction=Direction.LONG,
             type=OrderType.LIMIT,
