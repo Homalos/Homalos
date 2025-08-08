@@ -14,7 +14,6 @@ from typing import Dict, Any, Optional
 from src.config.config_manager import ConfigManager
 from src.core.logger import get_logger
 
-
 logger = get_logger(__name__)
 
 
@@ -117,21 +116,3 @@ def get_enabled_gateways(config: Optional[ConfigManager]) -> Dict[str, Dict[str,
         logger.warning(f"网关 {enabled_broker} 已配置但类型 {gateway_type} 不可用")
 
     return enabled_gateways
-
-
-# if __name__ == '__main__':
-#     config_file: str = "D:\\Project\\PycharmProjects\\Homalos_v2\\config\\system.yaml"
-#     get_config = ConfigManager(config_file)
-#     enabled_gateways = get_enabled_gateways(get_config)
-#     print(enabled_gateways)
-#     # 初始化每个启用的网关
-#     for gateway_key, gateway_info in enabled_gateways.items():
-#         gateway_config = gateway_info['config']
-#         gateway_type = gateway_info['type']
-#         gateway_classes = gateway_info['classes']
-#
-#         print(f"gateway_key: {gateway_key}")
-#         print(f"gateway_config: {gateway_config}")
-#         print(f"gateway_type: {gateway_type}")
-#         print(f"gateway_classes: {gateway_classes}")
-
