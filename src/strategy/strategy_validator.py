@@ -586,7 +586,8 @@ class StrategyValidator:
         return schema
 
     # 辅助方法
-    def _calculate_complexity(self, tree: ast.AST) -> int:
+    @staticmethod
+    def _calculate_complexity(tree: ast.AST) -> int:
         """计算代码复杂度"""
         complexity = 0
 
@@ -603,7 +604,8 @@ class StrategyValidator:
 
         return complexity
 
-    def _check_imports(self, tree: ast.AST, result: ValidationResult) -> None:
+    @staticmethod
+    def _check_imports(tree: ast.AST, result: ValidationResult) -> None:
         """检查导入语句"""
         dangerous_imports = ['os', 'subprocess', 'sys']
 
@@ -628,7 +630,8 @@ class StrategyValidator:
                         suggestion="确保使用安全的API"
                     ))
 
-    def _check_class_definitions(self, tree: ast.AST, result: ValidationResult) -> None:
+    @staticmethod
+    def _check_class_definitions(tree: ast.AST, result: ValidationResult) -> None:
         """检查类定义"""
         strategy_classes = []
 
@@ -653,7 +656,8 @@ class StrategyValidator:
                 suggestion="建议每个文件只包含一个策略类"
             ))
 
-    def _check_potential_issues(self, tree: ast.AST, source_code: str, result: ValidationResult) -> None:
+    @staticmethod
+    def _check_potential_issues(tree: ast.AST, source_code: str, result: ValidationResult) -> None:
         """检查潜在问题"""
         lines = source_code.split('\n')
 
@@ -680,7 +684,8 @@ class StrategyValidator:
                         suggestion="添加适当的异常处理逻辑或日志记录"
                     ))
 
-    def _get_code_snippet(self, source_code: str, line_number: Optional[int], context: int = 2) -> Optional[str]:
+    @staticmethod
+    def _get_code_snippet(source_code: str, line_number: Optional[int], context: int = 2) -> Optional[str]:
         """获取代码片段"""
         if line_number is None:
             return None
@@ -696,7 +701,8 @@ class StrategyValidator:
 
         return '\n'.join(snippet_lines)
 
-    def _check_method_signature(self, strategy_class: Type, method_name: str, result: ValidationResult) -> None:
+    @staticmethod
+    def _check_method_signature(strategy_class: Type, method_name: str, result: ValidationResult) -> None:
         """检查方法签名"""
         try:
             method = getattr(strategy_class, method_name)
@@ -749,7 +755,8 @@ class StrategyValidator:
                     # 无法获取源码（可能是内置方法）
                     pass
 
-    def _validate_parameter_value(self, param_name: str, param_value: Any, param_def: Dict[str, Any],
+    @staticmethod
+    def _validate_parameter_value(param_name: str, param_value: Any, param_def: Dict[str, Any],
                                   result: ValidationResult) -> None:
         """验证参数值"""
         param_type = param_def.get("type")
@@ -798,13 +805,14 @@ class StrategyValidator:
                     message=f"参数 {param_name} 类型错误，期望布尔值，实际 {type(param_value).__name__}"
                 ))
 
-    def _check_parameter_combinations(self, params: Dict[str, Any], result: ValidationResult) -> None:
+    @staticmethod
+    def _check_parameter_combinations(params: Dict[str, Any], result: ValidationResult) -> None:
         """检查参数组合"""
         # 检查止损和止盈的关系
         stop_loss = params.get("stop_loss", 0)
         take_profit = params.get("take_profit", 0)
 
-        if stop_loss > 0 and take_profit > 0 and take_profit <= stop_loss:
+        if stop_loss > 0 and 0 < take_profit <= stop_loss:
             result.issues.append(ValidationIssue(
                 validation_type=ValidationType.PARAMETERS,
                 severity=ValidationSeverity.WARNING,
@@ -816,7 +824,7 @@ class StrategyValidator:
         max_position = params.get("max_position", 0)
         max_order_size = params.get("max_order_size", 0)
 
-        if max_position > 0 and max_order_size > max_position:
+        if 0 < max_position < max_order_size:
             result.issues.append(ValidationIssue(
                 validation_type=ValidationType.PARAMETERS,
                 severity=ValidationSeverity.ERROR,
@@ -829,7 +837,8 @@ class StrategyValidator:
         # 这里可以检查策略是否使用了不兼容的库
         pass
 
-    def _check_async_compatibility(self, strategy_class: Type, result: ValidationResult) -> None:
+    @staticmethod
+    def _check_async_compatibility(strategy_class: Type, result: ValidationResult) -> None:
         """检查异步方法兼容性"""
         async_methods = []
 
