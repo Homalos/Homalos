@@ -40,7 +40,7 @@ class AccountManager:
 
         # 添加定期查询任务
         self._last_query_time = 0
-        self._query_interval = 30  # 30秒查询一次
+        self._query_interval: float = 30.0  # 30秒查询一次
 
         # 启动定期查询任务
         asyncio.create_task(self._periodic_query_task())
