@@ -353,7 +353,7 @@ class PerformanceMonitor:
                     "loss_count": metrics.loss_count,
                     "win_rate": win_rate,
                     "total_pnl": metrics.total_pnl,
-                    "max_drawdown": metrics.max_drawdown
+                    "max_draw_down": metrics.max_draw_down
                 },
                 "tick_processing": {
                     "tick_count": metrics.tick_count,

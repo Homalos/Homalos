@@ -254,7 +254,7 @@ class HandlerRegistry:
                 logger.info(f"Unregistered handler: {name}")
                 return True
         return False
-    
+
     def get_handler(self, name: str) -> Optional[Callable]:
         """获取处理器"""
         return self._handlers.get(name)
@@ -347,6 +347,11 @@ class EventRouter:
         self._routing_history: deque = deque(maxlen=10000)
         
         logger.info(f"EventRouter '{name}' initialized")
+
+    @property
+    def handler_registry(self):
+        """Getter 方法（访问）"""
+        return self._handler_registry
     
     def add_rule(self, rule: RouteRule) -> None:
         """添加路由规则"""

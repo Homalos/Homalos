@@ -558,7 +558,7 @@ class EnhancedEventBus:
                     # 根据处理器名称获取实际的处理器函数
                     routed_handlers = []
                     for name in handler_names:
-                        handler = self._router._handler_registry.get_handler(name)
+                        handler = self._router.handler_registry.get_handler(name)
                         if handler:
                             routed_handlers.append(handler)
                     
@@ -603,8 +603,9 @@ class EnhancedEventBus:
             
             # 标记队列任务完成
             self._event_queue.task_done()
-    
-    async def _execute_handlers_direct(self, event_data: Dict[str, Any], handlers: List[Callable]) -> List[ExecutionResult]:
+
+    @staticmethod
+    async def _execute_handlers_direct(event_data: Dict[str, Any], handlers: List[Callable]) -> List[ExecutionResult]:
         """直接执行处理器"""
         results = []
         start_time: float = 0.0

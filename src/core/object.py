@@ -41,7 +41,6 @@ class TickData(BaseData):
         * 订单簿快照
         * 日内市场统计数据。
     """
-
     symbol: str
     exchange: Exchange
     datetime: Datetime
@@ -97,7 +96,6 @@ class BarData(BaseData):
     特定交易周期的蜡烛图数据。
     Candlestick bar data of a certain trading period.
     """
-
     symbol: str
     exchange: Exchange
     datetime: Datetime
@@ -123,7 +121,6 @@ class OrderData(BaseData):
     Order data contains information for tracking latest status
     of a specific order.
     """
-
     symbol: str
     exchange: Exchange
     orderid: str
@@ -171,7 +168,6 @@ class TradeData(BaseData):
     Trade data contains information of a fill of an order. One order
     can have several trade fills.
     """
-
     symbol: str
     exchange: Exchange
     orderid: str
@@ -196,7 +192,6 @@ class PositionData(BaseData):
     Position数据用于跟踪每个单独的位置持有情况。
     Position data is used for tracking each individual position holding.
     """
-
     symbol: str
     exchange: Exchange
     direction: Direction
@@ -220,7 +215,6 @@ class AccountData(BaseData):
     Account data contains information about balance, frozen and
     available.
     """
-
     account_id: str
 
     balance: float = 0
@@ -250,7 +244,6 @@ class ContractData(BaseData):
     """
     合约数据包含每份交易合约的基本信息。
     """
-
     symbol: str
     exchange: Exchange
     name: str
@@ -284,7 +277,6 @@ class QuoteData(BaseData):
     Quote data contains information for tracking latest status
     of a specific quote.
     """
-
     symbol: str
     exchange: Exchange
     quote_id: str
@@ -335,7 +327,6 @@ class SubscribeRequest:
     请求发送到特定网关以订阅报价数据更新。
     Request sending to specific gateway for subscribing tick data update.
     """
-
     symbol: str
     exchange: Exchange
 
@@ -357,7 +348,6 @@ class OrderRequest:
     请求发送到特定网关以创建新订单。
     Request sending to specific gateway for creating a new order.
     """
-
     symbol: str
     exchange: Exchange
     direction: Direction
@@ -418,7 +408,6 @@ class CancelRequest:
     请求发送到特定网关以取消现有订单。
     Request sending to specific gateway for canceling an existing order.
     """
-
     orderid: str
     symbol: str
     exchange: Exchange
@@ -434,7 +423,6 @@ class HistoryRequest:
     向特定网关发送查询历史数据的请求。
     Request sending to specific gateway for querying history data.
     """
-
     symbol: str
     exchange: Exchange
     start: Datetime
@@ -452,7 +440,6 @@ class QuoteRequest:
     请求发送到特定网关以创建新的报价。
     Request sending to specific gateway for creating a new quote.
     """
-
     symbol: str
     exchange: Exchange
     bid_price: float
@@ -519,7 +506,7 @@ class OrderInfo:
     strategy_id: str
     create_time: float
     update_time: float
-    risk_check_result: Optional[RiskCheckResult] = None
+    risk_check_result: RiskCheckResult = None
 
 @dataclass
 class PerformanceMetrics:
@@ -540,7 +527,7 @@ class PerformanceMetrics:
 
     # 盈亏指标
     total_pnl: float = 0.0
-    max_drawdown: float = 0.0
+    max_draw_down: float = 0.0
     win_count: int = 0
     loss_count: int = 0
 
@@ -555,7 +542,9 @@ class PerformanceMetrics:
 
 @dataclass
 class SystemMetrics:
-    """系统性能指标"""
+    """
+    系统性能指标
+    """
     # CPU和内存
     cpu_percent: float = 0.0
     memory_mb: float = 0.0

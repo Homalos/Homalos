@@ -10,16 +10,15 @@
 @Description: 增强版事件总线 - 第一阶段优化实现
 包含：优先级队列、背压机制、事件监控、异常恢复机制
 """
-import time
 import heapq
 import threading
+import time
 from collections import defaultdict, deque
-from datetime import datetime
-from queue import Queue, Empty, Full
-from threading import Thread, Lock
-from typing import Any, Dict, List, Callable, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
+from queue import Empty
+from threading import Thread, Lock
+from typing import Any, Dict, List, Callable, Optional
 
 from src.core.event import Event, EventType, EventPriority
 from src.core.logger import get_logger
@@ -248,6 +247,9 @@ class EnhancedEventBus:
         
         # 启动事件处理线程
         self.start()
+
+    def get_event_metrics(self) -> deque:
+        return self._event_metrics
     
     def start(self) -> None:
         """启动所有事件处理线程"""

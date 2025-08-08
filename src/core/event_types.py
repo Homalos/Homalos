@@ -13,11 +13,11 @@
 import json
 import time
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Type, TypeVar, Generic
 
-from pydantic import BaseModel, ValidationError, validator
+from pydantic import BaseModel, ValidationError, field_validator
 
 from src.core.event import Event, EventPriority
 from src.core.logger import get_logger
@@ -65,7 +65,16 @@ class EventMetadata:
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
-        return asdict(self)
+        result = {}
+        for key, value in self.__dict__.items():
+            if value is not None:
+                if isinstance(value, dict):
+                    result[key] = value.copy()
+                else:
+                    result[key] = value
+            # 跳过值为 None 的字段，不包含在结果字典中
+        return result
+        # return asdict(self)
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'EventMetadata':
@@ -87,21 +96,21 @@ class TypedEventData(BaseModel):
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
-        return self.dict()
+        return self.model_dump()
     
     def to_json(self) -> str:
         """转换为JSON字符串"""
-        return self.json()
-    
+        return self.model_dump_json()
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TypedEventData':
         """从字典创建"""
         return cls(**data)
-    
+
     @classmethod
     def from_json(cls, json_str: str) -> 'TypedEventData':
         """从JSON字符串创建"""
-        return cls.parse_raw(json_str)
+        return cls.model_validate_json(json_str)
 
 
 class TypedEvent(Generic[EventDataType]):
@@ -172,7 +181,7 @@ class TypedEvent(Generic[EventDataType]):
         
         # 验证数据有效性
         try:
-            self._data.dict()  # 触发验证
+            self._data.model_dump()  # 触发验证
         except ValidationError as e:
             raise ValueError(f"Invalid event data: {e}")
     
@@ -194,23 +203,16 @@ class TypedEvent(Generic[EventDataType]):
     def to_legacy_event(self) -> Event:
         """转换为传统Event对象"""
         return Event(
-            type=self._event_type,
-            data=self._data.dict(),
-            priority=self._priority,
-            metadata={
-                'category': self._category.value,
-                'severity': self._severity.value,
-                'event_metadata': self._metadata.to_dict(),
-                'ttl': self._ttl,
-                'retry_policy': self._retry_policy
-            }
+            event_type=self._event_type,
+            data=self._data.model_dump(),
+            priority=self._priority
         )
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
         return {
             'event_type': self._event_type,
-            'data': self._data.dict(),
+            'data': self._data.model_dump(),
             'category': self._category.value,
             'priority': self._priority.value,
             'severity': self._severity.value,
@@ -443,7 +445,7 @@ class EventTypeRegistry:
             return None
         
         data_class = self.get_data_class(event_type)
-        return data_class.schema()
+        return data_class.model_json_schema()
     
     def export_schemas(self) -> Dict[str, Dict[str, Any]]:
         """导出所有事件类型的Schema"""
@@ -490,14 +492,14 @@ class TradingEventData(TypedEventData):
     order_id: Optional[str] = None
     strategy_id: Optional[str] = None
     
-    @validator('quantity')
-    def quantity_must_be_positive(cls, v):
+    @field_validator('quantity')
+    def quantity_must_be_positive(self, v):
         if v <= 0:
             raise ValueError('Quantity must be positive')
         return v
     
-    @validator('price')
-    def price_must_be_positive(cls, v):
+    @field_validator('price')
+    def price_must_be_positive(self, v):
         if v is not None and v <= 0:
             raise ValueError('Price must be positive')
         return v
@@ -512,8 +514,8 @@ class MarketDataEventData(TypedEventData):
     bid: Optional[float] = None
     ask: Optional[float] = None
     
-    @validator('price', 'volume')
-    def must_be_positive(cls, v):
+    @field_validator('price', 'volume')
+    def must_be_positive(self, v):
         if v <= 0:
             raise ValueError('Price and volume must be positive')
         return v

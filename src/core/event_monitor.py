@@ -389,7 +389,7 @@ class EventMonitor:
         with self._lock:
             event_stats_snapshot = dict(self._event_stats)
             recent_events_snapshot = list(self._recent_events)
-            alerts_snapshot = list(self._alerts)
+            list(self._alerts)
         
         # 基础统计
         total_events = sum(stats.count for stats in event_stats_snapshot.values())
@@ -484,7 +484,7 @@ class EventMonitor:
             if stats.error_count > 0
         ]
     
-    def export_metrics(self, format: str = "json") -> str:
+    def export_metrics(self, format_str: str = "json") -> str:
         """导出监控指标"""
         data = {
             "export_time": datetime.now().isoformat(),
@@ -493,10 +493,10 @@ class EventMonitor:
             "dashboard_data": self.get_dashboard_data()
         }
         
-        if format.lower() == "json":
+        if format_str.lower() == "json":
             return json.dumps(data, indent=2, ensure_ascii=False)
         else:
-            raise ValueError(f"Unsupported export format: {format}")
+            raise ValueError(f"Unsupported export format: {format_str}")
     
     def reset_stats(self) -> None:
         """重置统计数据"""
@@ -588,7 +588,7 @@ class EventMonitorIntegration:
             try:
                 # 检查是否是EnhancedEventBusV2，如果是则获取详细指标
                 if hasattr(self.event_bus, 'get_processing_results'):
-                    self._collect_enhanced_v2_metrics()
+                    self._collect_enhanced_metrics()
                 elif hasattr(self.event_bus, '_event_metrics'):
                     self._collect_enhanced_metrics()
                 
@@ -606,7 +606,7 @@ class EventMonitorIntegration:
             new_metrics = []
             
             # 从EnhancedEventBus的_event_metrics中获取新指标
-            for metrics in self.event_bus._event_metrics:
+            for metrics in self.event_bus.get_event_metrics():
                 if metrics.timestamp / 1_000_000_000 > self._last_metrics_check:
                     new_metrics.append(metrics)
             
@@ -640,88 +640,88 @@ class EventMonitorIntegration:
         logger.info("Event monitor integration stopped")
 
 
-if __name__ == '__main__':
-    def test_alert_callback(alert: Alert):
-        print(f"🚨 告警: [{alert.level.value.upper()}] {alert.message}")
-    
-    print("=" * 50)
-    print("启动事件监控测试...")
-    
-    # 创建监控器
-    monitor = EventMonitor(
-        name="TestMonitor",
-        performance_threshold_ms=10.0,  # 降低阈值以便测试
-        error_rate_threshold=0.1
-    )
-    
-    # 添加告警回调
-    monitor.add_alert_callback(test_alert_callback)
-    
-    try:
-        # 模拟事件处理
-        print("\n模拟事件处理...")
-        
-        from src.core.event import Event, EventType, EventPriority
-        
-        # 正常事件
-        for i in range(10):
-            event = Event(EventType.MARKET_TICK, priority=EventPriority.NORMAL)
-            monitor.record_event(
-                event=event,
-                processing_time_ns=5_000_000,  # 5ms
-                queue_wait_time_ns=1_000_000,  # 1ms
-                success=True
-            )
-        
-        # 慢事件
-        for i in range(3):
-            event = Event(EventType.ORDER, priority=EventPriority.HIGH)
-            monitor.record_event(
-                event=event,
-                processing_time_ns=20_000_000,  # 20ms (超过阈值)
-                queue_wait_time_ns=2_000_000,  # 2ms
-                success=True
-            )
-        
-        # 错误事件
-        for i in range(2):
-            event = Event(EventType.STRATEGY_ERROR, priority=EventPriority.HIGH)
-            monitor.record_event(
-                event=event,
-                processing_time_ns=15_000_000,  # 15ms
-                queue_wait_time_ns=3_000_000,  # 3ms
-                success=False,
-                error_message="测试错误"
-            )
-        
-        time.sleep(2)  # 等待监控处理
-        
-        # 显示统计信息
-        print("\n=== 事件统计 ===")
-        stats = monitor.get_event_stats()
-        for event_type, stat in stats.items():
-            print(f"{event_type}: {stat['count']}次, 成功率: {stat['success_rate']:.2%}, "
-                  f"平均处理时间: {stat['avg_processing_time_ms']:.2f}ms")
-        
-        # 显示仪表板数据
-        print("\n=== 仪表板摘要 ===")
-        dashboard = monitor.get_dashboard_data()
-        summary = dashboard["summary"]
-        print(f"总事件数: {summary['total_events']}")
-        print(f"总错误数: {summary['total_errors']}")
-        print(f"整体错误率: {summary['overall_error_rate']:.2%}")
-        print(f"平均处理时间: {summary['recent_avg_processing_time_ms']:.2f}ms")
-        
-        # 显示告警
-        print("\n=== 最近告警 ===")
-        alerts = monitor.get_recent_alerts()
-        for alert in alerts:
-            print(f"[{alert['level'].upper()}] {alert['message']}")
-        
-        input("\n按 Enter 键停止测试...")
-        
-    except KeyboardInterrupt:
-        print("\n收到中断信号，正在停止...")
-    finally:
-        monitor.stop_monitoring()
-        print("\n测试完成！")
+# if __name__ == '__main__':
+#     def test_alert_callback(alert: Alert):
+#         print(f"🚨 告警: [{alert.level.value.upper()}] {alert.message}")
+#
+#     print("=" * 50)
+#     print("启动事件监控测试...")
+#
+#     # 创建监控器
+#     monitor = EventMonitor(
+#         name="TestMonitor",
+#         performance_threshold_ms=10.0,  # 降低阈值以便测试
+#         error_rate_threshold=0.1
+#     )
+#
+#     # 添加告警回调
+#     monitor.add_alert_callback(test_alert_callback)
+#
+#     try:
+#         # 模拟事件处理
+#         print("\n模拟事件处理...")
+#
+#         from src.core.event import Event, EventType, EventPriority
+#
+#         # 正常事件
+#         for i in range(10):
+#             event = Event(EventType.MARKET_TICK, priority=EventPriority.NORMAL)
+#             monitor.record_event(
+#                 event=event,
+#                 processing_time_ns=5_000_000,  # 5ms
+#                 queue_wait_time_ns=1_000_000,  # 1ms
+#                 success=True
+#             )
+#
+#         # 慢事件
+#         for i in range(3):
+#             event = Event(EventType.ORDER, priority=EventPriority.HIGH)
+#             monitor.record_event(
+#                 event=event,
+#                 processing_time_ns=20_000_000,  # 20ms (超过阈值)
+#                 queue_wait_time_ns=2_000_000,  # 2ms
+#                 success=True
+#             )
+#
+#         # 错误事件
+#         for i in range(2):
+#             event = Event(EventType.STRATEGY_ERROR, priority=EventPriority.HIGH)
+#             monitor.record_event(
+#                 event=event,
+#                 processing_time_ns=15_000_000,  # 15ms
+#                 queue_wait_time_ns=3_000_000,  # 3ms
+#                 success=False,
+#                 error_message="测试错误"
+#             )
+#
+#         time.sleep(2)  # 等待监控处理
+#
+#         # 显示统计信息
+#         print("\n=== 事件统计 ===")
+#         stats = monitor.get_event_stats()
+#         for event_type, stat in stats.items():
+#             print(f"{event_type}: {stat['count']}次, 成功率: {stat['success_rate']:.2%}, "
+#                   f"平均处理时间: {stat['avg_processing_time_ms']:.2f}ms")
+#
+#         # 显示仪表板数据
+#         print("\n=== 仪表板摘要 ===")
+#         dashboard = monitor.get_dashboard_data()
+#         summary = dashboard["summary"]
+#         print(f"总事件数: {summary['total_events']}")
+#         print(f"总错误数: {summary['total_errors']}")
+#         print(f"整体错误率: {summary['overall_error_rate']:.2%}")
+#         print(f"平均处理时间: {summary['recent_avg_processing_time_ms']:.2f}ms")
+#
+#         # 显示告警
+#         print("\n=== 最近告警 ===")
+#         alerts = monitor.get_recent_alerts()
+#         for alert in alerts:
+#             print(f"[{alert['level'].upper()}] {alert['message']}")
+#
+#         input("\n按 Enter 键停止测试...")
+#
+#     except KeyboardInterrupt:
+#         print("\n收到中断信号，正在停止...")
+#     finally:
+#         monitor.stop_monitoring()
+#         print("\n测试完成！")

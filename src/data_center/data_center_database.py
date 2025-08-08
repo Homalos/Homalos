@@ -125,11 +125,13 @@ class DataCenterDatabase:
         else:
             raise ValueError(f"不支持的数据类型: {data_type}")
 
-    def _get_contract_key(self, symbol: str, exchange: str) -> str:
+    @staticmethod
+    def _get_contract_key(symbol: str, exchange: str) -> str:
         """生成合约唯一标识"""
         return f"{symbol}_{exchange}"
 
-    def _get_table_name(self, data_type: str, symbol: str, exchange: str) -> str:
+    @staticmethod
+    def _get_table_name(data_type: str, symbol: str, exchange: str) -> str:
         """生成表名 - 直接使用合约名作为表名"""
         # 直接使用合约名作为表名，不再添加前缀
         return symbol
@@ -589,8 +591,8 @@ class DataCenterDatabase:
                 # 保留用于内部处理的字段
                 'symbol': bar_data.symbol,
                 'exchange': bar_data.exchange.value if hasattr(bar_data.exchange, 'value') else str(bar_data.exchange),
-                'datetime': bar_data.datetime.isoformat() if hasattr(bar_data.datetime, 'isoformat') else str(
-                    bar_data.datetime)
+                'datetime': str(bar_data.datetime)
+                # 'datetime': bar_data.datetime.isoformat() if hasattr(bar_data.datetime, 'isoformat') else str(bar_data.datetime)
             }
         else:  # 字典格式
             bar_dict = bar_data.copy()
@@ -1200,7 +1202,7 @@ class DataCenterDatabase:
                         if temp_path.exists():
                             try:
                                 temp_path.unlink()
-                            except:
+                            except Exception:
                                 pass
                         raise
 
@@ -1335,7 +1337,8 @@ class DataCenterDatabase:
             # 不清空缓冲区，让数据在下次尝试时重新写入
             # self._bar_csv_buffer.clear()
 
-    def _get_date_range(self, start_date: date, end_date: date) -> List[date]:
+    @staticmethod
+    def _get_date_range(start_date: date, end_date: date) -> List[date]:
         """获取日期范围内的所有日期"""
         date_list = []
         current_date = start_date

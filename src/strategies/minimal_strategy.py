@@ -33,13 +33,20 @@ class MinimalStrategy(BaseStrategy):
     description = "Minimum strategy - used to test the full-link functionality of the trading engine"
     
     def __init__(self, strategy_id: str, event_bus, params: Dict[str, Any] | None = None):
-        # 默认参数定义
+        # 默认参数
+        self.symbol = "FG509"
+        self.exchange: Exchange = Exchange.CZCE
+        self.volume = 1             # 交易手数
+        self.order_interval = 20    # 下单间隔（秒）
+        self.max_orders = 5         # 最大订单数
+
+        # 默认参数
         default_params = {
-            "symbol": "FG509",
-            "exchange": "CZCE",
-            "volume": 1,            # 交易手数
-            "order_interval": 20,   # 下单间隔（秒）
-            "max_orders": 5         # 最大订单数
+            "symbol": self.symbol,
+            "exchange": self.exchange,
+            "volume": self.volume,
+            "order_interval": self.order_interval,
+            "max_orders": self.max_orders
         }
         
         # 合并用户参数
@@ -48,22 +55,6 @@ class MinimalStrategy(BaseStrategy):
         
         # 先调用父类构造函数初始化self.params
         super().__init__(strategy_id, event_bus, default_params)
-        
-        # 再获取策略参数
-        self.symbol = self.get_parameter("symbol")
-        
-        # 正确处理exchange参数：字符串转枚举
-        exchange_str = self.get_parameter("exchange")
-        if isinstance(exchange_str, str):
-            self.exchange = Exchange[exchange_str]  # 字符串转枚举
-        elif isinstance(exchange_str, Exchange):
-            self.exchange = exchange_str  # 已经是枚举对象
-        else:
-            raise ValueError(f"无效的exchange参数: {exchange_str}")
-            
-        self.volume = self.get_parameter("volume", 1)
-        self.order_interval = self.get_parameter("order_interval", 10)
-        self.max_orders = self.get_parameter("max_orders", 5)
         
         # 策略状态初始化
         self.last_order_time = 0

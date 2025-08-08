@@ -122,6 +122,11 @@ class AsyncHandlerPool:
         
         # 启动处理器池
         self._initialize()
+
+    @property
+    def event_loop(self) -> asyncio.AbstractEventLoop:
+        """返回事件循环"""
+        return self._event_loop
     
     def _initialize(self) -> None:
         """初始化处理器池"""

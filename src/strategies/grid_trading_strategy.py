@@ -20,13 +20,12 @@ from src.strategy.base_strategy import BaseStrategy
 class GridTradingStrategy(BaseStrategy):
     """
     网格交易策略
-    
+
     策略逻辑：
     1. 在价格网格上下买卖
     2. 价格下跌时买入，上涨时卖出
     3. 通过频繁交易获取价差收益
     """
-    
     strategy_name = "GridTradingStrategy"
     authors = ["Donny"]
     version = "0.0.1"
@@ -34,13 +33,21 @@ class GridTradingStrategy(BaseStrategy):
     
     def __init__(self, strategy_id: str, event_bus, params: Dict[str, Any] = None):
         # 默认参数
+        self.symbol = "FG509"
+        self.exchange: Exchange = Exchange.CZCE
+        self.grid_spacing = 10.0    # 网格间距
+        self.grid_count = 5         # 网格数量
+        self.base_volume = 1        # 基础交易量
+        self.center_price = 0.0     # 网格中心价格(0表示自动设置)
+
+        # 默认参数
         default_params = {
-            "symbol": "FG509",
-            "exchange": "CZCE",
-            "grid_spacing": 10.0,   # 网格间距
-            "grid_count": 5,        # 网格数量
-            "base_volume": 1,       # 基础交易量
-            "center_price": 0.0     # 网格中心价格(0表示自动设置)
+            "symbol": self.symbol,
+            "exchange": self.exchange,
+            "grid_spacing": self.grid_spacing,
+            "grid_count": self.grid_count,
+            "base_volume": self.base_volume,
+            "center_price": self.center_price
         }
         
         if params:
@@ -51,19 +58,10 @@ class GridTradingStrategy(BaseStrategy):
         # 网格数据
         self.grid_levels = []  # 网格价位
         self.grid_orders = {}  # 网格订单 {price: order_id}
-        self.center_price = 0.0
-        
+
     async def on_init(self):
         """策略初始化"""
         self.write_log("网格交易策略初始化")
-        
-        # 获取策略参数
-        self.symbol = self.get_parameter("symbol")
-        self.exchange = Exchange[self.get_parameter("exchange")]
-        self.grid_spacing = self.get_parameter("grid_spacing")
-        self.grid_count = self.get_parameter("grid_count")
-        self.base_volume = self.get_parameter("base_volume")
-        self.center_price = self.get_parameter("center_price")
         
     async def on_start(self):
         """策略启动"""

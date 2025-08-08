@@ -23,7 +23,6 @@ from src.core.event_bus import EventBus
 from src.core.logger import get_logger
 from src.core.object import OrderRequest, TickData, OrderData, TradeData, BarData, Status
 
-
 logger = get_logger("BaseStrategy")
 
 
@@ -40,34 +39,35 @@ class BaseStrategy(ABC):
     """
     
     # 策略元信息
-    strategy_name: str = "BaseStrategy"
+    strategy_name: str = ""
     authors: List[str] = []
     version: str = "0.0.1"
     description: str = ""
     
-    def __init__(self, strategy_id: str, event_bus: EventBus, params: Optional[Dict[str, Any]] = None):
-        self.strategy_id = strategy_id
-        self.strategy_uuid = str(uuid.uuid4())  # 自动生成UUID作为唯一标识
-        self.event_bus = event_bus
-        self.params = params or {}
+    def __init__(self, strategy_id: str, event_bus: EventBus, external_params: Optional[Dict[str, Any]] = None):
+        self.strategy_uuid = str(uuid.uuid4())          # 策略唯一标识
+        self.strategy_id = strategy_id                  # 策略ID
+        self.event_bus = event_bus                      # 事件总线
+        self.external_params = external_params or {}    # Web页面外部参数
+        self.params = {}                                # 策略参数
         
         # 策略状态
-        self.initialized = False
-        self.active = False
-        self.start_time = None
-        self.stop_time = None
+        self.initialized = False        # 策略是否已初始化
+        self.active = False             # 策略是否已启动
+        self.start_time = None          # 策略启动时间
+        self.stop_time = None           # 策略停止时间
         
-        # 订单管理 - 改进订单跟踪
-        self.pending_orders: Set[str] = set()  # 系统订单ID
-        self.filled_orders: Dict[str, TradeData] = {}  # trade_id -> TradeData
-        self.strategy_orders: Dict[str, OrderData] = {}  # 系统订单ID -> OrderData
+        # 订单管理
+        self.pending_orders: Set[str] = set()               # 系统订单ID
+        self.filled_orders: Dict[str, TradeData] = {}       # trade_id -> TradeData
+        self.strategy_orders: Dict[str, OrderData] = {}     # 系统订单ID -> OrderData
         
         # 行情订阅管理
         self.subscribed_symbols: Set[str] = set()
         
         # 缓存
         self.tick_cache: Dict[str, TickData] = {}
-        self.bar_cache: Dict[str, Dict[str, BarData]] = defaultdict(dict)  # symbol -> {interval: BarData}
+        self.bar_cache: Dict[str, Dict[str, BarData]] = defaultdict(dict)   # symbol -> {interval: BarData}
         
         # 统计信息
         self.stats: Dict[str, Union[float, int]] = {
@@ -87,12 +87,21 @@ class BaseStrategy(ABC):
         
         # 设置事件处理器
         self._setup_event_handlers()
+
+    def _load_external_params(self) -> None:
+        """加载Web页面外部策略参数到param"""
+        if not self.external_params:
+            return None
+        else:
+            for key, value in self.external_params.items():
+                if hasattr(self.params, key):
+                    setattr(self.params, key, value)
     
     def _setup_event_handlers(self) -> None:
         """设置事件处理器"""
         # 订阅与策略相关的事件
-        self.event_bus.subscribe(f"market.tick.{self.strategy_id}", self._handle_tick_event)
-        self.event_bus.subscribe(f"market.bar.{self.strategy_id}", self._handle_bar_event)
+        self.event_bus.subscribe(f"{EventType.MARKET_TICK}.{self.strategy_id}", self._handle_tick_event)
+        self.event_bus.subscribe(f"{EventType.MARKET_BAR}.{self.strategy_id}", self._handle_bar_event)
         self.event_bus.subscribe(EventType.ORDER_FILLED, self._handle_trade_event)
         self.event_bus.subscribe(EventType.ORDER_CANCELLED, self._handle_order_event)
         self.event_bus.subscribe(EventType.RISK_REJECTED, self._handle_risk_rejected)
@@ -218,7 +227,7 @@ class BaseStrategy(ABC):
                                 # 如果失败，尝试同步回退
                                 self._sync_fallback_handler(coro)
 
-                        self.main_loop.call_soon_threadsafe(create_task_safe)
+                        self.main_loop.call_soon_threadsafe(create_task_safe)  # type: ignore
                         return
                 except Exception as e:
                     self.write_log(f"主线程事件循环调用失败: {e}", "WARNING")
@@ -331,7 +340,7 @@ class BaseStrategy(ABC):
         # 子类应该重写这个方法来实现具体的同步bar处理逻辑
     
     # ============ 生命周期方法 ============
-    
+
     async def initialize(self) -> None:
         """策略初始化"""
         if self.initialized:
@@ -392,7 +401,7 @@ class BaseStrategy(ABC):
             raise
     
     # ============ 抽象方法 - 子策略必须实现 ============
-    
+
     @abstractmethod
     async def on_init(self) -> None:
         """策略初始化时调用"""
@@ -426,7 +435,7 @@ class BaseStrategy(ABC):
         pass
     
     # ============ 交易接口 ============
-    
+
     async def send_order(self, order_request: OrderRequest) -> Optional[str]:
         """发送订单"""
         if not self.active:
@@ -502,7 +511,7 @@ class BaseStrategy(ABC):
             return None
     
     # ============ 行情订阅接口 ============
-    
+
     async def subscribe_symbols(self, symbols: List[str]) -> bool:
         """
         订阅行情数据 - 增强网关状态验证
@@ -610,7 +619,7 @@ class BaseStrategy(ABC):
             self.write_log(f"取消订阅失败: {e}", "ERROR")
     
     # ============ 数据访问接口 ============
-    
+
     def get_latest_tick(self, symbol: str) -> Optional[TickData]:
         """获取最新Tick数据"""
         return self.tick_cache.get(symbol)
@@ -621,14 +630,14 @@ class BaseStrategy(ABC):
     
     def get_parameter(self, key: str, default: Any = None) -> Any:
         """获取策略参数"""
-        return self.params.get(key, default)
+        return self.external_params.get(key, default)
     
     def set_parameter(self, key: str, value: Any) -> None:
         """设置策略参数"""
-        self.params[key] = value
+        self.external_params[key] = value
     
     # ============ 工具方法 ============
-    
+
     def get_strategy_uuid(self) -> str:
         """获取策略UUID"""
         return self.strategy_uuid

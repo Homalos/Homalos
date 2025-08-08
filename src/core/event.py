@@ -127,7 +127,9 @@ class EventType:
     DATA_SUBSCRIBE_SUCCESS = "data.subscribe.success"  # 数据订阅成功事件
     
     # 行情数据事件
-    TICK_DATA = "tick.data"  # Tick数据事件
+    MARKET_TICK = "market.tick"
+    MARKET_BAR = "market.bar"
+    TICK_UPDATED = "tick.updated"
     CONTRACT_INFO = "contract.info"  # 合约信息事件
     MARKET_TICK_RAW = "market.tick.raw"  # 原始Tick数据事件
     MARKET_BAR_RAW = "market.bar.raw"  # 原始Bar数据事件
@@ -172,9 +174,6 @@ class EventType:
     ENGINE_STARTED = "engine.started"   # 引擎启动事件
     
     # 普通事件
-    MARKET_TICK = "market.tick"
-    MARKET_BAR = "market.bar"
-    TICK_UPDATED = "tick.updated"
     POSITION_UPDATED = "position.updated"
     ACCOUNT_UPDATED = "account.updated"
     CONTRACT = "contract"

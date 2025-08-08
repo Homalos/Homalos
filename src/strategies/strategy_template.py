@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-策略开发模板
-用途：为策略开发者提供标准化的策略开发框架
-作者：Homalos Team
+@ProjectName: Homalos_v2
+@FileName   : moving_average_strategy.py
+@Date       : 2025/7/6 23:00
+@Author     : Donny
+@Email      : donnymoving@gmail.com
+@Software   : PyCharm
+@Description: 策略开发模板 - 为策略开发者提供标准化的策略开发框架
 """
 import asyncio
 import time
@@ -11,27 +15,27 @@ from dataclasses import dataclass
 from typing import Dict, Any, Optional, List
 
 from ..config.constant import Direction, Offset, OrderType, Exchange
-from ..core.object import OrderRequest, CancelRequest
+from ..core.object import OrderRequest
 from ..core.object import TickData, BarData, OrderData, TradeData
 from ..strategy.base_strategy import BaseStrategy
 
 
 @dataclass
-class StrategyParams:
-    """策略参数配置类"""
+class Params:
+    """策略参数配置类（示例）"""
     # 基本参数
-    symbol: str = "rb2501"  # 交易合约
-    exchange: str = "SHFE"  # 交易所
-    volume: int = 1  # 交易手数
+    symbol: str = "FA509"               # 交易合约
+    exchange: Exchange = Exchange.CZCE  # 交易所
+    volume: int = 1                     # 交易手数
     
-    # 策略专用参数（示例）
-    fast_period: int = 5  # 快线周期
-    slow_period: int = 20  # 慢线周期
-    stop_loss: float = 50.0  # 止损点数
+    # 策略专用参数
+    fast_period: int = 5        # 快线周期
+    slow_period: int = 20       # 慢线周期
+    stop_loss: float = 50.0     # 止损点数
     take_profit: float = 100.0  # 止盈点数
     
     # 风控参数
-    max_position: int = 10  # 最大持仓
+    max_position: int = 10          # 最大持仓
     max_daily_loss: float = 1000.0  # 最大日亏损
 
 
@@ -52,16 +56,17 @@ class StrategyTemplate(BaseStrategy):
     
     # 策略元信息
     strategy_name = "策略开发模板"
-    strategy_version = "0.0.1"
-    strategy_author = "开发者姓名"
-    strategy_description = "这是一个策略开发模板，展示了完整的策略开发框架"
+    authors = ["Donny"]
+    version = "0.0.1"
+    description = "这是一个策略开发模板，展示了完整的策略开发框架"
     
-    def __init__(self, strategy_id: str, event_bus, params: Dict[str, Any]):
-        super().__init__(strategy_id, event_bus, params)
+    def __init__(self, strategy_id: str, event_bus, external_params: Dict[str, Any]):
+        super().__init__(strategy_id, event_bus, external_params)
         
         # 解析策略参数
-        self.strategy_params = StrategyParams()
-        self._load_strategy_params(params)
+        self.params = Params()
+        # 加载Web页面外部参数(如果有外部参数)
+        self._load_external_params()
         
         # 数据存储
         self.tick_data: Dict[str, TickData] = {}  # 最新tick数据
@@ -74,6 +79,7 @@ class StrategyTemplate(BaseStrategy):
         self.trade_history: List[TradeData] = []  # 成交记录
         
         # 策略状态
+        self.status = ""
         self.last_signal_time = 0  # 最后信号时间
         self.daily_pnl = 0.0  # 当日盈亏
         self.total_pnl = 0.0  # 总盈亏
@@ -81,23 +87,12 @@ class StrategyTemplate(BaseStrategy):
         # 风控状态
         self.stop_loss_price: Optional[float] = None
         self.take_profit_price: Optional[float] = None
-        
-        self.write_log(f"策略模板初始化完成: {self.strategy_params}")
-    
-    def _load_strategy_params(self, params: Dict[str, Any]) -> None:
-        """加载策略参数"""
-        for key, value in params.items():
-            if hasattr(self.strategy_params, key):
-                setattr(self.strategy_params, key, value)
-                self.write_log(f"参数设置: {key} = {value}")
+
+        self.write_log(f"策略模板初始化完成: {self.params}")
     
     async def on_init(self) -> None:
         """策略初始化"""
         self.write_log("开始策略初始化...")
-        
-        # 订阅行情数据
-        symbols = [self.strategy_params.symbol]
-        await self.subscribe_market_data(symbols)
         
         # 初始化技术指标
         self._init_indicators()
@@ -111,7 +106,7 @@ class StrategyTemplate(BaseStrategy):
         """策略启动"""
         self.write_log("策略开始运行...")
         self.status = "running"
-    
+
     async def on_stop(self) -> None:
         """策略停止"""
         self.write_log("策略停止运行...")
@@ -121,12 +116,11 @@ class StrategyTemplate(BaseStrategy):
         
         # 撤销所有挂单
         await self._cancel_all_orders()
-        
         self.status = "stopped"
-    
+        
     async def on_tick(self, tick: TickData) -> None:
         """处理tick数据"""
-        if tick.symbol != self.strategy_params.symbol:
+        if tick.symbol != self.params.symbol:
             return
         
         # 更新tick数据
@@ -140,14 +134,14 @@ class StrategyTemplate(BaseStrategy):
             return
         
         # 生成交易信号
-        signal = self._generate_signal(tick)
+        signal = self._generate_signal()
         
         # 执行交易逻辑
         await self._execute_signal(signal, tick)
     
     async def on_bar(self, bar: BarData) -> None:
         """处理K线数据"""
-        if bar.symbol != self.strategy_params.symbol:
+        if bar.symbol != self.params.symbol:
             return
         
         # 保存K线数据
@@ -163,15 +157,15 @@ class StrategyTemplate(BaseStrategy):
     
     async def on_order(self, order: OrderData) -> None:
         """处理订单回报"""
-        self.write_log(f"订单回报: {order.order_id} {order.status}")
+        self.write_log(f"订单回报: {order.orderid} {order.status}")
         
         # 更新挂单记录
-        if order.order_id in self.pending_orders:
-            self.pending_orders[order.order_id] = order
+        if order.orderid in self.pending_orders:
+            self.pending_orders[order.orderid] = order
             
             # 如果订单完成，从挂单记录中移除
             if order.status in ["完全成交", "已撤销"]:
-                del self.pending_orders[order.order_id]
+                del self.pending_orders[order.orderid]
     
     async def on_trade(self, trade: TradeData) -> None:
         """处理成交回报"""
@@ -218,22 +212,22 @@ class StrategyTemplate(BaseStrategy):
         self.indicators["volumes"].append(tick.volume)
         
         # 限制数据长度
-        max_length = max(self.strategy_params.slow_period + 10, 100)
+        max_length = max(self.params.slow_period + 10, 100)
         for key in self.indicators:
             if len(self.indicators[key]) > max_length:
                 self.indicators[key] = self.indicators[key][-max_length:]
         
         # 计算移动平均
         prices = self.indicators["prices"]
-        if len(prices) >= self.strategy_params.fast_period:
-            fast_sma = sum(prices[-self.strategy_params.fast_period:]) / self.strategy_params.fast_period
+        if len(prices) >= self.params.fast_period:
+            fast_sma = sum(prices[-self.params.fast_period:]) / self.params.fast_period
             self.indicators["sma_fast"].append(fast_sma)
         
-        if len(prices) >= self.strategy_params.slow_period:
-            slow_sma = sum(prices[-self.strategy_params.slow_period:]) / self.strategy_params.slow_period
+        if len(prices) >= self.params.slow_period:
+            slow_sma = sum(prices[-self.params.slow_period:]) / self.params.slow_period
             self.indicators["sma_slow"].append(slow_sma)
     
-    def _generate_signal(self, tick: TickData) -> str:
+    def _generate_signal(self) -> str:
         """生成交易信号"""
         # 检查数据完整性
         if (len(self.indicators.get("sma_fast", [])) < 2 or 
@@ -262,22 +256,22 @@ class StrategyTemplate(BaseStrategy):
         if current_time - self.last_signal_time < 60:  # 60秒内不重复交易
             return
         
-        if signal == "BUY" and self.current_position < self.strategy_params.max_position:
+        if signal == "BUY" and self.current_position < self.params.max_position:
             await self._place_buy_order(tick.last_price)
             self.last_signal_time = current_time
             
-        elif signal == "SELL" and self.current_position > -self.strategy_params.max_position:
+        elif signal == "SELL" and self.current_position > -self.params.max_position:
             await self._place_sell_order(tick.last_price)
             self.last_signal_time = current_time
     
     async def _place_buy_order(self, price: float) -> None:
         """下买单"""
         order_request = OrderRequest(
-            symbol=self.strategy_params.symbol,
+            symbol=self.params.symbol,
             exchange=Exchange.SHFE,  # 根据实际情况调整
             direction=Direction.LONG,
             type=OrderType.LIMIT,
-            volume=self.strategy_params.volume,
+            volume=self.params.volume,
             price=price,
             offset=Offset.OPEN if self.current_position >= 0 else Offset.CLOSE
         )
@@ -289,11 +283,11 @@ class StrategyTemplate(BaseStrategy):
     async def _place_sell_order(self, price: float) -> None:
         """下卖单"""
         order_request = OrderRequest(
-            symbol=self.strategy_params.symbol,
+            symbol=self.params.symbol,
             exchange=Exchange.SHFE,  # 根据实际情况调整
             direction=Direction.SHORT,
             type=OrderType.LIMIT,
-            volume=self.strategy_params.volume,
+            volume=self.params.volume,
             price=price,
             offset=Offset.OPEN if self.current_position <= 0 else Offset.CLOSE
         )
@@ -305,7 +299,7 @@ class StrategyTemplate(BaseStrategy):
     def _risk_check(self, tick: TickData) -> bool:
         """风险检查"""
         # 检查日亏损限制
-        if self.daily_pnl < -self.strategy_params.max_daily_loss:
+        if self.daily_pnl < -self.params.max_daily_loss:
             self.write_log("达到日亏损限制，停止交易")
             return False
         
@@ -354,11 +348,11 @@ class StrategyTemplate(BaseStrategy):
         entry_price = last_trade.price
         
         if self.current_position > 0:  # 多头持仓
-            self.stop_loss_price = entry_price - self.strategy_params.stop_loss
-            self.take_profit_price = entry_price + self.strategy_params.take_profit
+            self.stop_loss_price = entry_price - self.params.stop_loss
+            self.take_profit_price = entry_price + self.params.take_profit
         else:  # 空头持仓
-            self.stop_loss_price = entry_price + self.strategy_params.stop_loss
-            self.take_profit_price = entry_price - self.strategy_params.take_profit
+            self.stop_loss_price = entry_price + self.params.stop_loss
+            self.take_profit_price = entry_price - self.params.take_profit
     
     def _update_pnl(self, trade: TradeData) -> None:
         """更新盈亏"""
@@ -389,7 +383,7 @@ class StrategyTemplate(BaseStrategy):
         if self.current_position > 0:
             # 平多头
             order_request = OrderRequest(
-                symbol=self.strategy_params.symbol,
+                symbol=self.params.symbol,
                 exchange=Exchange.SHFE,
                 direction=Direction.SHORT,
                 type=OrderType.MARKET,
@@ -400,7 +394,7 @@ class StrategyTemplate(BaseStrategy):
         else:
             # 平空头
             order_request = OrderRequest(
-                symbol=self.strategy_params.symbol,
+                symbol=self.params.symbol,
                 exchange=Exchange.SHFE,
                 direction=Direction.LONG,
                 type=OrderType.MARKET,
@@ -416,12 +410,13 @@ class StrategyTemplate(BaseStrategy):
     async def _cancel_all_orders(self) -> None:
         """撤销所有挂单"""
         for order_id in list(self.pending_orders.keys()):
-            cancel_request = CancelRequest(
-                order_id=order_id,
-                symbol=self.strategy_params.symbol,
-                exchange=Exchange.SHFE
-            )
-            await self.cancel_order(cancel_request)
+            # cancel_request = CancelRequest(
+            #     orderid=order_id,
+            #     symbol=self.params.symbol,
+            #     exchange=self.params.exchange
+            # )
+            # await self.cancel_order(cancel_request)
+            await self.cancel_order(order_id)
             self.write_log(f"撤单请求已发送: {order_id}")
     
     def get_strategy_status(self) -> Dict[str, Any]:
@@ -435,7 +430,7 @@ class StrategyTemplate(BaseStrategy):
             "total_pnl": self.total_pnl,
             "pending_orders": len(self.pending_orders),
             "trade_count": len(self.trade_history),
-            "parameters": self.strategy_params.__dict__,
+            "parameters": self.params.__dict__,
             "indicators": {
                 "fast_sma": self.indicators.get("sma_fast", [])[-1] if self.indicators.get("sma_fast") else 0,
                 "slow_sma": self.indicators.get("sma_slow", [])[-1] if self.indicators.get("sma_slow") else 0,

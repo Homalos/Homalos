@@ -368,13 +368,13 @@ class EventScheduler:
     
     def _execute_async_non_blocking(self, scheduled_event: ScheduledEvent) -> None:
         """非阻塞异步执行"""
-        if self._handler_pool._event_loop is None:
+        if self._handler_pool.event_loop is None:
             raise RuntimeError("Event loop is not available")
         
         # 在事件循环中创建任务
         future = asyncio.run_coroutine_threadsafe(
             self._async_execute_with_callback(scheduled_event),
-            self._handler_pool._event_loop
+            self._handler_pool.event_loop
         )
         
         # 不等待结果，让它异步执行

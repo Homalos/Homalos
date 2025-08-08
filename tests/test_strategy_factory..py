@@ -10,7 +10,7 @@
 @Description: 策略工厂测试 - 演示策略的创建和管理
 """
 import asyncio
-from src.strategies.strategy_factory import create_strategy, get_available_strategies, EXAMPLE_STRATEGIES
+from src.strategy.strategy_factory import create_strategy, get_available_strategies, EXAMPLE_STRATEGIES
 from src.core.event_bus import EventBus
 
 
