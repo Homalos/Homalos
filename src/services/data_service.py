@@ -15,7 +15,7 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Any, Set
 
 from src.config.config_manager import ConfigManager
-from src.core.event import Event, EventType, create_market_event
+from src.core.event import Event, EventType, create_market_event, create_trading_event
 from src.core.event_bus import EventBus
 from src.core.logger import get_logger
 from src.core.object import TickData, BarData
@@ -127,8 +127,6 @@ class DataService:
             
             # 发布网关订阅事件
             if self.event_bus:
-                from src.core.event import create_trading_event
-                
                 gateway_event = create_trading_event(
                     EventType.GATEWAY_SUBSCRIBE,
                     {
@@ -250,15 +248,13 @@ class DataService:
             
             # 重新发布订阅事件
             if self.event_bus:
-                from src.core.event import create_trading_event
-                
                 gateway_event = create_trading_event(
                     EventType.GATEWAY_SUBSCRIBE,
                     {
                         "symbols": [symbol],
                         "strategy_id": strategy_id
                     },
-                    source="DataService.Retry"
+                    source="DataService"
                 )
                 
                 self.event_bus.publish(gateway_event)
@@ -350,7 +346,7 @@ class DataService:
             logger.error(f"处理tick数据失败: {e}")
     
     def _handle_raw_bar(self, event: Event):
-        """处理原始bar数据"""
+        """处理原始bar数据，分发给订阅的策略"""
         bar_data = event.data
         if not isinstance(bar_data, BarData):
             return
@@ -381,9 +377,9 @@ class DataService:
                     "DataService"
                 ))
             
-            # 如果启用数据中心，发送数据到数据中心
-            if self.enable_data_center and self.data_center_available:
-                self._send_bar_to_data_center(bar_data)
+            # # 如果启用数据中心，发送数据到数据中心
+            # if self.enable_data_center and self.data_center_available:
+            #     self._send_bar_to_data_center(bar_data)
                 
         except Exception as e:
             logger.error(f"处理bar数据失败: {e}")
@@ -394,7 +390,8 @@ class DataService:
             data = event.data
             symbols = data.get("symbols", [])
             strategy_id = data.get("strategy_id", "unknown")
-        
+
+            # 暂时忽略空合约订阅请求，后期可优化到全合约订阅
             if not symbols:
                 logger.warning(f"收到空的订阅请求: {strategy_id}")
                 return
@@ -410,7 +407,7 @@ class DataService:
                 # 发布订阅成功事件
                 if self.event_bus:
                     from src.core.event import create_trading_event
-                    
+
                     success_event = create_trading_event(
                         EventType.DATA_SUBSCRIBE_SUCCESS,
                         {
@@ -460,8 +457,6 @@ class DataService:
             
             # 发布取消订阅事件到网关
             if self.event_bus:
-                from src.core.event import create_trading_event
-                
                 gateway_event = create_trading_event(
                     EventType.GATEWAY_UNSUBSCRIBE,
                     {
@@ -485,7 +480,7 @@ class DataService:
             symbol = data.get("symbol")
             strategy_id = data.get("strategy_id")
             
-            logger.info(f"🎯 DataService收到网关订阅成功事件: symbol={symbol}, strategy_id={strategy_id}")
+            logger.info(f"DataService收到网关订阅成功事件: symbol={symbol}, strategy_id={strategy_id}")
             
             if symbol and strategy_id:
                 logger.info(f"为特定策略更新订阅状态: {symbol} -> {strategy_id}")
@@ -497,7 +492,7 @@ class DataService:
                     logger.info(f"为所有订阅策略更新状态: {symbol} -> {strategies}")
                     for strategy in strategies:
                         self.on_subscription_success(symbol, strategy)
-                        logger.info(f"✅ 已更新策略 {strategy} 的订阅状态: {symbol}")
+                        logger.info(f"已更新策略 {strategy} 的订阅状态: {symbol}")
                 else:
                     logger.warning(f"合约 {symbol} 没有找到订阅的策略")
                         
@@ -570,30 +565,30 @@ class DataService:
     #     except Exception as e:
     #         logger.error(f"发送tick数据到数据中心失败: {e}")
     
-    def _send_bar_to_data_center(self, bar_data: BarData):
-        """发送bar数据到数据中心"""
-        try:
-            data = {
-                "symbol": bar_data.symbol,
-                "exchange": bar_data.exchange.value,
-                "interval": bar_data.interval.value if bar_data.interval else '1m',
-                "datetime": bar_data.datetime.isoformat(),
-                "open_price": bar_data.open_price,
-                "high_price": bar_data.high_price,
-                "low_price": bar_data.low_price,
-                "close_price": bar_data.close_price,
-                "volume": bar_data.volume,
-                "turnover": bar_data.turnover,
-                "open_interest": bar_data.open_interest
-            }
-            # 发布数据中心事件
-            self.event_bus.publish(create_market_event(
-                EventType.DATA_CENTER_BAR,
-                data,
-                "DataService"
-            ))
-        except Exception as e:
-            logger.error(f"发送bar数据到数据中心失败: {e}")
+    # def _send_bar_to_data_center(self, bar_data: BarData):
+    #     """发送bar数据到数据中心"""
+    #     try:
+    #         data = {
+    #             "symbol": bar_data.symbol,
+    #             "exchange": bar_data.exchange.value,
+    #             "interval": bar_data.interval.value if bar_data.interval else '1m',
+    #             "datetime": bar_data.datetime.isoformat(),
+    #             "open_price": bar_data.open_price,
+    #             "high_price": bar_data.high_price,
+    #             "low_price": bar_data.low_price,
+    #             "close_price": bar_data.close_price,
+    #             "volume": bar_data.volume,
+    #             "turnover": bar_data.turnover,
+    #             "open_interest": bar_data.open_interest
+    #         }
+    #         # 发布数据中心事件
+    #         self.event_bus.publish(create_market_event(
+    #             EventType.DATA_CENTER_BAR,
+    #             data,
+    #             "DataService"
+    #         ))
+    #     except Exception as e:
+    #         logger.error(f"发送bar数据到数据中心失败: {e}")
     
     def _unsubscribe_market_data_sync(self, symbols: List[str], strategy_id: str):
         """同步取消订阅行情数据"""
@@ -663,7 +658,7 @@ class DataService:
             else:
                 # 数据中心不可用，返回错误
                 self.event_bus.publish(create_market_event(
-                    EventType.DATA_QUERY_TICK_RESULT,
+                    EventType.DATA_CENTER_TICK_RESULT,
                     {
                         "symbol": query_params.get("symbol"),
                         "data": [],
@@ -691,7 +686,7 @@ class DataService:
             else:
                 # 数据中心不可用，返回错误
                 self.event_bus.publish(create_market_event(
-                    EventType.DATA_QUERY_BAR_RESULT,
+                    EventType.DATA_CENTER_BAR_RESULT,
                     {
                         "symbol": query_params.get("symbol"),
                         "interval": query_params.get("interval"),
