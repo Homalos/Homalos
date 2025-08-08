@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Type, TypeVar, Generic
 
 from pydantic import BaseModel, ValidationError, field_validator
 
-from src.core.event import Event, EventPriority
+from src.core.event import Event, EventPriority, EventType
 from src.core.logger import get_logger
 
 logger = get_logger("EventTypes")
@@ -95,21 +95,53 @@ class TypedEventData(BaseModel):
         # 在pydantic v2中，模型默认是可变的，无需此配置
     
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典"""
+        """
+        转换为字典
+
+        Returns:
+            Dict[str, Any]: 模型数据的字典表示
+        """
         return self.model_dump()
     
     def to_json(self) -> str:
-        """转换为JSON字符串"""
+        """
+        转换为JSON字符串
+
+        Returns:
+            str: 模型数据的JSON字符串表示
+        """
         return self.model_dump_json()
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TypedEventData':
-        """从字典创建"""
-        return cls(**data)
+        """
+        从字典创建模型实例
+
+        Args:
+            data (Dict[str, Any]): 包含模型数据的字典
+
+        Returns:
+            TypedEventData: 创建的模型实例
+
+        Raises:
+            ValidationError: 当数据验证失败时抛出
+        """
+        return cls.model_validate(data)
 
     @classmethod
     def from_json(cls, json_str: str) -> 'TypedEventData':
-        """从JSON字符串创建"""
+        """
+        从JSON字符串创建模型实例
+
+        Args:
+            json_str (str): 包含模型数据的JSON字符串
+
+        Returns:
+            TypedEventData: 创建的模型实例
+
+        Raises:
+            ValidationError: 当JSON解析或数据验证失败时抛出
+        """
         return cls.model_validate_json(json_str)
 
 
@@ -544,7 +576,7 @@ class NotificationEventData(TypedEventData):
 def register_common_event_types():
     """注册常用事件类型"""
     event_registry.register_event_type(
-        "system.startup",
+        EventType.SYSTEM_STARTUP,
         SystemEventData,
         EventCategory.SYSTEM,
         EventPriority.HIGH,
@@ -553,7 +585,7 @@ def register_common_event_types():
     )
     
     event_registry.register_event_type(
-        "system.shutdown",
+        EventType.SYSTEM_SHUTDOWN,
         SystemEventData,
         EventCategory.SYSTEM,
         EventPriority.HIGH,
