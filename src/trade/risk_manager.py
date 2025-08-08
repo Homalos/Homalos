@@ -10,6 +10,7 @@
 @Description: 风控管理器
 """
 import asyncio
+import datetime
 import time
 from collections import defaultdict
 
@@ -65,9 +66,9 @@ class RiskManager:
         self.strategy_suspend_threshold = config.get("risk.strategy_suspend_threshold", 100)
 
         # 注册事件处理器
-        self.event_bus.subscribe("risk.check", lambda event: asyncio.create_task(self._handle_risk_check(event)))
-        self.event_bus.subscribe("strategy.error", self._handle_strategy_error)
-        self.event_bus.subscribe("market.tick", self._update_market_prices)
+        self.event_bus.subscribe(EventType.RISK_CHECK, lambda event: asyncio.create_task(self._handle_risk_check(event)))
+        self.event_bus.subscribe(EventType.STRATEGY_ERROR, self._handle_strategy_error)
+        self.event_bus.subscribe(EventType.MARKET_TICK, self._update_market_prices)
 
         # 启动风控监控任务
         asyncio.create_task(self._risk_monitoring_task())
@@ -121,8 +122,6 @@ class RiskManager:
         if not self.trading_hours_check:
             return
 
-        # 简化的交易时间检查
-        import datetime
         now = datetime.datetime.now()
         hour = now.hour
 
