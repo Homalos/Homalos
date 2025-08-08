@@ -1,11 +1,13 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-集成Web服务器
-将事件监控仪表板集成到主Web服务中
-
-作者: Homalos Team
-创建时间: 2024-01-20
+@ProjectName: Homalos_v2
+@FileName   : web_server
+@Date       : 2025/7/6 21:35
+@Author     : Donny
+@Email      : donnymoving@gmail.com
+@Software   : PyCharm
+@Description: 集成Web服务器，将事件监控仪表板集成到主Web服务中
 """
 import asyncio
 import logging
