@@ -26,7 +26,7 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
 
 Homalos 是一个基于 Python 的事件驱动型期货交易平台，旨在实现单机部署，并最大限度地减少外部依赖。
 
-- **当前状态**: 核心功能完成，生产就绪
+- **当前状态**: 核心功能完成，开发中
 - **核心特性**: 实时行情处理、智能风控、策略管理、Web界面、性能监控、数据中心优化
 
 ## 目的
@@ -67,12 +67,12 @@ Homalos/
 ├── 📁 config/                # 配置文件
 ├── 📁 data/                  # 数据存储
 ├── 📁 docs/                  # 系统文档
-├── 📁 log/                   # 日志存储
+├── 📁 i18n/                  # 国际化文档
 ├── 📁 src/                   # 核心源代码目录
 │   ├── 📁 config/            # 配置管理
 │   ├── 📁 core/              # 系统核心模块
-│   ├── 📁 data_center/       # 数据中心模块
 │   ├── 📁 ctp/               # CTP接口模块
+│   ├── 📁 data_center/       # 数据中心模块
 │   ├── 📁 function/          # 核心函数
 │   ├── 📁 services/          # 数据服务模块
 │   ├── 📁 strategies/        # 策略实例
@@ -108,29 +108,52 @@ Homalos/
 ### 1. **Core 核心模块** (`src/core/`)
 
 - **event.py**: 事件对象
-- **event_bus.py**: 高性能事件总线
+- **async_handler_pool.py**: 异步处理器池，优化核心组件，支持协程处理器的并发执行和生命周期管理
+- **enhanced_event_bus.py**: 增强事件总线 V2，优化版本，整合异步处理池、事件调度器、类型安全、路由机制和健康监控
+- **event.py**: 事件对象
+- **event_bus.py**: 高性能事件总线(未来可能会被enhanced_event_bus.py代替)
+- **event_dashboard.py**: 事件监控可视化仪表板，基础Web界面
+- **event_monitor.py**: 事件监控和可视化模块，基础监控实现
+- **event_router.py**: 智能事件路由系统 ，优化核心组件，提供高级事件路由、过滤和分发机制
+- **event_scheduler.py**: 智能事件调度器，优化核心组件，负责事件的智能分发和执行策略选择
+- **event_types.py**: 事件类型安全系统，优化核心组件，提供强类型事件定义、验证和序列化机制
 - **gateway.py**: 抽象网关类
-- **object.py**: 基本数据结构
+- **gateway_state.py**: 网关状态枚举
+- **health_monitor.py**: 系统健康监控，优化核心组件，提供全面的系统健康检查、监控和告警机制
 - **logger.py**: 日志模块
 - **object.py**: 基本数据结构
 - **service_registry.py**: 服务注册中心
 
 ### 2. **Services 服务模块** (`src/services/`)
 
-- **trading_engine.py**: 交易引擎核心
 - **data_service.py**: 统一数据服务
-- **performance_monitor.py**: 性能监控器
 
-### 3. **策略模块** (`src/strategies/`)
+### 3. **策略模块** (`src/strategy/`)
 
 - **base_strategy.py**: 策略基类
-- **grid_trading_strategy.py**: 网格交易策略
-- **minimal_strategy.py**: 最小策略示例
-- **moving_average_strategy.py**: 移动平均策略
-- **strategy_factory.py**: 策略工厂
+- **dependency_checker.py**: 依赖检查器模块，提供策略启动前的依赖验证功能，包括网关连接、合约信息、账户资金等检查。
+- **strategy_event_handler.py**: 策略事件处理器，统一处理、路由、分发和持久化策略事件
+- **strategy_factory.py**: 策略工厂，统一管理策略的创建和配置
+- **strategy_health_monitor.py**: 策略健康监控器，监控策略运行状态、异常检测和自动恢复
+- **strategy_validator.py**: 策略验证器模块，提供策略代码验证功能，包括语法检查、方法验证、参数校验等。
+
+### 4. **交易模块** (`src/trade`)
+
+- **account_manager.py**: 账户管理器
+- **order_manager.py**: 订单管理器
+- **performance_metrics.py**: 性能监控模块，实时监控系统和策略性能指标
+- **risk_manager.py**: 风控管理器
+- **strategy_manager.py**: 策略管理器
+- **trading_engine.py**: 交易引擎核心，集成策略、风控、订单管理
+
+### 5. **策略实例模块** (`src/strategies/`)
+
+- **grid_trading_strategy.py**: 网格交易策略实例
+- **minimal_strategy.py**: 最小策略实例
+- **moving_average_strategy.py**: 移动平均策略实例
 - **strategy_template.py**: 策略开发模板
 
-### 4. **交易接口模块**
+### 6. **交易接口模块**
 
 - **CTP模块** (`src/ctp/`): 上期技术CTP接口
 - **TTS模块** (`src/tts/`): TTS交易接口
@@ -141,7 +164,12 @@ Homalos/
 - `gateway/`: Python网关实现
 - `meson.build`: 构建配置
 
-### 5. **配置系统** (`config/`)
+### 7. **Web界面模块** (`web/`)
+
+- **integrated_web_server.py**: 集成Web服务器，继承web_server.py服务器功能，并集成事件监控仪表板
+- **web_server.py**: Web管理界面服务器
+
+### 8. **配置系统** (`config/`)
 
 - **2024/2025_holidays.json**: 交易日历
 - **brokers.json.example**: 券商配置模板
@@ -210,7 +238,7 @@ python build.py
 
 **编译环境:**
 
-- Windows 10 + MSVC 2022
+- Windows 11 + MSVC 2022
 - Python 3.12虚拟环境
 - Meson 1.8.1 + Ninja构建系统
 - Pybind11用于Python-C++绑定
@@ -220,6 +248,7 @@ python build.py
 - 配置管理器 ✅
 - 事件总线 ✅  
 - 数据服务 ✅
+- 数据中心 ✅
 - 交易引擎核心 ✅
 - 性能监控器 ✅
 - Web管理界面 ✅
@@ -229,28 +258,28 @@ python build.py
 
 ### ✅ 已完成的核心功能
 
-#### 1.基础设施层（100%完成）
+#### 1.基础设施层
 
 - 事件总线：支持异步/同步双通道处理，事件监控和统计 ✅
 - 配置管理：支持热重载、分层配置、环境适配 ✅
 - 日志系统：结构化日志、多级别输出、文件轮转 ✅
 - 服务注册：组件注册和发现机制 ✅
 
-#### 2.数据服务层（100%完成）
+#### 2.数据服务层
 
 - 数据库管理：SQLite存储、WAL模式、批量写入 ✅
 - 行情处理：Tick数据缓存、实时分发、持久化 ✅
 - Bar生成器：多周期K线生成、增量更新 ✅
 - 历史数据查询：异步查询、数据索引 ✅
 
-#### 3.交易引擎核心（95%完成）
+#### 3.交易引擎核心
 
 - 策略管理：动态加载、生命周期管理、自动发现 ✅
 - 风控管理：并行检查、多维度限制、实时监控 ✅  
 - 订单管理：状态机管理、模拟成交、撤单支持 ✅
 - 账户管理：持仓跟踪、盈亏计算、资金管理 ✅
 
-#### 4.策略框架（100%完成）
+#### 4.策略框架
 
 - BaseStrategy：完整的策略基类、事件驱动设计 ✅
 - 策略生命周期：初始化→启动→运行→停止 ✅
@@ -258,20 +287,20 @@ python build.py
 - 交易接口：下单、撤单、持仓查询 ✅
 - 策略模板：完整的策略开发框架和示例 ✅
 
-#### 5.Web管理界面（100%完成）
+#### 5.Web管理界面
 
 - REST API：策略管理、系统监控、配置管理 ✅
 - WebSocket：实时数据推送、策略操作事件、状态更新 ✅
 - 前端界面：策略管理优化、UUID自动生成、实时日志反馈 ✅
 - 用户体验：简化操作流程、表格布局优化、实时操作反馈 ✅
 
-#### 6.性能监控（100%完成）
+#### 6.性能监控
 
 - 实时监控：延迟、吞吐量、资源使用 ✅
 - 告警系统：阈值监控、事件通知、多级告警 ✅
 - 性能测试：基准测试、压力测试、端到端测试 ✅
 
-#### 7.CTP网关集成（100%完成）
+#### 7.CTP网关集成
 
 - 行情网关：实时数据接收、连接管理 ✅
 - 交易网关：订单执行、状态同步 ✅
@@ -279,7 +308,7 @@ python build.py
 - 事件集成：动态订阅、状态广播 ✅
 - 线程安全：CTP API回调线程安全桥接 ✅
 
-#### 8.数据中心优化（100%完成）
+#### 8.数据中心优化
 
 - 表缓存机制：数据类型隔离、竞态条件修复 ✅
 - 批量写入优化：tick和bar数据独立管理 ✅
@@ -446,4 +475,4 @@ class MyStrategy(BaseStrategy):
 ---
 
 *Homalos 量化交易系统 - 从概念到生产的实现*  
-*项目状态: 开发中 | 最后更新: 2025-07-25*
+*项目状态: 开发中 | 最后更新: 2025-08-08*

@@ -26,7 +26,7 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
 
 Homalos is a Python-based event-driven futures trading platform designed for standalone deployment with minimal external dependencies.
 
-- **Current Status**: Core features completed, production ready
+- **Current Status**: Core features completed, Under development
 - **Core Features**: Real-time market data processing, intelligent risk control, strategy management, Web interface, performance monitoring, data center optimization
 
 ## Purpose
@@ -63,25 +63,25 @@ Loading strategy
 
 ```reStructuredText
 Homalos/
-├── 📁 assets/                # Resource Files
-├── 📁 config/                # Configuration files
-├── 📁 data/                  # Data storage
-├── 📁 docs/                  # System documentation
-├── 📁 log/                   # Log storage
-├── 📁 src/                   # Core source code directory
-│   ├── 📁 config/            # Configuration management
-│   ├── 📁 core/              # System core modules
-│   ├── 📁 data_center/       # Data Center Module
-│   ├── 📁 ctp/               # CTP interface module
-│   ├── 📁 function/          # Core function
-│   ├── 📁 services/          # Service modules
-│   ├── 📁 strategies/        # Strategy instance
-│   ├── 📁 strategy/          # Strategy Module
-│   ├── 📁 trade/             # Trading Module
-│   ├── 📁 tts/               # TTS interface module
-│   ├── 📁 util/              # Utility modules
-│   └── 📁 web/               # Web interface
-└── 📁 tests/                 # Test script directory
+├── 📁 assets/                	# Resource files
+├── 📁 config/ 					# Configuration files
+├── 📁 data/ 					# Data storage
+├── 📁 docs/ 					# System documentation
+├── 📁 i18n/ 					# Internationalization documentation
+├── 📁 src/ 					# Core source code directory
+│   ├── 📁 config/ 				# Configuration management
+│   ├── 📁 core/ 				# Core system modules
+│   ├── 📁 ctp/ 				# CTP interface module
+│   ├── 📁 data_center/ 		# Data center module
+│   ├── 📁 function/ 			# Core functions
+│   ├── 📁 services/ 			# Data service module
+│   ├── 📁 strategies/ 			# Strategy examples
+│   ├── 📁 strategy/ 			# Strategy module
+│   ├── 📁 trade/ 				# Trading module
+│   ├── 📁 tts/ 				# TTS interface module
+│   ├── 📁 util/ 				# Tool module
+│   ├── 📁 web/ 				# Web interface
+└── 📁 tests/ 					# Test script directory
 ```
 
 ## Core Technology Stack
@@ -107,29 +107,53 @@ Homalos/
 
 ### 1. **Core Module** (`src/core/`)
 
-- **event.py**: Event objects
-- **event_bus.py**: High-performance event bus
+- **event.py**: Event object
+- **async_handler_pool.py**: Asynchronous handler pool, optimized core components, supporting concurrent execution and lifecycle management of coroutine handlers
+- **enhanced_event_bus.py**: Enhanced Event Bus V2, an optimized version integrating an asynchronous handler pool, event scheduler, type safety, routing mechanisms, and health monitoring
+- **event.py**: Event object
+- **event_bus.py**: High-performance event bus (may be replaced by enhanced_event_bus.py in the future)
+- **event_dashboard.py**: Event monitoring and visualization dashboard, basic web interface
+- **event_monitor.py**: Event monitoring and visualization module, basic monitoring implementation
+- **event_router.py**: Intelligent event routing system, optimized core components, providing advanced event routing, filtering, and distribution mechanisms
+- **event_scheduler.py**: Intelligent event dispatcher, optimized core components, responsible for intelligent event distribution and execution strategy selection
+- **event_types.py**: Event type safety system, optimized core components, providing strongly typed event definition, validation, and serialization mechanisms
 - **gateway.py**: Abstract gateway class
-- **object.py**: Basic data structures
+- **gateway_state.py**: Gateway state enumeration
+- **health_monitor.py**: System health monitoring, optimized core components, providing comprehensive system health checks, monitoring, and alerting mechanisms
 - **logger.py**: Logging module
+- **object.py**: Basic data structures
 - **service_registry.py**: Service registry
 
-### 2. **Services Module** (`src/services/`)
+### 2. **Services Service Module** (`src/services/`)
 
-- **trading_engine.py**: Trading engine core
-- **data_service.py**: Unified data service
-- **performance_monitor.py**: Performance monitor
+- **data_service.py**: Unified data services
 
-### 3. **Strategy Module** (`src/strategies/`)
+### 3. **Strategy Module** (`src/strategy/`)
 
 - **base_strategy.py**: Strategy base class
-- **grid_trading_strategy.py**: Grid trading strategy
-- **minimal_strategy.py**: Minimal strategy example
-- **moving_average_strategy.py**: Moving average strategy
-- **strategy_factory.py**: Strategy factory
-- **strategy_template.py**: Strategy development template
+- **dependency_checker.py**: The dependency checker module provides pre-strategy dependency verification, including checks for gateway connectivity, contract information, and account funds.
+- **strategy_event_handler.py**: Strategy event handler, centrally processes, routes, distributes, and persists strategy events.
+- **strategy_factory.py**: Strategy factory, centrally manages strategy creation and configuration.
+- **strategy_health_monitor.py**: Strategy health monitor, monitors strategy status, detects anomalies, and automatically recovers.
+- **strategy_validator.py**: Strategy validator module, provides strategy code validation, including syntax checking, method validation, and parameter validation.
 
-### 4. **Trading Interface Modules**
+### 4. **Trading Module** (`src/trade`)
+
+- **account_manager.py**: Account Manager
+- **order_manager.py**: Order Manager
+- **performance_metrics.py**: Performance Monitoring Module, Real-time Monitoring of System and Strategy Performance Indicators
+- **risk_manager.py**: Risk Control Manager
+- **strategy_manager.py**: Strategy Manager
+- **trading_engine.py**: Trading Engine Core, Integrating Strategy, Risk Control, and Order Management
+
+### 5. **Strategy Example Module** (`src/strategies/`)
+
+- **grid_trading_strategy.py**: Grid Trading Strategy Example
+- **minimal_strategy.py**: Minimal Strategy Example
+- **moving_average_strategy.py**: Moving Average Strategy Example
+- **strategy_template.py**: Strategy Development Template
+
+### 6. **Trading Interface Modules**
 
 - **CTP Module** (`src/ctp/`): Shanghai Futures Exchange CTP interface
 - **TTS Module** (`src/tts/`): TTS trading interface
@@ -140,12 +164,17 @@ Both modules include:
 - `gateway/`: Python gateway implementation
 - `meson.build`: Build configuration
 
-### 5. **Configuration System** (`config/`)
+### 7. **Web Interface Module** (`web/`)
+
+- **integrated_web_server.py**: Integrated web server, inherits the server functionality of web_server.py and integrates the event monitoring dashboard
+- **web_server.py**: Web management interface server
+
+### 8. **System Configuration** (`config/`)
 
 - **2024/2025_holidays.json**: Trading calendar
 - **brokers.json.example**: Broker configuration template
 - **instrument_exchange_id.json**: Contract exchange mapping
-- **log_config.yaml**: Global logging configuration
+- **log_config.yaml**: Global log configuration
 - **product_info.ini**: Product information
 - **system.yaml.example**: Global system configuration template
 - **test_system.yaml.example**: Test mode global system configuration template
@@ -209,7 +238,7 @@ python build.py
 
 **Compilation Environment:**
 
-- Windows 10 + MSVC 2022
+- Windows 11 + MSVC 2022
 - Python 3.12 virtual environment
 - Meson 1.8.1 + Ninja build system
 - Pybind11 for Python-C++ bindings
@@ -219,6 +248,7 @@ python build.py
 - Configuration Manager ✅
 - Event Bus ✅
 - Data Service ✅
+- Data Center ✅
 - Trading Engine Core ✅
 - Performance Monitor ✅
 - Web Management Interface ✅
@@ -228,28 +258,28 @@ python build.py
 
 ### ✅ Completed Core Features
 
-#### 1. Infrastructure Layer (100% Complete)
+#### 1. Infrastructure Layer
 
 - Event Bus: Supports async/sync dual-channel processing, event monitoring and statistics ✅
 - Configuration Management: Supports hot reload, layered configuration, environment adaptation ✅
 - Logging System: Structured logging, multi-level output, file rotation ✅
 - Service Registry: Component registration and discovery mechanism ✅
 
-#### 2. Data Service Layer (100% Complete)
+#### 2. Data Service Layer
 
 - Database Management: SQLite storage, WAL mode, batch writing ✅
 - Market Data Processing: Tick data caching, real-time distribution, persistence ✅
 - Bar Generator: Multi-timeframe candlestick generation, incremental updates ✅
 - Historical Data Query: Asynchronous queries, data indexing ✅
 
-#### 3. Trading Engine Core (95% Complete)
+#### 3. Trading Engine Core
 
 - Strategy Management: Dynamic loading, lifecycle management, auto-discovery ✅
 - Risk Management: Parallel checking, multi-dimensional limits, real-time monitoring ✅
 - Order Management: State machine management, simulated execution, cancellation support ✅
 - Account Management: Position tracking, P&L calculation, fund management ✅
 
-#### 4. Strategy Framework (100% Complete)
+#### 4. Strategy Framework
 
 - BaseStrategy: Complete strategy base class, event-driven design ✅
 - Strategy Lifecycle: Initialize→Start→Run→Stop ✅
@@ -257,20 +287,20 @@ python build.py
 - Trading Interface: Order placement, cancellation, position queries ✅
 - Strategy Templates: Complete strategy development framework and examples ✅
 
-#### 5. Web Management Interface (100% Complete)
+#### 5. Web Management Interface
 
 - REST API: Strategy management, system monitoring, configuration management ✅
 - WebSocket: Real-time data push, strategy operation events, status updates ✅
 - Frontend Interface: Strategy management optimization, UUID auto-generation, real-time log feedback ✅
 - User Experience: Simplified operation flow, table layout optimization, real-time operation feedback ✅
 
-#### 6. Performance Monitoring (100% Complete)
+#### 6. Performance Monitoring
 
 - Real-time Monitoring: Latency, throughput, resource usage ✅
 - Alert System: Threshold monitoring, event notifications, multi-level alerts ✅
 - Performance Testing: Benchmarking, stress testing, end-to-end testing ✅
 
-#### 7. CTP Gateway Integration (100% Complete)
+#### 7. CTP Gateway Integration
 
 - Market Data Gateway: Real-time data reception, connection management ✅
 - Trading Gateway: Order execution, status synchronization ✅
@@ -278,7 +308,7 @@ python build.py
 - Event Integration: Dynamic subscription, status broadcasting ✅
 - Thread Safety: CTP API callback thread-safe bridging ✅
 
-#### 8. Data Center Optimization (100% Complete)
+#### 8. Data Center Optimization
 
 - Table Cache Mechanism: Data type isolation, race condition fixes ✅
 - Batch Write Optimization: Independent tick and bar data management ✅
@@ -445,4 +475,4 @@ class MyStrategy(BaseStrategy):
 ---
 
 *Homalos Quantitative Trading System - From Concept to Production*
-*Project Status: Under development | Last Updated: 2025-07-25*
+*Project Status: Under development | Last Updated: 2025-08-08*
