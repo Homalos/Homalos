@@ -290,7 +290,7 @@ class DataService:
             return {}
     
     def _handle_raw_tick(self, event: Event):
-        """处理原始tick数据"""
+        """处理原始tick数据，分发给订阅的策略"""
         tick_data = event.data
         if not isinstance(tick_data, TickData):
             return
@@ -303,7 +303,9 @@ class DataService:
             
             # 定期输出数据流统计 (每100个tick输出一次)
             if self.stats["tick_count"] % 100 == 0:
-                logger.info(f"📊 数据流统计: 已处理{self.stats['tick_count']}个tick, 当前合约={tick_data.symbol}, 订阅策略数={len(self.subscribers.get(tick_data.symbol, set()))}")
+                logger.info(f"数据流统计: 已处理{self.stats['tick_count']}个tick, "
+                            f"当前合约={tick_data.symbol}, "
+                            f"订阅策略数={len(self.subscribers.get(tick_data.symbol, set()))}")
             
             # 更新内存缓存
             symbol = tick_data.symbol
@@ -334,9 +336,9 @@ class DataService:
                 "DataService"
             ))
             
-            # 如果启用数据中心，发送数据到数据中心
-            if self.enable_data_center and self.data_center_available:
-                self._send_tick_to_data_center(tick_data)
+            # # 如果启用数据中心，发送数据到数据中心
+            # if self.enable_data_center and self.data_center_available:
+            #     self._send_tick_to_data_center(tick_data)
                 
             # K线合成
             bars = self.bar_manager.on_tick(tick_data)
@@ -372,7 +374,7 @@ class DataService:
                 ))
                 logger.debug(f"为策略 {strategy_id} 发布bar事件: {symbol}")
 
-            # 同时保持通用事件的发布
+                # 同时保持通用事件的发布
                 self.event_bus.publish(create_market_event(
                     EventType.MARKET_BAR,
                     bar_data,
@@ -543,30 +545,30 @@ class DataService:
         except Exception as e:
             logger.error(f"处理取消订阅请求失败: {e}")
     
-    def _send_tick_to_data_center(self, tick_data: TickData):
-        """发送tick数据到数据中心"""
-        try:
-            data = {
-                "symbol": tick_data.symbol,
-                "exchange": tick_data.exchange.value,
-                "datetime": tick_data.datetime.isoformat(),
-                "last_price": tick_data.last_price,
-                "volume": tick_data.volume,
-                "turnover": tick_data.turnover,
-                "open_interest": tick_data.open_interest,
-                "bid_price_1": tick_data.bid_price_1,
-                "ask_price_1": tick_data.ask_price_1,
-                "bid_volume_1": tick_data.bid_volume_1,
-                "ask_volume_1": tick_data.ask_volume_1
-            }
-            # 发布数据中心事件
-            self.event_bus.publish(create_market_event(
-                EventType.DATA_CENTER_TICK,
-                data,
-                "DataService"
-            ))
-        except Exception as e:
-            logger.error(f"发送tick数据到数据中心失败: {e}")
+    # def _send_tick_to_data_center(self, tick_data: TickData):
+    #     """发送tick数据到数据中心"""
+    #     try:
+    #         data = {
+    #             "symbol": tick_data.symbol,
+    #             "exchange": tick_data.exchange.value,
+    #             "datetime": tick_data.datetime.isoformat(),
+    #             "last_price": tick_data.last_price,
+    #             "volume": tick_data.volume,
+    #             "turnover": tick_data.turnover,
+    #             "open_interest": tick_data.open_interest,
+    #             "bid_price_1": tick_data.bid_price_1,
+    #             "ask_price_1": tick_data.ask_price_1,
+    #             "bid_volume_1": tick_data.bid_volume_1,
+    #             "ask_volume_1": tick_data.ask_volume_1
+    #         }
+    #         # 发布数据中心事件
+    #         self.event_bus.publish(create_market_event(
+    #             EventType.DATA_CENTER_TICK,
+    #             data,
+    #             "DataService"
+    #         ))
+    #     except Exception as e:
+    #         logger.error(f"发送tick数据到数据中心失败: {e}")
     
     def _send_bar_to_data_center(self, bar_data: BarData):
         """发送bar数据到数据中心"""
