@@ -16,6 +16,7 @@ import sys
 import time
 import importlib.util
 from collections import defaultdict
+from datetime import datetime
 from typing import Dict, Optional, Any
 from uuid import uuid4
 
@@ -26,7 +27,8 @@ from src.core.logger import get_logger
 from src.core.object import TickData, StrategyInfo
 from src.strategy.base_strategy import BaseStrategy
 from src.strategy.strategy_event_handler import StrategyEventHandler
-from src.strategy.strategy_health_monitor import StrategyHealthMonitor, HealthReport, AnomalyType
+from src.strategy.strategy_health_monitor import StrategyHealthMonitor, HealthReport, AnomalyType, HealthStatus, \
+    anomaly_type_mapping
 
 logger = get_logger("StrategyManager")
 
@@ -716,38 +718,60 @@ class StrategyManager:
                 return
 
             # 增加恢复尝试计数
-            self.recovery_attempts[strategy_uuid] = current_attempts + 1
+            attempt = current_attempts + 1
+            self.recovery_attempts[strategy_uuid] = attempt
 
-            logger.info(f"开始恢复策略: {strategy_info.strategy_name}, 尝试次数: {current_attempts + 1}")
+            logger.info(f"开始恢复策略: {strategy_info.strategy_name}, 尝试次数: {attempt}")
 
             # 发布恢复开始事件
-            self.event_bus.publish(create_trading_event(
-                EventType.STRATEGY_RECOVERY_STARTED,
-                {
-                    "strategy_uuid": strategy_uuid,
-                    "strategy_name": strategy_info.strategy_name,
-                    "issue_type": issue_type,
-                    "attempt": current_attempts + 1
-                },
-                "StrategyManager"
-            ))
+            try:
+                self.event_bus.publish(create_trading_event(
+                    EventType.STRATEGY_RECOVERY_STARTED,
+                    {
+                        "strategy_uuid": strategy_uuid,
+                        "strategy_name": strategy_info.strategy_name,
+                        "issue_type": issue_type,
+                        "attempt": attempt
+                    },
+                    "StrategyManager"
+                ))
+            except Exception as e:
+                logger.warning(f"发布恢复开始事件失败: {e}")
+
+            # 创建异常对象以传递给恢复方法
+            from src.strategy.strategy_health_monitor import Anomaly
+            anomaly = Anomaly(
+                type=anomaly_type_mapping.get(issue_type),
+                severity=HealthStatus.WARNING,
+                message=f"自动恢复尝试: {issue_type}",
+                details={},
+                strategy_id=strategy_uuid,
+                timestamp=datetime.now(),
+            )
 
             # 尝试恢复策略
-            recovery_success = await self.health_monitor.attempt_recovery(strategy_uuid)
+            try:
+                recovery_success = await self.health_monitor.attempt_recovery(strategy_uuid, anomaly)
+            except Exception as e:
+                logger.error(f"调用恢复逻辑时发生异常: {e}")
+                recovery_success = False
 
             if recovery_success:
                 logger.info(f"策略恢复成功: {strategy_info.strategy_name}")
 
                 # 发布恢复成功事件
-                self.event_bus.publish(create_trading_event(
-                    EventType.STRATEGY_RECOVERY_COMPLETED,
-                    {
-                        "strategy_uuid": strategy_uuid,
-                        "strategy_name": strategy_info.strategy_name,
-                        "attempt": current_attempts + 1
-                    },
-                    "StrategyManager"
-                ))
+                try:
+                    self.event_bus.publish(create_trading_event(
+                        EventType.STRATEGY_RECOVERY_COMPLETED,
+                        {
+                            "strategy_uuid": strategy_uuid,
+                            "strategy_name": strategy_info.strategy_name,
+                            "attempt": attempt
+                        },
+                        "StrategyManager"
+                    ))
+                except Exception as e:
+                    logger.warning(f"发布恢复成功事件失败: {e}")
 
                 # 重置恢复尝试计数
                 self.recovery_attempts[strategy_uuid] = 0
@@ -755,15 +779,18 @@ class StrategyManager:
                 logger.warning(f"策略恢复失败: {strategy_info.strategy_name}")
 
                 # 发布恢复失败事件
-                self.event_bus.publish(create_trading_event(
-                    EventType.STRATEGY_RECOVERY_FAILED,
-                    {
-                        "strategy_uuid": strategy_uuid,
-                        "strategy_name": strategy_info.strategy_name,
-                        "attempt": current_attempts + 1
-                    },
-                    "StrategyManager"
-                ))
+                try:
+                    self.event_bus.publish(create_trading_event(
+                        EventType.STRATEGY_RECOVERY_FAILED,
+                        {
+                            "strategy_uuid": strategy_uuid,
+                            "strategy_name": strategy_info.strategy_name,
+                            "attempt": attempt
+                        },
+                        "StrategyManager"
+                    ))
+                except Exception as e:
+                    logger.warning(f"发布恢复失败事件失败: {e}")
 
         except Exception as e:
             logger.error(f"策略恢复过程中发生异常: {e}")
