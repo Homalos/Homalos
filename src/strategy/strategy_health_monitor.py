@@ -47,6 +47,22 @@ class AnomalyType(Enum):
     TIMEOUT_ERROR = "TimeoutError"                     # 超时错误
 
 
+anomaly_type_mapping = {
+    "performance_degradation": AnomalyType.PERFORMANCE_DEGRADATION,
+    "memory_leak": AnomalyType.MEMORY_LEAK,
+    "high_error_rate": AnomalyType.HIGH_ERROR_RATE,
+    "stuck_execution": AnomalyType.STUCK_EXECUTION,
+    "resource_exhaustion": AnomalyType.RESOURCE_EXHAUSTION,
+    "network_issues": AnomalyType.NETWORK_ISSUES,
+    "data_quality_issues": AnomalyType.DATA_QUALITY_ISSUES,
+    "position_drift": AnomalyType.POSITION_DRIFT,
+    "risk_limit_breach": AnomalyType.RISK_LIMIT_BREACH,
+    "RuntimeError": AnomalyType.RUNTIME_ERROR,
+    "ConnectionError": AnomalyType.CONNECTION_ERROR,
+    "TimeoutError": AnomalyType.TIMEOUT_ERROR
+}
+
+
 @dataclass
 class HealthMetric:
     """健康指标"""
