@@ -32,15 +32,19 @@ class HealthStatus(Enum):
 
 class AnomalyType(Enum):
     """异常类型枚举"""
-    PERFORMANCE_DEGRADATION = "performance_degradation"
-    MEMORY_LEAK = "memory_leak"
-    HIGH_ERROR_RATE = "high_error_rate"
-    STUCK_EXECUTION = "stuck_execution"
-    RESOURCE_EXHAUSTION = "resource_exhaustion"
-    NETWORK_ISSUES = "network_issues"
-    DATA_QUALITY_ISSUES = "data_quality_issues"
-    POSITION_DRIFT = "position_drift"
-    RISK_LIMIT_BREACH = "risk_limit_breach"
+    PERFORMANCE_DEGRADATION = "performance_degradation" # 性能下降
+    MEMORY_LEAK = "memory_leak"                         # 内存泄漏
+    HIGH_ERROR_RATE = "high_error_rate"                 # 错误率
+    STUCK_EXECUTION = "stuck_execution"                 # 执行卡顿
+    RESOURCE_EXHAUSTION = "resource_exhaustion"         # 资源耗尽
+    NETWORK_ISSUES = "network_issues"                   # 网络问题
+    DATA_QUALITY_ISSUES = "data_quality_issues"         # 数据质量问题
+    POSITION_DRIFT = "position_drift"                   # 持仓漂移
+    RISK_LIMIT_BREACH = "risk_limit_breach"             # 风险限制突破
+
+    RUNTIME_ERROR = "RuntimeError"                     # 运行时错误
+    CONNECTION_ERROR = "ConnectionError"               # 连接错误
+    TIMEOUT_ERROR = "TimeoutError"                     # 超时错误
 
 
 @dataclass
@@ -491,13 +495,13 @@ class StrategyHealthMonitor:
         if not metrics:
             return 0.0
         
-        total_score = 0.0
+        total_score: float = 0.0
 
         for metric in metrics:
             if metric.threshold > 0 and metric.value is not None:
                 # 计算指标得分（0-100），比例限制在0-2之间
                 ratio = min(metric.value / metric.threshold, 2.0)  # 最大比例为2
-                metric_score = max(0, 100 - (ratio - 1) * 100)  # 超过阈值开始线性扣分
+                metric_score: float = max(0.0, 100.0 - (ratio - 1.0) * 100.0)  # 超过阈值开始线性扣分
                 total_score += metric_score
 
         return total_score / len(metrics)
@@ -629,8 +633,9 @@ class StrategyHealthMonitor:
             self.logger.error(f"检测趋势异常失败: {e}")
         
         return anomalies
-    
-    def _is_increasing_trend(self, values: List[float]) -> bool:
+
+    @staticmethod
+    def _is_increasing_trend(values: List[float]) -> bool:
         """检查是否为上升趋势"""
         if len(values) < 3:
             return False
