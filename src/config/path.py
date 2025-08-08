@@ -16,36 +16,28 @@ from src.util.path import get_path_ins
 
 
 class GlobalPath(object):
-    # ------------------常用目录完整路径---------------------------------------------------------
     # 项目根路径
-    project_root_path = Path(get_path_ins.get_project_dir())
+    project_root_path: Path = Path(get_path_ins.get_project_dir())
 
     # log，日志目录完整路径
-    log_dir_path = project_root_path / Params.log_dir_name
+    log_dir_path: Path = project_root_path / Params.log_dir_name
 
     # data，数据目录完整路径
-    data_dir_path = project_root_path / Params.data_dir_name
+    data_dir_path: Path = project_root_path / Params.data_dir_name
 
     # 配置目录完整路径(用于保存配置文件: instrument_exchange_id.json、product_info.ini、2025_holidays.json等)
-    project_files_path = project_root_path / "config"
+    project_files_path: Path = project_root_path / "config"
 
     # config_files，holiday文件存放目录完整路径
-    holiday_dir_path = project_files_path
-    # ------------------常用目录完整路径---------------------------------------------------------
+    holiday_dir_path: Path = project_files_path
 
-    # ------------------产品信息文件完整路径------------------------------------------------------
     # config_files/instrument_exchange_id.json，交易所配置信息文件完整路径
-    instrument_exchange_id_filepath = project_files_path / Params.instrument_exchange_id_filename
+    instrument_exchange_id_filepath: Path = project_files_path / Params.instrument_exchange_id_filename
 
     # config_files/product_info.ini，产品信息文件完整路径
-    product_info_filepath = project_files_path / Params.product_info_filename
+    product_info_filepath: Path = project_files_path / Params.product_info_filename
 
-    # ------------------产品信息文件完整路径------------------------------------------------------
-
-    # ------------------运行及回测配置文件完整路径-------------------------------------------------
     # config_files/log_config.yaml，全局日志配置文件完整路径
-    log_config_filepath = project_files_path / Params.log_config_filename
+    log_config_filepath: Path = project_files_path / Params.log_config_filename
 
-    broker_config_filepath = project_files_path / Params.broker_config_filename
-    # ------------------运行及回测配置文件完整路径-------------------------------------------------
-
+    broker_config_filepath: Path = project_files_path / Params.broker_config_filename
