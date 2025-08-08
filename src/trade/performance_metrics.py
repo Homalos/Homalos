@@ -74,12 +74,14 @@ class PerformanceMonitor:
         """设置事件处理器"""
         try:
             # 策略性能事件
-            self.event_bus.subscribe("strategy.order_placed", self._handle_order_placed)
-            self.event_bus.subscribe("strategy.order_filled", self._handle_order_filled)
-            self.event_bus.subscribe("strategy.trade_executed", self._handle_trade_executed)
+            self.event_bus.subscribe(EventType.STRATEGY_ORDER_PLACED, self._handle_order_placed)
+            self.event_bus.subscribe(EventType.STRATEGY_ORDER_FILLED, self._handle_order_filled)
+
+            # 交易执行事件
+            self.event_bus.subscribe(EventType.STRATEGY_TRADE_EXECUTED, self._handle_trade_executed)
 
             # 市场数据事件
-            self.event_bus.subscribe("market.tick", self._handle_tick_processed)
+            self.event_bus.subscribe(EventType.MARKET_TICK, self._handle_tick_processed)
 
             # 系统事件
             self.event_bus.subscribe("system.event_processed", self._handle_event_processed)
