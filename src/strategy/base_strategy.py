@@ -575,11 +575,9 @@ class BaseStrategy(ABC):
         try:
             # 通过事件总线查询网关状态
             if self.event_bus:
-                from src.core.event import create_trading_event
-                
                 # 发布网关状态查询事件
                 query_event = create_trading_event(
-                    "gateway.status_query",
+                    EventType.GATEWAY_STATUS_QUERY,
                     {
                         "gateway_type": "market_data",
                         "symbols": symbols,
