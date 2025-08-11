@@ -1,5 +1,10 @@
 # Disclaimer
 
+<p align="center">
+  English |
+  <a href="免责声明.md">简体中文</a>
+</p>
+
 **Last updated**: July 15, 2025
 
 **Effective date**: Effective upon first release

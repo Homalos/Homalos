@@ -714,7 +714,7 @@ class WebServer:
                 
                 # 特别关注策略启动/停止事件的详细调试
                 if event_type in ['strategy.started', 'strategy.stopped', 'strategy.log']:
-                    logger.info(f"🔍 [WebSocket] 策略关键事件: {event_type}")
+                    logger.info(f"[WebSocket] 策略关键事件: {event_type}")
                     logger.info(f"   事件数据: {event_data}")
                     logger.info(f"   事件来源: {event_source}")
                     logger.info(f"   事件时间戳: {event_timestamp}")
@@ -755,7 +755,7 @@ class WebServer:
                     
                     # 特别调试strategy.started事件的消息内容
                     if event_type == 'strategy.started':
-                        logger.info(f"🚀 [WebSocket] strategy.started消息内容: {message}")
+                        logger.info(f"[WebSocket] strategy.started消息内容: {message}")
                     
                     # 根据事件类型使用特殊的广播方法
                     if event_type in ["kline.update", "bar.generated"]:
@@ -789,7 +789,7 @@ class WebServer:
                         self._safe_schedule_task(self.ws_manager.broadcast(log_message))
                     elif event_type in ["strategy.started", "strategy.stopped", "strategy.loaded"]:
                         # 策略状态事件 - 确保被正确发送
-                        logger.info(f"🎯 [WebSocket] 发送策略状态事件: {event_type}")
+                        logger.info(f"[WebSocket] 发送策略状态事件: {event_type}")
                         self._safe_schedule_task(self.ws_manager.broadcast(message))
                     else:
                         # 其他事件使用通用广播
@@ -832,7 +832,7 @@ class WebServer:
                         # 事件循环正在运行，使用线程安全调用
                         self._main_loop.call_soon_threadsafe(
                             lambda: self._main_loop.create_task(coro)
-                        )
+                        )  # type: ignore
                     else:
                         # 事件循环没有运行，直接创建任务
                         self._main_loop.create_task(coro)
@@ -997,18 +997,28 @@ class WebServer:
     @staticmethod
     def _load_error_template(template_name: str, error_message: Optional[str] = None) -> str:
         """加载错误页面模板"""
+        # 防止路径遍历攻击，确保template_name不包含路径分隔符
+        if ".." in template_name or "/" in template_name or "\\" in template_name:
+            template_name = "error_404.html"  # 使用默认安全的模板名
+
         template_path = Path(__file__).parent / "static" / template_name
         try:
             template_content = template_path.read_text(encoding='utf-8')
             if error_message and "{{ERROR_MESSAGE}}" in template_content:
                 template_content = template_content.replace("{{ERROR_MESSAGE}}", error_message)
             return template_content
-        except Exception:
-            # 如果模板文件也无法加载，返回最基本的错误页面
+        except FileNotFoundError:
+            # 模板文件不存在时的处理
             if error_message:
                 return f"<html><body><h1>页面加载错误</h1><p>{error_message}</p></body></html>"
             else:
                 return "<html><body><h1>页面加载错误</h1><p>静态HTML文件不存在</p></body></html>"
+        except Exception:
+            # 其他异常情况的处理
+            if error_message:
+                return f"<html><body><h1>页面加载错误</h1><p>{error_message}</p></body></html>"
+            else:
+                return "<html><body><h1>页面加载错误</h1><p>>未知错误</p></body></html>"
     
     async def start(self, host: Optional[str] = None, port: Optional[int] = None):
         """启动Web服务器"""
@@ -1023,7 +1033,7 @@ class WebServer:
         actual_port: int = port or self.config.get("web.port", 8000)
         debug = self.config.get("web.debug", False)
         
-        logger.info(f"Web服务器启动: http://{actual_host}:{actual_port}")
+        logger.info("Web服务器启动: http" + f"://{actual_host}:{actual_port}")
         
         # 使用uvicorn启动服务器
         config = uvicorn.Config(
@@ -1041,7 +1051,7 @@ class WebServer:
         actual_port: int = port or self.config.get("web.port", 8000)
         debug = self.config.get("web.debug", False)
         
-        logger.info(f"Web服务器启动: http://{actual_host}:{actual_port}")
+        logger.info("Web服务器启动: http" + f"://{actual_host}:{actual_port}")
         
         uvicorn.run(
             self.app,
