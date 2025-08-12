@@ -54,8 +54,6 @@ class Logger:
         self.log_settings: dict = log_config_dict if log_config_dict else log_setting
         # 输出的最低日志级别（例如，"DEBUG"、"INFO"）。
         self.level: str = self.log_settings.get("level", "INFO")
-        self.log_rotation: str = "100 MB"  # 当文件超过 100MB 时(Rotate when file exceeds 100MB)
-        self.log_retention: str = "7 days"  # 保留日志 7 天(Keep logs for 7 days)
         self.module_name: str = "homalos"  # 用于日志文件命名模式的名称，默认项目名称
         self._configure_logger()
         self.module_loggers: Dict[str, Dict[str, Any]] = {}

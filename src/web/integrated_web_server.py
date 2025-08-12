@@ -152,9 +152,12 @@ class IntegratedWebServer(WebServer):
                     event_data_copy['batch_id'] = i + 1
                     event_data_copy['timestamp'] = time.time()
                     
-                    # 直接发布事件（EnhancedEventBus接受event_type和data）
+                    # 使用基础事件总线：构造 Event 对象再发布
                     try:
-                        event_id = self.event_bus.publish(event_type, event_data_copy)
+                        from src.core.event import Event
+                        event = Event(event_type, event_data_copy)
+                        self.event_bus.publish(event)
+                        event_id = event.trace_id
                         logger.debug(f"成功发布事件: {event_type}, event_id: {event_id}")
                     except Exception as event_error:
                         import traceback
@@ -655,25 +658,16 @@ class IntegratedWebServer(WebServer):
 async def main():
     """主函数"""
     from src.config.config_manager import ConfigManager
-    from src.core.enhanced_event_bus import EnhancedEventBus, EventBusConfig
+    from src.core.event_bus import EventBus
     from src.core.event_monitor import EventMonitor, EventMonitorIntegration
     from src.trade.trading_engine import TradingEngine
     
     try:
-        # 初始化组件 - 使用增强版事件总线以获得更好的监控效果
+        # 初始化组件 - 使用基础事件总线
         config = ConfigManager("config/system.yaml")
         
-        # 创建增强版事件总线配置
-        bus_config = EventBusConfig(
-            name="IntegratedWebServer",
-            enable_metrics=True,
-            enable_detailed_logging=True,
-            enable_health_monitoring=True
-        )
-        
-        # 创建并启动增强版事件总线
-        event_bus = EnhancedEventBus(bus_config)
-        event_bus.start()
+        # 创建基础事件总线（构造函数内已启动）
+        event_bus = EventBus(name="IntegratedWebServer")
         
         event_monitor = EventMonitor(name="IntegratedWebServer")
         
