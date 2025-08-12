@@ -173,7 +173,7 @@ class EventBusHealthCheck(HealthCheck):
     """事件总线健康检查"""
     
     def __init__(self, event_bus: 'EnhancedEventBus', **kwargs):
-        super().__init__("event_bus_v2", **kwargs)
+        super().__init__("event_bus", **kwargs)
         self.event_bus = weakref.ref(event_bus)  # 使用弱引用避免循环引用
     
     async def check(self) -> HealthCheckResult:
@@ -662,7 +662,7 @@ class EnhancedEventBus:
     
     def _get_handlers_for_event(self, event_type: str) -> List[Callable]:
         """获取事件的处理器"""
-        handlers = []
+        handlers: List[Callable] = []
         
         with self._handlers_lock:
             # 添加精确匹配的处理器
