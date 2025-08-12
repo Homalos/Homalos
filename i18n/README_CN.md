@@ -454,12 +454,12 @@ class MyStrategy(BaseStrategy):
 
 ### 技术文档
 
-- [系统规划文档](docs/system_plan.md)
-- [策略开发指南](docs/strategy_development_guide.md)
-- [策略增强功能文档](docs/strategy_enhancement_plan.md)
-- [API接口文档](http://127.0.0.1:8000/docs)
-- [项目进度总览](docs/project_completion_summary.md)
-- [问题修复历史](CHANGELOG.md)
+- [系统规划文档](../docs/system_plan.md)
+- [策略开发指南](../docs/strategy_development_guide.md)
+- [策略增强功能文档](../docs/strategy_enhancement_plan.md)
+- [项目进度总览](../docs/project_completion_summary.md)
+- [问题修复历史](../CHANGELOG.md)
+- [API接口文档]<http://127.0.0.1:8000/docs>
 
 ### 社区支持
 
