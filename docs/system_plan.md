@@ -621,12 +621,6 @@ monitor.add_alert_rule("custom_alert", threshold=100)
 
 ## 📚 参考资源
 
-### 技术文档
-- [策略开发指南](docs/strategy_development_guide.md)
-- [API接口文档](http://127.0.0.1:8000/docs)
-- [系统配置说明](config/system.yaml)
-- [项目完成总结](docs/PROJECT_COMPLETION_SUMMARY.md)
-
 ### 代码库
 - **GitHub仓库**: [Homalos](https://github.com/your-repo/Homalos)
 - **构建系统**: Meson + Ninja
