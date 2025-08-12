@@ -11,6 +11,7 @@
 整合异步处理池、事件调度器、类型安全、路由机制和健康监控
 """
 import fnmatch
+import inspect
 import json
 import threading
 import time
@@ -618,7 +619,6 @@ class EnhancedEventBus:
                 start_time = time.time()
 
                 # 检查处理器是否期望Event对象（通过检查参数名称）
-                import inspect
                 sig = inspect.signature(handler)
                 param_names = list(sig.parameters.keys())
                 
