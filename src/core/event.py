@@ -178,8 +178,10 @@ class EventType:
     ENGINE_STARTED = "engine.started"   # 引擎启动事件
     
     # 普通事件
-    SYSTEM_STARTUP = "system.startup"               # 系统启动事件
-    SYSTEM_SHUTDOWN = "system.shutdown"             # 系统关闭事件
+    SYSTEM_STARTUP = "system.startup"                       # 系统启动事件
+    SYSTEM_SHUTDOWN = "system.shutdown"                     # 系统关闭事件
+    SYSTEM_STARTUP_COMPLETE = "system.startup_complete"     # 系统启动完成事件
+    SYSTEM_SHUTDOWN_COMPLETE = "system.shutdown_complete"   # 系统关闭完成事件
 
     POSITION_UPDATED = "position.updated"           # 持仓信息更新事件
     ACCOUNT_UPDATED = "account.updated"             # 账户信息更新事件

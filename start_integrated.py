@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-@ProjectName: Homalos_v2  
+@ProjectName: Homalos_v2
 @FileName   : start_integrated.py
 @Date       : 2025/8/5
 @Author     : Homalos Team
@@ -10,13 +9,15 @@
 
 import argparse
 import asyncio
-import sys
 import signal
+import sys
 import time
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any
 
 from colorama import Fore, Style, init
+
+from src import __version__
 
 # 初始化colorama
 init(autoreset=True)
@@ -24,7 +25,7 @@ init(autoreset=True)
 # 添加项目根目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.core.logger import get_logger
+from src.core.logger import get_logger  # noqa: E402
 
 logger = get_logger("HomalosLauncher")
 
@@ -32,13 +33,13 @@ logger = get_logger("HomalosLauncher")
 class HomalosLauncher:
     """Homalos系统启动器"""
     
-    def __init__(self):
-        self.system = None
-        self.start_time = None
+    def __init__(self) -> None:
+        self.system: Any | None = None
+        self.start_time: float | None = None
         self.shutdown_event = asyncio.Event()
         self._setup_signal_handlers()
     
-    def _setup_signal_handlers(self):
+    def _setup_signal_handlers(self) -> None:
         """设置信号处理器"""
         def signal_handler(signum: int, frame: Any) -> None:
             logger.info(f"接收到退出信号 {signum}，正在关闭系统...")
@@ -46,8 +47,9 @@ class HomalosLauncher:
         
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
-    
-    def print_banner(self, mode: str = "完整系统"):
+
+    @staticmethod
+    def print_banner(mode: str = "完整系统") -> None:
         """打印系统横幅"""
         print(Fore.CYAN + f"""
 ╔═══════════════════════════════════════════════════════════════╗
@@ -59,7 +61,7 @@ class HomalosLauncher:
 ║ ██║  ██║╚██████╔╝██║ ╚═╝ ██║██║  ██║███████╗╚██████╔╝███████║ ║
 ║ ╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚══════╝ ║
 ║                                                               ║
-║               Homalos 期货量化交易系统 v2.0.0                 ║
+║               Homalos 期货量化交易系统 v{__version__.__version__}                 ║
 ║                                                               ║
 ║               基于 Python 的期货量化交易系统                  ║
 ║                                                               ║
@@ -69,16 +71,7 @@ class HomalosLauncher:
         """ + Style.RESET_ALL)
     
     @staticmethod
-    def validate_python_version():
-        """验证Python版本"""
-        if sys.version_info < (3, 10):
-            logger.error("需要Python 3.10或更高版本")
-            print(f"{Fore.RED}❌ 需要Python 3.10或更高版本，当前版本: {sys.version}")
-            sys.exit(1)
-        logger.info(f"Python版本检查通过: {sys.version}")
-    
-    @staticmethod
-    def validate_config_files():
+    def validate_config_files() -> None:
         """验证配置文件"""
         config_files = {
             "config/system.yaml": "config/system.yaml.example",
@@ -92,15 +85,15 @@ class HomalosLauncher:
         
         if missing_configs:
             logger.error("配置文件缺失")
-            print(f"{Fore.RED}❌ 以下配置文件缺失:")
+            print(f"{Fore.RED} 以下配置文件缺失:")
             for config_file, example_file in missing_configs:
                 print(f"   {config_file} (请复制 {example_file})")
             sys.exit(1)
         
         logger.info("配置文件检查通过")
     
-    async def start_trading_system(self, config_file: str = "config/system.yaml", 
-                                   web_enabled: bool = True):
+    async def start_trading_system(self, config_file: str = "config/system.yaml",
+                                   web_enabled: bool = True) -> None:
         """启动完整交易系统"""
         try:
             # 直接使用 start_homalos.py 中的 HomalosSystem
@@ -125,44 +118,7 @@ class HomalosLauncher:
             logger.error(f"交易系统启动失败: {e}")
             raise
     
-    async def start_web_only(self, config_file: str = "config/system.yaml"):
-        """启动Web界面模式 (连接到现有系统)"""
-        try:
-            from src.web.integrated_web_server import IntegratedWebServer
-            from src.config.config_manager import ConfigManager
-            from src.core.event_bus import EventBus
-            from src.core.event_monitor import EventMonitor
-            
-            logger.info("启动Web界面模式...")
-            self.print_banner("Web界面")
-            
-            # 创建基本组件用于Web界面
-            config = ConfigManager(config_file)
-            event_bus = EventBus()
-            event_monitor = EventMonitor(name="WebInterface")
-            
-            # 创建Web服务器（不需要完整的交易引擎）
-            web_server = IntegratedWebServer(
-                trading_engine=None,  # Web界面可以独立运行
-                event_bus=event_bus,
-                config=config,
-                event_monitor=event_monitor
-            )
-            
-            self.system = web_server
-            self.start_time = time.time()
-            
-            # 启动Web服务器
-            await web_server.start()
-            
-            # 等待关闭信号
-            await self.shutdown_event.wait()
-            
-        except Exception as e:
-            logger.error(f"Web服务器启动失败: {e}")
-            raise
-    
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         """关闭系统"""
         if not self.system:
             return
@@ -184,21 +140,17 @@ class HomalosLauncher:
         except Exception as e:
             logger.error(f"系统关闭过程中发生错误: {e}")
     
-    async def run(self, mode: str, config_file: str = "config/system.yaml", 
-                  web_enabled: bool = True):
+    async def run(self, mode: str, config_file: str = "config/system.yaml",
+                  web_enabled: bool = True) -> None:
         """运行系统"""
         try:
             # 验证环境
-            self.validate_python_version()
             self.validate_config_files()
             
             # 根据模式启动对应组件
-            if mode == "trading":
-                await self.start_trading_system(config_file, web_enabled)
-            elif mode == "web":
-                await self.start_web_only(config_file)
-            else:
-                raise ValueError(f"不支持的运行模式: {mode}")
+            if mode != "trading":
+                raise ValueError("不支持的运行模式: 仅支持 'trading'")
+            await self.start_trading_system(config_file, web_enabled)
         
         except KeyboardInterrupt:
             logger.info("收到中断信号")
@@ -209,7 +161,7 @@ class HomalosLauncher:
             await self.shutdown()
 
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
     """解析命令行参数"""
     parser = argparse.ArgumentParser(
         description="Homalos量化交易系统统一启动器",
@@ -217,21 +169,19 @@ def parse_arguments():
         epilog="""
 运行模式说明:
   trading  - 启动完整交易系统 (默认包含Web界面)
-  web      - 仅启动Web界面 (连接到现有系统)
 
 注意: 数据中心请使用独立脚本 start_data_center.py 启动
 
 示例:
-  python start_integrated.py                    # 启动完整交易系统
-  python start_integrated.py --mode trading --no-web  # 启动交易系统但不启动Web界面
-  python start_integrated.py --mode web         # 仅启动Web界面
-  python start_integrated.py --config config/custom.yaml  # 使用自定义配置文件
+  python start_integrated.py                                # 启动完整交易系统
+  python start_integrated.py --mode trading --no-web        # 启动交易系统但不启动Web界面
+  python start_integrated.py --config config/custom.yaml    # 使用自定义配置文件
         """
     )
     
     parser.add_argument(
         "--mode", "-m",
-        choices=["trading", "web"],
+        choices=["trading"],
         default="trading",
         help="运行模式 (默认: trading)"
     )
@@ -251,13 +201,13 @@ def parse_arguments():
     parser.add_argument(
         "--version", "-v",
         action="version",
-        version="Homalos v2.0.0"
+        version="Homalos v0.0.1"
     )
     
     return parser.parse_args()
 
 
-async def main():
+async def main() -> None:
     """主函数"""
     try:
         # 解析命令行参数
@@ -278,7 +228,7 @@ async def main():
         sys.exit(1)
 
 
-def run_system():
+def run_system() -> None:
     """同步入口函数"""
     try:
         asyncio.run(main())
