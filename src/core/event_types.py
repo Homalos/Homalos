@@ -523,15 +523,15 @@ class TradingEventData(TypedEventData):
     price: Optional[float] = None
     order_id: Optional[str] = None
     strategy_id: Optional[str] = None
-    
-    @field_validator('quantity')
-    def quantity_must_be_positive(self, v):
+
+    @classmethod
+    def quantity_must_be_positive(cls, v):
         if v <= 0:
             raise ValueError('Quantity must be positive')
         return v
     
-    @field_validator('price')
-    def price_must_be_positive(self, v):
+    @classmethod
+    def price_must_be_positive(cls, v):
         if v is not None and v <= 0:
             raise ValueError('Price must be positive')
         return v
