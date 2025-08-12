@@ -10,6 +10,7 @@
 @Description: 增强事件总线 V2 - 第二阶段优化版本
 整合异步处理池、事件调度器、类型安全、路由机制和健康监控
 """
+import fnmatch
 import json
 import threading
 import time
@@ -661,7 +662,6 @@ class EnhancedEventBus:
     
     def _get_handlers_for_event(self, event_type: str) -> List[Callable]:
         """获取事件的处理器"""
-        import fnmatch
         handlers = []
         
         with self._handlers_lock:
