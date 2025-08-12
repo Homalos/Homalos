@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Type, TypeVar, Generic
 
-from pydantic import BaseModel, ValidationError, field_validator
+from pydantic import BaseModel, ValidationError
 
 from src.core.event import Event, EventPriority, EventType
 from src.core.logger import get_logger
@@ -546,8 +546,8 @@ class MarketDataEventData(TypedEventData):
     bid: Optional[float] = None
     ask: Optional[float] = None
     
-    @field_validator('price', 'volume')
-    def must_be_positive(self, v):
+    @classmethod
+    def must_be_positive(cls, v):
         if v <= 0:
             raise ValueError('Price and volume must be positive')
         return v
