@@ -109,9 +109,8 @@ Homalos/
 
 - **event.py**: Event object
 - **async_handler_pool.py**: Asynchronous handler pool, optimized core components, supporting concurrent execution and lifecycle management of coroutine handlers
-- **enhanced_event_bus.py**: Enhanced Event Bus V2, an optimized version integrating an asynchronous handler pool, event scheduler, type safety, routing mechanisms, and health monitoring
 - **event.py**: Event object
-- **event_bus.py**: High-performance event bus (may be replaced by enhanced_event_bus.py in the future)
+- **event_bus.py**: High-performance event bus (core and recommended)
 - **event_dashboard.py**: Event monitoring and visualization dashboard, basic web interface
 - **event_monitor.py**: Event monitoring and visualization module, basic monitoring implementation
 - **event_router.py**: Intelligent event routing system, optimized core components, providing advanced event routing, filtering, and distribution mechanisms

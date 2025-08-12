@@ -109,9 +109,7 @@ Homalos/
 
 - **event.py**: 事件对象
 - **async_handler_pool.py**: 异步处理器池，优化核心组件，支持协程处理器的并发执行和生命周期管理
-- **enhanced_event_bus.py**: 增强事件总线 V2，优化版本，整合异步处理池、事件调度器、类型安全、路由机制和健康监控
-- **event.py**: 事件对象
-- **event_bus.py**: 高性能事件总线(未来可能会被enhanced_event_bus.py代替)
+- **event_bus.py**: 高性能事件总线（核心与推荐）
 - **event_dashboard.py**: 事件监控可视化仪表板，基础Web界面
 - **event_monitor.py**: 事件监控和可视化模块，基础监控实现
 - **event_router.py**: 智能事件路由系统 ，优化核心组件，提供高级事件路由、过滤和分发机制

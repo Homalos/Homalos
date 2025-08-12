@@ -14,7 +14,7 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, List, Dict, Tuple, Any as AnyType
 
 from fastapi import HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
@@ -33,14 +33,14 @@ class IntegratedWebServer(WebServer):
     继承原有Web服务器功能，并集成事件监控仪表板
     """
     
-    def __init__(self, trading_engine, event_bus, config, event_monitor: Optional[EventMonitor] = None):
+    def __init__(self, trading_engine: Any, event_bus: Any, config: Any, event_monitor: Optional[EventMonitor] = None) -> None:
         super().__init__(trading_engine, event_bus, config)
         self.event_monitor = event_monitor
         
         # 添加事件监控相关路由
         self._setup_dashboard_routes()
     
-    async def start(self, host: Optional[str] = None, port: Optional[int] = None):
+    async def start(self, host: Optional[str] = None, port: Optional[int] = None) -> None:
         """启动集成Web服务器"""
         # 保存当前事件循环引用（确保IntegratedWebServer也能正确保存）
         try:
@@ -52,21 +52,21 @@ class IntegratedWebServer(WebServer):
         # 调用父类的启动方法
         await super().start(host, port)
     
-    def _setup_dashboard_routes(self):
+    def _setup_dashboard_routes(self) -> None:
         """设置事件监控仪表板路由"""
         
         @self.app.get("/dashboard", response_class=HTMLResponse)
-        async def dashboard():
+        async def dashboard() -> Any:
             """事件监控仪表板页面"""
             return self._get_dashboard_html()
         
         @self.app.get("/chart.html", response_class=HTMLResponse)
-        async def chart_page():
+        async def chart_page() -> Any:
             """交易图表页面"""
             return self._get_chart_html()
         
         @self.app.get("/api/dashboard/stats")
-        async def dashboard_stats():
+        async def dashboard_stats() -> Any:
             """获取事件统计数据"""
             if not self.event_monitor:
                 raise HTTPException(status_code=503, detail="事件监控器未启用")
@@ -79,20 +79,26 @@ class IntegratedWebServer(WebServer):
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.app.get("/api/dashboard/timeseries")
-        async def dashboard_timeseries(minutes: int = 60):
+        async def dashboard_timeseries(minutes: int = 60) -> Any:
             """获取时间序列数据"""
             if not self.event_monitor:
                 raise HTTPException(status_code=503, detail="事件监控器未启用")
             
             try:
-                timeseries = self.event_monitor.get_timeseries_data(minutes)
+                # 使用基础监控接口聚合多种时间序列
+                series_metrics: List[str] = [
+                    "event_count", "processing_time", "queue_wait_time", "error_rate", "throughput"
+                ]
+                timeseries: Dict[str, List[Tuple[float, float]]] = {}
+                for metric in series_metrics:
+                    timeseries[metric] = self.event_monitor.get_time_series_data(metric, minutes)
                 return self._serialize_dashboard_data(timeseries)
             except Exception as e:
                 logger.error(f"获取时间序列数据失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.app.get("/api/dashboard/alerts")
-        async def dashboard_alerts(limit: int = 50):
+        async def dashboard_alerts(limit: int = 50) -> Any:
             """获取告警信息"""
             if not self.event_monitor:
                 raise HTTPException(status_code=503, detail="事件监控器未启用")
@@ -105,7 +111,7 @@ class IntegratedWebServer(WebServer):
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.app.post("/api/test/publish_event")
-        async def test_publish_event(event_type: str, data: dict = None):
+        async def test_publish_event(event_type: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
             """测试事件发布API"""
             try:
                 from src.core.event import Event
@@ -121,7 +127,7 @@ class IntegratedWebServer(WebServer):
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.app.post("/api/test/publish_batch_events")
-        async def test_publish_batch_events(request: Request):
+        async def test_publish_batch_events(request: Request) -> Dict[str, Any]:
             """批量发布测试事件"""
             try:
                 # 获取事件数量，默认为5
@@ -133,7 +139,7 @@ class IntegratedWebServer(WebServer):
                 except Exception:
                     pass  # 使用默认值
                 
-                test_events = [
+                test_events: List[Tuple[str, Dict[str, Any]]] = [
                     ("test.success", {"message": "成功测试事件", "value": 100}),
                     ("test.warning", {"message": "警告测试事件", "level": "warning"}),
                     ("test.error", {"message": "错误测试事件", "error_code": 500}),
@@ -144,7 +150,7 @@ class IntegratedWebServer(WebServer):
                     ("system.info", {"message": "系统信息", "component": "web_server"})
                 ]
                 
-                published_events = []
+                published_events: List[Dict[str, Any]] = []
                 for i in range(count):
                     event_type, event_data = test_events[i % len(test_events)]
                     # 为每个事件添加唯一标识
@@ -188,7 +194,7 @@ class IntegratedWebServer(WebServer):
             symbol: Optional[str] = None,
             start_time: Optional[str] = None,
             end_time: Optional[str] = None
-        ):
+        ) -> Any:
             """获取交易信号 - 只有在策略运行时才返回数据"""
             try:
                 # 检查是否有运行中的策略
@@ -209,7 +215,7 @@ class IntegratedWebServer(WebServer):
                     )
                 
                 # 如果有运行中的策略，返回交易信号（这里暂时返回空数据，实际应从数据库获取）
-                signals = []
+                signals: List[Dict[str, Any]] = []
                 # TODO: 实现从数据库或缓存获取交易信号的逻辑
                 # signals = self.trading_engine.get_trading_signals(...)
                 
@@ -231,7 +237,7 @@ class IntegratedWebServer(WebServer):
             symbol: Optional[str] = None,
             start_time: Optional[str] = None,
             end_time: Optional[str] = None
-        ):
+        ) -> Any:
             """获取交易订单 - 只有在策略运行时才返回数据"""
             try:
                 # 检查是否有运行中的策略
@@ -252,7 +258,7 @@ class IntegratedWebServer(WebServer):
                     )
                 
                 # 如果有运行中的策略，获取订单数据
-                orders = []
+                orders: List[Dict[str, Any]] = []
                 if strategy_uuid and hasattr(self.trading_engine, 'order_manager'):
                     orders = self.trading_engine.order_manager.get_strategy_orders(strategy_uuid)
                 
@@ -273,7 +279,7 @@ class IntegratedWebServer(WebServer):
             strategy_uuid: Optional[str] = None,
             start_time: Optional[str] = None,
             end_time: Optional[str] = None
-        ):
+        ) -> Any:
             """获取策略绩效 - 只有在策略运行时才返回数据"""
             try:
                 # 检查是否有运行中的策略
@@ -294,7 +300,7 @@ class IntegratedWebServer(WebServer):
                     )
                 
                 # 如果有运行中的策略，返回绩效数据（这里暂时返回空数据，实际应计算绩效）
-                performance = {}
+                performance: Dict[str, Any] = {}
                 # TODO: 实现策略绩效计算逻辑
                 # performance = self.trading_engine.get_strategy_performance(...)
                 
@@ -315,7 +321,7 @@ class IntegratedWebServer(WebServer):
             symbol: str,
             interval: str = "1m",
             limit: int = 200
-        ):
+        ) -> Any:
             """获取K线数据"""
             try:
                 # 生成模拟K线数据用于演示
@@ -335,11 +341,11 @@ class IntegratedWebServer(WebServer):
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.app.websocket("/ws/dashboard")
-        async def dashboard_websocket(websocket: WebSocket):
+        async def dashboard_websocket(websocket: WebSocket) -> None:
             """事件监控仪表板WebSocket连接"""
             await websocket.accept()
             
-            async def safe_send_json(data: dict):
+            async def safe_send_json(data: Dict[str, Any]) -> bool:
                 """安全发送JSON数据，检查连接状态"""
                 try:
                     # 检查WebSocket连接状态
