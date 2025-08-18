@@ -7,7 +7,7 @@
 @Author     : Donny
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: Web管理界面服务器
+@Description: Web管理界面服务器，由homalos_system.py启动
 """
 import asyncio
 import datetime
@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, create_trading_event
-from src.core.event_bus import EventBus
+from src.core.event_bus import BasicEventBus as EventBus
 from src.core.logger import get_logger
 from src.strategy.base_strategy import BaseStrategy
 from src.trade.trading_engine import TradingEngine
@@ -41,7 +41,7 @@ class StrategyRequest(BaseModel):
     """策略加载请求"""
     strategy_path: str = Field(..., description="策略文件路径")
     strategy_name: Optional[str] = Field(None, description="策略名称（可选）")
-    params: Dict[str, Any] = Field(default_factory=dict, description="策略参数")
+    params: dict[str, Any] = Field(default_factory=dict, description="策略参数")
 
 
 class StrategyActionRequest(BaseModel):
@@ -51,7 +51,7 @@ class StrategyActionRequest(BaseModel):
 
 class SubscriptionRequest(BaseModel):
     """行情订阅请求"""
-    symbols: List[str] = Field(..., description="合约列表")
+    symbols: list[str] = Field(..., description="合约列表")
     strategy_id: str = Field(..., description="策略ID")
 
 
@@ -77,25 +77,25 @@ class SystemResponse(BaseModel):
 class WebSocketManager:
     """WebSocket连接管理器"""
     
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
-        self.connection_info: Dict[WebSocket, Dict[str, Any]] = {}
+    def __init__(self) -> None:
+        self.active_connections: list[WebSocket] = []
+        self.connection_info: dict[WebSocket, dict[str, Any]] = {}
     
-    async def connect(self, websocket: WebSocket, client_info: Optional[Dict[str, Any]] = None):
+    async def connect(self, websocket: WebSocket, client_info: Optional[Dict[str, Any]] = None) -> None:
         """建立连接"""
         await websocket.accept()
         self.active_connections.append(websocket)
         self.connection_info[websocket] = client_info or {}
         logger.info(f"WebSocket连接建立，当前连接数: {len(self.active_connections)}")
     
-    def disconnect(self, websocket: WebSocket):
+    def disconnect(self, websocket: WebSocket) -> None:
         """断开连接"""
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
             self.connection_info.pop(websocket, None)
             logger.info(f"WebSocket连接断开，当前连接数: {len(self.active_connections)}")
     
-    async def send_personal_message(self, message: Dict[str, Any], websocket: WebSocket):
+    async def send_personal_message(self, message: dict[str, Any], websocket: WebSocket) -> None:
         """发送个人消息"""
         try:
             await websocket.send_text(json.dumps(message, ensure_ascii=False))
@@ -103,7 +103,7 @@ class WebSocketManager:
             logger.error(f"发送WebSocket消息失败: {e}")
             self.disconnect(websocket)
     
-    async def broadcast(self, message: Dict[str, Any]):
+    async def broadcast(self, message: dict[str, Any]) -> None:
         """广播消息"""
         if not self.active_connections:
             return
@@ -122,7 +122,7 @@ class WebSocketManager:
         for connection in disconnected:
             self.disconnect(connection)
     
-    async def broadcast_kline_update(self, symbol: str, interval: str, kline_data: Dict[str, Any]):
+    async def broadcast_kline_update(self, symbol: str, interval: str, kline_data: Dict[str, Any]) -> None:
         """广播K线数据更新"""
         message = {
             "type": "kline_update",
@@ -133,7 +133,7 @@ class WebSocketManager:
         }
         await self.broadcast(message)
     
-    async def broadcast_trading_signal(self, signal_data: Dict[str, Any]):
+    async def broadcast_trading_signal(self, signal_data: dict[str, Any]) -> None:
         """广播交易信号"""
         # 处理信号数据中的OrderRequest对象
         processed_data = self._process_signal_data(signal_data)
@@ -145,7 +145,7 @@ class WebSocketManager:
         }
         await self.broadcast(message)
     
-    def _process_signal_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _process_signal_data(self, data: dict[str, Any]) -> dict[str, Any]:
         """处理信号数据，转换不可序列化对象"""
         return self._convert_to_serializable(data)
     
@@ -174,7 +174,7 @@ class WebSocketManager:
             # 基本类型直接返回
             return obj
     
-    async def broadcast_order_update(self, order_data: Dict[str, Any]):
+    async def broadcast_order_update(self, order_data: Dict[str, Any]) -> None:
         """广播订单更新"""
         # 处理订单数据中的枚举对象
         processed_data = self._process_signal_data(order_data)
@@ -186,7 +186,7 @@ class WebSocketManager:
         }
         await self.broadcast(message)
     
-    async def broadcast_strategy_performance(self, strategy_name: str, performance_data: Dict[str, Any]):
+    async def broadcast_strategy_performance(self, strategy_name: str, performance_data: Dict[str, Any]) -> None:
         """广播策略绩效更新"""
         message = {
             "type": "strategy_performance",
@@ -210,6 +210,9 @@ class WebServer:
         
         # 保存事件循环引用
         self._main_loop: Optional[asyncio.AbstractEventLoop] = None
+        
+        # 关闭标志
+        self._is_shutting_down = False
         
         # 创建FastAPI应用
         self.app = self._create_app()
@@ -247,7 +250,7 @@ class WebServer:
         
         return app
     
-    def _register_routes(self, app: FastAPI):
+    def _register_routes(self, app: FastAPI) -> None:
         """注册路由"""
         
         # 主页
@@ -687,6 +690,10 @@ class WebServer:
         def event_monitor(event: Event):
             """事件监控器，推送实时更新"""
             try:
+                # 检查系统是否正在关闭
+                if self._is_shutting_down:
+                    logger.debug("系统正在关闭，跳过事件处理")
+                    return
                 # 扩展需要推送的事件类型，包含策略相关事件
                 push_events = [
                     "strategy.loaded", "strategy.started", "strategy.stopped", "strategy.error",
@@ -813,16 +820,23 @@ class WebServer:
             logger.warning("Event bus does not support monitoring")
         logger.info("WebSocket事件监控器已注册")
     
-    def _safe_schedule_task(self, coro):
+    def _safe_schedule_task(self, coro) -> None:
         """安全地调度异步任务"""
         try:
             # 方法1: 尝试获取当前事件循环
             try:
                 loop = asyncio.get_running_loop()
+                # 检查事件循环是否已关闭
+                if loop.is_closed():
+                    logger.debug("事件循环已关闭，跳过异步任务")
+                    if hasattr(coro, 'close'):
+                        coro.close()
+                    return
                 loop.create_task(coro)
                 return
             except RuntimeError:
                 # 当前线程没有运行的事件循环
+                logger.debug("无运行中的事件循环，尝试备用方案")
                 pass
             
             # 方法2: 使用保存的主事件循环
@@ -834,14 +848,16 @@ class WebServer:
                             lambda: self._main_loop.create_task(coro)
                         )  # type: ignore
                     else:
-                        # 事件循环没有运行，直接创建任务
-                        self._main_loop.create_task(coro)
+                        # 事件循环没有运行，跳过任务
+                        logger.debug("主事件循环未运行，跳过异步任务")
+                        if hasattr(coro, 'close'):
+                            coro.close()
                     return
                 except Exception as e:
                     logger.debug(f"使用主事件循环失败: {e}")
             
             # 方法3: 同步回退 - 记录但不执行异步操作
-            logger.debug("无法调度WebSocket异步任务，跳过此次推送")
+            logger.debug("无法调度WebSocket异步任务，系统可能正在关闭，跳过此次推送")
             # 安全关闭协程
             if hasattr(coro, 'close'):
                 coro.close()
@@ -1020,7 +1036,7 @@ class WebServer:
             else:
                 return "<html><body><h1>页面加载错误</h1><p>>未知错误</p></body></html>"
     
-    async def start(self, host: Optional[str] = None, port: Optional[int] = None):
+    async def start(self, host: Optional[str] = None, port: Optional[int] = None) -> None:
         """启动Web服务器"""
         # 保存当前事件循环引用
         try:
@@ -1045,7 +1061,7 @@ class WebServer:
         server = uvicorn.Server(config)
         await server.serve()
     
-    def run_sync(self, host: Optional[str] = None, port: Optional[int] = None):
+    def run_sync(self, host: Optional[str] = None, port: Optional[int] = None) -> None:
         """同步启动Web服务器"""
         actual_host: str = host or self.config.get("web.host", "0.0.0.0")
         actual_port: int = port or self.config.get("web.port", 8000)
@@ -1059,19 +1075,9 @@ class WebServer:
             port=actual_port,
             log_level="info" if not debug else "debug"
         )
-
-# Web页面由start_homalos.py启动
-# if __name__ == "__main__":
-#     # 创建简单的配置管理器用于演示
-#     from src.config.config_manager import ConfigManager
-#     from src.core.event_bus import EventBus
-#     from src.trade.trading_engine import TradingEngine
-#
-#     # 初始化组件
-#     config = ConfigManager("config/system.yaml")
-#     event_bus = EventBus()
-#     trading_engine = TradingEngine(event_bus, config)
-#
-#     # 创建并启动Web服务器
-#     web_server = WebServer(trading_engine, event_bus, config)
-#     web_server.run_sync()
+    
+    def shutdown(self) -> None:
+        """关闭Web服务器，停止事件处理"""
+        logger.info("正在关闭Web服务器...")
+        self._is_shutting_down = True
+        logger.info("Web服务器事件处理已停止")
