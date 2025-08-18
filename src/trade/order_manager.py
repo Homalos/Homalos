@@ -18,7 +18,7 @@ from typing import Dict, List, Any
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, EventType, create_trading_event
-from src.core.event_bus import EventBus
+from src.core.event_bus import BasicEventBus as EventBus
 from src.core.logger import get_logger
 from src.core.object import OrderRequest, OrderData, TradeData, Status, OrderInfo
 
@@ -31,11 +31,11 @@ class OrderManager:
         self.event_bus = event_bus
         self.config = config
 
-        self.orders: Dict[str, OrderInfo] = {}
-        self.strategy_orders: Dict[str, set] = defaultdict(set)  # strategy_id -> order_ids
+        self.orders: dict[str, OrderInfo] = {}
+        self.strategy_orders: dict[str, set] = defaultdict(set)  # strategy_id -> order_ids
         # 添加订单ID映射：系统订单ID -> CTP订单ID
-        self.system_to_ctp_orderid: Dict[str, str] = {}
-        self.ctp_to_system_orderid: Dict[str, str] = {}
+        self.system_to_ctp_orderid: dict[str, str] = {}
+        self.ctp_to_system_orderid: dict[str, str] = {}
 
         # 注册事件处理器
         self.event_bus.subscribe(EventType.RISK_APPROVED, self._handle_risk_approved)
@@ -177,7 +177,7 @@ class OrderManager:
         order_id = event.data["order_id"]
         asyncio.create_task(self.cancel_order(order_id))
 
-    def get_strategy_orders(self, strategy_id: str) -> List[Dict[str, Any]]:
+    def get_strategy_orders(self, strategy_id: str) -> list[dict[str, Any]]:
         """获取策略的所有订单"""
         order_ids = self.strategy_orders.get(strategy_id, set())
         return [
