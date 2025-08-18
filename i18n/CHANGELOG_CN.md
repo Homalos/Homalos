@@ -1,5 +1,70 @@
 # 更新历史
 
+## v0.0.1.202508181540
+
+### ✅ 系统事件总线迁移：从EventBus到BasicEventBus的完整迁移
+
+**核心功能实现**：
+
+- ✅ **事件总线替换**：成功将量化交易系统从`event_bus.py`迁移到`basic_event_bus.py`
+- ✅ **API兼容性增强**：为BasicEventBus添加了全面的兼容性层，保持与原EventBus的API兼容性
+- ✅ **Web界面集成**：成功适配集成Web服务器和事件监控仪表板以使用BasicEventBus
+- ✅ **系统完整性保障**：确保所有原有代码继续正确运行，无运行时错误
+
+**技术实现**：
+
+```python
+// 核心事件总线迁移变更
+- 增强BasicEventBus构造函数，添加与EventBus兼容的默认值
+- 为publish/subscribe方法添加is_async参数支持，保持API兼容性
+- 添加auto_start功能以匹配EventBus行为
+- 添加name属性访问器以兼容属性访问方式
+```
+
+**更新文件**：
+
+- ✅ **src/core/basic_event_bus.py**：增强了EventBus API的兼容性层
+- ✅ **homalos_system.py**：将导入从EventBus更新为BasicEventBus
+- ✅ **src/web/integrated_web_server.py**：迁移使用BasicEventBus
+- ✅ **src/web/web_server.py**：更新事件总线导入和使用
+- ✅ **src/services/data_service.py**：迁移到BasicEventBus
+- ✅ **src/trade/trading_engine.py**：更新使用BasicEventBus
+- ✅ **src/core/service_registry.py**：更新事件总线导入
+- ✅ **src/trade/*.py**：所有交易模块迁移到BasicEventBus
+
+**兼容性增强**：
+
+- ✅ **构造函数兼容性**：将默认名称从"default"改为"EventBus"，设置auto_start=True
+- ✅ **方法兼容性**：为publish/subscribe方法添加is_async参数（内部忽略）
+- ✅ **属性兼容性**：添加name属性访问器以支持EventBus样式的属性访问
+- ✅ **行为兼容性**：保持EventBus的初始化和启动行为
+
+**功能特性**：
+
+- 🔄 **无缝迁移**：系统使用BasicEventBus后继续完全按照之前的方式运行
+- ⚡ **性能提升**：BasicEventBus提供更简单、更高效的事件处理
+- 🛡️ **增强可靠性**：统一同步处理消除了复杂的异步/同步队列管理
+- 📊 **功能保持**：所有事件监控和Web仪表板功能得以保留
+- 🔧 **简化架构**：更清洁的事件总线实现，降低复杂性
+
+**验证结果**：
+
+- ✅ 系统启动成功，无导入或初始化错误
+- ✅ BasicEventBus兼容性层运行完美
+- ✅ 事件发布和订阅正常工作
+- ✅ Web事件监控仪表板正确显示事件
+- ✅ 所有系统组件与BasicEventBus成功集成
+- ✅ 事件统计和监控功能完全正常
+
+**技术改进**：
+
+- **简化事件处理**：单一同步队列消除了复杂的双队列管理
+- **更好的代码可维护性**：更清洁的BasicEventBus实现更易调试和扩展
+- **增强系统可靠性**：减少复杂性降低了潜在故障点
+- **功能保留**：完全向后兼容确保迁移过程中无功能丢失
+
+---
+
 ## v0.0.1.202508041520
 
 ### ✅ 数据中心合约订阅健壮性增强
