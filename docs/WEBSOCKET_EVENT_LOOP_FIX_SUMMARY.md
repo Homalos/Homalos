@@ -165,7 +165,7 @@ Web服务器创建成功
 
 1. **重新启动交易系统**：
    ```bash
-   python start_integrated.py
+   python homalos_launcher.py
    ```
 
 2. **加载策略测试**：

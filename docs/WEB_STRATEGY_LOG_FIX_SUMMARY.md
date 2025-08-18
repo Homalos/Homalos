@@ -171,7 +171,7 @@ handleStrategyLogMessage(data) {
 
 1. **重新启动交易系统**：
    ```bash
-   python start_integrated.py
+   python homalos_launcher.py
    ```
 
 2. **清除浏览器缓存**：

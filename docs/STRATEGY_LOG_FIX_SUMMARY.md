@@ -134,7 +134,7 @@ modules:
 
 1. **重新启动交易系统**
    ```bash
-   python start_integrated.py
+   python homalos_launcher.py
    ```
 
 2. **测试策略日志推送**

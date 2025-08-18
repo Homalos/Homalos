@@ -10,19 +10,19 @@
 
 ```bash
 # 启动完整交易系统（默认模式，包含Web界面）
-python start_integrated.py
+python homalos_launcher.py
 
 # 启动完整交易系统（不含Web界面）
-python start_integrated.py --mode trading --no-web
+python homalos_launcher.py --mode trading --no-web
 
 # 仅启动Web界面
-python start_integrated.py --mode web
+python homalos_launcher.py --mode web
 
 # 使用自定义配置文件
-python start_integrated.py --config config/custom.yaml
+python homalos_launcher.py --config config/custom.yaml
 
 # 查看所有选项
-python start_integrated.py --help
+python homalos_launcher.py --help
 ```
 
 #### 运行模式说明
@@ -84,7 +84,7 @@ python start_data_center.py
 nohup python start_data_center.py > logs/data_center.log 2>&1 &
 
 # 2. 启动交易系统（包含Web界面）
-python start_integrated.py
+python homalos_launcher.py
 ```
 
 ### 方案二: 分离式部署
@@ -93,10 +93,10 @@ python start_integrated.py
 python start_data_center.py
 
 # 2. 启动交易系统（无Web界面）
-python start_integrated.py --no-web
+python homalos_launcher.py --no-web
 
 # 3. 启动Web界面（另一个终端）
-python start_integrated.py --mode web
+python homalos_launcher.py --mode web
 ```
 
 ### 方案三: 纯数据收集

@@ -81,7 +81,7 @@ def _check_position_concentration(self, strategy_id: str, order_request: OrderRe
 
 1. **重新启动交易系统**
    ```bash
-   python start_integrated.py
+   python homalos_launcher.py
    ```
 
 2. **测试策略加载**

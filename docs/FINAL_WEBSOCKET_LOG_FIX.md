@@ -101,7 +101,7 @@ handleStrategyLogMessage(data) {
 
 ### 1. 重新启动系统
 ```bash
-python start_integrated.py
+python homalos_launcher.py
 ```
 
 ### 2. 打开浏览器开发者工具

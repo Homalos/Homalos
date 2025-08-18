@@ -30,6 +30,10 @@
 
 
 
+从ENTER RESEARCH MODE到ENTER EXECUTE MODE自动执行，
+
+从ENTER RESEARCH MODE到ENTER EXECUTE MODE自动执行，当前量化系统的入口是homalos_launcher.py，协助我将系统当前用的时间总线event_bus.py更换为basic_event_bus.py使用，并且适配web页面部分的事件监控仪表板，更换后要保证系统原有代码不出错、运行时也不出错。
+
 #### 按交易日+合约分表
 
 taskkill /F /IM python.exe
