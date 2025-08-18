@@ -16,7 +16,7 @@ from collections import defaultdict
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, EventType
-from src.core.event_bus import EventBus
+from src.core.event_bus import BasicEventBus as EventBus
 from src.core.logger import get_logger
 from src.core.object import OrderRequest, RiskCheckResult
 
