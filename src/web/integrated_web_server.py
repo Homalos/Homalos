@@ -52,6 +52,13 @@ class IntegratedWebServer(WebServer):
         # 调用父类的启动方法
         await super().start(host, port)
     
+    def shutdown(self) -> None:
+        """关闭集成Web服务器"""
+        logger.info("正在关闭集成Web服务器...")
+        # 调用父类的shutdown方法停止事件处理
+        super().shutdown()
+        logger.info("集成Web服务器已关闭")
+    
     def _setup_dashboard_routes(self) -> None:
         """设置事件监控仪表板路由"""
         
@@ -510,7 +517,7 @@ class IntegratedWebServer(WebServer):
         # 生成K线数据
         klines = []
         current_time = datetime.now()
-        current_price = base_price
+        current_price = float(base_price)
         
         for i in range(limit):
             # 计算时间戳
@@ -661,10 +668,10 @@ class IntegratedWebServer(WebServer):
         """
 
 
-async def main():
+async def main() -> None:
     """主函数"""
     from src.config.config_manager import ConfigManager
-    from src.core.event_bus import EventBus
+    from src.core.event_bus import BasicEventBus as EventBus
     from src.core.event_monitor import EventMonitor, EventMonitorIntegration
     from src.trade.trading_engine import TradingEngine
     
@@ -673,7 +680,8 @@ async def main():
         config = ConfigManager("config/system.yaml")
         
         # 创建基础事件总线（构造函数内已启动）
-        event_bus = EventBus(name="IntegratedWebServer")
+        from src.core.event_bus import BasicEventBus
+        event_bus = BasicEventBus(name="IntegratedWebServer")
         
         event_monitor = EventMonitor(name="IntegratedWebServer")
         
