@@ -18,7 +18,7 @@ import psutil
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, create_log_event, EventType
-from src.core.event_bus import EventBus
+from src.core.event_bus import BasicEventBus as EventBus
 from src.core.logger import get_logger
 from src.core.object import PerformanceMetrics, SystemMetrics
 
@@ -33,9 +33,9 @@ class PerformanceMonitor:
         self.config = config
 
         # 性能数据存储
-        self.strategy_metrics: Dict[str, PerformanceMetrics] = {}
+        self.strategy_metrics: dict[str, PerformanceMetrics] = {}
         self.system_metrics: SystemMetrics = SystemMetrics()
-        self.metrics_history: List[SystemMetrics] = []
+        self.metrics_history: list[SystemMetrics] = []
 
         # 监控配置
         self.monitoring_enabled = config.get("monitoring.enabled", True)
@@ -56,14 +56,14 @@ class PerformanceMonitor:
         self._stats_lock = threading.Lock()
 
         # 告警去重和抑制机制
-        self._alert_history: Dict[str, float] = {}  # alert_key -> last_alert_time
+        self._alert_history: dict[str, float] = {}  # alert_key -> last_alert_time
         self._alert_suppression_time = 300.0  # 5分钟内相同告警只发送一次
         self._alert_escalation_rules = {
             "high_memory_usage": {"threshold": 3, "escalation_time": 900},  # 15分钟内3次告警升级
             "high_cpu_usage": {"threshold": 3, "escalation_time": 900},
             "high_order_latency": {"threshold": 2, "escalation_time": 600}  # 10分钟内2次告警升级
         }
-        self._alert_counters: Dict[str, List[float]] = {}  # alert_type -> [timestamps]
+        self._alert_counters: dict[str, list[float]] = {}  # alert_type -> [timestamps]
 
         # 设置事件处理器
         self._setup_event_handlers()
