@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: Homalos_v2
 @FileName   : service_registry
@@ -11,10 +10,10 @@
 """
 from threading import Thread
 from time import time_ns, sleep
-from typing import Dict, Optional
 
 from src.core.event import EventType
-from src.core.event_bus import EventBus, Event
+from src.core.event_bus import BasicEventBus as EventBus
+from src.core.event import Event
 from src.core.logger import get_logger
 
 logger = get_logger("ServiceRegistry")
@@ -30,7 +29,7 @@ class ServiceRegistry:
 
     def __init__(self, event_bus: EventBus):
         self.event_bus = event_bus
-        self.services: Dict[str, dict] = {}  # service_name -> service_info
+        self.services: dict[str, dict] = {}  # service_name -> service_info
         self.heartbeat_checker = Thread(target=self._check_heartbeats, daemon=True)  # 心跳检测线程
         self.running = False
 
@@ -40,19 +39,19 @@ class ServiceRegistry:
         self.event_bus.subscribe(EventType.SERVICE_HEART_BEAT, self.handle_heartbeat)
         self.event_bus.subscribe(EventType.SERVICE_DISCOVERY, self.handle_discovery_request)
 
-    def start(self):
+    def start(self) -> None:
         """启动服务注册中心"""
         self.running = True
         self.heartbeat_checker.start()
         logger.info("ServiceRegistry 已启动")
 
-    def stop(self):
+    def stop(self) -> None:
         """停止服务注册中心"""
         self.running = False
         self.heartbeat_checker.join(timeout=5)
         logger.info("ServiceRegistry 已停止")
 
-    def handle_register(self, event: Event):
+    def handle_register(self, event: Event) -> None:
         """处理服务注册事件"""
         service_info = event.data
         service_name = service_info["name"]
@@ -70,7 +69,7 @@ class ServiceRegistry:
             "service": service_info
         }))
 
-    def handle_unregister(self, event: Event):
+    def handle_unregister(self, event: Event) -> None:
         """处理服务注销事件"""
         service_name = event.data["name"]
 
@@ -84,7 +83,7 @@ class ServiceRegistry:
                 "service": service_info
             }))
 
-    def handle_heartbeat(self, event: Event):
+    def handle_heartbeat(self, event: Event) -> None:
         """处理心跳事件"""
         service_name = event.data["name"]
 
@@ -92,7 +91,7 @@ class ServiceRegistry:
             self.services[service_name]["last_heartbeat"] = time_ns()
             logger.debug(f"从 {service_name} 收到心跳")
 
-    def handle_discovery_request(self, event: Event):
+    def handle_discovery_request(self, event: Event) -> None:
         """处理服务发现请求"""
         request = event.data
         response = {
@@ -124,7 +123,7 @@ class ServiceRegistry:
         # 发送服务发现响应(原来是ServiceDiscoveryResponse)
         self.event_bus.publish(Event(EventType.SERVICE_DISCOVERY_RESPONSE, response))
 
-    def _check_heartbeats(self):
+    def _check_heartbeats(self) -> None:
         """定期检查服务心跳"""
         heartbeat_timeout = 10  # 10秒超时
         while self.running:
@@ -148,10 +147,10 @@ class ServiceRegistry:
                         "reason": "heartbeat_timeout"
                     }))
 
-    def get_service_info(self, service_name: str) -> Optional[dict]:
+    def get_service_info(self, service_name: str) -> dict | None:
         """获取服务完整信息"""
         return self.services.get(service_name)
 
-    def list_services(self) -> Dict[str, dict]:
+    def list_services(self) -> dict[str, dict]:
         """列出所有注册服务"""
         return self.services.copy()
