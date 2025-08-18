@@ -10,7 +10,7 @@
 @Description: 数据中心独立启动脚本
               
 🎯 这是数据中心的独立启动脚本，专门用于启动数据收集和存储服务
-   数据中心需要独立运行，不集成到 start_integrated.py 中
+   数据中心需要独立运行，不集成到 homalos_launcher.py 中
 
 📋 使用方法:
    python start_data_center.py
