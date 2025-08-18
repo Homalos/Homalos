@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Set, Any
 from src.config.constant import Exchange
 from src.config.setting import get_instrument_exchange_id
 from src.core.event import Event, EventType
-from src.core.event_bus import EventBus
+from src.core.old_event_bus import EventBus
 from src.core.logger import get_logger
 from src.core.object import TickData, BarData, ContractData
 
@@ -600,7 +600,7 @@ class DataCenter:
 if __name__ == "__main__":
     # 独立运行示例
     import time
-    from src.core.event_bus import EventBus
+    from src.core.old_event_bus import EventBus
     
     def main():
         # 创建事件总线
