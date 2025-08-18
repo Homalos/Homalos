@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 @ProjectName: Homalos_v2
-@FileName   : start_integrated.py
+@FileName   : homalos_launcher.py
 @Date       : 2025/8/5
 @Author     : Homalos Team
 @Description: Homalos量化交易系统统一入口脚本 - 支持多种运行模式
@@ -94,8 +94,8 @@ class HomalosLauncher:
                                    web_enabled: bool = True) -> None:
         """启动完整交易系统"""
         try:
-            # 直接使用 start_homalos.py 中的 HomalosSystem
-            from start_homalos import HomalosSystem
+            # 直接使用 homalos_system.py 中的 HomalosSystem
+            from homalos_system import HomalosSystem
             
             mode = "完整交易系统 (含Web界面)" if web_enabled else "完整交易系统 (无Web界面)"
             logger.info(f"启动{mode}...")
@@ -171,9 +171,9 @@ def parse_arguments() -> argparse.Namespace:
 注意: 数据中心请使用独立脚本 start_data_center.py 启动
 
 示例:
-  python start_integrated.py                                # 启动完整交易系统
-  python start_integrated.py --mode trading --no-web        # 启动交易系统但不启动Web界面
-  python start_integrated.py --config config/custom.yaml    # 使用自定义配置文件
+  python homalos_launcher.py                                # 启动完整交易系统
+  python homalos_launcher.py --mode trading --no-web        # 启动交易系统但不启动Web界面
+  python homalos_launcher.py --config config/custom.yaml    # 使用自定义配置文件
         """
     )
     
