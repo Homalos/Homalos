@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Any, Set
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, EventType, create_market_event, create_trading_event
-from src.core.event_bus import EventBus
+from src.core.event_bus import BasicEventBus as EventBus
 from src.core.logger import get_logger
 from src.core.object import TickData, BarData
 from src.function.bar_manager import BarManager
