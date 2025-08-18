@@ -15,7 +15,7 @@ from typing import Dict, Optional, Any
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, EventType, create_trading_event
-from src.core.event_bus import EventBus
+from src.core.event_bus import BasicEventBus as EventBus
 from src.core.logger import get_logger
 from src.trade.account_manager import AccountManager
 from src.trade.order_manager import OrderManager
@@ -106,6 +106,9 @@ class TradingEngine:
         for strategy_uuid in list(self.strategy_manager.strategies.keys()):
             await self.strategy_manager.stop_strategy(strategy_uuid)
 
+        # 关闭策略管理器（等待所有异步任务完成）
+        await self.strategy_manager.shutdown()
+
         # 停止性能监控
         self.performance_monitor.stop_monitoring()
 
@@ -164,7 +167,7 @@ class TradingEngine:
         """处理引擎停止请求"""
         asyncio.create_task(self.stop())
 
-    def get_engine_status(self) -> Dict[str, Any]:
+    def get_engine_status(self) -> dict[str, Any]:
         """获取引擎状态"""
         base_status = {
             "is_running": self.is_running,
@@ -185,13 +188,13 @@ class TradingEngine:
 
         return base_status
 
-    def get_performance_metrics(self, strategy_id: str) -> Dict[str, Any]:
+    def get_performance_metrics(self, strategy_id: str) -> dict[str, Any]:
         """获取特定策略的性能指标"""
         if self.performance_monitor:
             return self.performance_monitor.get_performance_summary(strategy_id)
         return {}
 
-    def get_system_performance(self) -> Dict[str, Any]:
+    def get_system_performance(self) -> dict[str, Any]:
         """获取系统性能指标"""
         if self.performance_monitor:
             return self.performance_monitor.get_system_metrics()
