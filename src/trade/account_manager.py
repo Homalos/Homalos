@@ -16,7 +16,7 @@ from typing import Dict, Any
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, EventType
-from src.core.event_bus import EventBus
+from src.core.event_bus import BasicEventBus as EventBus
 from src.core.logger import get_logger
 from src.core.object import TradeData, PositionData, AccountData
 
@@ -29,9 +29,9 @@ class AccountManager:
         self.event_bus = event_bus
         self.config = config
 
-        self.accounts: Dict[str, AccountData] = {}
-        self.positions: Dict[str, PositionData] = {}
-        self.strategy_pnl: Dict[str, float] = defaultdict(float)
+        self.accounts: dict[str, AccountData] = {}
+        self.positions: dict[str, PositionData] = {}
+        self.strategy_pnl: dict[str, float] = defaultdict(float)
 
         # 注册事件处理器
         self.event_bus.subscribe(EventType.ACCOUNT_UPDATED, self._handle_account_update)
