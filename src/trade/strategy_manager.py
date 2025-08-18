@@ -22,7 +22,7 @@ from uuid import uuid4
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, EventType, create_trading_event
-from src.core.event_bus import EventBus
+from src.core.event_bus import BasicEventBus as EventBus
 from src.core.logger import get_logger
 from src.core.object import TickData, StrategyInfo
 from src.strategy.base_strategy import BaseStrategy
@@ -39,8 +39,11 @@ class StrategyManager:
         self.event_bus = event_bus
         self.config = config
 
-        self.strategies: Dict[str, StrategyInfo] = {}   # 策略信息 - strategy_uuid -> strategy_info
-        self.strategy_subscriptions: Dict[str, set] = defaultdict(set)  # strategy_id -> symbols
+        self.strategies: dict[str, StrategyInfo] = {}   # 策略信息 - strategy_uuid -> strategy_info
+        self.strategy_subscriptions: dict[str, set] = defaultdict(set)  # strategy_id -> symbols
+
+        # 异步任务管理
+        self.pending_tasks: set = set()  # 跟踪待完成的异步任务
 
         # 初始化健康监控器
         self.health_monitor = StrategyHealthMonitor(event_bus, config)
@@ -51,7 +54,7 @@ class StrategyManager:
         # 策略恢复配置
         self.auto_recovery_enabled = config.get("strategy_management.health_monitoring.auto_recovery", True)
         self.max_recovery_attempts = config.get("strategy_management.health_monitoring.max_recovery_attempts", 3)
-        self.recovery_attempts: Dict[str, int] = {}  # 记录每个策略的恢复尝试次数
+        self.recovery_attempts: dict[str, int] = {}  # 记录每个策略的恢复尝试次数
 
         # 注册事件处理器
         self._register_event_handlers()
@@ -427,7 +430,7 @@ class StrategyManager:
 
             return False
 
-    def _handle_market_tick(self, event: Event):
+    def _handle_market_tick(self, event: Event) -> None:
         """分发行情数据给相关策略"""
         tick_data = event.data
         if not isinstance(tick_data, TickData):
@@ -443,26 +446,70 @@ class StrategyManager:
                     except Exception as e:
                         logger.error(f"策略处理行情失败 {strategy_id}: {e}")
 
-    def _handle_load_strategy(self, event: Event):
-        """处理策略加载请求"""
-        data = event.data
-        asyncio.create_task(self.load_strategy(
-            data["strategy_path"],
-            data["strategy_id"],
-            data["params"]
-        ))
+    def _handle_load_strategy(self, event: Event) -> None:
+        """处理策略加载完成事件"""
+        try:
+            data = event.data
+            # 安全访问params字段，如果不存在则使用None
+            params = data.get("params")
+            
+            # 添加调试日志
+            logger.debug(f"处理策略加载事件: {data}")
+            
+            # 检查是否为策略加载完成事件（包含strategy_uuid）
+            if "strategy_uuid" in data:
+                # 这是策略加载完成事件，不需要重新加载策略
+                logger.debug(f"策略加载完成事件已处理: {data.get('strategy_name', 'Unknown')}")
+                return
+            
+            # 如果是策略加载请求事件，则处理加载逻辑
+            if "strategy_path" in data and "strategy_id" in data:
+                asyncio.create_task(self.load_strategy(
+                    data["strategy_path"],
+                    data["strategy_id"], 
+                    params  # 使用安全获取的params
+                ))
+            else:
+                logger.warning(f"策略加载事件数据不完整: {data}")
+                
+        except Exception as e:
+            logger.error(f"处理策略加载事件失败: {e}", exc_info=True)
 
-    def _handle_start_strategy(self, event: Event):
+    def _handle_start_strategy(self, event: Event) -> None:
         """处理策略启动请求"""
         strategy_uuid = event.data["strategy_uuid"]
-        asyncio.create_task(self.start_strategy(strategy_uuid))
+        task = asyncio.create_task(self.start_strategy(strategy_uuid))
+        self.pending_tasks.add(task)
+        task.add_done_callback(self.pending_tasks.discard)
 
-    def _handle_stop_strategy(self, event: Event):
+    def _handle_stop_strategy(self, event: Event) -> None:
         """处理策略停止请求"""
         strategy_uuid = event.data["strategy_uuid"]
-        asyncio.create_task(self.stop_strategy(strategy_uuid))
+        task = asyncio.create_task(self.stop_strategy(strategy_uuid))
+        self.pending_tasks.add(task)
+        task.add_done_callback(self.pending_tasks.discard)
 
-    def get_strategy_status(self, strategy_uuid: str) -> Optional[Dict[str, Any]]:
+    async def shutdown(self) -> None:
+        """关闭策略管理器，等待所有异步任务完成"""
+        try:
+            # 等待所有待完成的任务
+            if self.pending_tasks:
+                logger.info(f"等待 {len(self.pending_tasks)} 个待完成的异步任务...")
+                await asyncio.gather(*self.pending_tasks, return_exceptions=True)
+                logger.info("所有异步任务已完成")
+            
+            # 停止健康监控
+            if hasattr(self, 'health_monitor'):
+                await self.health_monitor.stop_monitoring()
+            
+            # 停止事件处理器
+            if hasattr(self, 'event_handler'):
+                await self.event_handler.stop()
+                
+        except Exception as e:
+            logger.error(f"策略管理器关闭时发生错误: {e}", exc_info=True)
+
+    def get_strategy_status(self, strategy_uuid: str) -> Optional[dict[str, Any]]:
         """获取策略状态 - 使用UUID查找"""
         if strategy_uuid not in self.strategies:
             return None
@@ -480,7 +527,7 @@ class StrategyManager:
             "params": strategy_info.params
         }
 
-    def get_all_strategies(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_strategies(self) -> dict[str, dict[str, Any]]:
         """获取所有策略状态"""
         result = {}
         for strategy_id in self.strategies:
@@ -530,7 +577,7 @@ class StrategyManager:
             logger.error(f"检查网关状态失败: {e}")
             return False
 
-    def setup_gateway_monitoring(self):
+    def setup_gateway_monitoring(self) -> None:
         """设置网关监控"""
         try:
             # 订阅网关状态事件
@@ -543,7 +590,7 @@ class StrategyManager:
         except Exception as e:
             logger.error(f"设置网关监控失败: {e}")
 
-    def _handle_gateway_connected(self, event: Event):
+    def _handle_gateway_connected(self, event: Event) -> None:
         """处理网关连接事件"""
         try:
             data = event.data
@@ -557,7 +604,7 @@ class StrategyManager:
         except Exception as e:
             logger.error(f"处理网关连接事件失败: {e}")
 
-    def _handle_gateway_disconnected(self, event: Event):
+    def _handle_gateway_disconnected(self, event: Event) -> None:
         """处理网关断开事件"""
         try:
             data = event.data
@@ -571,7 +618,7 @@ class StrategyManager:
         except Exception as e:
             logger.error(f"处理网关断开事件失败: {e}")
 
-    def _handle_gateway_ready(self, event: Event):
+    def _handle_gateway_ready(self, event: Event) -> None:
         """处理网关就绪事件"""
         try:
             data = event.data
@@ -585,7 +632,7 @@ class StrategyManager:
         except Exception as e:
             logger.error(f"处理网关就绪事件失败: {e}")
 
-    def _notify_strategies_gateway_status(self, gateway_name: str, status: str):
+    def _notify_strategies_gateway_status(self, gateway_name: str, status: str) -> None:
         """通知策略网关状态变化"""
         try:
             for strategy_uuid, strategy_info in self.strategies.items():
@@ -605,7 +652,7 @@ class StrategyManager:
             logger.error(f"通知策略网关状态变化失败: {e}")
 
     @staticmethod
-    def _retry_pending_strategy_starts():
+    def _retry_pending_strategy_starts() -> None:
         """重试待启动的策略"""
         try:
             # 这里可以实现重试逻辑
@@ -623,7 +670,7 @@ class StrategyManager:
         except Exception as e:
             logger.error(f"启动健康监控失败: {e}")
 
-    def _handle_strategy_anomaly(self, event: Event):
+    def _handle_strategy_anomaly(self, event: Event) -> None:
         """处理策略异常检测事件"""
         try:
             data = event.data
@@ -643,7 +690,7 @@ class StrategyManager:
         except Exception as e:
             logger.error(f"处理策略异常事件失败: {e}")
 
-    def _handle_recovery_failed(self, event: Event):
+    def _handle_recovery_failed(self, event: Event) -> None:
         """处理策略恢复失败事件"""
         try:
             data = event.data
@@ -677,7 +724,7 @@ class StrategyManager:
         except Exception as e:
             logger.error(f"处理策略恢复失败事件失败: {e}")
 
-    def _handle_strategy_error(self, event: Event):
+    def _handle_strategy_error(self, event: Event) -> None:
         """处理策略错误事件"""
         try:
             data = event.data
@@ -809,7 +856,7 @@ class StrategyManager:
             logger.error(f"获取策略健康报告失败: {e}")
             return Optional[HealthReport]
 
-    def get_all_strategy_health(self) -> Dict[str, Any]:
+    def get_all_strategy_health(self) -> dict[str, Any]:
         """获取所有策略的健康状态"""
         try:
             health_reports = {}
