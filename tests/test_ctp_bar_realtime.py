@@ -4,14 +4,14 @@ CTP实时tick驱动K线合成集成测试脚本
 """
 import asyncio
 import sys
-import time
-from src.core.event_bus import EventBus
-from src.services.data_service import DataService
-from src.ctp.gateway.market_data_gateway import MarketDataGateway, symbol_contract_map
-from src.core.object import ContractData, SubscribeRequest
-from src.config.constant import Exchange, Product
-from src.core.event import EventType
 from unittest.mock import MagicMock
+
+from src.config.constant import Exchange, Product
+from src.core.event_bus import EventBus
+from src.core.object import ContractData, SubscribeRequest
+from src.ctp.gateway.market_data_gateway import MarketDataGateway, symbol_contract_map
+from src.services.data_service import DataService
+
 
 class BarCapture:
     def __init__(self):
