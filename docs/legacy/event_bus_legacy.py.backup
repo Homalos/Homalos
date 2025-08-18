@@ -39,7 +39,7 @@ class EventBus:
     def __init__(self,
                  name: str = "EventBus",
                  interval: int = DEFAULT_TIMER_INTERVAL):
-        
+
         self._name = name  # 事件总线名称
         self._interval: int = interval  # 定时器间隔
 
@@ -113,7 +113,7 @@ class EventBus:
             return
 
         self._sync_active = False
-        
+
         # 优雅关闭定时器线程
         if self._sync_timer and self._sync_timer.is_alive():
             try:
@@ -150,7 +150,7 @@ class EventBus:
                 # 记录事件处理开始
                 logger.debug(f"Processing sync event: {event.type}")
                 self._process_sync_event(event)
-                
+
             except Empty:
                 continue
             except Exception as e:
@@ -193,7 +193,7 @@ class EventBus:
 
     def _stop_async(self) -> None:
         """停止异步事件处理引擎"""
-        if not self._async_active: 
+        if not self._async_active:
             return
 
         self._async_active = False
@@ -234,7 +234,7 @@ class EventBus:
                 # 记录事件处理开始
                 logger.debug("Processing async event", extra={"component": self._name, "event_type": event.type})
                 self._process_async_event(event)
-                
+
             except Empty:
                 # 超时是正常的，不需要记录
                 continue
@@ -307,7 +307,7 @@ class EventBus:
 
             # 全局处理器
             self._invoke_handlers(event, self._global_handlers)
-            
+
             # 更新统计信息
             self._sync_processed_count += 1
             self._event_type_stats[event.type] += 1
@@ -320,7 +320,7 @@ class EventBus:
         try:
             # 特定类型处理器
             self._invoke_handlers(event, self._async_handlers.get(event.type, []))
-            
+
             # 更新统计信息
             self._async_processed_count += 1
             self._event_type_stats[event.type] += 1
@@ -349,11 +349,11 @@ class EventBus:
             event_type_str = event_type
         else:
             raise TypeError(f"event_type must be str, got {type(event_type)}")
-        
+
         # 验证处理函数
         if not callable(handler):
             raise TypeError(f"handler must be callable, got {type(handler)}")
-        
+
         handler_list = self._async_handlers[event_type_str] if is_async else self._sync_handlers[event_type_str]
 
         if handler not in handler_list:
@@ -374,7 +374,7 @@ class EventBus:
             event_type_str = event_type
         else:
             raise TypeError(f"event_type must be str, got {type(event_type)}")
-        
+
         handler_list = self._async_handlers[event_type_str] if is_async else self._sync_handlers[event_type_str]
 
         if handler in handler_list:
@@ -484,25 +484,31 @@ class EventBus:
 
 
 if __name__ == '__main__':
-    def timer_handler():
+    def timer_handler(event):
         """
         处理TIMER事件。
         """
+        print(f"timer_handler type: {event.type}")
+        print(f"timer_handler data: {event.data}")
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f'[{timestamp}] 处理TIMER事件')
 
-    def shutdown_handler():
+    def shutdown_handler(event):
+        """
+        处理SHUTDOWN事件。
+        """
+        print(f"shutdown_handler type: {event.type}")
+        print(f"shutdown_handler data: {event.data}")
         print(f'收到关闭事件：{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
 
     print("=" * 50)
     print("启动事件总线测试...")
 
     eb = EventBus(name="Test Engine")
-    
+
     # 正确订阅TIMER事件类型
     eb.subscribe(EventType.TIMER, timer_handler)
-    eb.subscribe(EventType.SHUTDOWN, shutdown_handler)
-    
+
     print("\n事件总线已启动，按 Ctrl+C 退出...")
     print("=" * 50)
 
