@@ -35,7 +35,7 @@ class StrategyFactory:
     
     def __init__(self, config: Optional[ConfigManager] = None, event_bus: Optional[EventBus] = None):
         # 策略注册表
-        self._strategies: Dict[str, Type[BaseStrategy]] = {}
+        self._strategies: dict[str, type[BaseStrategy]] = {}
         
         # 配置和事件总线
         self.config = config
@@ -47,8 +47,8 @@ class StrategyFactory:
         self.strategy_validator: Optional[StrategyValidator] = None
         
         # 缓存
-        self.validation_cache: Dict[str, ValidationResult] = {}
-        self.dependency_cache: Dict[str, DependencyCheckResult] = {}
+        self.validation_cache: dict[str, ValidationResult] = {}
+        self.dependency_cache: dict[str, DependencyCheckResult] = {}
         
         # 初始化组件
         if config and event_bus:
