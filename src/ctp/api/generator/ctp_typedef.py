@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 TThostFtdcTraderIDType = "string"
 TThostFtdcInvestorIDType = "string"
 TThostFtdcBrokerIDType = "string"
