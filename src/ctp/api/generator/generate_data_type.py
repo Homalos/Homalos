@@ -15,6 +15,9 @@ class DataTypeGenerator:
         """Constructor"""
         self.filename: str = filename
         self.prefix: str = prefix
+        self.f_cpp = None
+        self.f_define = None
+        self.f_typedef = None
 
     def run(self) -> None:
         """主函数"""

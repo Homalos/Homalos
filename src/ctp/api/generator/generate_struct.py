@@ -11,6 +11,8 @@ class StructGenerator:
         self.filename: str = filename
         self.prefix: str = prefix
         self.typedefs: dict[str, str] = {}
+        self.f_cpp = None
+        self.f_struct = None
 
         self.load_constant()
 
