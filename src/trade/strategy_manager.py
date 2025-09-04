@@ -22,7 +22,7 @@ from uuid import uuid4
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, EventType, create_trading_event
-from src.core.event_bus import BasicEventBus as EventBus
+from src.core.event_bus import EventBus as EventBus
 from src.core.logger import get_logger
 from src.core.object import TickData, StrategyInfo
 from src.strategy.base_strategy import BaseStrategy
