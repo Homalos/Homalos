@@ -10,23 +10,18 @@
 @Description: TTS行情网关
 """
 import asyncio
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 from src.config import global_var
-from src.config.constant import Exchange
 from src.core.event_bus import EventBus
 from src.core.gateway import BaseGateway
 from src.core.object import ContractData, TickData, SubscribeRequest
+from src.ctp.gateway.ctp_gateway_helper import ctp_build_tick_data
 from src.tts.api import MdApi
 from src.tts.gateway.tts_mapping import EXCHANGE_TTS2VT
-from src.util.utility import ZoneInfo, get_folder_path
-
-# 其他常量
-MAX_FLOAT = sys.float_info.max             # 浮点数极限值
-CHINA_TZ = ZoneInfo("Asia/Shanghai")       # 中国时区
+from src.util.utility import get_folder_path
 
 # 合约数据全局缓存字典
 symbol_contract_map: dict[str, ContractData] = {}
@@ -236,59 +231,9 @@ class TtsMdApi(MdApi):
         if not contract:
             return
 
-        # 对大商所的交易日字段取本地日期
-        if not data["ActionDay"] or contract.exchange == Exchange.DCE:
-            date_str: str = self.current_date
-        else:
-            date_str = data["ActionDay"]
-        # todo: 这块和CTP有点不同，后期考虑以哪个为准统一
-        timestamp: str = f"{date_str} {data['UpdateTime']}.{int(data['UpdateMillisec']/100)}"
-        dt_format_obj: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f")
-        dt: datetime = dt_format_obj.replace(tzinfo=CHINA_TZ)
-
-        tick: TickData = TickData(
-            symbol=symbol,
-            exchange=contract.exchange,
-            datetime=dt,
-            name=contract.name,
-            volume=data["Volume"],
-            turnover=data["Turnover"],
-            open_interest=data["OpenInterest"],
-            last_price=adjust_price(data["LastPrice"]),
-            limit_up=data["UpperLimitPrice"],
-            limit_down=data["LowerLimitPrice"],
-            open_price=adjust_price(data["OpenPrice"]),
-            high_price=adjust_price(data["HighestPrice"]),
-            low_price=adjust_price(data["LowestPrice"]),
-            pre_close=adjust_price(data["PreClosePrice"]),
-            bid_price_1=adjust_price(data["BidPrice1"]),
-            ask_price_1=adjust_price(data["AskPrice1"]),
-            bid_volume_1=data["BidVolume1"],
-            ask_volume_1=data["AskVolume1"],
-            gateway_name=self.gateway_name
-        )
-
-        if data["BidVolume2"] or data["AskVolume2"]:
-            tick.bid_price_2 = adjust_price(data["BidPrice2"])
-            tick.bid_price_3 = adjust_price(data["BidPrice3"])
-            tick.bid_price_4 = adjust_price(data["BidPrice4"])
-            tick.bid_price_5 = adjust_price(data["BidPrice5"])
-
-            tick.ask_price_2 = adjust_price(data["AskPrice2"])
-            tick.ask_price_3 = adjust_price(data["AskPrice3"])
-            tick.ask_price_4 = adjust_price(data["AskPrice4"])
-            tick.ask_price_5 = adjust_price(data["AskPrice5"])
-
-            tick.bid_volume_2 = data["BidVolume2"]
-            tick.bid_volume_3 = data["BidVolume3"]
-            tick.bid_volume_4 = data["BidVolume4"]
-            tick.bid_volume_5 = data["BidVolume5"]
-
-            tick.ask_volume_2 = data["AskVolume2"]
-            tick.ask_volume_3 = data["AskVolume3"]
-            tick.ask_volume_4 = data["AskVolume4"]
-            tick.ask_volume_5 = data["AskVolume5"]
-
+        # 创建行情数据
+        tick: TickData = ctp_build_tick_data(data, contract, self.current_date, self.gateway_name)
+        # 发送
         self.gateway.on_tick(tick)
 
     def onRspUserLogout(self, data: dict, error: dict, reqid: int, last: bool):
@@ -358,10 +303,3 @@ class TtsMdApi(MdApi):
         更新当前日期
         """
         self.current_date = datetime.now().strftime("%Y%m%d")
-
-
-def adjust_price(price: float) -> float:
-    """将异常的浮点数最大值（MAX_FLOAT）数据调整为0"""
-    if price == MAX_FLOAT:
-        price = 0
-    return price

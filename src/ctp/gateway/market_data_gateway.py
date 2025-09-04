@@ -10,10 +10,9 @@
 @Description: CTP行情网关
 """
 import asyncio
-import sys
+import threading  # 新增
 import time
 import traceback
-import threading  # 新增
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Any
@@ -28,15 +27,12 @@ from src.core.gateway_state import LoginState, ConnectionState
 from src.core.logger import get_logger
 from src.core.object import TickData, SubscribeRequest, ContractData
 from src.ctp.api import MdApi
+from src.ctp.gateway.ctp_gateway_helper import ctp_build_tick_data
 from src.ctp.gateway.ctp_mapping import EXCHANGE_CTP2VT
-from src.util.utility import ZoneInfo, get_folder_path
-
+from src.util.utility import get_folder_path
 
 logger = get_logger("MarketDataGateway")
 
-# 其他常量
-MAX_FLOAT = sys.float_info.max             # 浮点数极限值
-CHINA_TZ = ZoneInfo("Asia/Shanghai")       # 中国时区
 
 # 合约数据全局缓存字典
 symbol_contract_map: dict[str, ContractData] = {}
@@ -561,10 +557,10 @@ class MarketDataGateway(BaseGateway):
             self.md_api.update_date()
 
     def on_tick(self, tick: TickData) -> None:
-        logger.debug(f"MarketDataGateway.on_tick: 收到tick {tick.symbol} {tick.datetime} {tick.last_price}")
+        logger.debug(f"on_tick: 收到tick {tick.symbol} {tick.datetime} {tick.last_price}")
         # 补充：将tick事件发布到事件总线，供DataService消费
         self.event_bus.publish(Event(EventType.MARKET_TICK_RAW, tick))
-        # 调用父类的on_tick方法（如果存在）
+        # 调用父类的on_tick方法（如果存在），发布tick更新事件
         if hasattr(super(), 'on_tick'):
             super().on_tick(tick)
 
@@ -781,59 +777,9 @@ class CtpMdApi(MdApi):
             logger.warning(f"跳过行情推送，合约信息不存在: {symbol} (symbol_contract_map中共有{len(symbol_contract_map)}个合约)")
             return
 
-        # 对大商所的交易日字段取本地日期
-        if not data["ActionDay"] or contract.exchange == Exchange.DCE:
-            date_str: str = self.current_date
-        else:
-            date_str = data["ActionDay"]
-
-        timestamp: str = f"{date_str} {data['UpdateTime']}.{data['UpdateMillisec']}"
-        dt_format_obj: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f")
-        dt_obj: datetime = dt_format_obj.replace(tzinfo=CHINA_TZ)
-
-        tick: TickData = TickData(
-            symbol=symbol,
-            exchange=contract.exchange,
-            datetime=dt_obj,
-            name=contract.name,
-            volume=data["Volume"],
-            turnover=data["Turnover"],
-            open_interest=data["OpenInterest"],
-            last_price=adjust_price(data["LastPrice"]),
-            limit_up=data["UpperLimitPrice"],
-            limit_down=data["LowerLimitPrice"],
-            open_price=adjust_price(data["OpenPrice"]),
-            high_price=adjust_price(data["HighestPrice"]),
-            low_price=adjust_price(data["LowestPrice"]),
-            pre_close=adjust_price(data["PreClosePrice"]),
-            bid_price_1=adjust_price(data["BidPrice1"]),
-            ask_price_1=adjust_price(data["AskPrice1"]),
-            bid_volume_1=data["BidVolume1"],
-            ask_volume_1=data["AskVolume1"],
-            gateway_name=self.gateway_name
-        )
-
-        if data["BidVolume2"] or data["AskVolume2"]:
-            tick.bid_price_2 = adjust_price(data["BidPrice2"])
-            tick.bid_price_3 = adjust_price(data["BidPrice3"])
-            tick.bid_price_4 = adjust_price(data["BidPrice4"])
-            tick.bid_price_5 = adjust_price(data["BidPrice5"])
-
-            tick.ask_price_2 = adjust_price(data["AskPrice2"])
-            tick.ask_price_3 = adjust_price(data["AskPrice3"])
-            tick.ask_price_4 = adjust_price(data["AskPrice4"])
-            tick.ask_price_5 = adjust_price(data["AskPrice5"])
-
-            tick.bid_volume_2 = data["BidVolume2"]
-            tick.bid_volume_3 = data["BidVolume3"]
-            tick.bid_volume_4 = data["BidVolume4"]
-            tick.bid_volume_5 = data["BidVolume5"]
-
-            tick.ask_volume_2 = data["AskVolume2"]
-            tick.ask_volume_3 = data["AskVolume3"]
-            tick.ask_volume_4 = data["AskVolume4"]
-            tick.ask_volume_5 = data["AskVolume5"]
-
+        # 构建tick数据
+        tick: TickData = ctp_build_tick_data(data, contract, self.current_date, self.gateway_name)
+        # 推送tick数据
         self.gateway.on_tick(tick)
         # 关键日志：确保行情数据被推送到网关
         logger.debug(f"行情数据已推送到网关: {tick.symbol} @ {tick.last_price}")
@@ -938,10 +884,3 @@ class CtpMdApi(MdApi):
         :return:
         """
         self.current_date = datetime.now().strftime("%Y%m%d")
-
-
-def adjust_price(price: float) -> float:
-    """将异常的浮点数最大值（MAX_FLOAT）数据调整为0"""
-    if price == MAX_FLOAT:
-        price = 0
-    return price
