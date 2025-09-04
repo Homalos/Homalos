@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Any, Set
 
 from src.config.config_manager import ConfigManager
 from src.core.event import Event, EventType, create_market_event, create_trading_event
-from src.core.event_bus import BasicEventBus as EventBus
+from src.core.event_bus import EventBus as EventBus
 from src.core.logger import get_logger
 from src.core.object import TickData, BarData
 from src.function.bar_manager import BarManager
@@ -535,63 +535,13 @@ class DataService:
                 # 没有运行的事件循环，直接调用同步版本
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as executor:
-                    executor.submit(self._unsubscribe_market_data_sync, symbols, strategy_id)
+                    executor.submit(self._unsubscribe_market_data, symbols, strategy_id)
             
         except Exception as e:
             logger.error(f"处理取消订阅请求失败: {e}")
     
-    # def _send_tick_to_data_center(self, tick_data: TickData):
-    #     """发送tick数据到数据中心"""
-    #     try:
-    #         data = {
-    #             "symbol": tick_data.symbol,
-    #             "exchange": tick_data.exchange.value,
-    #             "datetime": tick_data.datetime.isoformat(),
-    #             "last_price": tick_data.last_price,
-    #             "volume": tick_data.volume,
-    #             "turnover": tick_data.turnover,
-    #             "open_interest": tick_data.open_interest,
-    #             "bid_price_1": tick_data.bid_price_1,
-    #             "ask_price_1": tick_data.ask_price_1,
-    #             "bid_volume_1": tick_data.bid_volume_1,
-    #             "ask_volume_1": tick_data.ask_volume_1
-    #         }
-    #         # 发布数据中心事件
-    #         self.event_bus.publish(create_market_event(
-    #             EventType.DATA_CENTER_TICK,
-    #             data,
-    #             "DataService"
-    #         ))
-    #     except Exception as e:
-    #         logger.error(f"发送tick数据到数据中心失败: {e}")
-    
-    # def _send_bar_to_data_center(self, bar_data: BarData):
-    #     """发送bar数据到数据中心"""
-    #     try:
-    #         data = {
-    #             "symbol": bar_data.symbol,
-    #             "exchange": bar_data.exchange.value,
-    #             "interval": bar_data.interval.value if bar_data.interval else '1m',
-    #             "datetime": bar_data.datetime.isoformat(),
-    #             "open_price": bar_data.open_price,
-    #             "high_price": bar_data.high_price,
-    #             "low_price": bar_data.low_price,
-    #             "close_price": bar_data.close_price,
-    #             "volume": bar_data.volume,
-    #             "turnover": bar_data.turnover,
-    #             "open_interest": bar_data.open_interest
-    #         }
-    #         # 发布数据中心事件
-    #         self.event_bus.publish(create_market_event(
-    #             EventType.DATA_CENTER_BAR,
-    #             data,
-    #             "DataService"
-    #         ))
-    #     except Exception as e:
-    #         logger.error(f"发送bar数据到数据中心失败: {e}")
-    
-    def _unsubscribe_market_data_sync(self, symbols: List[str], strategy_id: str):
-        """同步取消订阅行情数据"""
+    def _unsubscribe_market_data(self, symbols: List[str], strategy_id: str):
+        """取消订阅行情数据"""
         try:
             for symbol in symbols:
                 self.subscribers[symbol].discard(strategy_id)
