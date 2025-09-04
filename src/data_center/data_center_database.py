@@ -473,36 +473,30 @@ class DataCenterDatabase:
         """保存tick数据（同步版本）"""
         # 支持TickData对象和字典两种格式
         if hasattr(tick_data, 'symbol'):  # TickData对象
-            # 从datetime中提取UpdateTime（保持完整的ISO格式用于CSV）
-            update_time = tick_data.datetime.isoformat() if hasattr(tick_data.datetime, 'isoformat') else str(
-                tick_data.datetime)
-            update_millisec = tick_data.datetime.microsecond // 1000 if hasattr(tick_data.datetime,
-                                                                                'microsecond') else 0
-
             tick_dict = {
                 # 深度市场行情字段
-                'InstrumentID': tick_data.symbol,
-                'ExchangeID': tick_data.exchange.value if hasattr(tick_data.exchange, 'value') else str(
-                    tick_data.exchange),
-                'TradingDay': getattr(tick_data, 'trading_day', ''),
-                'UpdateTime': update_time,
-                'UpdateMillisec': update_millisec,
-                'PreSettlementPrice': getattr(tick_data, 'pre_settlement_price', 0.0),
-                'PreClosePrice': getattr(tick_data, 'pre_close', 0.0),
-                'PreOpenInterest': getattr(tick_data, 'pre_open_interest', 0.0),
-                'OpenPrice': getattr(tick_data, 'open_price', 0.0),
-                'ClosePrice': getattr(tick_data, 'close_price', 0.0),
-                'SettlementPrice': getattr(tick_data, 'settlement_price', 0.0),
-                'UpperLimitPrice': getattr(tick_data, 'limit_up', 0.0),
-                'LowerLimitPrice': getattr(tick_data, 'limit_down', 0.0),
-                'HighestPrice': getattr(tick_data, 'high_price', 0.0),
-                'LowestPrice': getattr(tick_data, 'low_price', 0.0),
+                'TradingDay': tick_data.trading_day,
+                'InstrumentID': tick_data.instrument_id,
+                'ExchangeID': tick_data.exchange.value,
+                'ExchangeInstID': tick_data.exchange_inst_id,
                 'LastPrice': tick_data.last_price,
+                'PreSettlementPrice': tick_data.pre_settlement_price,
+                'PreClosePrice': tick_data.pre_close_price,
+                'PreOpenInterest': tick_data.pre_open_interest,
+                'OpenPrice': tick_data.open_price,
+                'HighestPrice': tick_data.highest_price,
+                'LowestPrice': tick_data.lowest_price,
                 'Volume': tick_data.volume,
-                'LastVolume': getattr(tick_data, 'last_volume', 0.0),
                 'Turnover': tick_data.turnover,
                 'OpenInterest': tick_data.open_interest,
-                'LastOpenInterest': getattr(tick_data, 'last_open_interest', 0.0),
+                'ClosePrice': tick_data.close_price,
+                'SettlementPrice': tick_data.settlement_price,
+                'UpperLimitPrice': tick_data.upper_limit_price,
+                'LowerLimitPrice': tick_data.lower_limit_price,
+                'PreDelta': tick_data.pre_delta,
+                'CurrDelta': tick_data.curr_delta,
+                'UpdateTime': tick_data.update_time,
+                'UpdateMillisec': tick_data.update_millisec,
                 'BidPrice1': tick_data.bid_price_1,
                 'BidVolume1': tick_data.bid_volume_1,
                 'AskPrice1': tick_data.ask_price_1,
@@ -523,26 +517,26 @@ class DataCenterDatabase:
                 'BidVolume5': tick_data.bid_volume_5,
                 'AskPrice5': tick_data.ask_price_5,
                 'AskVolume5': tick_data.ask_volume_5,
-                'AveragePrice': getattr(tick_data, 'average_price', 0.0),
+                'AveragePrice': tick_data.average_price,
+                'ActionDay': tick_data.action_day,
+                'BandingUpperPrice': tick_data.banding_upper_price,
+                'BandingLowerPrice': tick_data.banding_lower_price,
 
                 # 保留用于内部处理的字段
                 'symbol': tick_data.symbol,
                 'exchange': tick_data.exchange.value if hasattr(tick_data.exchange, 'value') else str(
                     tick_data.exchange),
-                'datetime': tick_data.datetime.isoformat() if hasattr(tick_data.datetime, 'isoformat') else str(
-                    tick_data.datetime)
+                'datetime': tick_data.datetime
             }
         else:  # 字典格式
             tick_dict = tick_data.copy()
             # 处理枚举值转换
             if 'exchange' in tick_dict and hasattr(tick_dict['exchange'], 'value'):
                 tick_dict['exchange'] = tick_dict['exchange'].value
-            if 'datetime' in tick_dict and hasattr(tick_dict['datetime'], 'isoformat'):
-                tick_dict['datetime'] = tick_dict['datetime'].isoformat()
 
         # 获取交易日期和合约信息
-        dt = datetime.fromisoformat(tick_dict['datetime'])
-        trade_date = dt.date()
+        dt = tick_dict['datetime']
+        trade_date = tick_dict['trading_day']
         date_str = trade_date.strftime('%Y%m%d')
         symbol = tick_dict['symbol']
         exchange = tick_dict['exchange']
@@ -566,8 +560,7 @@ class DataCenterDatabase:
         # 支持BarData对象和字典两种格式
         if hasattr(bar_data, 'symbol'):  # BarData对象
             # 从datetime中提取UpdateTime（保持完整的ISO格式用于CSV）
-            update_time = bar_data.datetime.isoformat() if hasattr(bar_data.datetime, 'isoformat') else str(
-                bar_data.datetime)
+            update_time = bar_data.datetime
 
             # 从interval属性获取bar_type，如果没有则使用传入的bar_type
             if hasattr(bar_data, 'interval') and bar_data.interval:
@@ -592,24 +585,17 @@ class DataCenterDatabase:
                 'symbol': bar_data.symbol,
                 'exchange': bar_data.exchange.value if hasattr(bar_data.exchange, 'value') else str(bar_data.exchange),
                 'datetime': str(bar_data.datetime)
-                # 'datetime': bar_data.datetime.isoformat() if hasattr(bar_data.datetime, 'isoformat') else str(bar_data.datetime)
             }
         else:  # 字典格式
             bar_dict = bar_data.copy()
             # 处理枚举值转换
             if 'exchange' in bar_dict and hasattr(bar_dict['exchange'], 'value'):
                 bar_dict['exchange'] = bar_dict['exchange'].value
-            if 'datetime' in bar_dict and hasattr(bar_dict['datetime'], 'isoformat'):
-                bar_dict['datetime'] = bar_dict['datetime'].isoformat()
-
-            # 从datetime中提取UpdateTime（保持完整的ISO格式用于CSV）
-            dt = datetime.fromisoformat(bar_dict['datetime'])
-            update_time = dt.isoformat()
 
             # 重新构建bar_dict以符合新的表结构
             new_bar_dict = {
                 'BarType': bar_type,
-                'UpdateTime': update_time,
+                'UpdateTime': bar_dict.get('datetime', ''),
                 'InstrumentID': bar_dict.get('symbol', ''),
                 'Volume': bar_dict.get('volume', 0.0),
                 'OpenInterest': bar_dict.get('open_interest', 0.0),
@@ -627,8 +613,8 @@ class DataCenterDatabase:
             bar_dict = new_bar_dict
 
         # 获取交易日期和合约信息
-        dt = datetime.fromisoformat(bar_dict['datetime'])
-        trade_date = dt.date()
+        dt = bar_dict['datetime']
+        trade_date = bar_dict['trading_day']
         date_str = trade_date.strftime('%Y%m%d')
         symbol = bar_dict['symbol']
         exchange = bar_dict['exchange']
