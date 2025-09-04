@@ -33,17 +33,17 @@ data_center:
     cache_size: 100                                          # CSV缓存大小
     partition_by: "date"                                     # 分区字段：date, symbol, none
       
-  # 批量写入配置
+  # 批量写入配置（优化：增大批次大小，减少刷新频率）
   batch_write:
     tick:
-      batch_size: 1000                                       # 每批次写入数量
-      flush_interval: 5                                      # 刷新间隔，单位秒
-      max_memory_mb: 100                                     # 最大内存使用量，单位MB
+      batch_size: 5000                                       # 每批次写入数量（优化：从1000增加到5000）
+      flush_interval: 15                                     # 刷新间隔，单位秒（优化：从5增加到15）
+      max_memory_mb: 200                                     # 最大内存使用量，单位MB（优化：从100增加到200）
       
     bar:
-      batch_size: 500                                        # 每批次写入数量
-      flush_interval: 10                                     # 刷新间隔，单位秒
-      max_memory_mb: 50                                      # 最大内存使用量，单位MB
+      batch_size: 2000                                       # 每批次写入数量（优化：从500增加到2000）
+      flush_interval: 30                                     # 刷新间隔，单位秒（优化：从10增加到30）
+      max_memory_mb: 100                                     # 最大内存使用量，单位MB（优化：从50增加到100）
       
   # K线合成配置
   bar_generation:
