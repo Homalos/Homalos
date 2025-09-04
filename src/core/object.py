@@ -41,52 +41,108 @@ class TickData(BaseData):
         * 订单簿快照
         * 日内市场统计数据。
     """
-    symbol: str
-    exchange: Exchange
-    datetime: Datetime
+    symbol: str = None
+    exchange: Exchange = None
+    datetime: Datetime = None
 
-    name: str = ""
-    volume: float = 0
-    turnover: float = 0
-    open_interest: float = 0
-    last_price: float = 0
-    last_volume: float = 0
-    limit_up: float = 0
-    limit_down: float = 0
+    trading_day: str = None  # 交易日
+    instrument_id: str = None  # 合约代码
+    exchange_id: str = None  # 交易所代码
+    exchange_inst_id: str = None  # 合约在交易所的代码
+    last_price: float = 0.0  # 最新价
+    pre_settlement_price: float = 0.0  # 上次结算价
+    pre_close_price: float = 0.0  # 昨收盘
+    pre_open_interest: float = 0.0  # 昨持仓量
+    open_price: float = 0.0  # 今开盘
+    highest_price: float = 0.0  # 最高价
+    lowest_price: float = 0.0  # 最低价
+    volume: float = 0.0  # 数量
+    turnover: float = 0.0  # 成交金额
+    open_interest: float = 0.0  # 持仓量
+    close_price: float = 0.0  # 今收盘
+    settlement_price: float = 0.0  # 本次结算价
+    upper_limit_price: float = 0.0  # 涨停板价
+    lower_limit_price: float = 0.0  # 跌停板价
+    pre_delta: float = 0.0  # 昨虚实度
+    curr_delta: float = 0.0  # 今虚实度
+    update_time: str = None  # 最后修改时间
+    update_millisec: int = 0  # 最后修改毫秒
+    bid_price_1: float = 0.0  # 申买价一
+    bid_volume_1: float = 0.0  # 申买量一
+    ask_price_1: float = 0.0  # 申卖价一
+    ask_volume_1: float = 0.0  # 申卖量一
+    bid_price_2: float = 0.0  # 申买价二
+    bid_volume_2: float = 0.0  # 申卖量二
+    ask_price_2: float = 0.0  # 申卖价二
+    ask_volume_2: float = 0.0  # 申卖量二
+    bid_price_3: float = 0.0  # 申买价三
+    bid_volume_3: float = 0.0  # 申买量三
+    ask_price_3: float  = 0.0 # 申卖价三
+    ask_volume_3: float = 0.0  # 申卖量三
+    bid_price_4: float = 0.0  # 申买价四
+    bid_volume_4: float = 0.0  # 申买量四
+    ask_price_4: float = 0.0  # 申卖价四
+    ask_volume_4: float = 0.0  # 申卖量四
+    bid_price_5: float = 0.0  # 申买价五
+    bid_volume_5: float = 0.0  # 申买量五
+    ask_price_5: float = 0.0  # 申卖价五
+    ask_volume_5: float = 0.0  # 申卖量五
+    average_price: float = 0.0  # 当日均价
+    action_day: str = None  # 业务日期
+    banding_upper_price: float = 0.0  # 上带价
+    banding_lower_price: float = 0.0  # 下带价
 
-    open_price: float = 0
-    high_price: float = 0
-    low_price: float = 0
-    pre_close: float = 0
+    # symbol: str
+    # exchange: Exchange
+    # datetime: Datetime
+    #
+    # name: str = ""
+    # volume: float = 0
+    # turnover: float = 0
+    # open_interest: float = 0
+    # last_price: float = 0
+    # last_volume: float = 0
+    # limit_up: float = 0
+    # limit_down: float = 0
+    #
+    # open_price: float = 0
+    # high_price: float = 0
+    # low_price: float = 0
+    # pre_close: float = 0
 
-    bid_price_1: float = 0
-    bid_price_2: float = 0
-    bid_price_3: float = 0
-    bid_price_4: float = 0
-    bid_price_5: float = 0
-
-    ask_price_1: float = 0
-    ask_price_2: float = 0
-    ask_price_3: float = 0
-    ask_price_4: float = 0
-    ask_price_5: float = 0
-
-    bid_volume_1: float = 0
-    bid_volume_2: float = 0
-    bid_volume_3: float = 0
-    bid_volume_4: float = 0
-    bid_volume_5: float = 0
-
-    ask_volume_1: float = 0
-    ask_volume_2: float = 0
-    ask_volume_3: float = 0
-    ask_volume_4: float = 0
-    ask_volume_5: float = 0
-
-    localtime: Datetime | None = None
+    # bid_price_1: float = 0
+    # bid_price_2: float = 0
+    # bid_price_3: float = 0
+    # bid_price_4: float = 0
+    # bid_price_5: float = 0
+    #
+    # ask_price_1: float = 0
+    # ask_price_2: float = 0
+    # ask_price_3: float = 0
+    # ask_price_4: float = 0
+    # ask_price_5: float = 0
+    #
+    # bid_volume_1: float = 0
+    # bid_volume_2: float = 0
+    # bid_volume_3: float = 0
+    # bid_volume_4: float = 0
+    # bid_volume_5: float = 0
+    #
+    # ask_volume_1: float = 0
+    # ask_volume_2: float = 0
+    # ask_volume_3: float = 0
+    # ask_volume_4: float = 0
+    # ask_volume_5: float = 0
+    #
+    # localtime: Datetime | None = None
 
     def __post_init__(self) -> None:
         """在初始化之后执行的函数。"""
+        self.symbol: str = self.instrument_id
+
+        if self.exchange_id and self.exchange_id.upper() in Exchange.__members__.values():
+            self.exchange: Exchange = Exchange(self.exchange_id)
+
         self.ho_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
 
