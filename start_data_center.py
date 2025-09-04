@@ -29,12 +29,12 @@ from src.config.config_manager import ConfigManager
 from src.data_center.data_center import DataCenter
 from src.function.gateway_helper import get_enabled_gateways
 
+from src.core.logger import get_logger
+from src.core.event_bus import EventBus
+
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
-
-from src.core.logger import get_logger
-from src.core.event_bus import EventBus
 
 logger = get_logger("DataCenterApplication")
 
@@ -44,16 +44,16 @@ class DataCenterApplication:
     
     def __init__(self,
                  gateway_config_file: str = "config/system.yaml",
-                 data_center_config_file = "config/data_center_config.yaml"):
+                 data_center_config_file: str = "config/data_center_config.yaml"):
         self.gateway_config_file = gateway_config_file
         self.data_center_config_file = data_center_config_file
         self.gateway_config: Optional[ConfigManager] = None
-        self.config = None
-        self.event_bus = None
-        self.data_center = None
+        self.config: Optional[dict] = None
+        self.event_bus: Optional[EventBus] = None
+        self.data_center: Optional[DataCenter] = None
         self.running = False
         
-    async def initialize(self):
+    async def initialize(self) -> bool:
         """初始化数据中心应用"""
         try:
             # 加载系统配置
@@ -100,8 +100,18 @@ class DataCenterApplication:
             }
             self.config['gateway'] = gateway_config
 
-            # 创建事件总线
-            self.event_bus = EventBus()
+            # 创建事件总线（从配置文件读取参数）
+            event_bus_config = self.config.get('data_center', {}).get('network', {}).get('event_bus', {})
+            queue_size = event_bus_config.get('max_queue_size', 100000)
+            logger.info(f"创建事件总线，队列大小: {queue_size}，发布超时: 3.0秒")
+            self.event_bus = EventBus(
+                name="DataCenterEventBus",
+                queue_size=queue_size,
+                publish_timeout=3.0
+            )
+            
+            # 添加事件总线监控
+            logger.info(f"事件总线已创建，当前配置 - 队列容量: {queue_size}, 发布超时: 3.0秒")
             
             # 创建数据中心（数据中心将独立管理网关连接）
             logger.info("开始创建数据中心实例...")
@@ -122,7 +132,7 @@ class DataCenterApplication:
             logger.error(f"详细错误信息: {traceback.format_exc()}")
             return False
     
-    async def start(self):
+    async def start(self) -> bool:
         """启动数据中心应用"""
         global shutdown_requested
         try:
@@ -130,26 +140,32 @@ class DataCenterApplication:
                 return False
             
             # 启动数据中心（数据中心内部会自动创建和连接网关）
-            self.data_center.start()
-            logger.info("数据中心应用初始化成功")
-            
-            # 网关已在数据中心中自动连接
-            self.running = True
-            logger.info("数据中心应用启动成功，开始7x24小时运行...")
-            
-            # 主循环
-            while self.running and not shutdown_requested:
-                await asyncio.sleep(1)
+            if self.data_center:
+                self.data_center.start()
+                logger.info("数据中心应用初始化成功")
                 
-                # 检查组件状态
-                if not self.data_center.is_connected:
-                    logger.warning("数据中心连接断开，等待自动重连...")
+                # 网关已在数据中心中自动连接
+                self.running = True
+                logger.info("数据中心应用启动成功，开始7x24小时运行...")
+                
+                # 主循环
+                while self.running and not shutdown_requested:
+                    await asyncio.sleep(1)
+                    
+                    # 检查组件状态
+                    if not self.data_center.is_connected:
+                        logger.warning("数据中心连接断开，等待自动重连...")
+                        
+                return True
+            else:
+                logger.error("数据中心实例创建失败")
+                return False
                     
         except Exception as e:
             logger.error(f"数据中心应用运行失败: {e}")
             return False
     
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         """关闭数据中心应用"""
         try:
             self.running = False
@@ -170,7 +186,7 @@ app = DataCenterApplication()
 # 全局关闭标志
 shutdown_requested = False
 
-def signal_handler(signum, frame: Optional[types.FrameType]) -> None:
+def signal_handler(signum: int, frame: Optional[types.FrameType]) -> None:
     """信号处理器"""
     global shutdown_requested
     logger.info(f"接收到信号 {signum}，开始关闭数据中心...")
@@ -199,7 +215,7 @@ def signal_handler(signum, frame: Optional[types.FrameType]) -> None:
     logger.info("进程退出")
     sys.exit(0)
 
-async def main():
+async def main() -> None:
     """主函数"""
     global shutdown_requested
     
