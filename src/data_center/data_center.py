@@ -15,7 +15,7 @@ import threading
 import time
 import traceback
 from datetime import datetime
-from typing import Dict, List, Optional, Set, Any
+from typing import Any
 
 from src.config.constant import Exchange
 from src.config.setting import get_instrument_exchange_id, get_exchange
@@ -23,10 +23,13 @@ from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.logger import Logger
 from src.core.object import TickData, BarData, ContractData
-from src.ctp.gateway.order_trading_gateway import OrderTradingGateway
 from src.ctp.gateway.market_data_gateway import MarketDataGateway
+from src.ctp.gateway.order_trading_gateway import OrderTradingGateway
+from src.data_center.async_database_writer import AsyncDatabaseWriter
+from src.data_center.async_tick_processor import AsyncTickProcessor
 from src.data_center.data_center_bar_generator import DataCenterBarGenerator
 from src.data_center.data_center_database import DataCenterDatabase
+from src.data_center.memory_bar_generator import MemoryBarGenerator
 from src.function.data_mapping import EXCHANGE_MAPPING
 
 
@@ -61,13 +64,13 @@ class DataCenter:
         self.is_running = False
         self.is_connected = False
 
-        # 数据库管理器 - 传递完整配置，让DataCenterDatabase自己提取database段
+        # 传统数据库管理器（保留作为回退）
         database_full_config = {
             'database': self.database_config
         }
         self.database = DataCenterDatabase(database_full_config)
 
-        # K线合成器
+        # 传统K线合成器（保留作为回退）
         interval_strings = self.bar_config.get('intervals', ["1m", "5m", "15m", "30m", "1h"])
         intervals = self._convert_intervals_to_minutes(interval_strings)
         self.bar_generator = DataCenterBarGenerator(
@@ -75,13 +78,20 @@ class DataCenter:
             on_bar=self._on_bar_generated
         )
 
+        # 异步处理组件初始化
+        self._event_loop = None
+        self._async_components_initialized = False
+        self.async_tick_processor: AsyncTickProcessor | None = None
+        self.memory_bar_generator: MemoryBarGenerator | None = None
+        self.async_database_writer: AsyncDatabaseWriter | None = None
+
         # 网关
-        self.market_gateway: Optional[MarketDataGateway] = None
-        self.trading_gateway: Optional[OrderTradingGateway] = None
+        self.market_gateway: MarketDataGateway | None = None
+        self.trading_gateway: OrderTradingGateway | None = None
 
         # 订阅管理
-        self.subscribed_symbols: Set[str] = set()
-        self.all_contracts: Dict[str, ContractData] = {}
+        self.subscribed_symbols: set[str] = set()
+        self.all_contracts: dict[str, ContractData] = {}
 
         # 全市场合约列表
         self.logger.info("开始加载市场合约列表...")
@@ -99,8 +109,8 @@ class DataCenter:
         }
 
         # 监控线程
-        self.monitor_thread: Optional[threading.Thread] = None
-        self.health_check_thread: Optional[threading.Thread] = None
+        self.monitor_thread: threading.Thread | None = None
+        self.health_check_thread: threading.Thread | None = None
 
         # 注册事件处理器
         self.logger.info("开始注册事件处理器...")
@@ -114,7 +124,7 @@ class DataCenter:
 
         self.logger.info("数据中心初始化完成")
 
-    def _validate_config(self):
+    def _validate_config(self) -> None:
         """验证配置完整性"""
         self.logger.debug("开始验证必需配置段...")
         required_sections = {
@@ -148,7 +158,7 @@ class DataCenter:
                 self.logger.warning("Bar数据库路径未配置，使用默认路径: data/bar_data.db")
 
             self.logger.info(f"使用分库配置: Tick={tick_db_config.get('path')}, Bar={bar_db_config.get('path')}")
-        elif not 'bar_db' in sqlite_config:
+        elif 'bar_db' not in sqlite_config:
             self.logger.error("bar_data数据库配置缺失，请检查配置文件")
 
         self.logger.debug("开始验证K线配置...")
@@ -158,7 +168,7 @@ class DataCenter:
             self.logger.warning("K线间隔未配置，使用默认间隔: [1m, 5m, 15m, 30m, 1h]")
         self.logger.debug("配置验证完成")
 
-    def _convert_intervals_to_minutes(self, interval_strings: List[str]) -> List[int]:
+    def _convert_intervals_to_minutes(self, interval_strings: list[str]) -> list[int]:
         """将时间间隔字符串转换为分钟数"""
         conversion_map = {
             'm': 1, 'h': 60, 'd': 1440
@@ -182,7 +192,7 @@ class DataCenter:
         self.logger.info(f"K线时间间隔配置: {intervals} 分钟")
         return intervals
 
-    def _load_market_symbols(self) -> List[str]:
+    def _load_market_symbols(self) -> list[str]:
         """从instrument_exchange_id.json加载全市场合约列表"""
         try:
             # 直接从instrument_exchange_id.json获取所有合约
@@ -246,8 +256,11 @@ class DataCenter:
 
             self.logger.info("启动数据中心...")
 
-            # 启动数据库
+            # 启动传统数据库（保留作为回退）
             self.database.start()
+
+            # 初始化并启动异步处理组件
+            self._init_async_components()
 
             # 初始化网关
             self._init_gateway()
@@ -263,7 +276,7 @@ class DataCenter:
             # 发布数据中心连接事件
             self.event_bus.publish(Event(EventType.DATA_CENTER_CONNECTED, {}))
 
-            self.logger.info("数据中心启动成功")
+            self.logger.info("数据中心启动成功（异步处理架构已启用）")
 
         except Exception as e:
             self.logger.error(f"启动数据中心失败: {e}", exc_info=True)
@@ -291,6 +304,9 @@ class DataCenter:
                 self.trading_gateway.close()
                 self.trading_gateway = None
 
+            # 停止异步处理组件
+            self._stop_async_components()
+
             # 停止数据库
             self.database.stop()
 
@@ -304,6 +320,175 @@ class DataCenter:
 
         except Exception as e:
             self.logger.error(f"停止数据中心失败: {e}", exc_info=True)
+
+    def _init_async_components(self):
+        """初始化异步处理组件"""
+        try:
+            import asyncio
+            import threading
+            
+            self.logger.info("初始化异步处理组件...")
+            
+            # 从配置获取异步处理参数
+            async_config = self.data_center_config.get('performance', {}).get('async', {})
+            batch_config = self.data_center_config.get('batch_write', {})
+            
+            # 1. 初始化异步Tick处理器（移除采样器）
+            self.async_tick_processor = AsyncTickProcessor(
+                batch_size=batch_config.get('tick', {}).get('batch_size', 5000),
+                flush_interval=0.1,  # 100ms快速刷新
+                max_workers=async_config.get('max_workers', 4)
+            )
+            
+            # 2. 初始化内存K线合成器
+            intervals = self._convert_intervals_to_minutes(
+                self.bar_config.get('intervals', ["1m", "5m", "15m", "30m", "1h"])
+            )
+            self.memory_bar_generator = MemoryBarGenerator(
+                intervals=intervals,
+                cache_size=1000,
+                flush_interval=1.0,
+                batch_process=True
+            )
+            
+            # 3. 初始化异步数据库写入器
+            self.async_database_writer = AsyncDatabaseWriter(
+                tick_db_path=self.database_config.get('sqlite', {}).get('tick_db', {}).get('path', 'data/tick_db'),
+                bar_db_path=self.database_config.get('sqlite', {}).get('bar_db', {}).get('path', 'data/bar_db'),
+                batch_size=batch_config.get('tick', {}).get('batch_size', 5000),
+                flush_interval=batch_config.get('tick', {}).get('flush_interval', 15),
+                thread_pool_size=async_config.get('max_workers', 4)
+            )
+            
+            # 4. 设置处理链路
+            # Tick处理器 -> K线合成器 + 数据库写入器（移除采样器）
+            self.async_tick_processor.add_batch_handler(self._handle_tick_batch)
+            self.memory_bar_generator.add_bar_handler(self._handle_generated_bar)
+            
+            # 5. 创建异步事件循环
+            def run_async_loop():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                self._event_loop = loop
+                
+                try:
+                    # 启动所有异步组件
+                    loop.run_until_complete(self._start_async_components())
+                    # 保持事件循环运行
+                    loop.run_forever()
+                except Exception as err:
+                    self.logger.error(f"异步事件循环异常: {err}")
+                finally:
+                    loop.close()
+            
+            # 启动异步线程
+            self._async_thread = threading.Thread(target=run_async_loop, daemon=True)
+            self._async_thread.start()
+            
+            # 等待异步组件启动
+            import time
+            time.sleep(0.5)  # 给异步组件启动时间
+            
+            self._async_components_initialized = True
+            self.logger.info("异步处理组件初始化完成（已移除tick采样功能，完整存储所有数据）")
+            
+        except Exception as e:
+            self.logger.error(f"异步组件初始化失败: {e}")
+            self._async_components_initialized = False
+    
+    async def _start_async_components(self):
+        """启动异步组件"""
+        try:
+            # 按顺序启动异步组件
+            await self.async_database_writer.start()
+            await self.memory_bar_generator.start()
+            await self.async_tick_processor.start()
+            
+            self.logger.info("所有异步组件启动完成")
+        except Exception as e:
+            self.logger.error(f"启动异步组件失败: {e}")
+            raise
+    
+    def _handle_tick_batch(self, batch):
+        """处理tick批次（异步处理器的回调）- 完整存储所有tick数据"""
+        try:
+            # 直接处理所有tick数据，不进行采样过滤
+            self.logger.debug(f"处理tick批次: {batch.symbol}, 数量: {len(batch.ticks)} (完整存储)")
+            
+            # 如果异步事件循环可用，提交到异步处理
+            if self._event_loop and not self._event_loop.is_closed():
+                import asyncio
+                # 提交到K线合成
+                asyncio.run_coroutine_threadsafe(
+                    self.memory_bar_generator.process_tick_batch(batch),
+                    self._event_loop
+                )
+                
+                # 提交到数据库写入
+                asyncio.run_coroutine_threadsafe(
+                    self.async_database_writer.write_tick_batch(batch),
+                    self._event_loop
+                )
+            else:
+                # 回退到同步处理
+                for tick in batch.ticks:
+                    self._fallback_sync_processing(tick)
+                    
+        except Exception as e:
+            self.logger.error(f"处理tick批次失败: {e}")
+    
+    def _handle_generated_bar(self, bar: BarData):
+        """处理生成的K线（内存K线合成器的回调）"""
+        try:
+            # 如果异步事件循环可用，异步写入数据库
+            if self._event_loop and not self._event_loop.is_closed():
+                import asyncio
+                asyncio.run_coroutine_threadsafe(
+                    self.async_database_writer.write_bar(bar),
+                    self._event_loop
+                )
+            else:
+                # 回退到传统K线处理
+                self._on_bar_generated(bar)
+                
+        except Exception as e:
+            self.logger.error(f"处理生成K线失败: {e}")
+    
+    def _stop_async_components(self):
+        """停止异步处理组件"""
+        try:
+            if not self._async_components_initialized:
+                return
+            
+            self.logger.info("停止异步处理组件...")
+            
+            if self._event_loop and not self._event_loop.is_closed():
+                # 停止所有异步组件
+                async def stop_all():
+                    if self.async_tick_processor:
+                        await self.async_tick_processor.stop()
+                    if self.memory_bar_generator:
+                        await self.memory_bar_generator.stop()
+                    if self.async_database_writer:
+                        await self.async_database_writer.stop()
+                
+                # 提交停止任务
+                import asyncio
+                stop_future = asyncio.run_coroutine_threadsafe(stop_all(), self._event_loop)
+                stop_future.result(timeout=10)  # 等待最多10秒
+                
+                # 停止事件循环
+                self._event_loop.call_soon_threadsafe(self._event_loop.stop)
+            
+            # 等待异步线程结束
+            if hasattr(self, '_async_thread') and self._async_thread.is_alive():
+                self._async_thread.join(timeout=5)
+            
+            self._async_components_initialized = False
+            self.logger.info("异步处理组件已停止")
+            
+        except Exception as e:
+            self.logger.error(f"停止异步组件失败: {e}")
 
     def _init_gateway(self):
         """初始化网关"""
@@ -395,52 +580,103 @@ class DataCenter:
         self.logger.info("性能监控线程已停止")
 
     def _handle_tick_data(self, event: Event):
-        """处理tick数据"""
+        """处理tick数据（重构：使用异步处理架构）"""
         try:
-            from datetime import datetime
             tick_data = event.data
 
-            # 如果是TickData对象，直接使用
+            # 快速类型检查和处理
             if isinstance(tick_data, TickData):
                 processed_tick = tick_data
-            # 如果是字典，转换为TickData对象
             elif isinstance(tick_data, dict):
-                from src.core.object import TickData as TickDataClass
-                # 转换字典为TickData对象
-                processed_tick = TickDataClass(
+                # 安全处理exchange字段
+                try:
+                    exchange_value = tick_data.get('exchange', '')
+                    if isinstance(exchange_value, str):
+                        exchange = Exchange[exchange_value] if exchange_value in Exchange.__members__ else 'UNKNOWN'
+                    else:
+                        exchange = exchange_value if isinstance(exchange_value, Exchange) else 'UNKNOWN'
+                except Exception as e:
+                    self.logger.warning(f"处理exchange字段失败: {e}, 使用默认值")
+                    exchange = "UNKNOWN"
+                
+                processed_tick = TickData(
                     symbol=tick_data.get('symbol', ''),
-                    exchange=Exchange(tick_data.get('exchange', 'CZCE')),
-                    datetime=datetime.fromisoformat(tick_data.get('datetime', datetime.now().isoformat())),
+                    exchange=exchange,
+                    datetime=tick_data.get('datetime', datetime.now()),
+                    trading_day=tick_data.get('trading_day', ''),
+                    instrument_id=tick_data.get('instrument_id', ''),
                     last_price=tick_data.get('last_price', 0.0),
-                    volume=tick_data.get('volume', 0),
+                    open_price=tick_data.get('open_price', 0.0),
+                    highest_price=tick_data.get('highest_price', 0.0),
+                    lowest_price=tick_data.get('lowest_price', 0.0),
+                    volume=tick_data.get('volume', 0.0),
                     turnover=tick_data.get('turnover', 0.0),
-                    open_interest=tick_data.get('open_interest', 0),
+                    open_interest=tick_data.get('open_interest', 0.0),
+                    close_price=tick_data.get('close_price', 0.0),
+                    update_time=tick_data.get('update_time', ''),
+                    update_millisec=tick_data.get('update_millisec', 0),
                     bid_price_1=tick_data.get('bid_price_1', 0.0),
+                    bid_volume_1=tick_data.get('bid_volume_1', 0.0),
                     ask_price_1=tick_data.get('ask_price_1', 0.0),
-                    bid_volume_1=tick_data.get('bid_volume_1', 0),
-                    ask_volume_1=tick_data.get('ask_volume_1', 0),
-                    gateway_name="DATA_CENTER_MD"
+                    ask_volume_1=tick_data.get('ask_volume_1', 0.0),
+                    bid_price_2=tick_data.get('bid_price_2', 0.0),
+                    bid_volume_2=tick_data.get('bid_volume_2', 0.0),
+                    ask_price_2=tick_data.get('ask_price_2', 0.0),
+                    ask_volume_2=tick_data.get('ask_volume_2', 0.0),
+                    average_price=tick_data.get('average_price', 0.0),
+                    action_day=tick_data.get('action_day', ''),
+                    gateway_name="DATA_CENTER"
                 )
             else:
-                self.logger.warning(f"收到未知类型的tick数据: {type(tick_data)}")
+                if self.stats['tick_count'] % 100 == 0:
+                    self.logger.warning(f"收到未知类型的tick数据: {type(tick_data)}")
                 return
 
-            # 更新统计信息
+            # 快速更新统计信息
             self.stats['tick_count'] += 1
-            self.stats['last_tick_time'] = datetime.now()
+            if self.stats['tick_count'] % 1000 == 0:
+                self.stats['last_tick_time'] = datetime.now()
 
-            # 保存到数据库
-            self.database.save_tick_data(processed_tick)
+            # 异步处理：提交到异步处理器（非阻塞）
+            if hasattr(self, 'async_tick_processor'):
+                # 尝试异步提交，失败则记录但不阻塞
+                try:
+                    # 使用run_coroutine_threadsafe进行线程安全的异步调用
+                    import asyncio
+                    if hasattr(self, '_event_loop') and self._event_loop:
+                        asyncio.run_coroutine_threadsafe(
+                            self.async_tick_processor.submit_tick(processed_tick),
+                            self._event_loop
+                        )
+                    else:
+                        # 如果没有异步处理器或事件循环，回退到同步处理
+                        self._fallback_sync_processing(processed_tick)
+                except Exception as e:
+                    self.logger.warning(f"异步提交失败，回退到同步处理: {e}")
+                    self._fallback_sync_processing(processed_tick)
+            else:
+                # 回退到同步处理
+                self._fallback_sync_processing(processed_tick)
 
-            # K线合成
-            self._process_bar_generation(processed_tick)
-
-            # 定期输出统计信息（降低频率以减少日志输出）
-            if self.stats["tick_count"] % 1000 == 0:
+            # 降低统计日志频率
+            if self.stats["tick_count"] % 10000 == 0:
                 self.logger.info(f"数据中心统计: 已处理{self.stats['tick_count']}个tick")
 
         except Exception as e:
-            self.logger.error(f"处理tick数据失败: {e}", exc_info=True)
+            self.logger.error(f"处理tick数据失败: {e}")
+            if self.logger.level <= 10:
+                self.logger.debug(f"详细错误信息: {e}", exc_info=True)
+
+    def _fallback_sync_processing(self, tick: TickData):
+        """同步处理回退方案"""
+        try:
+            # 保存到数据库（原有逻辑）
+            self.database.save_tick_data(tick)
+            
+            # K线合成（原有逻辑）
+            self._process_bar_generation(tick)
+        except Exception as e:
+            self.logger.error(f"同步处理回退失败: {e}")
 
     def _process_bar_generation(self, tick_data: TickData):
         """处理K线合成"""
@@ -605,7 +841,6 @@ class DataCenter:
                 try:
                     # 创建订阅请求对象
                     from src.core.object import SubscribeRequest
-                    from src.config.constant import Exchange
 
                     # 根据合约代码推断交易所
                     exchange = self._get_symbol_exchange(symbol)
@@ -779,7 +1014,7 @@ class DataCenter:
             self.logger.error(f"处理bar查询请求失败: {e}")
 
     def get_status(self) -> dict:
-        """获取数据中心状态"""
+        """获取数据中心状态（包含异步处理组件状态）"""
         try:
             status = {
                 'is_running': self.is_running,
@@ -787,8 +1022,24 @@ class DataCenter:
                 'stats': self.stats.copy(),
                 'subscribed_symbols': list(self.subscribed_symbols),
                 'total_contracts': len(self.all_contracts),
-                'database_status': self.database.get_status() if self.database else 'disconnected'
+                'database_status': self.database.get_status() if self.database else 'disconnected',
+                'async_components_enabled': self._async_components_initialized
             }
+
+            # 添加异步组件状态
+            if self._async_components_initialized:
+                async_status = {}
+                
+                if self.async_tick_processor:
+                    async_status['tick_processor'] = self.async_tick_processor.get_stats()
+                
+                if self.memory_bar_generator:
+                    async_status['bar_generator'] = self.memory_bar_generator.get_stats()
+                
+                if self.async_database_writer:
+                    async_status['database_writer'] = self.async_database_writer.get_stats()
+                
+                status['async_components'] = async_status
 
             return status
 
@@ -796,8 +1047,7 @@ class DataCenter:
             self.logger.error(f"获取状态失败: {e}")
             return {'error': str(e)}
 
-    def query_tick_data(self, symbol: str, start_time: datetime = None,
-                        end_time: datetime = None, limit: int = 1000) -> List[dict]:
+    def query_tick_data(self, symbol: str, start_time: datetime = None, end_time: datetime = None, limit: int = 1000) -> list[dict]:
         """查询tick数据"""
         try:
             return self.database.query_tick_data(
@@ -812,7 +1062,7 @@ class DataCenter:
             return []
 
     def query_bar_data(self, symbol: str, exchange: str = 'SHFE', interval: str = '1m',
-                       start_time: datetime = None, end_time: datetime = None, limit: int = 1000) -> List[dict]:
+                       start_time: datetime = None, end_time: datetime = None, limit: int = 1000) -> list[dict]:
         """查询bar数据"""
         try:
             return self.database.query_bar_data(
