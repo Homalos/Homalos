@@ -47,16 +47,23 @@ async def main():
     event_bus.subscribe('market_data', market_data_handler, async_mode=False)  # 同步事件
     event_bus.subscribe('strategy_signal', strategy_signal_handler, async_mode=True)  # 异步事件
 
+    event_bus.start()
+
     # 发布同步事件（市场数据）
     for i in range(3):
-        event_bus.publish(Event("market_data", price=3500 + i, volume=100 * i))
+        market_data = Event("market_data", data={"price": 3500 + i, "volume": 100 * i})
+        event_bus.publish(market_data)
+
+    strategy_signal1 = Event("strategy_signal", data={"strategy": "mean_reversion", "signal": "buy"})
+    strategy_signal2 = Event("strategy_signal", data={"strategy": "trend_follow", "signal": "sell"})
 
     # 发布异步事件（策略信号）
-    event_bus.publish(Event("strategy_signal", strategy="mean_reversion", signal="buy"), async_mode=True)
-    event_bus.publish(Event("strategy_signal", strategy="trend_follow", signal="sell"), async_mode=True)
+    event_bus.publish(strategy_signal1, async_mode=True)
+    event_bus.publish(strategy_signal2, async_mode=True)
 
     # 运行一段时间观察效果
     await asyncio.sleep(5)
+    event_bus.stop()
 
 
 if __name__ == "__main__":
