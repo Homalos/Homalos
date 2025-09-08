@@ -9,6 +9,3 @@
 @Software   : PyCharm
 @Description: 日志默认初始化
 """
-from src.utils.log.logger import init_logger
-# 全局 logger
-logger = init_logger()
