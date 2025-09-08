@@ -26,7 +26,10 @@ from loguru import logger
 from src.utils.utility import load_config
 
 
-def get_root_path() -> Path:
+__all__ = ["get_logger", "logger"]
+
+
+def _get_root_path() -> Path:
 
     """从当前文件往上获取项目根目录"""
     current_file = Path(__file__).resolve()
@@ -36,12 +39,16 @@ def get_root_path() -> Path:
     return root_path
 
 
-def init_logger(config_path: str = "config/log_config.yaml") -> logger:
+def get_logger(context: str = "Homalos") -> logger:
     """
     初始化全局日志配置
+    :param context: 上下文，默认"Homalos"
+    :return:
     """
-    root_path = get_root_path()
-    config_path = str(root_path / config_path)
+    root_path = _get_root_path()
+    log_config_name = "config/log_config.yaml"
+
+    config_path = str(root_path / log_config_name)
     config = load_config(config_path)
     cfg = config.get("logging", {})
     log_filename = cfg.get("log_filename", "homalos.log")
@@ -70,8 +77,8 @@ def init_logger(config_path: str = "config/log_config.yaml") -> logger:
         colorize=colorize,
         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> "
                "<level>{level: <8}</level> "
+               "<magenta>[{extra[context]}]</magenta> "
                "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> "
-               "[context={extra[context]}] "
                "- <level>{message}</level>",
         backtrace=backtrace,
         diagnose=diagnose,
@@ -89,7 +96,7 @@ def init_logger(config_path: str = "config/log_config.yaml") -> logger:
         backtrace=backtrace,
         diagnose=diagnose,
         format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | "
-               "{name}:{function}:{line} [context={extra[context]}] - {message}"
+               "[{extra[context]}] {name}:{function}:{line} - {message}"
     )
 
     # 错误日志单独保存
@@ -103,8 +110,7 @@ def init_logger(config_path: str = "config/log_config.yaml") -> logger:
         backtrace=backtrace,
         diagnose=diagnose,
         format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | "
-               "{name}:{function}:{line} [context={extra[context]}] - {message}"
+               "[{extra[context]}] {name}:{function}:{line} - {message}"
     )
 
-    # 默认 context = "global"
-    return logger.bind(context="global")
+    return logger.bind(context=context)
