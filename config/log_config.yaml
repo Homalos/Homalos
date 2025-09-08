@@ -1,0 +1,11 @@
+logging:
+  log_filename: "homalos.log" # 日志文件名
+  log_error_filename: "homalos_error.log"
+  level: "INFO"         # 日志目录
+  log_dir_name: "logs"  # 日志级别
+  rotation: "50 MB"     # 单个日志文件大小上限
+  retention: "14 days"  # 日志保留时间
+  colorize: true        # 是否使用颜色
+  enqueue: true         # 异步写入
+  backtrace: true       # 捕捉完整错误堆栈
+  diagnose: true        # 提供变量调试信息
