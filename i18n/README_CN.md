@@ -1,10 +1,10 @@
 <div align="center">
-  <a href="https://homalos.github.io" target="blank"><img alt="Homalos Logo" src="assets/logo.svg"/></a>
+  <a href="https://homalos.github.io" target="blank"><img alt="Homalos Logo" src="../assets/logo.svg"/></a>
 </div>
 <p>&nbsp;</p>
 
 <p align="center">
-  <font size="5px">✨ Python-based Futures Quantitative Trading System ✨</font>
+  <font size="5px">✨ 基于Python的期货量化交易系统 ✨</font>
 </p>
 
 <p align="center">
@@ -18,12 +18,12 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
 </p>
 
 <p align="center">
-  English |
-  <a href="i18n/README_CN.md">简体中文</a>
+  简体中文 |
+  <a href="../README.md">English</a>
 </p>
 
-## Overview
+## 概述
 
-This project is a new development fork of Homalos, a Python-based event-driven futures trading platform designed to be deployed on a single machine with minimal external dependencies.
+此项目是 Homalos 的新进展分支项目，Homalos 是一个基于 Python 的事件驱动型期货交易平台，旨在实现单机部署，并最大限度地减少外部依赖。
 
-- **Current Status**: Under development
+- **当前状态**: 开发中
