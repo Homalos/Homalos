@@ -7,22 +7,26 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: description
+@Description: 类中使用日志模块
 """
-from src.utils.log import logger
+from src.utils.log.logger import get_logger
 
 
 class StrategyEngine:
+
+
     def __init__(self, name):
         self.name = name
-        logger.info(f"策略引擎 {self.name} 初始化完成")
+        # 绑定上下文为类名，日志中显示 [StrategyEngine]
+        self.logger = get_logger(f"{self.__class__.__name__}:{self.name}")
+        self.logger.info("策略初始化完成")
 
     def run(self):
-        logger.info(f"策略 {self.name} 开始运行")
+        self.logger.info("策略开始运行")
         try:
             1 / 0
-        except Exception:
-            logger.exception("策略运行出错")
+        except Exception as e:
+            self.logger.exception(f"策略运行出错: {e}")
 
 
 if __name__ == '__main__':
