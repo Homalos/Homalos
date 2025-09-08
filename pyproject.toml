@@ -4,4 +4,7 @@ version = "0.1.0"
 description = "基于Python的期货量化交易系统"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "loguru>=0.7.3",
+    "pyyaml>=6.0.2",
+]
