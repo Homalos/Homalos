@@ -47,6 +47,7 @@ from concurrent.futures import ThreadPoolExecutor
 from queue import Queue, Empty, Full
 
 from src.core.event import Event, EventType
+from src.core.trace_context import set_trace_id
 from src.utils.log.logger import get_logger
 
 
@@ -276,7 +277,7 @@ class EventBus:
                     break
                 self._dispatch(event)
         except Exception as e:
-            self.logger.error(f"同步事件循环异常: {e}")
+            self.logger.exception(f"同步事件循环异常: {e}")
         finally:
             self.logger.info("同步事件循环已退出")
 
@@ -300,7 +301,7 @@ class EventBus:
             # 任务被取消时优雅退出
             self.logger.info("异步事件循环被取消")
         except Exception as e:
-            self.logger.error(f"异步事件循环异常: {e}")
+            self.logger.exception(f"异步事件循环异常: {e}")
         finally:
             self.logger.info("异步事件循环已退出")
 
@@ -316,6 +317,9 @@ class EventBus:
 
         for subscriber, async_mode in subscribers:
             try:
+                # 设置 trace_id 到上下文
+                set_trace_id(event.trace_id)
+
                 if async_mode:
                     if not inspect.iscoroutinefunction(subscriber):
                         raise ValueError(f"异步订阅者必须是 async 函数: {subscriber}")
@@ -326,22 +330,26 @@ class EventBus:
                         raise ValueError(f"同步订阅者不能是 async 函数: {subscriber}")
                     self._executor.submit(self._safe_sync, subscriber, event)
             except Exception as e:
-                self.logger.error(f"事件 {event.event_type} 处理失败: {e}")
+                self.logger.exception(f"事件 {event.event_type} 处理失败: {e}")
 
     # ===================== 安全执行封装 =====================
     def _safe_sync(self, subscriber, event):
         """同步订阅者安全执行"""
         try:
+            # 在新线程中重新设置 trace_id
+            set_trace_id(event.trace_id)
             subscriber(event)
         except Exception as e:
-            self.logger.error(f"同步订阅者 {subscriber} 执行失败: {e}")
+            self.logger.exception(f"同步订阅者 {subscriber} 执行失败: {e}")
 
     async def _safe_async(self, subscriber, event):
         """异步订阅者安全执行"""
         try:
+            # 在异步任务中重新设置 trace_id
+            set_trace_id(event.trace_id)
             await subscriber(event)
         except Exception as e:
-            self.logger.error(f"异步订阅者 {subscriber} 执行失败: {e}")
+            self.logger.exception(f"异步订阅者 {subscriber} 执行失败: {e}")
 
     # ===================== 事件循环管理 =====================
     @staticmethod
