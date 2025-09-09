@@ -7,13 +7,16 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 日志工具初始化配置
+@Description: 全局日志模块（loguru+配置化+上下文标签）
+
 1. 外部配置文件 config/log_config.yaml
 可配置 level, log_dir, rotation, retention。
 方便开发/生产环境切换。
+
 2. 上下文绑定 (logger.bind)
 支持给日志增加 context（比如 "strategy", "engine", "datafeed"）。
 打印时自动带上 context，便于过滤。
+
 3. 异步环境支持
 已经用 enqueue=True，高频 tick 日志写入不会阻塞主线程/事件循环。
 """
