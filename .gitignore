@@ -14,9 +14,7 @@ wheels/
 data/
 log/
 .trae/
-config/system.yaml
-config/test_system.yaml
-config/brokers.json
+config/brokers.yaml
 config/instrument_exchange_id.json
 config/product_info.ini
 .vercel/
