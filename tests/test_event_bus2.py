@@ -27,16 +27,16 @@ def safe_print(*args, **kwargs):
 
 def market_data_handler(event: Event):
     # 同步订阅者
-    safe_print(f"[SYNC] 收到市场数据: {event.data}")
+    safe_print(f"[SYNC] 收到市场数据: {event.payload}")
     time.sleep(0.5)
-    safe_print(f"[SYNC] 处理完成: {event.data}")
+    safe_print(f"[SYNC] 处理完成: {event.payload}")
 
 
 async def strategy_handler(event: Event):
     # 异步订阅者
-    safe_print(f"[ASYNC] 策略触发: {event.data}")
+    safe_print(f"[ASYNC] 策略触发: {event.payload}")
     await asyncio.sleep(1)
-    safe_print(f"[ASYNC] 策略完成: {event.data}")
+    safe_print(f"[ASYNC] 策略完成: {event.payload}")
 
 
 async def main():
@@ -49,11 +49,11 @@ async def main():
 
     # 发布同步事件
     for i in range(3):
-        bus.publish(Event("tick_data", data={"price": 3500 + i, "volume": 100 * i}))
+        bus.publish(Event("tick_data", payload={"price": 3500 + i, "volume": 100 * i}))
 
     # 发布异步事件
-    bus.publish(Event("signal", data={"signal": "buy", "strategy": "mean_reversion"}), async_mode=True)
-    bus.publish(Event("signal", data={"signal": "sell", "strategy": "trend_follow"}), async_mode=True)
+    bus.publish(Event("signal", payload={"signal": "buy", "strategy": "mean_reversion"}), async_mode=True)
+    bus.publish(Event("signal", payload={"signal": "sell", "strategy": "trend_follow"}), async_mode=True)
 
     # 等待一段时间，模拟运行
     await asyncio.sleep(2)
