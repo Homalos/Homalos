@@ -19,6 +19,7 @@ import uuid
 from enum import IntEnum
 from typing import Optional, Any
 
+from src.core.trace_context import get_trace_id
 from src.utils.log import get_logger
 
 logger = get_logger("API")
@@ -64,8 +65,9 @@ class ErrorCode(IntEnum):
 class APIResponse:
     @staticmethod
     def _base(code: int, message: str, data: Optional[Any] = None, trace_id: Optional[str] = None):
-        if trace_id is None:
-            trace_id = str(uuid.uuid4())
+        # 优先用参数，其次用上下文 trace_id，最后生成新 trace_id
+        trace_id = trace_id or get_trace_id() or str(uuid.uuid4())
+
         resp = {
             "code": code,
             "message": message,
