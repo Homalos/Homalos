@@ -46,8 +46,8 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue, Empty, Full
 
+from src.core import trace_context
 from src.core.event import Event, EventType
-from src.core.trace_context import set_trace_id
 from src.utils.log.logger import get_logger
 
 
@@ -253,6 +253,14 @@ class EventBus:
             self.logger.warning("已停止，忽略事件发布")
             return
 
+        # 发布事件时自动继承 trace_id
+        if not event.trace_id:
+            # 如果事件本身没有 trace_id，尝试继承上下文 trace_id
+            trace_id = trace_context.get_trace_id()
+            if not trace_id:
+                trace_id = trace_context.set_trace_id()  # 自动生成
+            event.trace_id = trace_id
+
         if async_mode:
             if self._loop is not None and self._async_queue is not None:
                 try:
@@ -317,8 +325,8 @@ class EventBus:
 
         for subscriber, async_mode in subscribers:
             try:
-                # 设置 trace_id 到上下文
-                set_trace_id(event.trace_id)
+                # 自动设置 trace_id 到上下文
+                trace_context.set_trace_id(event.trace_id)
 
                 if async_mode:
                     if not inspect.iscoroutinefunction(subscriber):
@@ -336,8 +344,8 @@ class EventBus:
     def _safe_sync(self, subscriber, event):
         """同步订阅者安全执行"""
         try:
-            # 在新线程中重新设置 trace_id
-            set_trace_id(event.trace_id)
+            # 在新线程中自动设置上下文 trace_id
+            trace_context.set_trace_id(event.trace_id)
             subscriber(event)
         except Exception as e:
             self.logger.exception(f"同步订阅者 {subscriber} 执行失败: {e}")
@@ -345,8 +353,8 @@ class EventBus:
     async def _safe_async(self, subscriber, event):
         """异步订阅者安全执行"""
         try:
-            # 在异步任务中重新设置 trace_id
-            set_trace_id(event.trace_id)
+            # 在异步任务中自动设置上下文 trace_id
+            trace_context.set_trace_id(event.trace_id)
             await subscriber(event)
         except Exception as e:
             self.logger.exception(f"异步订阅者 {subscriber} 执行失败: {e}")
