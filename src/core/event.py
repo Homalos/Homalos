@@ -14,9 +14,14 @@ from typing import Optional, Any
 
 
 class Event:
-    def __init__(self, event_type, data: Any = None, source: Optional[str] = None, trace_id: Optional[str] = None):
+    def __init__(self,
+                 event_type: str,
+                 payload: Optional[Any] = None,
+                 source: Optional[str] = None,
+                 trace_id: Optional[str] = None
+                 ):
         self.event_type: str = event_type    # 事件类型
-        self.data: Any = data                # 事件数据
+        self.payload: Any = payload                # 事件数据
         self.source: str = source or "unknown"          # 事件来源，如果没有提供来源，则默认为"unknown"
         self.trace_id = trace_id or str(uuid.uuid4())   # 事件追踪ID，如果没有提供追踪ID，则生成一个新的UUID
 
