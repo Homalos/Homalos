@@ -33,5 +33,19 @@ class Event:
 
 class EventType:
     """事件类型常量"""
+    EVENT_BUS_SHUTDOWN = "event_bus.shutdown"  # 停止事件
 
-    EVENT_BUS_SHUTDOWN = "event_bus.shutdown"
+    TICK = "tick"  # Tick事件
+
+    ORDER = "order"  # 订单事件
+
+    POSITION = "position"  # 持仓事件
+
+    ACCOUNT = "account"  # 账户事件
+
+    CONTRACT = "contract"  # 合约事件
+
+    # 行情接口事件
+    MD_GATEWAY_CONNECT = "md_gateway.connect"  # 行情接口连接事件(成功/断开)
+
+    MD_GATEWAY_LOGIN = "md_gateway.login"  # 行情登录
