@@ -2,34 +2,31 @@
 # -*- coding: utf-8 -*-
 """
 @ProjectName: Homalos
-@FileName   : market_data_gateway.py
+@FileName   : market_gateway.py
 @Date       : 2025/9/9 16:49
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 行情网关，专门负责tick行情数据处理
+@Description: 行情网关，专门负责行情数据处理
 """
-import threading
 import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from src.constants import REASON_MAPPING
-from src.core.api_response import APIResponse
 from src.core.base_gateway import BaseGateway
-from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.object import SubscribeRequest
 from src.ctp.api import MdApi
+from src.modules.gateway.gateway_const import GatewayConst
 from src.modules.gateway.helper import extract_error_msg
 from src.utils.log import get_logger
 from src.utils.utility import prepare_address
 
 
-class MarketDataGateway(BaseGateway):
+class MarketGateway(BaseGateway):
 
-    def __init__(self, event_bus: EventBus, gateway_name: str) -> None:
+    def __init__(self, event_bus: EventBus = "MarketBus", gateway_name: str = "MarketGateway") -> None:
         super().__init__(event_bus, gateway_name)
         self.gateway_name = gateway_name
 
@@ -40,10 +37,10 @@ class MarketDataGateway(BaseGateway):
 
     def _setup_gateway_event_handlers(self) -> None:
         """设置网关事件处理器"""
-        self.event_bus.subscribe(EventType.GATEWAY_SUBSCRIBE, self._handle_gateway_subscribe)
-        self.event_bus.subscribe(EventType.MD_GATEWAY_CONNECT, self._on_gateway_connected)
-        # 订阅合约更新事件，用于同步交易网关的合约数据
-        self.event_bus.subscribe(EventType.CONTRACT_UPDATED, self._handle_contract_updated)
+        # self.event_bus.subscribe(EventType.GATEWAY_SUBSCRIBE, self._handle_gateway_subscribe)
+        # self.event_bus.subscribe(EventType.MD_GATEWAY_CONNECT, self._on_gateway_connected)
+        # # 订阅合约更新事件，用于同步交易网关的合约数据
+        # self.event_bus.subscribe(EventType.CONTRACT_UPDATED, self._handle_contract_updated)
         self.logger.info(f"{self.gateway_name} 网关事件处理器已注册")
 
     def connect(self, setting: dict[str, Any]) -> None:
@@ -119,11 +116,11 @@ class MarketDataGateway(BaseGateway):
 
 class CtpMdApi(MdApi):
 
-    def __init__(self, gateway: MarketDataGateway):
+    def __init__(self, gateway: MarketGateway):
         super().__init__()
         self.logger = get_logger(__class__.__name__)
 
-        self.gateway: MarketDataGateway = gateway  # 行情网关
+        self.gateway: MarketGateway = gateway  # 行情网关
         self.gateway_name: str = gateway.gateway_name  # 行情网关名称
 
         self.req_id: int = 0  # 请求ID
@@ -203,7 +200,7 @@ class CtpMdApi(MdApi):
         self.login_status = False
 
         reason_hex = hex(reason)
-        reason_msg = REASON_MAPPING.get(reason, f"Unknown cause({reason_hex})")
+        reason_msg = GatewayConst.reason_mapping.get(reason, f"Unknown cause({reason_hex})")
         self.logger.info(f"onFrontDisconnected: 行情服务器连接断开，原因是：{reason_msg} ({reason_hex})")
 
     def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool) -> None:
@@ -400,38 +397,42 @@ class CtpMdApi(MdApi):
         # 消息的状态文件完整路径
         # The full path to the status file for the message
         api_path_str = str(ctp_con_dir) + "/md"
-        self.logger.info("connect: 尝试创建路径为 {} 的 API".format(api_path_str))
-        try:
-            # 加上utf-8编码，否则中文路径会乱码
-            # Add utf-8 encoding, otherwise the Chinese path will be garbled
-            self.createFtdcMdApi(api_path_str.encode("GBK").decode("utf-8"), is_using_udp, is_multicast,
-                                 is_production_mode)
-            self.logger.info("connect: createFtdcMdApi 调用成功。")
+        # 如果没有连接，创建MdApi实例
+        if not self.connect_status:
+            self.logger.info("开始创建MdApi实例......")
+            self.logger.info("尝试创建路径为 {} 的 API".format(api_path_str))
+            try:
+                # 加上utf-8编码，否则中文路径会乱码
+                # Add utf-8 encoding, otherwise the Chinese path will be garbled
+                self.createFtdcMdApi(api_path_str.encode("GBK").decode("utf-8"), is_using_udp, is_multicast,
+                                     is_production_mode)
+                self.logger.info("createFtdcMdApi 调用成功。")
 
-        except Exception as e_create:
-            self.logger.exception("connect: createFtdcMdApi 失败！错误：{}".format(e_create))
-            self.logger.exception("connect: createFtdcMdApi Traceback: {}".format(traceback.format_exc()))
-            return
+            except Exception as e_create:
+                self.logger.exception("createFtdcMdApi 失败！错误：{}".format(e_create))
+                self.logger.exception("createFtdcMdApi Traceback: {}".format(traceback.format_exc()))
+                return
 
-        # 设置交易托管系统的网络通讯地址，交易托管系统拥有多个通信地址，用户可以注册一个或多个地址。
-        # 如果注册多个地址则使用最先建立TCP连接的地址。
+            # 设置交易托管系统的网络通讯地址，交易托管系统拥有多个通信地址，用户可以注册一个或多个地址。
+            # 如果注册多个地址则使用最先建立TCP连接的地址。
 
-        # Set the network communication address of the transaction hosting system.
-        # The transaction hosting system has multiple communication addresses,
-        # and users can register one or more addresses.
-        # If multiple addresses are registered, the address that first establishes a TCP connection is used.
-        try:
-            self.registerFront(address)
-            self.logger.info("connect: 尝试使用地址初始化 API：{}...".format(address))
-            # 初始化运行环境,只有调用后,接口才开始发起前置的连接请求。
-            # Initialize the operating environment. Only after the call,
-            # the interface starts to initiate the pre-connection request.
-            self.init()
-            self.logger.info("connect: init 调用成功。")
-        except Exception as e_init:
-            self.logger.exception("connect: 初始化失败！错误：{}".format(e_init))
-            self.logger.exception("connect: 初始化 backtrace: {}".format(traceback.format_exc()))
-            return
+            # Set the network communication address of the transaction hosting system.
+            # The transaction hosting system has multiple communication addresses,
+            # and users can register one or more addresses.
+            # If multiple addresses are registered, the address that first establishes a TCP connection is used.
+            try:
+                self.registerFront(address)
+                self.logger.info("尝试使用地址初始化 API：{}...".format(address))
+                # 初始化运行环境,只有调用后,接口才开始发起前置的连接请求。
+                # Initialize the operating environment. Only after the call,
+                # the interface starts to initiate the pre-connection request.
+                self.init()
+                self.logger.info("init 调用成功。")
+            except Exception as e_init:
+                self.logger.exception("初始化失败！错误：{}".format(e_init))
+                self.logger.exception("初始化 backtrace: {}".format(traceback.format_exc()))
+                return
+            self.logger.info("创建MdApi实例成功")
 
     def login(self) -> None:
         """
@@ -530,7 +531,7 @@ class CtpMdApi(MdApi):
 
     def logout(self):
         """
-        登出，对应响应OnRspUserLogout
+        登出行情服务器，对应响应OnRspUserLogout
 
         Logout
         :return: None
