@@ -22,7 +22,7 @@ from typing import Optional, Any
 from src.core.trace_context import get_trace_id
 from src.utils.log import get_logger
 
-logger = get_logger("API")
+_logger = get_logger("APIResponse")
 
 
 # ================= 错误码定义 =================
@@ -76,7 +76,7 @@ class APIResponse:
             "trace_id": trace_id,
         }
         # 记录日志，带 trace_id
-        log = logger.bind(trace_id=trace_id)
+        log = _logger.bind(trace_id=trace_id)
         if code == ErrorCode.SUCCESS:
             log.info(f"成功响应: {message}")
         else:
