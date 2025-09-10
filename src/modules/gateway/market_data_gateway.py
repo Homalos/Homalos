@@ -22,6 +22,7 @@ from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.object import SubscribeRequest
 from src.ctp.api import MdApi
+from src.modules.gateway.helper import extract_error_msg
 from src.utils.log import get_logger
 from src.utils.utility import prepare_address
 
@@ -37,22 +38,13 @@ class MarketDataGateway(BaseGateway):
         # CTP API相关
         self.md_api: CtpMdApi | None = None
 
-        # 线程锁机制
-        self._subscription_lock = threading.RLock()  # 订阅操作锁
-
     def _setup_gateway_event_handlers(self) -> None:
         """设置网关事件处理器"""
-        try:
-            # 订阅网关订阅/取消订阅事件
-            self.event_bus.subscribe(EventType.GATEWAY_SUBSCRIBE, self._handle_gateway_subscribe)
-            self.event_bus.subscribe(EventType.GATEWAY_UNSUBSCRIBE, self._handle_gateway_unsubscribe)
-            self.event_bus.subscribe(EventType.GATEWAY_CONNECTED, self._on_gateway_connected)
-            self.event_bus.subscribe(EventType.GATEWAY_DISCONNECTED, self._on_gateway_disconnected)
-            # 订阅合约更新事件，用于同步交易网关的合约数据
-            self.event_bus.subscribe(EventType.CONTRACT_UPDATED, self._handle_contract_updated)
-            self.logger.info(f"{self.gateway_name} 网关事件处理器已注册")
-        except Exception as e:
-            self.logger.exception(f"设置网关事件处理器失败: {e}")
+        self.event_bus.subscribe(EventType.GATEWAY_SUBSCRIBE, self._handle_gateway_subscribe)
+        self.event_bus.subscribe(EventType.MD_GATEWAY_CONNECT, self._on_gateway_connected)
+        # 订阅合约更新事件，用于同步交易网关的合约数据
+        self.event_bus.subscribe(EventType.CONTRACT_UPDATED, self._handle_contract_updated)
+        self.logger.info(f"{self.gateway_name} 网关事件处理器已注册")
 
     def connect(self, setting: dict[str, Any]) -> None:
         """
@@ -83,6 +75,7 @@ class MarketDataGateway(BaseGateway):
                 self.md_api = CtpMdApi(self)
 
             md_address: str = prepare_address(md_address_raw)
+            # 连接行情服务器
             self.md_api.connect(md_address, broker_id, user_id, password)
 
             self.logger.info(f"正在连接到 {md_address}...")
@@ -94,10 +87,34 @@ class MarketDataGateway(BaseGateway):
 
     def subscribe(self, req: SubscribeRequest) -> None:
         """订阅行情"""
-        if not self.md_api and not self.md_api.connect_status and not self.md_api.login_status:
+        if not self.md_api or not self.md_api.connect_status or not self.md_api.login_status:
             self.logger.info("无法订阅行情：行情接口未初始化、未连接或未登录行情服务器。")
             return
         self.md_api.subscribe(req.symbol)
+
+    def logout(self) -> None:
+        """
+        登出
+        :return:
+        """
+        if self.md_api:
+            self.md_api.logout()
+
+    def close(self) -> None:
+        """
+        关闭接口
+        :return:
+        """
+        if self.md_api and self.md_api.connect_status == True:
+            self.md_api.close()
+
+    def update_date(self) -> None:
+        """
+        更新当前日期
+        :return:
+        """
+        if self.md_api:
+            self.md_api.update_date()
 
 
 class CtpMdApi(MdApi):
@@ -110,7 +127,6 @@ class CtpMdApi(MdApi):
         self.gateway_name: str = gateway.gateway_name  # 行情网关名称
 
         self.req_id: int = 0  # 请求ID
-        self.subscribe_symbol: set = set()  # 要订阅的合约 Subscribed contracts
 
         self.address: str = ""  # 服务器地址 Server address
         self.broker_id: str = ""  # 经纪公司代码
@@ -137,12 +153,9 @@ class CtpMdApi(MdApi):
         the user login task.
         :return: None
         """
-        self.logger.info("ctp md api callback: onFrontConnected - 行情服务器连接成功")
+        self.logger.info("onFrontConnected: 行情服务器连接成功")
         self.logger.info("开始登录")
-        self.gateway.event_bus.publish(Event(
-            EventType.MD_GATEWAY_CONNECT,
-            APIResponse.success(message="行情服务器连接成功")
-        ))
+        self.connect_status = True  # 设置连接状态为已连接
 
         self.login()  # 调用登录方法, Calling the login method
 
@@ -188,17 +201,10 @@ class CtpMdApi(MdApi):
         """
         self.connect_status = False
         self.login_status = False
+
         reason_hex = hex(reason)
         reason_msg = REASON_MAPPING.get(reason, f"Unknown cause({reason_hex})")
-        self.logger.info(f"行情服务器连接断开，原因是：{reason_msg} ({reason_hex})")
-        self.gateway.event_bus.publish(Event(
-            EventType.MD_GATEWAY_CONNECT,
-            {
-                "code": 201,
-                "message": f"行情服务器连接断开，原因是：{reason_msg} ({reason_hex})",
-                "gateway_name": self.gateway.gateway_name
-            }
-        ))
+        self.logger.info(f"onFrontDisconnected: 行情服务器连接断开，原因是：{reason_msg} ({reason_hex})")
 
     def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
@@ -218,23 +224,14 @@ class CtpMdApi(MdApi):
         last: Indicates whether this is the last return for nRequestID.
         return: None
         """
-        if error["ErrorID"] == 0:
-            self.logger.info("ctp md api callback: onRspUserLogin - 行情服务器登录成功")
-            self.login_status = True
-
-            self.gateway.event_bus.publish(Event(
-                EventType.MD_GATEWAY_LOGIN,
-                APIResponse.success(message="行情服务器登录成功")
-            ))
-
-            self.update_date()
+        rsp_error_msg = extract_error_msg(error, self.onRspUserLogin.__name__, "行情服务器登录失败")
+        if rsp_error_msg:
+            self.login_status = False
+            self.logger.exception(rsp_error_msg)
         else:
-            self.logger.exception(f"行情服务器登录失败: ErrorID={error.get('ErrorID', '')}, "
-                  f"ErrorMsg={error.get('ErrorMsg', '')}")
-            self.gateway.event_bus.publish(Event(
-                EventType.MD_GATEWAY_LOGIN,
-                APIResponse.fail(code=error.get("ErrorID", ""), message=error.get("ErrorMsg", ""))
-            ))
+            self.login_status = True
+            self.logger.info("onRspUserLogin: 行情服务器登录成功")
+            self.update_date()
 
     def onRspError(self, error: dict, reqid: int, last: bool) -> None:
         """
@@ -253,9 +250,11 @@ class CtpMdApi(MdApi):
         last: Indicates whether this is the last return for nRequestID.
         return: None
         """
-        self.logger.exception(f"ctp md api callback: onRspError - Request error, ErrorID={error.get('ErrorID', '')}, "
-              f"ErrorMsg={error.get('ErrorMsg', '')}")
-        self.logger.exception("请求报错出错", error)
+        rsp_error_msg = extract_error_msg(error, self.onRspError.__name__, "请求报错")
+        if rsp_error_msg:
+            self.logger.exception(rsp_error_msg)
+        else:
+            self.logger.info("请求报错响应", error)
 
     def onRspSubMarketData(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
@@ -279,16 +278,13 @@ class CtpMdApi(MdApi):
         last: Indicates whether this is the last return for nRequestID.
         return: None
         """
-        symbol = data.get("InstrumentID", "UNKNOWN")
-        self.logger.info(f"ctp md api callback: onRspSubMarketData - Subscription feedback, Contract={symbol}, "
-              f"ErrorID={error.get('ErrorID', 'N/A') if error else 'None'}")
-        if not error or not error["ErrorID"]:
-            # Subscription successful
-            if data and "InstrumentID" in data:
-                symbol = data["InstrumentID"]
-                self.logger.info(f"symbol: {symbol}")
+        rsp_error_msg = extract_error_msg(error, self.onRspSubMarketData.__name__, "市场行情订阅失败")
+        if rsp_error_msg:
+            self.logger.exception(rsp_error_msg)
         else:
-            self.logger.exception(f"市场行情合约订阅失败: {error}")
+            if data and "InstrumentID" in data:
+                symbol = data.get("InstrumentID", "UNKNOWN")
+                self.logger.info(f"symbol: {symbol}")
 
     def onRtnDepthMarketData(self, data: dict) -> None:
         """
@@ -303,7 +299,8 @@ class CtpMdApi(MdApi):
         data: In-depth market information
         return: None
         """
-        self.logger.info(f"ctp md api callback: onRtnDepthMarketData")
+        # 此处要判断是否无效数据，例如非交易时间段的数据，避免无效数据推送给上层
+        self.logger.info(f"CTP行情API回调: onRtnDepthMarketData")
         # 获取合约代码用于日志记录
         # Get the contract code for logging
         symbol: str = data.get("InstrumentID", "UNKNOWN")
@@ -318,11 +315,27 @@ class CtpMdApi(MdApi):
             return
 
         data = {"symbol": symbol, "last_price": data.get('LastPrice', '')}
+        print(f"MarketData: {data}")
 
-        self.gateway.event_bus.publish(Event(
-            EventType.TICK,
-            APIResponse.success(message="市场行情接收成功", data=data)
-        ))
+        # self.gateway.event_bus.publish(Event(
+        #     EventType.TICK,
+        #     APIResponse.success(message="市场行情接收成功", data=data)
+        # ))
+
+    def onRspUserLogout(self, data: dict, error: dict, reqid: int, last: bool):
+        """
+        登出请求响应，当 ReqUserLogout 后，该方法被调用。
+        :param data: 用户登出请求
+        :param error: 响应信息
+        :param reqid: 返回用户操作请求的 ID，该 ID 由用户在操作请求时指定。
+        :param last: 指示该次返回是否为针对 reqid 的最后一次返回。
+        :return: 无
+        """
+        rsp_error_msg = extract_error_msg(error, self.onRspUserLogout.__name__, "行情账户登出失败")
+        if rsp_error_msg:
+            self.logger.exception(rsp_error_msg)
+        else:
+            self.logger.info("onRspUserLogout: 行情账户：{} 已登出".format(data.get("UserID", "UNKNOWN")))
 
     # ===================== 主动函数 =====================
     def connect(self, address: str, broker_id: str, user_id: str, password: str) -> None:
@@ -387,17 +400,17 @@ class CtpMdApi(MdApi):
         # 消息的状态文件完整路径
         # The full path to the status file for the message
         api_path_str = str(ctp_con_dir) + "/md"
-        self.logger.info("CtpMdApi：尝试创建路径为 {} 的 API".format(api_path_str))
+        self.logger.info("connect: 尝试创建路径为 {} 的 API".format(api_path_str))
         try:
             # 加上utf-8编码，否则中文路径会乱码
             # Add utf-8 encoding, otherwise the Chinese path will be garbled
             self.createFtdcMdApi(api_path_str.encode("GBK").decode("utf-8"), is_using_udp, is_multicast,
                                  is_production_mode)
-            self.logger.info("CtpMdApi：createFtdcMdApi 调用成功。")
+            self.logger.info("connect: createFtdcMdApi 调用成功。")
 
         except Exception as e_create:
-            self.logger.exception("CtpMdApi：createFtdcMdApi 失败！错误：{}".format(e_create))
-            self.logger.exception("CtpMdApi：createFtdcMdApi Traceback: {}".format(traceback.format_exc()))
+            self.logger.exception("connect: createFtdcMdApi 失败！错误：{}".format(e_create))
+            self.logger.exception("connect: createFtdcMdApi Traceback: {}".format(traceback.format_exc()))
             return
 
         # 设置交易托管系统的网络通讯地址，交易托管系统拥有多个通信地址，用户可以注册一个或多个地址。
@@ -409,16 +422,15 @@ class CtpMdApi(MdApi):
         # If multiple addresses are registered, the address that first establishes a TCP connection is used.
         try:
             self.registerFront(address)
-            self.logger.info("CtpMdApi：尝试使用地址初始化 API：{}...".format(address))
+            self.logger.info("connect: 尝试使用地址初始化 API：{}...".format(address))
             # 初始化运行环境,只有调用后,接口才开始发起前置的连接请求。
             # Initialize the operating environment. Only after the call,
             # the interface starts to initiate the pre-connection request.
             self.init()
-            self.logger.info("CtpMdApi：init 调用成功。")
-            self.connect_status = True
+            self.logger.info("connect: init 调用成功。")
         except Exception as e_init:
-            self.logger.exception("CtpMdApi：初始化失败！错误：{}".format(e_init))
-            self.logger.exception("CtpMdApi：初始化 backtrace: {}".format(traceback.format_exc()))
+            self.logger.exception("connect: 初始化失败！错误：{}".format(e_init))
+            self.logger.exception("connect: 初始化 backtrace: {}".format(traceback.format_exc()))
             return
 
     def login(self) -> None:
@@ -430,7 +442,7 @@ class CtpMdApi(MdApi):
         """
         # 用户登录请求
         # User login request
-        ctp_req: dict = {
+        login_req: dict = {
             # BrokerID: 开启行情身份校验功能后，该字段必需正确填写
 
             # After turning on the market identity verification function, this field must be filled in correctly
@@ -467,7 +479,7 @@ class CtpMdApi(MdApi):
         # has not successfully logged into the trading system, the verification will fail and a "CTP: Illegal Login"
         # message will be displayed. If this feature is not enabled, no verification is required and login can be
         # initiated directly.
-        ret_code = self.reqUserLogin(ctp_req, self.req_id)
+        ret_code = self.reqUserLogin(login_req, self.req_id)
 
         # 0，代表成功。
         # -1，表示网络连接失败；
@@ -479,9 +491,9 @@ class CtpMdApi(MdApi):
         # -2 indicates the number of unprocessed requests exceeds the permitted number.
         # -3 indicates the number of requests sent per second exceeds the permitted number.
         if ret_code == 0:
-            self.logger.info("CtpMdApi：reqUserLogin 调用成功。")
+            self.logger.info("CTP行情API回调: CtpMdApi - reqUserLogin 调用成功。")
         else:
-            self.logger.warning(f"CtpMdApi：reqUserLogin 调用失败，ret_code: {ret_code}")
+            self.logger.warning(f"CTP行情API回调: CtpMdApi - reqUserLogin 调用失败，ret_code: {ret_code}")
 
     def subscribe(self, symbol: str) -> None:
         """
@@ -492,10 +504,8 @@ class CtpMdApi(MdApi):
         """
         self.logger.info(f"准备订阅合约: {symbol}")
 
-        # 过滤重复的订阅
-        # Filtering duplicate subscriptions
-        if symbol in self.subscribe_symbol:
-            self.logger.info(f"合约{symbol}已在订阅列表中，跳过重复订阅")
+        if not symbol:
+            self.logger.info(f"合约为空，跳过订阅")
             return
 
         if self.login_status:
@@ -517,10 +527,29 @@ class CtpMdApi(MdApi):
                 self.logger.exception(f"订阅请求失败 {symbol}，返回代码={ret_code}")
         else:
             self.logger.warning(f"未登录，无法订阅 {symbol}")
-        # 添加订阅的合约
-        # Add subscription contract
-        if symbol not in self.subscribe_symbol:
-            self.subscribe_symbol.add(symbol)
+
+    def logout(self):
+        """
+        登出，对应响应OnRspUserLogout
+
+        Logout
+        :return: None
+        """
+        self.logger.info("准备登出")
+        # 登出请求
+        logout_req = {
+            "BrokerID": self.broker_id,
+            "UserID": self.user_id
+        }
+        self.req_id += 1
+
+        ret_code = self.reqUserLogout(logout_req, self.req_id)
+
+        if ret_code == 0:
+            self.logger.info("reqUserLogout 登出请求已发送")
+        else:
+            self.logger.warning(f"reqUserLogout 登出请求失败，ret_code: {ret_code}")
+
 
     def close(self) -> None:
         """
@@ -532,6 +561,7 @@ class CtpMdApi(MdApi):
         if self.connect_status:
             self.connect_status = False
             self.exit()
+            self.logger.info("关闭连接")
 
     def update_date(self) -> None:
         """
