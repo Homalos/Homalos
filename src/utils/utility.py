@@ -17,7 +17,7 @@ import yaml
 
 from src.utils.log import get_logger
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 def load_json_file(file_path: str) -> Dict[str, Any]:
     """
@@ -26,24 +26,24 @@ def load_json_file(file_path: str) -> Dict[str, Any]:
     Loads a JSON file.
     """
     if not os.path.exists(file_path):
-        logger.info("未找到可选的 JSON 配置文件：{}".format(file_path))
+        _logger.info("未找到可选的 JSON 配置文件：{}".format(file_path))
         return {}
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         return data
     except json.JSONDecodeError as e:
-        logger.error("无法解析 JSON 文件 {}: {}".format(file_path, e))
+        _logger.error("无法解析 JSON 文件 {}: {}".format(file_path, e))
         return {}
     except IOError as e:
-        logger.error("无法读取文件 {}: {}".format(file_path, e))
+        _logger.error("无法读取文件 {}: {}".format(file_path, e))
         return {}
 
 
 def load_config(config_path: str) -> dict:
     """加载配置文件"""
     if not os.path.exists(config_path):
-        logger.error(f"未找到配置文件: {config_path}")
+        _logger.error(f"未找到配置文件: {config_path}")
         raise FileNotFoundError(f"配置文件不存在: {config_path}")
     with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
