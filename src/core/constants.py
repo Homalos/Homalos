@@ -24,6 +24,13 @@ class Direction(Enum):
     SHORT = "short"  # 空
     NET = "net"  # 净
 
+    BUY_OPEN = "buy_open"
+    BUY_CLOSE = "buy_close"
+    SELL_OPEN = "sell_open"
+    SELL_CLOSE = "sell_close"
+    BUY_CLOSE_TODAY = "buy_close_today"
+    SELL_CLOSE_TODAY = "sell_close_today"
+
 
 class Offset(Enum):
     """
