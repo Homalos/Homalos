@@ -9,6 +9,10 @@
 @Software   : PyCharm
 @Description: gateway 的帮助类
 """
+from src.constants import INSTRUMENT_EXCHANGE_FILEPATH
+from src.utils.utility import load_json_file
+
+
 def extract_error_msg(error: dict, func_name: str = "", custom_msg: str = "") -> str:
     """
     从错误响应中提取错误消息
@@ -19,10 +23,19 @@ def extract_error_msg(error: dict, func_name: str = "", custom_msg: str = "") ->
     """
     if isinstance(error, dict):
         if error and error.get("ErrorID") != 0:
-            return f"{func_name}: {custom_msg}, ErrorID={error.get('ErrorMsg')}, ErrorMsg={error.get('ErrorMsg', '')}"
+            return (f"{func_name}: {custom_msg}, ErrorID={error.get('ErrorID', 'N/A')}, "
+                    f"ErrorMsg={error.get('ErrorMsg', 'Unknown')}")
         elif error and error.get("ErrorID") == 0:
             return ""
         else:
             return f"{func_name}: {custom_msg}, Unknown error: {str(error)}"
     else:
         return f"{func_name}: {custom_msg}, Unknown type of error: {str(error)}"
+
+def get_exchange_name(symbol: str) -> str:
+    """
+    获取交易所名称
+    :param symbol: 合约代码
+    :return: 交易所名称
+    """
+    return load_json_file(INSTRUMENT_EXCHANGE_FILEPATH).get(symbol, "")
