@@ -7,8 +7,10 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 常量
+@Description: 全局常量
 """
+from src.utils.path import get_path_ins
+
 # ================== 项目中目录名称 ==================
 PROJECT_NAME = "Homalos"  # 项目名称
 
@@ -41,11 +43,19 @@ log_time_format = "%Y-%m-%d %H:%M:%S.%f"  # 日志文件中时间格式
 
 print_time_format = "%Y-%m-%d %H:%M:%S.%f"  # 控制台打印的时间格式
 
-# 错误码与错误原因映射
-REASON_MAPPING = {
-    0x1001: "网络读失败",
-    0x1002: "网络写失败",
-    0x2001: "接收心跳超时",
-    0x2002: "发送心跳失败",
-    0x2003: "收到错误报文"
-}
+# ================== 路径常量 ==================
+CONFIG_DIR_PATH = get_path_ins.get_config_dir()
+
+BROKERS_FILEPATH = CONFIG_DIR_PATH / BROKERS_FILENAME
+
+LOG_CONFIG_FILEPATH = CONFIG_DIR_PATH / LOG_CONFIG_FILENAME
+
+SYSTEM_DEV_CONFIG_FILEPATH = CONFIG_DIR_PATH / SYSTEM_DEV_CONFIG_FILENAME
+
+SYSTEM_PROD_CONFIG_FILEPATH = CONFIG_DIR_PATH / SYSTEM_PROD_CONFIG_FILENAME
+
+INSTRUMENT_EXCHANGE_FILEPATH = CONFIG_DIR_PATH / INSTRUMENT_EXCHANGE_FILENAME
+
+PRODUCT_INFO_FILEPATH = CONFIG_DIR_PATH / PRODUCT_INFO_FILENAME
+
+HOLIDAY_FILEPATH = CONFIG_DIR_PATH / HOLIDAY_FILENAME
