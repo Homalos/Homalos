@@ -7,5 +7,8 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: description
+@Description: 路径工具实例
 """
+from src.utils.path.get_path import GetPath
+
+get_path_ins = GetPath()
