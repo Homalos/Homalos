@@ -14,6 +14,19 @@ General constant enums used in the trading platform.
 from enum import Enum
 
 
+class ErrorReason(Enum):
+    """
+    错误原因枚举
+
+    Error reason enum
+    """
+    REASON_0x1001 = "网络读失败"
+    REASON_0x1002 = "网络写失败"
+    REASON_0x2001 = "接收心跳超时"
+    REASON_0x2002 = "发送心跳失败"
+    REASON_0x2003 = "收到错误报文"
+
+
 class Direction(Enum):
     """
     订单/交易/仓位的方向
@@ -23,13 +36,6 @@ class Direction(Enum):
     LONG = "long"  # 多
     SHORT = "short"  # 空
     NET = "net"  # 净
-
-    BUY_OPEN = "buy_open"
-    BUY_CLOSE = "buy_close"
-    SELL_OPEN = "sell_open"
-    SELL_CLOSE = "sell_close"
-    BUY_CLOSE_TODAY = "buy_close_today"
-    SELL_CLOSE_TODAY = "sell_close_today"
 
 
 class Offset(Enum):
@@ -41,8 +47,29 @@ class Offset(Enum):
     NONE = ""                           # 无
     OPEN = "open"                       # 开
     CLOSE = "close"                     # 平
-    CLOSE_TODAY = "close_today"         # 平今
-    CLOSE_YESTERDAY = "close_yesterday" # 平昨
+    BUY_OPEN = "buy_open"
+    BUY_CLOSE = "buy_close"
+    SELL_OPEN = "sell_open"
+    SELL_CLOSE = "sell_close"
+    CLOSE_TODAY = "close_today"             # 平今
+    BUY_CLOSE_TODAY = "buy_close_today"     # 买平今
+    SELL_CLOSE_TODAY = "sell_close_today"   # 卖平今
+    CLOSE_YESTERDAY = "close_yesterday"     # 平昨
+
+
+class Status(Enum):
+    """
+    订单状态
+
+    Order status
+    """
+    UNKNOWN = "提交中"
+    ALL_TRADED = "全部成交"
+    PART_TRADED_QUEUEING = "部分成交还在队列中"
+    PART_TRADED_NOT_QUEUEING = "部分成交不在队列中"
+    NO_TRADE_QUEUEING = "未成交还在队列中"
+    NO_TRADE_NOT_QUEUEING = "未成交不在队列中"
+    CANCELED = "撤单"
 
 
 class Product(Enum):
