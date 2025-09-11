@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from src.core.base_gateway import BaseGateway
+from src.core.constants import ErrorReason
 from src.core.event_bus import EventBus
 from src.core.object import SubscribeRequest
 from src.ctp.api import MdApi
@@ -52,7 +53,7 @@ class MarketGateway(BaseGateway):
         :return:
         """
         try:
-            self.logger.info("开始连接 CTP 行情服务器...")
+            self.logger.info("开始连接行情服务器...")
 
             # 配置字段处理
             # Configuring Field Processing
@@ -150,10 +151,8 @@ class CtpMdApi(MdApi):
         the user login task.
         :return: None
         """
-        self.logger.info("onFrontConnected: 行情服务器连接成功")
-        self.logger.info("开始登录")
         self.connect_status = True  # 设置连接状态为已连接
-
+        self.logger.info("行情服务器连接成功，开始登录......")
         self.login()  # 调用登录方法, Calling the login method
 
     def onFrontDisconnected(self, reason: int) -> None:
@@ -199,9 +198,9 @@ class CtpMdApi(MdApi):
         self.connect_status = False
         self.login_status = False
 
-        reason_hex = hex(reason)
-        reason_msg = GatewayConst.reason_mapping.get(reason, f"Unknown cause({reason_hex})")
-        self.logger.info(f"onFrontDisconnected: 行情服务器连接断开，原因是：{reason_msg} ({reason_hex})")
+        reason_hex: str = hex(reason)  # 错误代码转换成16进制字符串
+        reason_msg: ErrorReason = GatewayConst.reason_mapping.get(reason_hex, f"Unknown cause({reason_hex})")
+        self.logger.info(f"行情服务器连接断开，原因是：{reason_msg.value} ({reason_hex})")
 
     def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
@@ -365,6 +364,10 @@ class CtpMdApi(MdApi):
         password: password
         return: None
         """
+        if self.connect_status:
+            self.logger.warning("行情服务器已连接!")
+            return
+
         self.broker_id = broker_id
         self.address = address
         self.user_id = user_id
@@ -398,20 +401,14 @@ class CtpMdApi(MdApi):
         # The full path to the status file for the message
         api_path_str = str(ctp_con_dir) + "/md"
         # 如果没有连接，创建MdApi实例
-        if not self.connect_status:
-            self.logger.info("开始创建MdApi实例......")
-            self.logger.info("尝试创建路径为 {} 的 API".format(api_path_str))
-            try:
-                # 加上utf-8编码，否则中文路径会乱码
-                # Add utf-8 encoding, otherwise the Chinese path will be garbled
-                self.createFtdcMdApi(api_path_str.encode("GBK").decode("utf-8"), is_using_udp, is_multicast,
-                                     is_production_mode)
-                self.logger.info("createFtdcMdApi 调用成功。")
-
-            except Exception as e_create:
-                self.logger.exception("createFtdcMdApi 失败！错误：{}".format(e_create))
-                self.logger.exception("createFtdcMdApi Traceback: {}".format(traceback.format_exc()))
-                return
+        self.logger.info("开始创建MdApi实例......")
+        self.logger.info("尝试创建路径为 {} 的 API".format(api_path_str))
+        try:
+            # 加上utf-8编码，否则中文路径会乱码
+            # Add utf-8 encoding, otherwise the Chinese path will be garbled
+            self.createFtdcMdApi(api_path_str.encode("GBK").decode("utf-8"), is_using_udp, is_multicast,
+                                 is_production_mode)
+            self.logger.info("createFtdcMdApi 调用成功。")
 
             # 设置交易托管系统的网络通讯地址，交易托管系统拥有多个通信地址，用户可以注册一个或多个地址。
             # 如果注册多个地址则使用最先建立TCP连接的地址。
@@ -420,19 +417,20 @@ class CtpMdApi(MdApi):
             # The transaction hosting system has multiple communication addresses,
             # and users can register one or more addresses.
             # If multiple addresses are registered, the address that first establishes a TCP connection is used.
-            try:
-                self.registerFront(address)
-                self.logger.info("尝试使用地址初始化 API：{}...".format(address))
-                # 初始化运行环境,只有调用后,接口才开始发起前置的连接请求。
-                # Initialize the operating environment. Only after the call,
-                # the interface starts to initiate the pre-connection request.
-                self.init()
-                self.logger.info("init 调用成功。")
-            except Exception as e_init:
-                self.logger.exception("初始化失败！错误：{}".format(e_init))
-                self.logger.exception("初始化 backtrace: {}".format(traceback.format_exc()))
-                return
-            self.logger.info("创建MdApi实例成功")
+            self.registerFront(address)
+            self.logger.info("尝试使用地址初始化 API：{}...".format(address))
+            # 初始化运行环境,只有调用后,接口才开始发起前置的连接请求。
+            # Initialize the operating environment. Only after the call,
+            # the interface starts to initiate the pre-connection request.
+            self.init()
+            self.logger.info("init 调用成功。")
+
+        except Exception as e:
+            self.logger.exception("createFtdcMdApi或init 失败！错误：{}".format(e))
+            self.logger.exception("createFtdcMdApi或init Traceback: {}".format(traceback.format_exc()))
+            return
+
+        self.logger.info("创建MdApi实例成功")
 
     def login(self) -> None:
         """
@@ -441,6 +439,10 @@ class CtpMdApi(MdApi):
         User login
         :return: None
         """
+        if not self.connect_status:
+            self.logger.warning("请先连接行情服务器再登录！")
+            return
+
         # 用户登录请求
         # User login request
         login_req: dict = {
@@ -498,21 +500,23 @@ class CtpMdApi(MdApi):
 
     def subscribe(self, symbol: str) -> None:
         """
-        订阅行情
+        订阅行情，调用subscribeMarketData
 
         Subscribe to Quotes
         :return: None
         """
-        self.logger.info(f"准备订阅合约: {symbol}")
+        if not self.connect_login_status():
+            return
+        else:
+            self.logger.warning(f"未登录，无法订阅")
 
         if not symbol:
-            self.logger.info(f"合约为空，跳过订阅")
+            self.logger.info("合约为空，跳过订阅")
             return
 
-        if self.login_status:
-            self.logger.info(f"发送订阅请求 {symbol}")
+        self.logger.info(f"开始发送订阅请求 {symbol} ......")
+        try:
             ret_code = self.subscribeMarketData(symbol)
-
             # 0，代表成功。
             # -1，表示网络连接失败；
             # -2，表示未处理请求超过许可数；
@@ -526,8 +530,9 @@ class CtpMdApi(MdApi):
                 self.logger.info(f"订阅请求已发送 {symbol}")
             else:
                 self.logger.exception(f"订阅请求失败 {symbol}，返回代码={ret_code}")
-        else:
-            self.logger.warning(f"未登录，无法订阅 {symbol}")
+        except Exception as e:
+            self.logger.exception("初始化失败！错误：{}".format(e))
+            self.logger.exception("初始化 backtrace: {}".format(traceback.format_exc()))
 
     def logout(self):
         """
@@ -536,21 +541,27 @@ class CtpMdApi(MdApi):
         Logout
         :return: None
         """
-        self.logger.info("准备登出")
+        if not self.login_status:
+            self.logger.info("已登出，无需再次登出")
+            return
+
         # 登出请求
         logout_req = {
             "BrokerID": self.broker_id,
             "UserID": self.user_id
         }
         self.req_id += 1
+        self.logger.info("开始发送登出行情服务器请求......")
+        try:
+            ret_code = self.reqUserLogout(logout_req, self.req_id)
 
-        ret_code = self.reqUserLogout(logout_req, self.req_id)
-
-        if ret_code == 0:
-            self.logger.info("reqUserLogout 登出请求已发送")
-        else:
-            self.logger.warning(f"reqUserLogout 登出请求失败，ret_code: {ret_code}")
-
+            if ret_code == 0:
+                self.logger.info("MD 登出请求已发送")
+            else:
+                self.logger.warning(f"MD 登出请求失败，ret_code: {ret_code}")
+        except RuntimeError as e:
+            self.logger.error("运行时错误！错误：{}".format(e))
+            self.logger.error("traceback: {}".format(traceback.format_exc()))
 
     def close(self) -> None:
         """
@@ -572,3 +583,16 @@ class CtpMdApi(MdApi):
         :return: None
         """
         self.current_date = datetime.now().strftime("%Y%m%d")
+
+    def connect_login_status(self) -> bool:
+        """
+        检查连接和登录状态
+
+        Check connection and login status
+        :return: True or False
+        """
+        if not self.connect_status or not self.login_status:
+            self.logger.warning("没有连接或未登录行情服务器")
+            return False
+        else:
+            return True
