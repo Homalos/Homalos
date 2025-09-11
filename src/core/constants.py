@@ -107,24 +107,32 @@ class Currency(Enum):
     CNY = "CNY"
 
 
-class Interval(Enum):
+class KlineType(Enum):
     """
-    数据间隔
-
-    Data interval
+    K线类型
     """
     # 分钟
-    MINUTE = "1m"
-    THREE_MINUTE = "3m"
-    FIVE_MINUTE = "5m"
-    EIGHT_MINUTE = "8m"
-    THIRTEEN_MINUTE = "13m"
-    TWENTY_ONE_MINUTE = "21m"
-    THIRTY_FOUR_MINUTE = "34m"
-    FIFTY_FIVE_MINUTE = "55m"
-    EIGHTY_NINE_MINUTE = "89m"
-    ONE_HUNDRED_FORTY_FOUR_MINUTE = "144m"
+    MINUTE = '1m'
+    MINUTE3 = '3m'
+    MINUTE5 = '5m'
+    MINUTE8 = '8m'
+    MINUTE10 = '10m'
+    MINUTE13 = '13m'
+    MINUTE15 = '15m'
+    MINUTE21 = '21m'
+    MINUTE30 = '30m'
+    MINUTE34 = '34m'
+    MINUTE55 = '55m'
+    MINUTE60 = '60m'
+    MINUTE89 = '89m'
+    MINUTE120 = '120m'
+    MINUTE144 = '144m'
+    MINUTE180 = '180m'
+    MINUTE240 = '240m'
 
     HOUR = "1h"  # 小时
-    DAILY = "d"  # 日
-    WEEKLY = "w" # 周
+    DAY = '1d'  # 日
+    WEEK = '1w'  # 周
+    MONTH = '1M'  # 月
+    SEASON = 'season'  # 季
+    YEAR = '1y'  # 年
