@@ -13,24 +13,23 @@ from src.constants import INSTRUMENT_EXCHANGE_FILEPATH
 from src.utils.utility import load_json_file
 
 
-def extract_error_msg(error: dict, func_name: str = "", custom_msg: str = "") -> str:
+def extract_error_msg(rsp_info: dict, custom_msg: str = "出错") -> str:
     """
-    从错误响应中提取错误消息
-    :param error: 错误响应的信息
-    :param func_name: 函数名称
+    从响应中提取错误消息
+    :param rsp_info: 响应的信息
     :param custom_msg: 自定义消息
     :return: 错误消息
     """
-    if isinstance(error, dict):
-        if error and error.get("ErrorID") != 0:
-            return (f"{func_name}: {custom_msg}, ErrorID={error.get('ErrorID', 'N/A')}, "
-                    f"ErrorMsg={error.get('ErrorMsg', 'Unknown')}")
-        elif error and error.get("ErrorID") == 0:
+    if isinstance(rsp_info, dict):
+        if rsp_info and rsp_info.get("ErrorID") != 0:
+            return (f"{custom_msg}, 错误代码：{rsp_info.get('ErrorID', 'N/A')}, "
+                    f"错误信息：{rsp_info.get('ErrorMsg', 'Unknown')}")
+        elif rsp_info and rsp_info.get("ErrorID") == 0:
             return ""
         else:
-            return f"{func_name}: {custom_msg}, Unknown error: {str(error)}"
+            return f"{custom_msg}, 未知错误：{str(rsp_info)}"
     else:
-        return f"{func_name}: {custom_msg}, Unknown type of error: {str(error)}"
+        return f"{custom_msg}, 未知类型错误：{type(rsp_info)}, {str(rsp_info)}"
 
 def get_exchange_name(symbol: str) -> str:
     """
