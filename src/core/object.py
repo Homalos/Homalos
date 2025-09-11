@@ -41,8 +41,52 @@ class TickData(BaseData):
         * 订单簿快照
         * 日内市场统计数据
     """
-    symbol: str = None
-    exchange: Exchange = None
+    trading_day: str = None
+    instrument_id: str = None
+    exchange_id: Exchange = None
+    exchange_inst_id: str = None
+    last_price: float = 0
+    pre_settlement_price: float = 0
+    pre_close_price: float = 0
+    pre_open_interest: float = 0
+    open_price: float = 0
+    highest_price: float = 0
+    lowest_price: float = 0
+    volume: float = 0
+    turnover: float = 0
+    open_interest: float = 0
+    close_price: float = 0
+    settlement_price: float = 0
+    upper_limit_price: float = 0
+    lower_limit_price: float = 0
+    pre_delta = None
+    curr_delta = None
+    update_time = datetime.time()
+    update_millisec: float = 0
+    bid_price_1: float = 0
+    bid_volume_1: float = 0
+    ask_price_1: float = 0
+    ask_volume_1: float = 0
+    bid_price_2: float = 0
+    bid_volume_2: float = 0
+    ask_price_2: float = 0
+    ask_volume_2: float = 0
+    bid_price_3: float = 0
+    bid_volume_3: float = 0
+    ask_price_3: float = 0
+    ask_volume_3: float = 0
+    bid_price_4: float = 0
+    bid_volume_4: float = 0
+    ask_price_4: float = 0
+    ask_volume_4: float = 0
+    bid_price_5: float = 0
+    bid_volume_5: float = 0
+    ask_price_5: float = 0
+    ask_volume_5: float = 0
+    average_price: float = 0
+    action_day: str = None
+    banding_upper_price: float = 0
+    banding_lower_price: float = 0
 
 
 @dataclass
@@ -69,8 +113,8 @@ class OrderData(BaseData):
     """
     订单数据
     """
-    symbol: str = None
-    exchange: Exchange = None
+    instrument_id: str = None
+    exchange_id: Exchange = None
     order_id: str = None
 
     type: OrderType = OrderType.LIMIT
@@ -82,13 +126,30 @@ class OrderData(BaseData):
 
 
 @dataclass
+class TradeData(BaseData):
+    """
+    Trade data contains information of a fill of an order. One order
+    can have several trade fills.
+    """
+    instrument_id: str = None
+    exchange_id: Exchange = None
+    order_id: str = None
+    trade_id: str = None
+    direction: Direction = None
+
+    offset: Offset = Offset.NONE
+    price: float = 0
+    volume: float = 0
+
+
+@dataclass
 class PositionData(BaseData):
     """
     Position数据用于跟踪每个单独的位置持有情况。
     Position data is used for tracking each individual position holding.
     """
-    symbol: str = None
-    exchange: Exchange = None
+    instrument_id: str = None
+    exchange_id: Exchange = None
     direction: Direction = None
 
     volume: float = 0
@@ -113,8 +174,8 @@ class ContractData(BaseData):
     """
     合约数据包含每份交易合约的基本信息。
     """
-    symbol: str =  None
-    exchange: Exchange = None
+    instrument_id: str =  None
+    exchange_id: Exchange = None
     name: str = None
     product: Product = None
     size: float = 0
@@ -126,6 +187,6 @@ class SubscribeRequest:
     请求发送到特定网关以订阅报价数据更新。
     Request sending to specific gateway for subscribing tick data update.
     """
-    symbol: str = None
-    exchange: Exchange = None
+    instrument_id: str = None
+    exchange_id: Exchange = None
 
