@@ -371,6 +371,7 @@ class CtpTdApi(TdApi):
             self.logger.exception(rsp_error_msg)
         else:
             # 没有错误，正常返回 No error, return normally
+            self.logger.info(f"onErrRtnOrderInsert: {error}")
             return
 
     def onRtnOrder(self, data: dict) -> None:
@@ -441,18 +442,18 @@ class CtpTdApi(TdApi):
             return
 
         trade_id = data.get("TradeID")
-        order_id: str = data.get("OrderSysID")
+        order_sys_id: str = data.get("OrderSysID")
         price = data.get("Price")
         volume = data.get("Volume")
         trade_date: str = data.get("TradeDate")
         trade_time: str = data.get("TradeTime")
 
-        self.logger.info(f"onRtnTrade: TradeID: {trade_id}, OrderID: {order_id}, Price: {price}, Volume: {volume}, "
+        self.logger.info(f"onRtnTrade: TradeID: {trade_id}, OrderSysID: {order_sys_id}, Price: {price}, Volume: {volume}, "
               f"TradeDate: {trade_date}, TradeTime: {trade_time}")
 
     def onRspOrderAction(self, data: dict, error: dict, reqid: SupportsInt, last: bool) -> None:
         """
-        报单操作请求响应，当执行ReqOrderAction后有字段填写不对之类的CTP报错则通过此接口返回
+        撤销报单操作请求响应，当执行ReqOrderAction后有字段填写不对之类的CTP报错则通过此接口返回
 
         ActionFlag：目前只有删除（撤单）的操作，修改（改单）的操作还没有，可以通过撤单之后重新报单实现。
         :param data: 输入报单操作
@@ -478,6 +479,21 @@ class CtpTdApi(TdApi):
         if rsp_error_msg:
             self.logger.exception(rsp_error_msg)
         else:
+            self.logger.info(f"onRspOrderAction: {error}")
+            return
+
+    def onErrRtnOrderAction(self, data: dict, error: dict) -> None:
+        """
+        报单操作错误回报，当执行ReqOrderAction后有字段填写不对之类的CTP报错则通过此接口返回
+        :param data: 报单操作
+        :param error:
+        :return:
+        """
+        rsp_error_msg = extract_error_msg(error, self.onErrRtnOrderAction.__name__, "撤销报单操作错误")
+        if rsp_error_msg:
+            self.logger.exception(rsp_error_msg)
+        else:
+            self.logger.info(f"onErrRtnOrderAction: {error}")
             return
 
     def onRspUserLogout(self, data: dict, error: dict, reqid: SupportsInt, last: bool) -> None:
@@ -613,7 +629,11 @@ class CtpTdApi(TdApi):
 
     def send_order(self, symbol: str, direction: str, price: float, volume: int) -> str:
         """
-        委托下单
+        委托下单，调用ReqOrderInsert函数
+        :param symbol:
+        :param direction:
+        :param price:
+        :param volume:
         :return:
         """
         self.order_ref += 1
@@ -674,6 +694,9 @@ class CtpTdApi(TdApi):
 
         self.req_id += 1
         try:
+            # 报单录入请求，录入错误时对应响应OnRspOrderInsert、OnErrRtnOrderInsert，正确时对应回报OnRtnOrder、OnRtnTrade。
+            # 可以录入限价单、市价单、条件单等交易所支持的指令，撤单时使用ReqOrderAction。
+            # 不支持预埋单录入，预埋单请使用ReqParkedOrderInsert。
             ret_code: int = self.reqOrderInsert(ctp_req, self.req_id)
             if ret_code == 0:
                 self.logger.info("委托请求发送成功")
@@ -692,7 +715,7 @@ class CtpTdApi(TdApi):
 
     def cancel_order(self, symbol: str) -> None:
         """
-        委托撤单
+        委托撤单，调用reqOrderAction撤销报单
         :return:
         """
         front_id, session_id, order_ref = self.order_queue.get().split("_")
