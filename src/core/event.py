@@ -40,6 +40,8 @@ class EventType:
     """事件类型常量"""
     EVENT_BUS_SHUTDOWN = "event_bus.shutdown"  # 停止事件
 
+    TIMER = "timer"  # 定时器事件
+
     TICK = "tick"  # Tick事件
 
     ORDER = "order"  # 订单事件
