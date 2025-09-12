@@ -11,6 +11,7 @@
 """
 from src.utils.path import get_path_ins
 
+
 # ================== 项目中目录名称 ==================
 PROJECT_NAME = "Homalos"  # 项目名称
 
