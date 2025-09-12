@@ -15,12 +15,12 @@ from pathlib import Path
 from typing import Any
 
 from src.core.base_gateway import BaseGateway
-from src.core.constants import ErrorReason
+from src.core.constants import ErrorReason, Exchange
 from src.core.event_bus import EventBus
-from src.core.object import SubscribeRequest
+from src.core.object import SubscribeRequest, ContractData, TickData
 from src.ctp.api import MdApi
-from src.modules.gateway.gateway_const import GatewayConst
-from src.modules.gateway.helper import extract_error_msg
+from src.modules.gateway.gateway_const import REASON_MAPPING, symbol_contract_map, CHINA_TZ
+from src.modules.gateway.gateway_helper import extract_error_msg, build_tick_data
 from src.utils.log import get_logger
 from src.utils.utility import prepare_address
 
@@ -52,32 +52,24 @@ class MarketGateway(BaseGateway):
         :param setting: 登录配置信息 Login configuration information
         :return:
         """
+        # 兼容性配置字段处理
+        md_address = setting.get("md_address", "")  # 行情服务器地址
+        broker_id = setting.get("broker_id", "")  # 经纪商代码
+        user_id = setting.get("user_id", "")  # 用户名
+        password = setting.get("password", "")  # 密码
+
+        # 参数验证
+        if not all([md_address, broker_id, user_id, password]):
+            self.logger.error("缺少必需的连接参数")
+
+        md_address: str = prepare_address(md_address)
+
         try:
-            self.logger.info("开始连接行情服务器...")
-
-            # 配置字段处理
-            # Configuring Field Processing
-            md_address_raw = setting.get("md_address", "")
-            broker_id = setting.get("broker_id", "")
-            user_id = setting.get("user_id", "")
-            password = setting.get("password", "")
-
-            # 参数验证
-            # Parameter Validation
-            if not all([md_address_raw, broker_id, user_id, password]):
-                raise ValueError("缺少必需的连接参数")
-
             # 创建API实例
-            # Create an API instance
             if not self.md_api:
                 self.md_api = CtpMdApi(self)
-
-            md_address: str = prepare_address(md_address_raw)
             # 连接行情服务器
             self.md_api.connect(md_address, broker_id, user_id, password)
-
-            self.logger.info(f"正在连接到 {md_address}...")
-
         except Exception as e:
             self.logger.exception(f"连接失败: {e}")
             if self.md_api:
@@ -85,10 +77,7 @@ class MarketGateway(BaseGateway):
 
     def subscribe(self, req: SubscribeRequest) -> None:
         """订阅行情"""
-        if not self.md_api or not self.md_api.connect_status or not self.md_api.login_status:
-            self.logger.info("无法订阅行情：行情接口未初始化、未连接或未登录行情服务器。")
-            return
-        self.md_api.subscribe(req.symbol)
+        self.md_api.subscribe(req.instrument_id)
 
     def logout(self) -> None:
         """
@@ -134,7 +123,6 @@ class CtpMdApi(MdApi):
 
         self.connect_status: bool = False  # 连接状态
         self.login_status: bool = False  # 登录状态
-        self.auth_status: bool = False  # 认证状态
 
         self.current_date: str = datetime.now().strftime("%Y%m%d")  # 当前自然日
 
@@ -199,7 +187,7 @@ class CtpMdApi(MdApi):
         self.login_status = False
 
         reason_hex: str = hex(reason)  # 错误代码转换成16进制字符串
-        reason_msg: ErrorReason = GatewayConst.reason_mapping.get(reason_hex, f"Unknown cause({reason_hex})")
+        reason_msg: ErrorReason = REASON_MAPPING.get(reason_hex, f"Unknown cause({reason_hex})")
         self.logger.info(f"行情服务器连接断开，原因是：{reason_msg.value} ({reason_hex})")
 
     def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool) -> None:
@@ -220,10 +208,11 @@ class CtpMdApi(MdApi):
         last: Indicates whether this is the last return for nRequestID.
         return: None
         """
-        rsp_error_msg = extract_error_msg(error, self.onRspUserLogin.__name__, "行情服务器登录失败")
+        rsp_error_msg = extract_error_msg(error, "行情服务器登录失败")
         if rsp_error_msg:
             self.login_status = False
             self.logger.exception(rsp_error_msg)
+            return
         else:
             self.login_status = True
             self.logger.info("onRspUserLogin: 行情服务器登录成功")
@@ -246,9 +235,10 @@ class CtpMdApi(MdApi):
         last: Indicates whether this is the last return for nRequestID.
         return: None
         """
-        rsp_error_msg = extract_error_msg(error, self.onRspError.__name__, "请求报错")
+        rsp_error_msg = extract_error_msg(error, "请求报错")
         if rsp_error_msg:
             self.logger.exception(rsp_error_msg)
+            return
         else:
             self.logger.info("请求报错响应", error)
 
@@ -274,9 +264,10 @@ class CtpMdApi(MdApi):
         last: Indicates whether this is the last return for nRequestID.
         return: None
         """
-        rsp_error_msg = extract_error_msg(error, self.onRspSubMarketData.__name__, "市场行情订阅失败")
+        rsp_error_msg = extract_error_msg(error, "市场行情订阅失败")
         if rsp_error_msg:
             self.logger.exception(rsp_error_msg)
+            return
         else:
             if data and "InstrumentID" in data:
                 symbol = data.get("InstrumentID", "UNKNOWN")
@@ -296,27 +287,38 @@ class CtpMdApi(MdApi):
         return: None
         """
         # 此处要判断是否无效数据，例如非交易时间段的数据，避免无效数据推送给上层
-        self.logger.info(f"CTP行情API回调: onRtnDepthMarketData")
-        # 获取合约代码用于日志记录
-        # Get the contract code for logging
-        symbol: str = data.get("InstrumentID", "UNKNOWN")
+        if data:
+            # 过滤没有时间戳的异常行情数据
+            # Filter out abnormal market data without timestamps
+            if not data.get("UpdateTime"):
+                self.logger.debug(f"跳过没有时间戳的市场行情数据")
+                return
 
-        self.logger.info(f"CTP市场行情数据接收: {symbol} @ {data.get('UpdateTime', 'N/A')} "
-              f"LastPrice={data.get('LastPrice', 'N/A')}")
+            instrument_id: str = data.get("InstrumentID", "UNKNOWN")
+            # 过滤还没有收到合约数据前的行情推送(没有交易过的数据)
+            contract: ContractData = symbol_contract_map.get(instrument_id, None)
+            if not contract:
+                return
 
-        # 过滤没有时间戳的异常行情数据
-        # Filter out abnormal market data without timestamps
-        if not data["UpdateTime"]:
-            self.logger.warning(f"跳过没有时间戳的市场行情数据: {symbol}")
-            return
+            # 对大商所的交易日字段取本地日期
+            if not data["ActionDay"] or contract.exchange_id == Exchange.DCE:
+                date_str: str = self.current_date
+            else:
+                date_str: str = data["ActionDay"]
 
-        data = {"symbol": symbol, "last_price": data.get('LastPrice', '')}
-        print(f"MarketData: {data}")
+            timestamp_str: str = f"{date_str} {data.get('UpdateTime')}.{data.get('UpdateMillisec')}"
+            timestamp: datetime = datetime.strptime(timestamp_str, "%Y%m%d %H:%M:%S.%f").replace(tzinfo=CHINA_TZ)
 
-        # self.gateway.event_bus.publish(Event(
-        #     EventType.TICK,
-        #     APIResponse.success(message="市场行情接收成功", data=data)
-        # ))
+            tick: TickData = build_tick_data(data, contract, timestamp)
+
+            self.logger.info(f"市场行情数据接收: {tick.instrument_id} @ {tick.update_time} "
+                  f"LastPrice={tick.last_price}")
+
+            # TODO: 此处考虑是否推送行情数据到事件总线还是单独的行情队列
+            # self.gateway.event_bus.publish(Event(
+            #     EventType.TICK,
+            #     APIResponse.success(message="市场行情接收成功", data=data)
+            # ))
 
     def onRspUserLogout(self, data: dict, error: dict, reqid: int, last: bool):
         """
@@ -327,11 +329,16 @@ class CtpMdApi(MdApi):
         :param last: 指示该次返回是否为针对 reqid 的最后一次返回。
         :return: 无
         """
-        rsp_error_msg = extract_error_msg(error, self.onRspUserLogout.__name__, "行情账户登出失败")
+        rsp_error_msg = extract_error_msg(error, "行情账户登出失败")
         if rsp_error_msg:
             self.logger.exception(rsp_error_msg)
-        else:
-            self.logger.info("onRspUserLogout: 行情账户：{} 已登出".format(data.get("UserID", "UNKNOWN")))
+            return
+
+        if last and data:
+            self.logger.info("行情账户：{} 已登出".format(data.get("UserID", "UNKNOWN")))
+            self.logger.info("释放接口资源......")
+            self.release()  # 删除接口对象本身
+            self.logger.info("接口资源释放完毕")
 
     # ===================== 主动函数 =====================
     def connect(self, address: str, broker_id: str, user_id: str, password: str) -> None:
@@ -406,6 +413,7 @@ class CtpMdApi(MdApi):
         try:
             # 加上utf-8编码，否则中文路径会乱码
             # Add utf-8 encoding, otherwise the Chinese path will be garbled
+            # 在 c++ 底层 createFtdcMdApi 函数中自动调用 RegisterSpi 函数注册SPI实例
             self.createFtdcMdApi(api_path_str.encode("GBK").decode("utf-8"), is_using_udp, is_multicast,
                                  is_production_mode)
             self.logger.info("createFtdcMdApi 调用成功。")
@@ -507,8 +515,6 @@ class CtpMdApi(MdApi):
         """
         if not self.connect_login_status():
             return
-        else:
-            self.logger.warning(f"未登录，无法订阅")
 
         if not symbol:
             self.logger.info("合约为空，跳过订阅")
@@ -596,3 +602,4 @@ class CtpMdApi(MdApi):
             return False
         else:
             return True
+
