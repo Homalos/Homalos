@@ -11,19 +11,18 @@
 """
 import queue
 import traceback
+from datetime import datetime
 from pathlib import Path
 from typing import SupportsInt
 
+from src.constants import INSTRUMENT_EXCHANGE_FILEPATH
 from src.core.base_gateway import BaseGateway
-from src.core.constants import ErrorReason, Offset
+from src.core.constants import ErrorReason, Offset, Currency, Exchange, Direction, Product, OrderStatus, OrderType
+from src.core.event import EventType
 from src.core.event_bus import EventBus
+from src.core.object import OrderRequest, CancelRequest, ContractData, OrderData, PositionData, AccountData, TradeData
 from src.ctp.api import TdApi
 from src.ctp.api.ctp_constant import (
-    THOST_FTDC_OST_Canceled,
-    THOST_FTDC_OST_AllTraded,
-    THOST_FTDC_OST_PartTradedQueueing,
-    THOST_FTDC_OST_NoTradeQueueing,
-    THOST_FTDC_OST_NoTradeNotQueueing,
     THOST_TERT_QUICK,
     THOST_FTDC_D_Buy,
     THOST_FTDC_D_Sell,
@@ -36,21 +35,34 @@ from src.ctp.api.ctp_constant import (
     THOST_FTDC_FCC_NotForceClose,
     THOST_FTDC_AF_Delete
 )
-from src.modules.gateway.gateway_const import GatewayConst
-from src.modules.gateway.helper import extract_error_msg, get_exchange_name
+from src.modules.gateway.gateway_const import (
+    REASON_MAPPING,
+    ORDER_STATUS_CTP_TO_ENUM,
+    symbol_contract_map,
+    DIRECTION_CTP_TO_ENUM,
+    PRODUCT_CTP_TO_ENUM, CHINA_TZ, ORDER_TYPE_CTP_TO_ENUM, DIRECTION_ENUM_TO_CTP, OFFSET_ENUM_TO_CTP,
+    ORDER_TYPE_ENUM_TO_CTP
+)
+from src.modules.gateway.gateway_helper import (
+    extract_error_msg,
+    get_exchange_name,
+    build_order_data,
+    build_contract_data, build_rtn_order_data, build_trade_data
+)
 from src.utils.log import get_logger
-from src.utils.utility import prepare_address
+from src.utils.utility import prepare_address, write_json
 
 
 class TraderGateway(BaseGateway):
 
     def __init__(self, event_bus: EventBus = "TraderBus", gateway_name: str = "TraderGateway") -> None:
         super().__init__(event_bus, gateway_name)
-        self.gateway_name = gateway_name
-
+        self.event_bus = event_bus
+        self.gateway_name: str = gateway_name
         # CTP API相关
         self.td_api: CtpTdApi | None = None
-
+        self.count: int = 0  # 资金和持仓的查询间隔
+        self.query_functions: list = []
         self.logger = get_logger(__class__.__name__)
 
     def connect(self, setting: dict) -> None:
@@ -59,14 +71,11 @@ class TraderGateway(BaseGateway):
         :param setting:
         :return:
         """
-        if not self.td_api:
-            self.td_api = CtpTdApi(self)
-
         # 兼容性配置字段处理
+        td_address: str = setting.get("td_address", "")  # 交易服务器
         broker_id: str = setting.get("broker_id", "")  # 经纪商代码
         user_id: str = setting.get("user_id", "")  # 用户名
         password: str = setting.get("password", "")  # 密码
-        td_address: str = setting.get("td_address", "")  # 交易服务器
         app_id: str = setting.get("appid", "")  # 产品名称
         auth_code: str = setting.get("auth_code", "")  # 授权编码
 
@@ -80,24 +89,70 @@ class TraderGateway(BaseGateway):
             self.logger.error(f"CTP交易网关连接参数不完整，缺少字段: {missing_fields}")
 
         td_address = prepare_address(td_address)
-        self.td_api.connect(td_address, broker_id, user_id, password, auth_code, app_id)
+        try:
+            # 创建API实例
+            if not self.td_api:
+                self.td_api = CtpTdApi(self)
+            # 连接交易服务器
+            self.td_api.connect(td_address, broker_id, user_id, password, auth_code, app_id)
+        except Exception as e:
+            self.logger.exception(f"连接失败: {e}")
+            if self.td_api:
+                self.td_api.close()
 
-    def send_order(self, symbol: str, direction: str, price: float, volume: int) -> str:
+    def send_order(self, req: OrderRequest) -> str:
         """
         委托下单
         :return:
         """
-        self.logger.info("正在委托下单...")
-        self.logger.info(f"Symbol: {symbol}, Direction: {direction}, Price: {price}, Volume: {volume}")
-        return self.td_api.send_order(symbol, direction, price, volume)
+        return self.td_api.send_order(req)
 
-    def cancel_order(self, symbol: str) -> None:
+    def cancel_order(self, req: CancelRequest) -> None:
         """
         委托撤单
         :return:
         """
-        self.logger.info(f"Symbol: {symbol}, 正在撤单...")
-        self.td_api.cancel_order(symbol)
+        self.td_api.cancel_order(req)
+
+    def query_account(self) -> None:
+        """查询资金"""
+        self.td_api.query_account()
+
+    def query_position(self) -> None:
+        """查询持仓"""
+        self.td_api.query_position()
+
+    def close(self) -> None:
+        """关闭接口"""
+        self.td_api.close()
+
+    def logout(self) -> None:
+        """
+        登出交易服务器
+        :return:
+        """
+        if self.td_api:
+            self.td_api.logout()
+
+    def process_timer_event(self) -> None:
+        """定时事件处理"""
+        self.count += 1
+        if self.count < 2:
+            return
+        self.count = 0
+
+        func = self.query_functions.pop(0)
+        func()
+        self.query_functions.append(func)
+
+        if self.td_api:
+            self.td_api.update_date()
+
+    def init_query(self) -> None:
+        """初始化查询任务"""
+        self.count: int = 0
+        self.query_functions: list = [self.query_account, self.query_position]
+        self.event_bus.publish(EventType.TIMER, self.process_timer_event)
 
     def get_order_status_summary(self) -> None:
         """
@@ -108,22 +163,6 @@ class TraderGateway(BaseGateway):
             self.td_api.get_order_status_summary()
         else:
             self.logger.warning("交易接口未初始化")
-
-    def logout(self) -> None:
-        """
-        登出交易服务器
-        :return:
-        """
-        if self.td_api:
-            self.td_api.logout()
-
-    def close(self) -> None:
-        """
-        关闭接口
-        :return:
-        """
-        if self.td_api and self.td_api.connect_status:
-            self.td_api.close()
 
     def connect_login_status(self) -> bool:
         """
@@ -154,6 +193,7 @@ class CtpTdApi(TdApi):
         self.auth_status: bool = False  # 授权状态
         self.login_status: bool = False  # 登录状态
         self.confirm_status: bool = False  # 确认结算单状态
+        self.contract_inited: bool = False  # 初始化合约状态
 
         self.broker_id: str = ""
         self.user_id: str = ""
@@ -176,6 +216,16 @@ class CtpTdApi(TdApi):
 
         # 订单队列，存储订单ID  An order queue and store the order ID
         self.order_queue: queue.Queue[str] = queue.Queue(maxsize=1000)
+
+        self.order_data: list[dict] = []  # 订单数据
+        self.trade_data: list[dict] = []  # 成交数据
+        self.positions: dict[str, PositionData] = {}  # 持仓数据
+        self.update_ins_exchange: bool = False  # 是否更新合约代码和交易所映射
+        self.instrument_exchange_map: dict = {}  # 合约代码和交易所映射
+
+        self.sysid_order_id_map: dict[str, str] = {}  # 系统ID和订单ID映射
+
+        self.current_date: str = datetime.now().strftime("%Y%m%d")  # 当前自然日
 
     # ===================== 回调函数 =====================
     def onFrontConnected(self) -> None:
@@ -245,7 +295,7 @@ class CtpTdApi(TdApi):
         self.login_status = False
 
         reason_hex: str = hex(int(reason))  # 错误代码转换成16进制字符串, Error code converted to hexadecimal
-        reason_msg: ErrorReason = GatewayConst.reason_mapping.get(reason_hex, f"Unknown cause({reason_hex})")
+        reason_msg: ErrorReason = REASON_MAPPING.get(reason_hex, f"Unknown cause({reason_hex})")
         self.logger.info(f"交易服务器连接断开，原因是：{reason_msg.value} ({reason_hex})")
 
     def onRspAuthenticate(self, data: dict, error: dict, reqid: SupportsInt, last: bool) -> None:
@@ -343,24 +393,189 @@ class CtpTdApi(TdApi):
             self.confirm_status = False
             self.logger.exception(rsp_error_msg)
         else:
-            # 请求响应的所有数据包全部返回，并且没有错误，则认为成功
-            if last and data:
-                # 当结算单确认成功后，将确认结算标志设置为True
-                self.confirm_status = True
-                self.logger.info("结算单确认成功")
-                confirm_date = data.get("ConfirmDate")
-                confirm_time = data.get("ConfirmTime")
-                settlement_id = data.get("SettlementID")
-                self.logger.info(f"确认日期：{confirm_date}, 时间：{confirm_time}, 结算编号：{settlement_id}")
+            if not data:
+                return
 
-                # Next steps
-                # 是否更新所有合约信息
-                if self.is_update_instrument:
-                    self.logger.info("开始更新所有合约信息......")
-                    # self.req_id += 1
-                    # self.reqQryInstrument({}, self.req_id)
-            if not last:
+            # 请求响应的所有数据包全部返回，并且没有错误，则认为成功
+            # 当结算单确认成功后，将确认结算标志设置为True
+            self.confirm_status = True
+            confirm_date = data.get("ConfirmDate")
+            confirm_time = data.get("ConfirmTime")
+            settlement_id = data.get("SettlementID")
+            self.logger.info(f"确认日期：{confirm_date}, 时间：{confirm_time}, 结算编号：{settlement_id}")
+
+            if last:
+                self.logger.info("结算单确认成功")
+            else:
                 self.logger.info("结算单确认中...")
+
+            # Next steps
+            # 是否更新所有合约信息
+            if self.is_update_instrument:
+                self.logger.info("开始更新所有合约信息......")
+                # self.req_id += 1
+                # self.reqQryInstrument({}, self.req_id)
+
+    def onRspQryInvestorPosition(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """
+        请求查询投资者持仓响应，当执行ReqQryInvestorPosition后，该方法被调用。
+        CTP 系统将持仓明细记录按合约，持仓方向，开仓日期（仅针对上期所，区分昨仓、今仓）进行汇总。
+        卖可平数量=多头仓-shortfrozen
+        买可平数量=空头仓-longfrozen
+        :param data: 投资者持仓
+        :param error: 响应信息
+        :param reqid: 返回用户操作请求的ID，该ID 由用户在操作请求时指定。
+        :param last: 指示该次返回是否为针对nRequestID的最后一次返回。
+        :return: None
+        """
+        rsp_error_msg = extract_error_msg(error, "请求查询投资者持仓发生错误！")
+        if rsp_error_msg:
+            self.logger.exception(rsp_error_msg)
+            return
+        else:
+            if not data:
+                return
+
+            # 必须已经收到了合约信息后才能处理
+            instrument_id: str = data.get("InstrumentID")
+            # 从缓存中获取合约信息
+            contract: ContractData = symbol_contract_map.get(instrument_id, None)
+            if contract:
+                posi_direction: str = data.get("PosiDirection")  # 获取持仓多空方向
+                position_key: str = f"{instrument_id, posi_direction}"
+                # 获取之前缓存的持仓数据缓存
+                position: PositionData = self.positions.get(position_key, None)
+                if not position:
+                    position = PositionData(
+                        instrument_id=instrument_id,
+                        exchange_id=contract.exchange_id,
+                        direction=DIRECTION_CTP_TO_ENUM[posi_direction]
+                    )
+                    self.positions[position_key] = position
+
+                # 对于上期所和上海国际能源交易中心昨仓需要特殊处理
+                if position.exchange_id in {Exchange.SHFE, Exchange.INE}:
+                    if data.get("YdPosition") and not data.get("TodayPosition"):
+                        position.yd_volume = data.get("Position")
+                # 对于其他交易所昨仓的计算
+                else:
+                    position.yd_volume = data.get("Position") - data.get("TodayPosition")
+
+                # 获取合约的乘数信息
+                size: int = contract.size
+
+                # 计算之前已有仓位的持仓总成本
+                cost: float = position.price * position.volume * size
+
+                # 累加更新持仓数量和盈亏
+                position.volume += data.get("Position")
+                position.pnl += data.get("PositionProfit")
+
+                # 计算更新后的持仓总成本和均价
+                if position.volume and size:
+                    cost += data.get("PositionCost")
+                    position.price = cost / (position.volume * size)
+
+                # 更新仓位冻结数量
+                if position.direction == Direction.LONG:
+                    position.frozen += data.get("ShortFrozen")
+                else:
+                    position.frozen += data.get("LongFrozen")
+
+
+            if last:
+                self.logger.info("查询所有持仓成功")
+                for position in self.positions.values():
+                    # self.gateway.on_position(position)
+                    self.logger.info(f"持仓数据: {position}")
+
+                self.positions.clear()
+
+    def onRspQryTradingAccount(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """
+        请求查询资金账户响应，当执行ReqQryTradingAccount后，该方法被调用。
+        :param data: 资金账户
+        :param error: 响应信息
+        :param reqid: 返回用户操作请求的ID，该ID 由用户在操作请求时指定。
+        :param last: 指示该次返回是否为针对nRequestID的最后一次返回。
+        :return: None
+        """
+        rsp_error_msg = extract_error_msg(error, "请求查询资金账户发生错误！")
+        if rsp_error_msg:
+            self.logger.exception(rsp_error_msg)
+            return
+        else:
+            if not data:
+                return
+
+            if "AccountID" not in data:
+                return
+
+            account: AccountData = AccountData(
+                account_id = data.get("AccountID"),
+                balance = data.get("Balance"),
+                frozen = data.get("FrozenMargin") + data.get("FrozenCash") + data.get("FrozenCommission")
+            )
+            account.available = data.get("Available")
+            # TODO: 后期考虑推送账户信息到事件总线
+            # self.gateway.on_account(account)
+
+    def onRspQryInstrument(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """
+        请求查询合约响应，当执行ReqQryInstrument后，该方法被调用。
+        :param data: 合约信息
+        :param error: 响应信息
+        :param reqid: 返回用户操作请求的 ID，该 ID 由用户在操作请求时指定。
+        :param last: 指示该次返回是否为针对 reqid 的最后一次返回。
+        :return: None
+        """
+        rsp_error_msg = extract_error_msg(error, "请求查询合约发生错误！")
+        if rsp_error_msg:
+            self.logger.exception(rsp_error_msg)
+            return
+        else:
+            if not data:
+                return
+            # 获取产品类型枚举
+            product: Product = PRODUCT_CTP_TO_ENUM.get(data.get("ProductClass"), None)
+            if product:
+                contract = build_contract_data(data, product)
+                # TODO: 后期考虑推送合约信息到事件总线
+                # self.gateway.on_contract(contract)
+                self.logger.info(f"合约数据: {contract}")
+                instrument_id: str = contract.instrument_id
+                symbol_contract_map[instrument_id] = contract
+
+                # 更新instrument_exchange_map，只取非纯数字的合约和6位以内的合约，即只取期货合约
+                if not instrument_id.isdigit() and len(instrument_id) <= 6:
+                    # 缓存合约和交易所的映射关系
+                    self.instrument_exchange_map[instrument_id] = data.get("ExchangeID", "")
+
+            if last:
+                self.contract_inited = True
+                self.logger.info("合约信息查询成功")
+
+                # 记录查询到的合约数量
+                instrument_count: int = len(self.instrument_exchange_map)
+                self.logger.info(f"共查询到 {instrument_count} 个合约->交易所映射")
+                # 如果需要更新并且合约数量不为0，则保存
+                if self.update_ins_exchange and instrument_count != 0:
+                    # 保存合约交易所映射文件
+                    try:
+                        write_json(str(INSTRUMENT_EXCHANGE_FILEPATH), self.instrument_exchange_map)
+                        self.logger.info(f"合约交易所映射文件保存成功: {INSTRUMENT_EXCHANGE_FILEPATH}")
+                    except Exception as e:
+                        self.logger.exception(f"写入{INSTRUMENT_EXCHANGE_FILEPATH}失败：{e}")
+
+                for data in self.order_data:
+                    self.onRtnOrder(data)
+                self.order_data.clear()
+
+                for data in self.trade_data:
+                    self.onRtnTrade(data)
+                self.trade_data.clear()
+
+                # TODO: 后期考试是否此处设置网关状态为就绪（同步调用）
 
     def onRspOrderInsert(self, data: dict, error: dict, reqid: SupportsInt, last: bool) -> None:
         """
@@ -387,20 +602,21 @@ class CtpTdApi(TdApi):
         else:
             if last and data:
                 order_ref: str = data.get("OrderRef")  # 报单引用
-                direction = data.get("Direction")  # 买卖方向
-                comb_offset_flag = data.get("CombOffsetFlag")  # 组合开平标志
-                limit_price = data.get("LimitPrice")  # 价格
-                volume = data.get("VolumeTotalOriginal")  # 数量
                 instrument_id = data.get("InstrumentID")  # 合约代码
 
                 order_id: str = f"{self.front_id}_{self.session_id}_{order_ref}"
-                self.logger.info(f"订单号：{order_id}, "
-                                 f"报单引用：{order_ref}, "
-                                 f"买卖方向：{direction}, "
-                                 f"组合开平标志：{comb_offset_flag}, "
-                                 f"价格：{limit_price}, "
-                                 f"数量：{volume}, "
-                                 f"合约代码：{instrument_id}")
+
+                # 获取合约信息
+                contract: ContractData = symbol_contract_map[instrument_id]
+                order: OrderData = build_order_data(data, contract, order_id)
+
+                # TODO:  后期考虑将订单数据推送到事件总线，方便其他模块处理
+                self.logger.info(f"订单号：{order.order_id}, "
+                                 f"买卖方向：{order.direction}, "
+                                 f"组合开平标志：{order.offset}, "
+                                 f"价格：{order.price}, "
+                                 f"数量：{order.volume}, "
+                                 f"合约代码：{order.instrument_id}")
 
             if not last:
                 self.logger.info("报单录入请求响应中......")
@@ -440,45 +656,66 @@ class CtpTdApi(TdApi):
             self.logger.warning("订单更新数据不完整")
             return
 
-        order_ref: str = data.get("OrderRef")  # 报单引用
-        direction = data.get("Direction")  # 买卖方向
-        comb_offset_flag = data.get("CombOffsetFlag")  # 组合开平标志
-        limit_price = data.get("LimitPrice")  # 价格
-        volume = data.get("VolumeTotalOriginal")  # 数量
-        front_id: int = data.get("FrontID")  # 前置编号
-        session_id: int = data.get("SessionID")  # 会话编号
-        instrument_id: str = data.get("InstrumentID")  # 合约代码
-
-        order_id: str = f"{front_id}_{session_id}_{order_ref}"
-        order_status = data.get("OrderStatus")  # 报单状态
-
-        if not order_status:
-            self.logger.warning(f"收到不支持的委托状态，OrderID：{order_id}")
+        # 合约未初始化
+        if not self.contract_inited:
+            self.order_data.append(data)
             return
 
-        # 获取状态名称  Get the status name
-        status_name = GatewayConst.order_status_names.get(order_status, f"Unknown status({order_status})")
-        self.logger.info(f"订单状态更新 - OrderID：{order_id}，状态：{status_name} ({order_status})")
+        instrument_id: str = data.get("InstrumentID")  # 合约代码
+        # 从缓存中获取合约信息
+        contract: ContractData = symbol_contract_map[instrument_id]
+
+        order_ref: str = data.get("OrderRef")  # 报单引用
+        front_id: int = data.get("FrontID")  # 前置编号
+        session_id: int = data.get("SessionID")  # 会话编号
+
+        order_id: str = f"{front_id}_{session_id}_{order_ref}"
+
+        order_status: OrderStatus = ORDER_STATUS_CTP_TO_ENUM.get(data.get("OrderStatus"), None)
+        if not order_status:
+            self.logger.info(f"收到不支持的委托状态，委托号：{order_id}")
+            return
+
+        # 获取状态
+        self.logger.info(f"订单状态更新 - OrderID：{order_id}，状态：{order_status.value})")
 
         # 记录当前订单状态  Record current order status
-        old_status = self.order_status_map.get(order_id, "新订单")
-        self.order_status_map[order_id] = order_status
+        old_status: str = self.order_status_map.get(order_id, "新订单")
+        self.order_status_map[order_id]: dict[str, OrderStatus] = order_status
 
         # 检查是否为撤单状态  Check whether the order is cancelled
-        if order_status == THOST_FTDC_OST_Canceled:
+        if order_status == OrderStatus.CANCELED:
             self.logger.info(f"订单已撤销 - OrderID: {order_id}, InstrumentID: {instrument_id}")
             self.logger.info("撤单原因: 系统自动撤单或手动撤单")
-        elif order_status == THOST_FTDC_OST_AllTraded:
+        elif order_status == OrderStatus.ALL_TRADED:
             self.logger.info(f"订单全部成交 - OrderID: {order_id}, InstrumentID: {instrument_id}")
-        elif order_status == THOST_FTDC_OST_PartTradedQueueing:
+        elif order_status == OrderStatus.PART_TRADED_QUEUEING:
             self.logger.info(f"订单部分成交，剩余在队列中 - OrderID: {order_id}, InstrumentID: {instrument_id}")
-        elif order_status == THOST_FTDC_OST_NoTradeQueueing:
+        elif order_status == OrderStatus.NO_TRADE_QUEUEING:
             self.logger.info(f"订单未成交，在队列中等待 - OrderID: {order_id}, InstrumentID: {instrument_id}")
-        elif order_status == THOST_FTDC_OST_NoTradeNotQueueing:
+        elif order_status == OrderStatus.NO_TRADE_NOT_QUEUEING:
             self.logger.info(f"订单未成交且不在队列中 - OrderID: {order_id}, InstrumentID: {instrument_id}")
             self.logger.info("可能原因: 价格超出涨跌停板、资金不足、合约不存在等")
 
-        self.logger.info(f"状态变化: {old_status} -> {status_name}")
+        self.logger.info(f"状态变化: {old_status} -> {order_status.value}")
+
+
+
+        timestamp_str: str = f"{data.get('InsertDate')} {data.get('InsertTime')}"
+        timestamp: datetime = datetime.strptime(timestamp_str, "%Y%m%d %H:%M:%S").replace(tzinfo=CHINA_TZ)
+
+        tp: tuple = (data.get("OrderPriceType"), data.get("TimeCondition"), data.get("VolumeCondition"))
+        order_type: OrderType = ORDER_TYPE_CTP_TO_ENUM.get(tp, None)
+        if not order_type:
+            self.logger.info(f"收到不支持的委托类型，委托号：{order_id}")
+            return
+
+        order: OrderData = build_rtn_order_data(data, contract, order_id, order_type, order_status, timestamp)
+
+        # TODO: 后期考虑将订单数据推送到事件总线，方便其他模块处理
+        # self.gateway.on_order(order)
+        self.sysid_order_id_map[data.get("OrderSysID")] = order_id
+        self.logger.info(f"订单更新 - order：{order}")
 
     def onRtnTrade(self, data: dict) -> None:
         """
@@ -498,25 +735,31 @@ class CtpTdApi(TdApi):
             self.logger.warning("成交回报缺少报单编号OrderSysID")
             return
 
-        trade_id = data.get("TradeID")  # 成交编号
-        order_sys_id: str = data.get("OrderSysID")  # 报单编号
-        direction = data.get("Direction")  # 买卖方向
-        offset_flag = data.get("OffsetFlag")  # 开平标志
-        price = data.get("Price")  # 价格
-        volume = data.get("Volume")  # 数量
-        trade_date: str = data.get("TradeDate")  # 成交时期
-        trade_time: str = data.get("TradeTime")  # 成交时间
-        instrument_id: str = data.get("InstrumentID")  # 合约代码
+        if not self.contract_inited:
+            self.trade_data.append(data)
+            return
 
-        self.logger.info(f"TradeID: {trade_id}, "
-                         f"OrderSysID: {order_sys_id}, "
-                         f"Direction: {direction}, "
-                         f"OffsetFlag: {offset_flag}, "
-                         f"Price: {price}, "
-                         f"Volume: {volume}, "
-                         f"TradeDate: {trade_date}, "
-                         f"TradeTime: {trade_time}, "
-                         f"InstrumentID: {instrument_id}")
+        instrument_id: str = data.get("InstrumentID")  # 合约代码
+        # 从缓存中获取合约信息
+        contract: ContractData = symbol_contract_map[instrument_id]
+        # 从缓存中获取报单编号
+        order_id: str = self.sysid_order_id_map[data.get("OrderSysID")]
+        # 成交日期和成交时间组合为时间戳
+        timestamp_str: str = f"{data.get('TradeDate')} {data.get('TradeTime')}"
+        timestamp: datetime = datetime.strptime(timestamp_str, "%Y%m%d %H:%M:%S").replace(tzinfo=CHINA_TZ)
+
+        trade: TradeData = build_trade_data(data, contract, order_id, timestamp)
+
+        # TODO: 后期考虑将成交数据推送到事件总线，方便其他模块处理
+        # self.gateway.on_trade(trade)
+
+        self.logger.info(f"TradeID: {trade.trade_id}, "
+                         f"OrderSysID: {trade.order_id}, "
+                         f"Direction: {trade.direction}, "
+                         f"OffsetFlag: {trade.offset}, "
+                         f"Price: {trade.price}, "
+                         f"Volume: {trade.volume}, "
+                         f"InstrumentID: {trade.instrument_id}")
 
     def onRspOrderAction(self, data: dict, error: dict, reqid: SupportsInt, last: bool) -> None:
         """
@@ -595,9 +838,14 @@ class CtpTdApi(TdApi):
         rsp_error_msg = extract_error_msg(error, "交易账户登出失败")
         if rsp_error_msg:
             self.logger.exception(rsp_error_msg)
-        else:
+            return
+
+        if last and data:
             self.login_status = False
-            self.logger.info("交易账户：{} 已退出".format(data.get("UserID")))
+            self.logger.info("交易账户：{} 已退出".format(data.get("UserID", "UNKNOWN")))
+            self.logger.info("释放接口资源......")
+            self.release()  # 删除接口对象本身
+            self.logger.info("接口资源释放完毕")
 
     # ===================== 主动函数 =====================
     def connect(self, address: str, broker_id: str, user_id: str, password: str,  auth_code: str, app_id: str) -> None:
@@ -639,6 +887,7 @@ class CtpTdApi(TdApi):
 
         try:
             # 创建TraderApi实例  Create a TraderApi instance
+            # 在 c++ 底层 createFtdcMdApi 函数中自动调用 RegisterSpi 函数注册SPI实例
             self.createFtdcTraderApi(api_path_str.encode("GBK").decode("utf-8"), is_production_mode)
             self.logger.info("createFtdcTraderApi 调用成功")
 
@@ -704,80 +953,68 @@ class CtpTdApi(TdApi):
         self.logger.info(f"发送登录请求......")
         self.reqUserLogin(ctp_req, self.req_id)
 
-    def send_order(self, instrument_id: str, comb_offset: str, price: float, volume: int) -> str:
+    def send_order(self, req: OrderRequest) -> str:
         """
         委托下单，调用ReqOrderInsert
         # 报单录入请求，录入错误时对应响应OnRspOrderInsert、OnErrRtnOrderInsert，正确时对应回报OnRtnOrder、OnRtnTrade。
         # 可以录入限价单、市价单、条件单等交易所支持的指令，撤单时使用ReqOrderAction。
         # 不支持预埋单录入，预埋单请使用ReqParkedOrderInsert。
-        :param instrument_id:
-        :param comb_offset: 买卖开平
-        :param price:
-        :param volume:
+        :param req: 报单录入请求字段
         :return:
         """
         if not self.all_status_ready():
             return ""
 
-        self.order_ref += 1
-        # 后期考虑优化，将策略中订阅的合约对应交易所缓存起来，避免每次都去查询
-        exchange_id = get_exchange_name(instrument_id)
-
-        if comb_offset.lower() == Offset.BUY_OPEN.value:
-            direction_field = THOST_FTDC_D_Buy  # 买卖方向
-            comb_offset_flag = '0'  # 开平标志
-        elif comb_offset.lower() == Offset.BUY_CLOSE.value:
-            direction_field = THOST_FTDC_D_Buy
-            comb_offset_flag = '1'
-        elif comb_offset.lower() == Offset.SELL_OPEN.value:
-            direction_field = THOST_FTDC_D_Sell
-            comb_offset_flag = '0'
-        elif comb_offset.lower() == Offset.SELL_CLOSE.value:
-            direction_field = THOST_FTDC_D_Sell
-            comb_offset_flag = '1'
-        elif comb_offset.lower() == Offset.BUY_CLOSE_TODAY.value:
-            direction_field = THOST_FTDC_D_Buy
-            comb_offset_flag = THOST_FTDC_OF_CloseToday
-        elif comb_offset.lower() == Offset.SELL_CLOSE_TODAY.value:
-            direction_field = THOST_FTDC_D_Sell
-            comb_offset_flag = THOST_FTDC_OF_CloseToday
-        else:
-            self.logger.exception("不支持的买卖方向：{}".format(comb_offset))
+        if not req:
             return ""
 
-        ctp_req: dict = {
+        if req.offset not in OFFSET_ENUM_TO_CTP:
+            self.logger.warning("请选择开平方向")
+            return ""
+
+        if req.order_type not in ORDER_TYPE_ENUM_TO_CTP:
+            self.logger.warning(f"当前接口不支持该类型的委托 {req.order_type.value}")
+            return ""
+
+        self.order_ref += 1
+
+        # 从委托类型映射获取报单价格条件、有效期类型、成交量类型
+        tp: tuple = ORDER_TYPE_ENUM_TO_CTP[req.order_type]
+        price_type, time_condition, volume_condition = tp
+
+        order_req: dict = {
             "BrokerID": self.broker_id,
             "InvestorID": self.user_id,
-            "InstrumentID": instrument_id,
+            "InstrumentID": req.instrument_id,
             "OrderRef": str(self.order_ref),
             "UserID": self.user_id,
-            "CombOffsetFlag": comb_offset_flag,  # 开平标志
+            "CombOffsetFlag": OFFSET_ENUM_TO_CTP.get(req.offset, ""),  # 开平标志
             "CombHedgeFlag": THOST_FTDC_HF_Speculation,  # 投机套保标志，投机
-            "GTDDate": "",  # GTD日期
-            "ExchangeID": exchange_id,  # 交易所代码
-            "InvestUnitID": "",  # 投资单元代码
-            "AccountID": "",  # 投资者帐号
-            "CurrencyID": "",  # 币种代码
-            "ClientID": "",  # 客户代码
-            "VolumeTotalOriginal": volume,  # 数量
+            # "GTDDate": "",  # GTD日期
+            "ExchangeID": req.exchange_id.value,  # 交易所代码
+            # "InvestUnitID": "",  # 投资单元代码
+            # "AccountID": "",  # 投资者帐号
+            # "CurrencyID": "",  # 币种代码
+            # "ClientID": "",  # 客户代码
+            "VolumeTotalOriginal": req.volume,  # 数量
             "MinVolume": 1,  # 最小成交量
             "IsAutoSuspend": 0,  # 自动挂起标志
             "RequestID": self.req_id,  # 请求编号
             "IsSwapOrder": 0,  # 互换单标志
-            "OrderPriceType": THOST_FTDC_OPT_LimitPrice,  # 报单价格条件，普通限价单的默认参数
-            "Direction": direction_field,  # 买卖方向
-            "TimeCondition": THOST_FTDC_TC_GFD,  # 有效期类型，当日有效
-            "VolumeCondition": THOST_FTDC_VC_AV,  # 成交量类型，任意数量
+            "OrderPriceType": price_type,  # 报单价格条件，普通限价单的默认参数
+            "Direction": DIRECTION_ENUM_TO_CTP.get(req.direction, ""),  # 买卖方向
+            "TimeCondition": time_condition,  # 有效期类型，当日有效
+            "VolumeCondition": volume_condition,  # 成交量类型，任意数量
             "ContingentCondition": THOST_FTDC_CC_Immediately,  # 触发条件
             "ForceCloseReason": THOST_FTDC_FCC_NotForceClose,  # 强平原因，非强平
-            "LimitPrice": price,  # 价格
-            "StopPrice": 0  # 止损价
+            "LimitPrice": req.price,  # 价格
+            # "StopPrice": 0  # 止损价
         }
 
         self.req_id += 1
         self.logger.info("开始发送委托下单请求......")
         try:
-            ret_code: int = self.reqOrderInsert(ctp_req, self.req_id)
+            ret_code: int = self.reqOrderInsert(order_req, self.req_id)
             if ret_code == 0:
                 self.logger.info("委托下单请求发送成功")
             else:
@@ -789,11 +1026,14 @@ class CtpTdApi(TdApi):
 
         order_id: str = f"{self.front_id}_{self.session_id}_{self.order_ref}"
         self.logger.info("委托下单成功，OrderID：{}".format(order_id))
-        self.order_queue.put(order_id)  # 存入委托号
+        order: OrderData = req.create_order_data(order_id)
+
+        # TODO: 后期考虑将订单推送到事件总线
+        # self.gateway.on_order(order)
 
         return order_id
 
-    def cancel_order(self, symbol: str) -> None:
+    def cancel_order(self, req: CancelRequest) -> None:
         """
         委托撤单，调用reqOrderAction撤销报单
         :return:
@@ -801,17 +1041,18 @@ class CtpTdApi(TdApi):
         if not self.all_status_ready():
             return
 
-        front_id, session_id, order_ref = self.order_queue.get().split("_")
-        # 后期考虑优化，将策略中订阅的合约对应交易所缓存起来，避免每次都去查询
-        exchange_id = get_exchange_name(symbol)
+        if not req:
+            return
+
+        front_id, session_id, order_ref = req.order_id.split("_")
 
         cancel_req: dict = {
             "BrokerID": self.broker_id,
             "InvestorID": self.user_id,
             "OrderRef": order_ref,
-            "ExchangeID": exchange_id,
+            "ExchangeID": req.exchange_id.value,
             "UserID": self.user_id,
-            "InstrumentID": symbol,
+            "InstrumentID": req.instrument_id,
             "FrontID": int(front_id),
             "SessionID": int(session_id),
             "ActionFlag": THOST_FTDC_AF_Delete,  # 操作标志
@@ -829,6 +1070,30 @@ class CtpTdApi(TdApi):
         except RuntimeError as e:
             self.logger.error("运行时错误！错误：{}".format(e))
             self.logger.error("traceback: {}".format(traceback.format_exc()))
+
+    def query_account(self) -> None:
+        """查询资金"""
+        self.req_id += 1
+
+        qry_req: dict = {
+            "BrokerID": self.broker_id,
+            "InvestorID": self.user_id,
+            "CurrencyID": Currency.CNY.value
+        }
+        # 调用请求查询资金账户，响应: OnRspQryTradingAccount
+        self.reqQryTradingAccount(qry_req, self.req_id)
+
+    def query_position(self) -> None:
+        """查询持仓"""
+        qry_req: dict = {
+            "BrokerID": self.broker_id,
+            "InvestorID": self.user_id
+        }
+
+        self.req_id += 1
+        # 请求查询投资者持仓，对应响应OnRspQryInvestorPosition。
+        # CTP系统将持仓明细记录按合约，持仓方向，开仓日期（仅针对上期所和能源所，区分昨仓、今仓）进行汇总。
+        self.reqQryInvestorPosition(qry_req, self.req_id)
 
     def logout(self) -> None:
         """
@@ -855,6 +1120,27 @@ class CtpTdApi(TdApi):
             self.logger.error("运行时错误！错误：{}".format(e))
             self.logger.error("traceback: {}".format(traceback.format_exc()))
 
+    def close(self) -> None:
+        """
+        关闭连接
+
+        Close the connection
+        :return: None
+        """
+        if self.connect_status:
+            self.logger.info("关闭连接")
+            self.exit()
+            self.connect_status = False
+
+    def update_date(self) -> None:
+        """
+        更新当前日期
+
+        Update current date
+        :return: None
+        """
+        self.current_date = datetime.now().strftime("%Y%m%d")
+
     def get_order_status_summary(self) -> None:
         """
         获取所有订单状态汇总
@@ -869,18 +1155,10 @@ class CtpTdApi(TdApi):
             return
 
         for order_id, order_status in self.order_status_map.items():
-            status_name = GatewayConst.order_status_names.get(order_status, f"未知状态({order_status})")
+            status_name = ORDER_STATUS_CTP_TO_ENUM.get(order_status, f"未知状态({order_status})")
             self.logger.info(f"订单号: {order_id} | 状态: {status_name}")
 
         self.logger.info("=" * 50 + "\n")
-
-    def close(self) -> None:
-        """
-        关闭连接
-        :return:
-        """
-        if self.connect_status:
-            self.exit()
 
     def connect_login_ready(self) -> bool:
         """
