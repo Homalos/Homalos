@@ -33,9 +33,9 @@ class Direction(Enum):
 
     Direction of order/trade/position
     """
-    LONG = "long"  # 多
-    SHORT = "short"  # 空
-    NET = "net"  # 净
+    LONG = "多"  # 多
+    SHORT = "空"  # 空
+    NET = "净"  # 净
 
 
 class Offset(Enum):
@@ -137,9 +137,10 @@ class Currency(Enum):
     CNY = "CNY"
 
 
-class KlineType(Enum):
+class Interval(Enum):
     """
-    K线类型
+    K线周期
+    Interval of bar data.
     """
     # 分钟
     MINUTE = '1m'
@@ -166,3 +167,10 @@ class KlineType(Enum):
     MONTH = '1M'  # 月
     SEASON = 'season'  # 季
     YEAR = '1y'  # 年
+
+class OpenDate(Enum):
+    """
+    开仓日期
+    """
+    TODAY = "今"
+    YESTERDAY = "昨"
