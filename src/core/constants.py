@@ -45,8 +45,6 @@ class Offset(Enum):
     Offset of order/trade
     """
     NONE = ""                           # 无
-    OPEN = "open"                       # 开
-    CLOSE = "close"                     # 平
     BUY_OPEN = "buy_open"
     BUY_CLOSE = "buy_close"
     SELL_OPEN = "sell_open"
@@ -56,20 +54,24 @@ class Offset(Enum):
     SELL_CLOSE_TODAY = "sell_close_today"   # 卖平今
     CLOSE_YESTERDAY = "close_yesterday"     # 平昨
 
+    OPEN = "open"  # 开
+    CLOSE = "close"  # 平
 
-class Status(Enum):
+
+class OrderStatus(Enum):
     """
     订单状态
 
     Order status
     """
-    UNKNOWN = "提交中"
+    SUBMITTING = "提交中"
     ALL_TRADED = "全部成交"
     PART_TRADED_QUEUEING = "部分成交还在队列中"
     PART_TRADED_NOT_QUEUEING = "部分成交不在队列中"
     NO_TRADE_QUEUEING = "未成交还在队列中"
     NO_TRADE_NOT_QUEUEING = "未成交不在队列中"
-    CANCELED = "撤单"
+    CANCELED = "已撤单"
+    REJECTED = "已拒单"
 
 
 class Product(Enum):
@@ -80,6 +82,7 @@ class Product(Enum):
     """
     FUTURES = "期货"
     OPTION = "期权"
+    SPREAD = "价差"
 
 
 class OrderType(Enum):
@@ -112,17 +115,17 @@ class Exchange(Enum):
 
     Exchange
     """
-    # Chinese
-    CFFEX = "CFFEX"         # China Financial Futures Exchange
-    SHFE = "SHFE"           # Shanghai Futures Exchange
-    CZCE = "CZCE"           # Zhengzhou Commodity Exchange
-    DCE = "DCE"             # Dalian Commodity Exchange
-    INE = "INE"             # Shanghai International Energy Exchange
-    GFEX = "GFEX"           # Guangzhou Futures Exchange
-    SSE = "SSE"             # Shanghai Stock Exchange
-    SZSE = "SZSE"           # Shenzhen Stock Exchange
-    BSE = "BSE"             # Beijing Stock Exchange
-    CFETS = "CFETS"         # CFETS Bond Market Maker Trading System
+    # 中国交易所
+    CFFEX = "CFFEX"         # 中国金融期货交易所 China Financial Futures Exchange
+    SHFE = "SHFE"           # 上海期货交易所 Shanghai Futures Exchange
+    CZCE = "CZCE"           # 郑州商品交易所 Zhengzhou Commodity Exchange
+    DCE = "DCE"             # 大连商品交易所 Dalian Commodity Exchange
+    INE = "INE"             # 上海国际能源交易中心 Shanghai International Energy Exchange
+    GFEX = "GFEX"           # 广州期货交易所 Guangzhou Futures Exchange
+    SSE = "SSE"             # 上海证券交易所 Shanghai Stock Exchange
+    SZSE = "SZSE"           # 深圳证券交易所 Shenzhen Stock Exchange
+    BSE = "BSE"             # 北京证券交易所 Beijing Stock Exchange
+    CFETS = "CFETS"         # CFETS债券做市商交易系统 CFETS Bond Market Maker Trading System
 
 
 class Currency(Enum):
