@@ -9,13 +9,14 @@
 @Software   : PyCharm
 @Description: 交易网关，负责将订单发送到交易所
 """
+import configparser
 import queue
 import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import SupportsInt
 
-from src.constants import INSTRUMENT_EXCHANGE_FILEPATH
+from src.constants import INSTRUMENT_EXCHANGE_FILEPATH, PRODUCT_INFO_FILEPATH
 from src.core.base_gateway import BaseGateway
 from src.core.constants import ErrorReason, Offset, Currency, Exchange, Direction, Product, OrderStatus, OrderType
 from src.core.event import EventType
@@ -47,10 +48,10 @@ from src.modules.gateway.gateway_helper import (
     extract_error_msg,
     get_exchange_name,
     build_order_data,
-    build_contract_data, build_rtn_order_data, build_trade_data
+    build_contract_data, build_rtn_order_data, build_trade_data, update_position_detail
 )
 from src.utils.log import get_logger
-from src.utils.utility import prepare_address, write_json
+from src.utils.utility import prepare_address, write_json, load_ini, write_ini, del_num
 
 
 class TraderGateway(BaseGateway):
@@ -213,6 +214,8 @@ class CtpTdApi(TdApi):
 
         # 订单状态跟踪字典  Order Status Tracking Dictionary
         self.order_status_map: dict = {}
+        # 持仓明细
+        self.position_detail_map: dict = {}
 
         # 订单队列，存储订单ID  An order queue and store the order ID
         self.order_queue: queue.Queue[str] = queue.Queue(maxsize=1000)
@@ -447,9 +450,9 @@ class CtpTdApi(TdApi):
                 position: PositionData = self.positions.get(position_key, None)
                 if not position:
                     position = PositionData(
-                        instrument_id=instrument_id,
-                        exchange_id=contract.exchange_id,
-                        direction=DIRECTION_CTP_TO_ENUM[posi_direction]
+                        instrument_id = instrument_id,
+                        exchange_id = contract.exchange_id,
+                        direction = DIRECTION_CTP_TO_ENUM[posi_direction]
                     )
                     self.positions[position_key] = position
 
@@ -486,10 +489,34 @@ class CtpTdApi(TdApi):
             if last:
                 self.logger.info("查询所有持仓成功")
                 for position in self.positions.values():
+                    # TODO: 将仓位数据推送到事件总线
                     # self.gateway.on_position(position)
                     self.logger.info(f"持仓数据: {position}")
 
                 self.positions.clear()
+
+    def onRspQryInvestorPositionDetail(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """
+        请求查询投资者持仓明细响应，当执行ReqQryInvestorPositionDetail后，该方法被调用。
+        :param data: 投资者持仓明细
+        :param error: 响应信息
+        :param reqid: 返回用户操作请求的 ID，该 ID 由用户在操作请求时指定。
+        :param last: 指示该次返回是否为针对 reqid 的最后一次返回。
+        :return: 无
+        """
+        rsp_error_msg = extract_error_msg(error, "请求查询投资者持仓明细发生错误！")
+        if rsp_error_msg:
+            self.logger.exception(rsp_error_msg)
+            return
+        else:
+            if not data or data.get("Volume") == 0:
+                return
+
+            if data:
+                self.position_detail_map = update_position_detail(data)
+
+            if last:
+                self.logger.info("查询投资者持仓明细完成")
 
     def onRspQryTradingAccount(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
@@ -576,6 +603,83 @@ class CtpTdApi(TdApi):
                 self.trade_data.clear()
 
                 # TODO: 后期考试是否此处设置网关状态为就绪（同步调用）
+
+    def onRspQryProduct(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """
+        查请求查询产品响应，当执行ReqQryProduct后，该方法被调用。
+        :param data: 产品信息
+        :param error: 响应信息
+        :param reqid: 返回用户操作请求的 ID，该 ID 由用户在操作请求时指定。
+        :param last: 指示该次返回是否为针对 reqid 的最后一次返回。
+        :return: 无
+        """
+        rsp_error_msg = extract_error_msg(error, "查请求查询产品发生错误！")
+        if rsp_error_msg:
+            self.logger.exception(rsp_error_msg)
+            return
+        else:
+            if not data:
+                return
+
+            # 获取产品代码
+            product_id = data.get("ProductID")
+
+            parser = load_ini(PRODUCT_INFO_FILEPATH)
+            # 需要判断section是否存在，如果不存在会报错，option不需要检查是否存在
+            if not parser.has_section(product_id):
+                parser.add_section(product_id)
+
+            parser.set(product_id, 'contract_multiplier', str(data.get("VolumeMultiple")))
+
+            parser.set(product_id, 'minimum_price_change', str(data.get("PriceTick")))
+
+            if last:
+                self.logger.info("查询产品成功！")
+                write_ini(parser, PRODUCT_INFO_FILEPATH)
+
+    def onRspQryInstrumentCommissionRate(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """
+        请求查询合约手续费率响应，当执行ReqQryInstrumentCommissionRate后，该方法被调用。
+        :param data: 合约手续费率
+        :param error: 响应信息
+        :param reqid: 返回用户操作请求的 ID，该 ID 由用户在操作请求时指定。
+        :param last: 指示该次返回是否为针对 reqid 的最后一次返回。
+        :return: None
+        """
+        rsp_error_msg = extract_error_msg(error, "请求查询合约手续费率发生错误！")
+        if rsp_error_msg:
+            self.logger.exception(rsp_error_msg)
+            return
+        else:
+            # 增加对data 和 data['InstrumentID']的有效性检查
+            if not data or not data.get("InstrumentID", ""):
+                # 如果是最后一条回报但数据无效，可能需要记录一下
+                if last:
+                    self.logger.info("OnRspQryInstrumentCommissionRate 收到无效或空的合约手续费数据（最后一条）。"
+                                     "ReqID: {}".format(self.req_id))
+                return
+
+            section = del_num(data.get("InstrumentID"))
+            parser = load_ini(PRODUCT_INFO_FILEPATH)
+            # 需要判断section是否存在，如果不存在会报错，option不需要检查是否存在
+            if not parser.has_section(section):
+                parser.add_section(section)
+
+            # 填写开仓手续费率
+            parser.set(section, 'open_fee_rate', str(data.get("OpenRatioByMoney")))
+            # 填写开仓手续费
+            parser.set(section, 'open_fee', str(data.get("OpenRatioByVolume")))
+            # 填写平仓手续费率
+            parser.set(section, 'close_fee_rate', str(data.get("CloseRatioByMoney")))
+            # 填写平仓手续费
+            parser.set(section, 'close_fee', str(data.get("CloseRatioByVolume")))
+            # 填写平今手续费率
+            parser.set(section, 'close_today_fee_rate', str(data.get("CloseTodayRatioByMoney")))
+            # 填写平今手续费
+            parser.set(section, 'close_today_fee', str(data.get("CloseTodayRatioByVolume")))
+
+            # 写入ini文件
+            write_ini(parser, PRODUCT_INFO_FILEPATH)
 
     def onRspOrderInsert(self, data: dict, error: dict, reqid: SupportsInt, last: bool) -> None:
         """
@@ -760,6 +864,7 @@ class CtpTdApi(TdApi):
                          f"Price: {trade.price}, "
                          f"Volume: {trade.volume}, "
                          f"InstrumentID: {trade.instrument_id}")
+        # TODO: 写入交易流水
 
     def onRspOrderAction(self, data: dict, error: dict, reqid: SupportsInt, last: bool) -> None:
         """
@@ -790,15 +895,17 @@ class CtpTdApi(TdApi):
             self.logger.exception(rsp_error_msg)
             return
         else:
-            if last and data:
-                self.logger.info("撤销报单操作请求成功")
-                order_ref = data.get("OrderRef")
-                front_id = data.get("FrontID")
-                session_id = data.get("SessionID")
-                # 组合成订单号OrderID
-                order_id: str = f"{front_id}_{session_id}_{order_ref}"
+            if not data:
+                return
 
-                self.order_status_map.pop(order_id, None)
+            self.logger.info("撤销报单操作请求成功")
+            order_ref = data.get("OrderRef")
+            front_id = data.get("FrontID")
+            session_id = data.get("SessionID")
+            # 组合成订单号OrderID
+            order_id: str = f"{front_id}_{session_id}_{order_ref}"
+
+            self.order_status_map.pop(order_id, None)
 
             if not last:
                 self.logger.info("撤销报单操作请求响应中......")
@@ -813,9 +920,29 @@ class CtpTdApi(TdApi):
         rsp_error_msg = extract_error_msg(error, "撤销报单操作错误")
         if rsp_error_msg:
             self.logger.exception(rsp_error_msg)
-        else:
-            self.logger.info(f"onErrRtnOrderAction: {error}")
             return
+        else:
+            if data:
+                self.logger.info(f"报单操作错误回报: {data}")
+                return
+
+    def onRspForQuoteInsert(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """
+        询价录入请求响应，当执行ReqForQuoteInsert后有字段填写不对之类的CTP报错则通过此接口返回。
+        :param data: 输入的询价
+        :param error: 响应信息
+        :param reqid: 返回用户操作请求的ID，该ID 由用户在操作请求时指定。
+        :param last: 指示该次返回是否为针对nRequestID的最后一次返回。
+        :return:
+        """
+        rsp_error_msg = extract_error_msg(error, "询价录入请求错误")
+        if rsp_error_msg:
+            self.logger.exception(rsp_error_msg)
+            return
+        else:
+            if data:
+                instrument_id: str = data.get("InstrumentID")
+                self.logger.info(f"{instrument_id} 询价录入请求成功")
 
     def onRspUserLogout(self, data: dict, error: dict, reqid: SupportsInt, last: bool) -> None:
         """
@@ -840,9 +967,11 @@ class CtpTdApi(TdApi):
             self.logger.exception(rsp_error_msg)
             return
 
-        if last and data:
+        if data:
             self.login_status = False
             self.logger.info("交易账户：{} 已退出".format(data.get("UserID", "UNKNOWN")))
+
+        if last:
             self.logger.info("释放接口资源......")
             self.release()  # 删除接口对象本身
             self.logger.info("接口资源释放完毕")
