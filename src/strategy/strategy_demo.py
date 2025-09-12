@@ -7,9 +7,9 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: description
+@Description: 策略示例
 """
-from src.core.constants import KlineType
+from src.core.constants import Interval
 from src.core.object import OrderData, TradeData, BarData, TickData
 from src.strategy.base_strategy import BaseStrategy, SpecificStrategyApi
 from src.utils.log import get_logger
@@ -22,7 +22,7 @@ class StrategyDemo(BaseStrategy):
         self.strategy_id = 1
         self.strategy_name = "策略demo1"
         self.sub_ins_id = ["SA601"]
-        self.sub_kline_type = [KlineType.MINUTE]
+        self.sub_kline_type = [Interval.MINUTE]
         self.strategy_content = "策略示例"
 
 
