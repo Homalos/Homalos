@@ -69,17 +69,19 @@ ORDER_STATUS_CTP_TO_ENUM: dict[str, OrderStatus] = {
     THOST_FTDC_OST_NoTradeNotQueueing: OrderStatus.NO_TRADE_NOT_QUEUEING,
     THOST_FTDC_OST_Canceled: OrderStatus.CANCELED
 }
-
+# 这样设计的优点是实现了关注点分离，使核心交易逻辑与特定的交易接口实现解耦。
 # ================== 买卖方向的映射，long -> buy, short -> sell ==================
-# 买卖方向从枚举常量到CTP常量的映射
+# 将本地的Direction.LONG和Direction.SHORT枚举值映射到CTP接口的买卖方向常量
 DIRECTION_ENUM_TO_CTP: dict[Direction, str] = {
     Direction.LONG: THOST_FTDC_D_Buy,
     Direction.SHORT: THOST_FTDC_D_Sell
 }
-# 买卖方向从CTP常量到枚举常量的映射
+# 使用字典推导式创建反向映射，将CTP常量映射回本地枚举
+# 例如，THOST_FTDC_D_Buy 会被映射到 Direction.LONG，THOST_FTDC_D_Sell 会被映射到 Direction.SHOT
 DIRECTION_CTP_TO_ENUM: dict[str, Direction] = {v: k for k, v in DIRECTION_ENUM_TO_CTP.items()}
-DIRECTION_CTP_TO_ENUM[THOST_FTDC_PD_Long] = Direction.LONG
-DIRECTION_CTP_TO_ENUM[THOST_FTDC_PD_Short] = Direction.SHORT
+# 额外添加了两个映射关系，处理持仓方向
+DIRECTION_CTP_TO_ENUM[THOST_FTDC_PD_Long] = Direction.LONG  # THOST_FTDC_PD_Long: CTP中表示多头持仓的常量
+DIRECTION_CTP_TO_ENUM[THOST_FTDC_PD_Short] = Direction.SHORT  # THOST_FTDC_PD_Short: CTP中表示空头持仓的常量
 
 # 委托类型映射
 ORDER_TYPE_ENUM_TO_CTP: dict[OrderType, tuple] = {
