@@ -128,6 +128,15 @@ class OrderData(BaseData):
     order_status: OrderStatus = OrderStatus.SUBMITTING  # 报单状态
     timestamp: datetime = None
 
+    def create_cancel_request(self) -> "CancelRequest":
+        """
+        Create cancel request object from order.
+        """
+        req: CancelRequest = CancelRequest(
+            order_id=self.order_id, instrument_id=self.instrument_id, exchange_id=self.exchange_id
+        )
+        return req
+
 
 @dataclass
 class TradeData(BaseData):
@@ -162,6 +171,14 @@ class PositionData(BaseData):
     price: float = 0
     pnl: float = 0
     yd_volume: float = 0  # 上日成交量
+
+
+
+@dataclass
+class PositionDetailData(BaseData):
+    strategy_id: int = 0
+    open_price_list: list[float] = None
+
 
 @dataclass
 class AccountData(BaseData):
@@ -255,3 +272,14 @@ class CancelRequest:
     instrument_id: str = None
     exchange_id: Exchange = None
 
+
+@dataclass
+class HistoryRequest:
+    """
+    Request sending to specific gateway for querying history data.
+    """
+    instrument_id: str
+    exchange_id: Exchange
+    start_datetime: datetime
+    end_datetime: datetime = None
+    interval: Interval = None
