@@ -11,8 +11,7 @@
 """
 import json
 import os
-import time
-from typing import Dict, Any
+from typing import Any
 
 import yaml
 
@@ -20,7 +19,7 @@ from src.utils.log import get_logger
 
 _logger = get_logger(__name__)
 
-def load_json_file(file_path: str) -> Dict[str, Any]:
+def load_json(file_path: str) -> dict[str, Any]:
     """
     加载 JSON 文件。
 
@@ -40,6 +39,17 @@ def load_json_file(file_path: str) -> Dict[str, Any]:
         _logger.error("无法读取文件 {}: {}".format(file_path, e))
         return {}
 
+def write_json(file_path: str, data: dict[str, Any]) -> None:
+    """
+    将数据写入 JSON 文件。
+
+    Writes the given data into a JSON file at the specified path.
+    """
+    try:
+        with open(file_path, 'w', newline='\n', encoding='utf-8') as f:
+            f.write(json.dumps(data, indent=4, ensure_ascii=False))
+    except IOError as e:
+        _logger.error("无法写入文件 {}: {}".format(file_path, e))
 
 def load_config(config_path: str) -> dict:
     """加载配置文件"""
