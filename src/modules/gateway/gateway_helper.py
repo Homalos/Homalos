@@ -12,14 +12,14 @@
 from datetime import datetime
 
 from src.constants import INSTRUMENT_EXCHANGE_FILEPATH
-from src.core.constants import Offset, OrderStatus, Product, Exchange, OrderType
-from src.core.object import TickData, ContractData, OrderData, TradeData
+from src.core.constants import Offset, OrderStatus, Product, Exchange, OrderType, Direction, OpenDate
+from src.core.object import TickData, ContractData, OrderData, TradeData, PositionDetailData
 from src.modules.gateway.gateway_const import (
     MAX_FLOAT,
     DIRECTION_CTP_TO_ENUM,
     OFFSET_CTP_TO_ENUM,
     EXCHANGE_CTP_TO_ENUM,
-    OPTION_TYPE_CTP_TO_ENUM
+    OPTION_TYPE_CTP_TO_ENUM, DIRECTION_ENUM_TO_CTP
 )
 from src.utils.utility import load_json
 
@@ -227,3 +227,48 @@ def build_contract_data(data: dict, product: Product) -> ContractData:
     return contract
 
 
+def update_position_detail(data: dict) -> dict:
+    """
+    持仓明细处理
+    :param data: 原始数据
+    :return:
+    """
+    position_detail_map: dict = {}
+
+    instrument_id: str = data.get("InstrumentID")  # 合约代码
+    exchange_id: Exchange = EXCHANGE_CTP_TO_ENUM.get(data.get("ExchangeID"))  # 交易所代码
+    direction: Direction = DIRECTION_CTP_TO_ENUM.get(data.get("Direction"))  # 买卖
+    volume = data.get("Volume")  # 数量
+    open_price: float = data.get("OpenPrice")  # 开仓价
+    open_date = data.get("OpenDate")  # 开仓日期
+    trading_day = data.get("TradingDay")  # 交易日
+
+    # 如果不是上期所和能源中心，命名为：au2206_多，
+    if exchange_id != Exchange.SHFE and exchange_id != Exchange.INE:
+        position_detail_name = '{}_{}'.format(instrument_id, direction.value)
+
+        # 如果该合约第一次出现，则创建持仓明细类，否则不用，直接添加参数即可
+        if position_detail_name not in position_detail_map.keys():
+            position_detail_map[position_detail_name] = PositionDetailData()
+        # 在开仓价列表中添加开仓价
+        for i in range(int(volume)):
+            position_detail_map[position_detail_name].open_price_list.insert(0, round(open_price, 2))
+
+    # 如果是上期所或者能源中心，命名为：昨_au2206_多
+    elif exchange_id == Exchange.SHFE or exchange_id == Exchange.INE:
+
+        position_date = ''
+        # 开仓日期指开仓时的交易日期
+        if open_date == trading_day:
+            position_date = OpenDate.TODAY.value
+        elif open_date != trading_day:
+            position_date = OpenDate.YESTERDAY.value
+
+        position_detail_name = '{}_{}_{}'.format(position_date, instrument_id, direction.value)
+        # 如果该合约第一次出现，则创建持仓明细类，否则不用，之间添加参数即可
+        if position_detail_name not in position_detail_map.keys():
+            position_detail_map[position_detail_name] = PositionDetailData()
+        for i in range(int(volume)):
+            position_detail_map[position_detail_name].open_price_list.insert(0, round(open_price, 2))
+
+    return position_detail_map
