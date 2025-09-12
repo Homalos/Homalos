@@ -16,10 +16,10 @@
 可变默认值：列表、字典等可变默认值需用field(default_factory=list)避免所有实例共享引用
 继承行为：父类和子类的字段按声明顺序合并，但需注意字段顺序冲突
 """
-import datetime
 from dataclasses import dataclass, field
+from datetime import datetime
 
-from src.core.constants import Exchange, OrderType, Direction, Offset, Product
+from src.core.constants import Exchange, OrderType, Direction, Offset, Product, OptionType, OrderStatus
 
 
 @dataclass
@@ -59,9 +59,9 @@ class TickData(BaseData):
     settlement_price: float = 0
     upper_limit_price: float = 0
     lower_limit_price: float = 0
-    pre_delta = None
-    curr_delta = None
-    update_time = datetime.time()
+    pre_delta: float = 0
+    curr_delta: float = 0
+    update_time: datetime = None
     update_millisec: float = 0
     bid_price_1: float = 0
     bid_volume_1: float = 0
@@ -88,6 +88,8 @@ class TickData(BaseData):
     banding_upper_price: float = 0
     banding_lower_price: float = 0
 
+    timestamp: datetime = None
+
 
 @dataclass
 class BarData(BaseData):
@@ -97,7 +99,7 @@ class BarData(BaseData):
     Candlestick bar data of a certain trading period.
     """
     bar_type = None
-    update_time: datetime = datetime.time()
+    update_time: datetime = None
     instrument_id: str = None
     exchange_id: Exchange = None
     volume: int = 0
@@ -117,12 +119,14 @@ class OrderData(BaseData):
     exchange_id: Exchange = None
     order_id: str = None
 
-    type: OrderType = OrderType.LIMIT
-    direction: Direction | None = None
-    offset: Offset = Offset.NONE
-    price: float = 0
-    volume: float = 0
-    traded: float = 0
+    order_type: OrderType = OrderType.LIMIT  # 报单类型
+    direction: Direction | None = None  # 买卖方向
+    offset: Offset = Offset.NONE  # 组合开平标志
+    price: float = 0  # 价格
+    volume: float = 0  # 数量
+    volume_traded: float = 0  # 今成交数量
+    order_status: OrderStatus = OrderStatus.SUBMITTING  # 报单状态
+    timestamp: datetime = None
 
 
 @dataclass
@@ -133,13 +137,14 @@ class TradeData(BaseData):
     """
     instrument_id: str = None
     exchange_id: Exchange = None
-    order_id: str = None
-    trade_id: str = None
-    direction: Direction = None
+    order_id: str = None  # 报单编号
+    trade_id: str = None  # 成交编号
+    direction: Direction = None  # 买卖方向
 
-    offset: Offset = Offset.NONE
-    price: float = 0
-    volume: float = 0
+    offset: Offset = Offset.NONE  # 开平标志
+    price: float = 0  # 价格
+    volume: float = 0  # 数量
+    timestamp: datetime = None
 
 
 @dataclass
@@ -156,7 +161,7 @@ class PositionData(BaseData):
     frozen: float = 0
     price: float = 0
     pnl: float = 0
-    yd_volume: float = 0
+    yd_volume: float = 0  # 上日成交量
 
 @dataclass
 class AccountData(BaseData):
@@ -169,6 +174,9 @@ class AccountData(BaseData):
     balance: float = 0
     frozen: float = 0
 
+    def __post_init__(self) -> None:
+        self.available: float = self.balance - self.frozen
+
 @dataclass
 class ContractData(BaseData):
     """
@@ -176,17 +184,74 @@ class ContractData(BaseData):
     """
     instrument_id: str =  None
     exchange_id: Exchange = None
-    name: str = None
+    instrument_name: str = None
     product: Product = None
-    size: float = 0
+    size: int = 0
     price_tick: float = 0
 
+    min_volume: float = 1           # 最小成交量
+    max_volume: float = None        # 最大成交量
+    stop_supported: bool = False    # 是否支持 stop order
+    net_position: bool = False      # 网关是否使用净持仓量
+    history_data: bool = False      # 网关是否提供K线历史数据
+
+    option_strike: float = 0
+    option_underlying: str = ""     # vt_symbol of underlying contract
+    option_type: OptionType = None
+    option_listed: datetime = None
+    option_expiry: datetime = None
+    option_portfolio: str = ""
+    option_index: str = ""          # for identifying options with same strike price
+
+# ================== 请求 ==================
 @dataclass
 class SubscribeRequest:
     """
     请求发送到特定网关以订阅报价数据更新。
     Request sending to specific gateway for subscribing tick data update.
     """
+    instrument_id: str = None
+    exchange_id: Exchange = None
+
+
+@dataclass
+class OrderRequest:
+    """
+    订单委托请求
+    Request sending to specific gateway for creating a new order.
+    """
+    instrument_id: str = None
+    exchange_id: Exchange = None
+    direction: Direction = None
+    order_type: OrderType = None
+    volume: float = 0
+    price: float = 0
+    offset: Offset = Offset.NONE
+
+    def create_order_data(self, order_id: str) -> OrderData:
+        """
+        Create order data from request.
+        """
+        order: OrderData = OrderData(
+            instrument_id=self.instrument_id,
+            exchange_id=self.exchange_id,
+            order_id=order_id,
+            order_type=self.order_type,
+            direction=self.direction,
+            offset=self.offset,
+            price=self.price,
+            volume=self.volume
+        )
+        return order
+
+
+@dataclass
+class CancelRequest:
+    """
+    撤销订单委托请求
+    Request sending to specific gateway for canceling an existing order.
+    """
+    order_id: str = None
     instrument_id: str = None
     exchange_id: Exchange = None
 
