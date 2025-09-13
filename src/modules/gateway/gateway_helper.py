@@ -11,7 +11,7 @@
 """
 from datetime import datetime
 
-from src.constants import INSTRUMENT_EXCHANGE_FILEPATH
+from src.constants import INSTRUMENT_EXCHANGE_FILENAME
 from src.core.constants import Offset, OrderStatus, Product, Exchange, OrderType, Direction, OpenDate
 from src.core.object import TickData, ContractData, OrderData, TradeData, PositionDetailData
 from src.modules.gateway.gateway_const import (
@@ -19,8 +19,9 @@ from src.modules.gateway.gateway_const import (
     DIRECTION_CTP_TO_ENUM,
     OFFSET_CTP_TO_ENUM,
     EXCHANGE_CTP_TO_ENUM,
-    OPTION_TYPE_CTP_TO_ENUM, DIRECTION_ENUM_TO_CTP
+    OPTION_TYPE_CTP_TO_ENUM
 )
+from src.utils.get_path import get_path_ins
 from src.utils.utility import load_json
 
 
@@ -54,7 +55,7 @@ def get_exchange_name(instrument_id: str) -> str:
     :param instrument_id: 合约代码
     :return: 交易所名称
     """
-    return load_json(INSTRUMENT_EXCHANGE_FILEPATH).get(instrument_id, "")
+    return load_json(str(get_path_ins.get_config_dir() / INSTRUMENT_EXCHANGE_FILENAME)).get(instrument_id, "")
 
 def build_tick_data(data: dict, contract: ContractData, timestamp: datetime) -> TickData:
     """
