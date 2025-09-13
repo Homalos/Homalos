@@ -8,5 +8,6 @@ dependencies = [
     "configparser>=7.2.0",
     "loguru>=0.7.3",
     "pyyaml>=6.0.2",
+    "tzdata>=2025.2",
     "watchfiles>=1.1.0",
 ]
