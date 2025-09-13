@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 @ProjectName: Homalos
-@FileName   : config.py
+@FileName   : config_manager.py
 @Date       : 2025/9/9 14:16
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
@@ -27,7 +27,7 @@ from src.core.event_bus import EventBus, Event
 from src.utils.log.logger import get_logger
 
 
-class Config:
+class ConfigManager:
     _instance = None
     _lock = threading.RLock()
 
@@ -35,7 +35,7 @@ class Config:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
-                    cls._instance = super(Config, cls).__new__(cls)
+                    cls._instance = super(ConfigManager, cls).__new__(cls)
         return cls._instance
 
     def __init__(self, config_path: str = "config.yaml", event_bus: EventBus | None = None):
@@ -102,4 +102,4 @@ class Config:
         """停止文件监听"""
         if self._watch_task and not self._watch_task.done():
             self._watch_task.cancel()
-            self.logger.info("[Config] 停止监听配置文件")
+            self.logger.info("[ConfigManager] 停止监听配置文件")
