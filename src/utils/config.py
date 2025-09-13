@@ -77,7 +77,7 @@ class Config:
 
             # 发布事件：配置更新
             if self._event_bus:
-                self._event_bus.publish(Event("CONFIG_UPDATED", data=self._data))
+                self._event_bus.publish(Event("CONFIG_UPDATED", payload=self._data))
                 self.logger.info("已发布 CONFIG_UPDATED 事件")
         except Exception as e:
             self.logger.error(f"加载配置失败: {e}")
