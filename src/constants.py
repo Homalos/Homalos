@@ -10,11 +10,11 @@
 @Description: 全局常量
 """
 # ================== 项目中目录名称 ==================
-PROJECT_NAME = "Homalos"  # 项目名称
-
-LOG_DIR_NAME = "log"  # 日志目录名
-
-DATA_DIR_NAME = "data"  # 数据目录名
+# PROJECT_NAME = "Homalos"  # 项目名称
+#
+# LOG_DIR_NAME = "log"  # 日志目录名
+#
+# DATA_DIR_NAME = "data"  # 数据目录名
 
 CONFIG_DIR_NAME = "config"  # 配置目录名
 
