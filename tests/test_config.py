@@ -13,13 +13,13 @@ import asyncio
 from pathlib import Path
 
 from src.core.event_bus import EventBus, Event
-from src.utils.config import Config
+from src.utils.config_manager import ConfigManager
 from src.utils.log import get_logger, logger
 
 
 def config_update_handler(event: Event):
-    log = get_logger("config")
-    log.info(f"[Handler] 收到配置更新: {event.payload}")
+    log = get_logger("Handler")
+    log.info(f"收到配置更新: {event.payload}")
 
 
 async def main():
@@ -33,7 +33,7 @@ async def main():
     bus.subscribe("CONFIG_UPDATED", config_update_handler, async_mode=False)
 
     # 初始化配置（传入 EventBus）
-    cfg = Config(str(config_path), event_bus=bus)
+    cfg = ConfigManager(str(config_path), event_bus=bus)
 
     # 读取配置
     system_name = cfg.get("base.name")
