@@ -9,7 +9,6 @@
 @Software   : PyCharm
 @Description: 交易网关，负责将订单发送到交易所
 """
-import configparser
 import queue
 import traceback
 from datetime import datetime
@@ -18,20 +17,14 @@ from typing import SupportsInt
 
 from src.constants import INSTRUMENT_EXCHANGE_FILEPATH, PRODUCT_INFO_FILEPATH
 from src.core.base_gateway import BaseGateway
-from src.core.constants import ErrorReason, Offset, Currency, Exchange, Direction, Product, OrderStatus, OrderType
+from src.core.constants import ErrorReason, Currency, Exchange, Direction, Product, OrderStatus, OrderType
 from src.core.event import EventType
 from src.core.event_bus import EventBus
 from src.core.object import OrderRequest, CancelRequest, ContractData, OrderData, PositionData, AccountData, TradeData
 from src.ctp.api import TdApi
 from src.ctp.api.ctp_constant import (
     THOST_TERT_QUICK,
-    THOST_FTDC_D_Buy,
-    THOST_FTDC_D_Sell,
-    THOST_FTDC_OF_CloseToday,
     THOST_FTDC_HF_Speculation,
-    THOST_FTDC_OPT_LimitPrice,
-    THOST_FTDC_TC_GFD,
-    THOST_FTDC_VC_AV,
     THOST_FTDC_CC_Immediately,
     THOST_FTDC_FCC_NotForceClose,
     THOST_FTDC_AF_Delete
@@ -46,7 +39,6 @@ from src.modules.gateway.gateway_const import (
 )
 from src.modules.gateway.gateway_helper import (
     extract_error_msg,
-    get_exchange_name,
     build_order_data,
     build_contract_data, build_rtn_order_data, build_trade_data, update_position_detail
 )
@@ -56,7 +48,7 @@ from src.utils.utility import prepare_address, write_json, load_ini, write_ini, 
 
 class TraderGateway(BaseGateway):
 
-    def __init__(self, event_bus: EventBus = "TraderBus", gateway_name: str = "TraderGateway") -> None:
+    def __init__(self, event_bus: EventBus, gateway_name: str = "TraderGateway") -> None:
         super().__init__(event_bus, gateway_name)
         self.event_bus = event_bus
         self.gateway_name: str = gateway_name
@@ -83,10 +75,14 @@ class TraderGateway(BaseGateway):
         # 验证必需字段
         if not all([broker_id, user_id, password, td_address]):
             missing_fields = []
-            if not broker_id: missing_fields.append("broker_id")
-            if not user_id: missing_fields.append("user_id")
-            if not password: missing_fields.append("password")
-            if not td_address: missing_fields.append("td_address")
+            if not broker_id: 
+                missing_fields.append("broker_id")
+            if not user_id: 
+                missing_fields.append("user_id")
+            if not password: 
+                missing_fields.append("password")
+            if not td_address: 
+                missing_fields.append("td_address")
             self.logger.error(f"CTP交易网关连接参数不完整，缺少字段: {missing_fields}")
 
         td_address = prepare_address(td_address)

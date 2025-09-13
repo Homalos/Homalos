@@ -27,7 +27,7 @@ from src.utils.utility import prepare_address
 
 class MarketGateway(BaseGateway):
 
-    def __init__(self, event_bus: EventBus = "MarketBus", gateway_name: str = "MarketGateway") -> None:
+    def __init__(self, event_bus: EventBus, gateway_name: str = "MarketGateway") -> None:
         super().__init__(event_bus, gateway_name)
         self.gateway_name = gateway_name
 
