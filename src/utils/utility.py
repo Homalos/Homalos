@@ -90,7 +90,7 @@ def write_ini(config_parser: configparser, file_path: str) -> None:
     """
     config_parser.write(open(file_path, "w", encoding='utf-8'))
 
-def load_config(config_path: str) -> dict:
+def load_yaml(config_path: str) -> dict:
     """
     加载 yaml 配置文件
     :param config_path:
@@ -98,9 +98,13 @@ def load_config(config_path: str) -> dict:
     """
     if not os.path.exists(config_path):
         _logger.error(f"未找到配置文件: {config_path}")
-        raise FileNotFoundError(f"配置文件不存在: {config_path}")
-    with open(config_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        return {}
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f)
+    except (yaml.YAMLError, IOError):
+        # 如果配置文件解析失败，返回默认配置
+        return {}
 
 def prepare_address(address: str) -> str:
     """
