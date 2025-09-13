@@ -12,18 +12,18 @@
 import asyncio
 from pathlib import Path
 
-from src.config.config import Config
 from src.core.event_bus import EventBus, Event
+from src.utils.config import Config
 from src.utils.log import get_logger, logger
 
 
 def config_update_handler(event: Event):
     log = get_logger("config")
-    log.info(f"[Handler] 收到配置更新: {event.data}")
+    log.info(f"[Handler] 收到配置更新: {event.payload}")
 
 
 async def main():
-    config_path = Path(__file__).resolve().parent.parent / "config"/ "system.dev.yaml"
+    config_path = Path(__file__).resolve().parent.parent / "config"/ "extra.dev.yaml"
     logger.info(f"config_path: {config_path}")
 
     bus = EventBus("ConfigBus")

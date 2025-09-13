@@ -10,13 +10,11 @@
 @Description: description
 """
 import asyncio
-import time
 
 from src.core import trace_context
 from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.utils.log import get_logger
-
 
 log = get_logger("market")
 bus = EventBus("test")
