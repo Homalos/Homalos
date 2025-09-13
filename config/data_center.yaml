@@ -1,0 +1,23 @@
+# Homalos数据中心配置文件
+# 配置文件格式参考：https://yaml.org/spec/1.2/spec.html
+
+# 数据中心基础配置
+base:
+  name: "Homalos数据中心"                   # 数据中心名称
+  description: "7x24小时运行的行情数据中心"    # 数据中心描述
+  enable: true                             # 是否启用
+
+# 交易时间配置
+trading_hours:
+  day_session:                                              # 日盘
+    start: "09:00:00"                                       # 开始时间
+    end: "15:00:00"                                         # 结束时间
+
+  night_session:                                            # 夜盘
+    start: "21:00:00"                                       # 开始时间
+    end: "23:00:00"                                         # 结束时间
+
+# CSV配置
+csv:
+  base_path: "data"                                        # 数据存储基础路径
+  cache_size: 100                                          # CSV缓存大小
