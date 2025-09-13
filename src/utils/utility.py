@@ -92,7 +92,8 @@ def write_ini(config_parser: configparser, file_path: str) -> None:
 
 def load_yaml(config_path: str) -> dict:
     """
-    加载 yaml 配置文件
+    加载 yaml 配置文件，单纯加载 yaml 文件后直接返回 dict 数据
+    如果需要更强大的配置加载功能请使用 utils/config_manager.py 中的配置管理，支持热加载
     :param config_path:
     :return:
     """
@@ -129,4 +130,58 @@ def del_num(content) -> str:
         str: 删除数字后的字符串。
     """
     return re.sub(r'\d', '', content)
+
+
+def get_enable_broker(brokers_config: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """
+    获取配置中启用的broker配置
+    :param brokers_config:
+    :return:
+    """
+    rsp_enable_broker: dict[str, Any] = {}
+
+    if not brokers_config:
+        return {}
+
+    # 获取启用的broker名称
+    enable_broker_name: str = brokers_config.get("base", {}).get("enable_broker", "")
+
+    if not enable_broker_name:
+        _logger.warning("未找到可用的broker名称")
+        return {}
+
+    # 获取启用的broker配置
+    all_brokers: dict = brokers_config.get("base", {}).get("brokers", {})
+
+    if not all_brokers:
+        _logger.warning("未找到brokers配置")
+        return {}
+
+    # 检查启用的broker名称是否存在于brokers配置中
+    if enable_broker_name not in all_brokers:
+        _logger.error(f"启用的broker '{enable_broker_name}' 在brokers配置中不存在")
+        return {}
+
+    # 获取启用broker的配置
+    enable_broker_config = all_brokers.get(enable_broker_name)
+
+    if not enable_broker_config:
+        _logger.warning(f"启用的broker '{enable_broker_name}' 配置为空")
+        return {}
+
+    # 确定broker类型（simnow和simnow7x24都使用ctp类，tts和tts7x24使用tts类）
+    if enable_broker_name in ['simnow', 'simnow7x24']:
+        enable_broker_type = 'ctp'
+    elif enable_broker_name in ['tts', 'tts7x24']:
+        enable_broker_type = 'tts'
+    elif enable_broker_name == 'real':
+        enable_broker_type = 'ctp'  # 实盘通常使用CTP
+    else:
+        enable_broker_type = 'ctp'  # 默认使用CTP类型
+
+    rsp_enable_broker["broker_name"] = enable_broker_name
+    rsp_enable_broker["broker_type"] = enable_broker_type
+    rsp_enable_broker["broker_config"] = enable_broker_config
+
+    return rsp_enable_broker
 
