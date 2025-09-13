@@ -19,7 +19,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from src.core.constants import Exchange, OrderType, Direction, Offset, Product, OptionType, OrderStatus
+from src.core.constants import Exchange, OrderType, Direction, Offset, Product, OptionType, OrderStatus, Interval
 
 
 @dataclass
