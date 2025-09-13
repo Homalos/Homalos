@@ -24,7 +24,7 @@ from src.core.event_bus import EventBus, Event
 from src.utils.log.logger import get_logger
 
 
-class MultiConfigManager:
+class ConfigManager:
     """支持多实例的配置管理器，每个实例可以监控不同的配置文件"""
     
     def __init__(self, config_path: str, event_bus: EventBus | None = None):
