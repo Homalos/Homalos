@@ -6,9 +6,7 @@ base:
   name: "Homalos"                                  # 系统名称
   describe: "Homalos Quantitative Trading System"  # 系统描述信息
   version: "0.0.1"                                 # 系统版本号
-  data_path: "data/"                               # 数据存储目录
   timezone: "Asia/Shanghai"                        # 系统时区
-  # 测试模式配置
-  test_mode: false                                 # 是否启用测试模式
-  test_trading_hours: true                         # 测试模式下是否绕过交易时间检查
-
+  # 开发模式配置
+  dev_mode: true                                  # 是否启用开发模式
+  dev_trading_hours: true                         # 开发下是否绕过交易时间检查
