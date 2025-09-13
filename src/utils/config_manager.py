@@ -11,6 +11,8 @@
 1. 启动程序 → 自动加载配置文件，例如 config.yaml。
 2. 修改配置文件（比如改交易标的、风控参数）→ 自动触发 reload()。
 3. EventBus 发布 CONFIG_UPDATED → 各个模块收到更新事件。
+
+如果只想单纯加载 yaml 文件后直接返回 dict 数据，可以用 utils/utility.py 中 load_yaml()
 """
 import asyncio
 
