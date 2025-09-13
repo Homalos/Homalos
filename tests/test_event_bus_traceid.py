@@ -16,7 +16,7 @@ from src.core.event import Event
 from src.core.event_bus import EventBus
 from src.utils.log import get_logger
 
-logger = get_logger("strategy")
+_logger = get_logger("strategy")
 bus = EventBus("test")
 
 
@@ -30,7 +30,7 @@ def handle_market(event: Event):
     current_logger.info(f"API响应: {resp}")
 
 async def main():
-    logger.info("=== 开始测试 EventBus trace_id 功能 ===")
+    _logger.info("=== 开始测试 EventBus trace_id 功能 ===")
     
     # 订阅事件
     bus.subscribe("TICK", handle_market)
@@ -39,17 +39,17 @@ async def main():
     bus.start()
     
     # 发布行情事件（自动生成 trace_id）
-    logger.info("发布行情事件...")
+    _logger.info("发布行情事件...")
     bus.publish(Event("TICK", {"symbol": "rb2501", "price": 3580}))
     
     # 等待事件处理
     time.sleep(1)
     
     # 停止事件总线
-    logger.info("停止事件总线...")
+    _logger.info("停止事件总线...")
     bus.stop()
     
-    logger.info("=== 测试完成 ===")
+    _logger.info("=== 测试完成 ===")
 
 
 if __name__ == "__main__":
