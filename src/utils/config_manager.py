@@ -3,21 +3,18 @@
 """
 @ProjectName: Homalos
 @FileName   : config_manager.py
-@Date       : 2025/9/9 14:16
+@Date       : 2025/9/13 22:30
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 配置管理模块
+@Description: 支持多实例的配置管理模块
 1. 启动程序 → 自动加载配置文件，例如 config.yaml。
 2. 修改配置文件（比如改交易标的、风控参数）→ 自动触发 reload()。
 3. EventBus 发布 CONFIG_UPDATED → 各个模块收到更新事件。
-
-测试用例 tests/test_config.py
 """
 import asyncio
 
 import yaml
-import threading
 from pathlib import Path
 from typing import Any
 
@@ -27,22 +24,11 @@ from src.core.event_bus import EventBus, Event
 from src.utils.log.logger import get_logger
 
 
-class ConfigManager:
-    _instance = None
-    _lock = threading.RLock()
-
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super(ConfigManager, cls).__new__(cls)
-        return cls._instance
-
-    def __init__(self, config_path: str = "config.yaml", event_bus: EventBus | None = None):
+class MultiConfigManager:
+    """支持多实例的配置管理器，每个实例可以监控不同的配置文件"""
+    
+    def __init__(self, config_path: str, event_bus: EventBus | None = None):
         self.logger = get_logger(__class__.__name__)
-        if hasattr(self, "_initialized") and self._initialized:
-            return
-        self._initialized = True
 
         self._config_path = Path(config_path)
         self._data: dict[str, Any] = {}
@@ -102,4 +88,4 @@ class ConfigManager:
         """停止文件监听"""
         if self._watch_task and not self._watch_task.done():
             self._watch_task.cancel()
-            self.logger.info("[ConfigManager] 停止监听配置文件")
+            self.logger.info("停止监听配置文件")
