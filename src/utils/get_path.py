@@ -20,7 +20,8 @@ ensure_dir_exists(path) → 确保目录存在，不存在则创建
 """
 from pathlib import Path
 
-from src.utils.path.get_path_config import PROJECT_NAME
+
+PROJECT_NAME = "Homalos"
 
 
 class GetPath:
@@ -158,3 +159,5 @@ class GetPath:
         path.mkdir(parents=True, exist_ok=True)
         return path
 
+
+get_path_ins = GetPath()
