@@ -255,9 +255,9 @@ class OrderRequest:
             order_id=order_id,
             order_type=self.order_type,
             direction=self.direction,
-            offset=self.offset,
             price=self.price,
-            volume=self.volume
+            volume=self.volume,
+            offset = self.offset
         )
         return order
 
