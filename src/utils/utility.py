@@ -191,3 +191,28 @@ def get_enable_broker(cfg: ConfigManager) -> dict[str, Any]:
 
     return rsp_enable_broker
 
+
+def convert_intervals_to_minutes(self, interval_strings: list[str]) -> list[int]:
+    """将时间间隔字符串转换为分钟数"""
+    conversion_map = {
+        'm': 1, 'h': 60, 'd': 1440
+    }
+    intervals = []
+    for interval_str in interval_strings:
+        if interval_str and interval_str[-1] in conversion_map:
+            try:
+                number = int(interval_str[:-1])
+                unit = interval_str[-1]
+                intervals.append(number * conversion_map[unit])
+            except ValueError:
+                _logger.warning(f"无法解析时间间隔: {interval_str}")
+        else:
+            _logger.warning(f"不支持的时间间隔格式: {interval_str}")
+
+    if not intervals:
+        _logger.warning("未找到有效的时间间隔配置，使用默认值")
+        intervals = [1, 5, 15, 30, 60]  # 默认分钟间隔
+
+    _logger.info(f"K线时间间隔配置: {intervals} 分钟")
+    return intervals
+
