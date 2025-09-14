@@ -23,6 +23,7 @@ from src.utils.log import get_logger
 
 
 class DataCenter(object):
+
     def __init__(self, event_bus: EventBus, data_center_config: dict[str, Any]) -> None:
         self.event_bus = event_bus
         self.data_center_config = data_center_config  # 数据中心配置
