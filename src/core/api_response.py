@@ -16,50 +16,14 @@
 """
 import time
 import uuid
-from enum import IntEnum
 from typing import Optional, Any
 
+from src.core.constants import ErrorCode
 from src.core.trace_context import get_trace_id
 from src.utils.log import get_logger
 
 _logger = get_logger("APIResponse")
 
-
-# ================= 错误码定义 =================
-class ErrorCode(IntEnum):
-    # 通用
-    SUCCESS = 0
-    PARAM_ERROR = 1001
-    AUTH_FAILED = 1002
-    PERMISSION_DENIED = 1003
-    TOO_MANY_REQUESTS = 1004
-    NOT_FOUND = 1005
-    SYSTEM_ERROR = 1006
-    UNKNOWN_ERROR = 1999
-
-    # 行情模块 2xxx
-    MARKET_SYMBOL_NOT_FOUND = 2001
-    MARKET_DELAYED = 2002
-    MARKET_TYPE_INVALID = 2003
-    MARKET_SUB_EXISTS = 2004
-
-    # 交易模块 3xxx
-    TRADE_ORDER_FAILED = 3001
-    TRADE_CANCEL_FAILED = 3002
-    TRADE_NO_FUNDS = 3003
-    TRADE_RISK_LIMIT = 3004
-    TRADE_ORDER_INVALID = 3005
-
-    # 风控模块 4xxx
-    RISK_CHECK_FAILED = 4001
-    RISK_CONFIG_MISSING = 4002
-    RISK_SERVICE_UNAVAILABLE = 4003
-
-    # 策略模块 5xxx
-    STRATEGY_NOT_FOUND = 5001
-    STRATEGY_RUNTIME_ERROR = 5002
-    STRATEGY_PARAM_INVALID = 5003
-    STRATEGY_BLOCKED_BY_RISK = 5004
 
 # ================= API Response 封装 =================
 class APIResponse:
