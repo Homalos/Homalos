@@ -14,7 +14,7 @@ from pathlib import Path
 
 from src.core.event import Event
 from src.core.event_bus import EventBus
-from src.utils.config_manager import MultiConfigManager
+from src.utils.config_manager import ConfigManager
 from src.utils.log import logger, get_logger
 
 
@@ -46,8 +46,8 @@ async def main():
     bus_prod.subscribe("CONFIG_UPDATED", config_update_handler_prod)
 
     # 创建两个独立的配置管理器实例
-    cfg_dev = MultiConfigManager(str(config_path1), bus_dev, "DevConfigManager")
-    cfg_prod = MultiConfigManager(str(config_path2), bus_prod, "ProdConfigManager")
+    cfg_dev = ConfigManager(str(config_path1), bus_dev)
+    cfg_prod = ConfigManager(str(config_path2), bus_prod)
 
     # 读取并验证配置
     dev_data_dir = cfg_dev.get("base.data_dir")
