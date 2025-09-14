@@ -349,7 +349,15 @@ class EventBus(object):
                 else:
                     if inspect.iscoroutinefunction(subscriber):
                         raise ValueError(f"同步订阅者不能是 async 函数: {subscriber}")
-                    self._executor.submit(self._safe_sync, subscriber, event)
+                    # 检查线程池是否还可用
+                    try:
+                        self._executor.submit(self._safe_sync, subscriber, event)
+                    except RuntimeError as e:
+                        if "cannot schedule new futures after shutdown" in str(e):
+                            # 线程池已关闭，直接在当前线程执行
+                            self._safe_sync(subscriber, event)
+                        else:
+                            raise
             except Exception as e:
                 self.logger.exception(f"事件 {event.event_type} 处理失败: {e}")
 
@@ -394,4 +402,3 @@ class EventBus(object):
                 # 启动事件循环（在后台线程中）
                 threading.Thread(target=loop.run_forever, daemon=True).start()
                 return loop
-
