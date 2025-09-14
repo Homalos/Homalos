@@ -25,7 +25,7 @@ from src.modules.data_center.data_center import DataCenter
 from src.utils.config_manager import ConfigManager
 from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger, logger
-from src.utils.utility import load_yaml, get_enable_broker
+from src.utils.utility import load_yaml, get_enable_broker, convert_intervals_to_minutes
 
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent
@@ -63,9 +63,10 @@ class StartupDataCenter:
         数据中心应用初始化
         :return: 初始化完成：True，未完成：False
         """
-        cfg = ConfigManager(self.brokers_file_path)
+        # 加载 brokers.yaml
+        brokers_cfg = ConfigManager(self.brokers_file_path)
 
-        rsp_enable_broker = get_enable_broker(cfg)
+        rsp_enable_broker = get_enable_broker(brokers_cfg)
         if not rsp_enable_broker:
             self.logger.warning("没有启用的broker")
             return False
@@ -75,19 +76,27 @@ class StartupDataCenter:
 
         self.logger.info(f"启用的broker名称: {enabled_broker_name}，broker类型: {enabled_broker_type}")
 
-        data_center_config = load_yaml(self.config_file_path)
-        if not data_center_config:
-            self.logger.warning("没有配置data_center")
+        # 加载 data_center.yaml
+        data_center_cfg = ConfigManager(self.config_file_path)
+        data_center_config = data_center_cfg.get("base", {})
+
+        # data_center_config = load_yaml(self.config_file_path)
+        if not data_center_config or not data_center_config.get("enable", False):
+            self.logger.warning("没有配置data_center或没有启用data_center")
             return False
 
-        base_config = data_center_config.get("base")
-        if not base_config:
-            self.logger.warning("没有配置data_center.base")
-            return False
-        enable_data_center = base_config.get("enable")
-        if not enable_data_center:
-            self.logger.warning("没有启用data_center")
-            return False
+        self.logger.debug("开始验证K线配置...")
+        bar_generation: dict = (data_center_config.get("bar_generation", {}))
+        bar_generation_list: list = bar_generation.get("intervals", [])
+
+        # 验证K线配置
+        if not bar_generation or not bar_generation_list:
+            self.logger.warning("K线间隔未配置，请配置默认间隔: [1m, 5m, 15m, 30m, 1h, 1d]")
+        self.logger.debug("配置验证完成")
+
+        # 转换为分钟间隔
+        convert_intervals_to_minutes(self, bar_generation_list)
+
 
         self.data_center_config['broker'] = rsp_enable_broker
 
