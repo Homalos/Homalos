@@ -45,7 +45,6 @@ class StartupDataCenter:
     def shutdown_handler(self, event):
         """处理停止事件"""
         self.logger.info("StartupDataCenter收到停止信号，开始停止应用...")
-        self.logger.info(f"事件类型：{event.event_type}")
         self.running = False
 
     async def initialize(self) -> bool:
