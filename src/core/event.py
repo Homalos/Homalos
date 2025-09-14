@@ -56,3 +56,7 @@ class EventType:
     MD_GATEWAY_CONNECT = "md_gateway.connect"  # 行情接口连接事件(成功/断开)
 
     MD_GATEWAY_LOGIN = "md_gateway.login"  # 行情登录
+
+    DATA_CENTER_START = "data_center.start"  # 数据中心启动事件
+
+    DATA_CENTER_STOP = "data_center.stop"  # 数据中心停止事件
