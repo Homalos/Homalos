@@ -7,7 +7,11 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 数据中心启动入口
+@Description: 数据中心启动入口 - 应用层
+
+职责：管理数据中心应用的生命周期
+1. self.running 控制主循环 while self.running
+2. 负责协调各个组件的启动和停止
 """
 import asyncio
 import sys
@@ -34,6 +38,7 @@ class StartupDataCenter:
                  brokers_file_path: str = "brokers.yaml",
                  config_file_path: str = "data_center.yaml"
                  ) -> None:
+
         self.brokers_file_path: str = str(get_path_ins.get_config_dir() / brokers_file_path)
         self.config_file_path: str = str(get_path_ins.get_config_dir() / config_file_path)
         self.logger = get_logger(self.__class__.__name__)
@@ -42,13 +47,22 @@ class StartupDataCenter:
         self.data_center_config: dict = {}
         self.running: bool = False
 
-    def shutdown_handler(self, event):
-        """处理停止事件"""
-        self.logger.info("StartupDataCenter收到停止信号，开始停止应用...")
+    def app_shutdown_handler(self, event) -> None:
+        """
+        负责应用级别的停止（主循环控制），处理停止事件
+        self.running = False → while self.running 主循环退出
+        :param event:
+        :return:
+        """
+        self.logger.info("应用收到停止信号，开始停止...")
+        self.logger.info(f"收到事件类型：{event.event_type}")
         self.running = False
 
     async def initialize(self) -> bool:
-        # brokers_config = load_yaml(self.brokers_file_path)
+        """
+        数据中心应用初始化
+        :return: 初始化完成：True，未完成：False
+        """
         cfg = ConfigManager(self.brokers_file_path)
 
         rsp_enable_broker = get_enable_broker(cfg)
@@ -83,7 +97,7 @@ class StartupDataCenter:
         )
 
         # 注册停止事件处理器
-        self.event_bus.subscribe(EventType.EVENT_BUS_SHUTDOWN, self.shutdown_handler)
+        self.event_bus.subscribe(EventType.EVENT_BUS_SHUTDOWN, self.app_shutdown_handler)
 
         # 创建数据中心（数据中心将独立管理网关连接）
         self.logger.info("开始创建数据中心实例...")
@@ -97,7 +111,10 @@ class StartupDataCenter:
             return False
 
     async def start(self) -> bool:
-        """启动数据中心应用"""
+        """
+        启动数据中心应用
+        :return: 启动完成：True，未完成：False
+        """
         if not await self.initialize():
             return False
 
@@ -115,7 +132,7 @@ class StartupDataCenter:
             while self.running:
                 # 检查组件状态
                 if self.data_center and not self.data_center.get_status():
-                    logger.warning("数据中心连接断开，等待自动重连......")
+                    logger.warning("数据中心连接断开，等待自动重连...")
                 # 避免CPU占用过高，添加短暂休眠
                 await asyncio.sleep(1)
         except Exception as e:
@@ -124,7 +141,10 @@ class StartupDataCenter:
         return True
 
     async def shutdown(self) -> None:
-        """关闭数据中心应用"""
+        """
+        关闭数据中心应用
+        :return: None
+        """
         try:
             self.running = False
 
@@ -135,7 +155,6 @@ class StartupDataCenter:
                 self.event_bus.stop()
 
             logger.info("数据中心应用已关闭")
-
         except Exception as e:
             logger.error(f"数据中心应用关闭失败: {e}")
 
@@ -145,9 +164,11 @@ data_center_app = StartupDataCenter()
 
 
 async def main() -> None:
-    # 注册信号处理器
+    """
+    主函数，启动数据中心应用
+    :return: None
+    """
     try:
-        # 启动数据中心应用
         await data_center_app.start()
     except KeyboardInterrupt:
         logger.info("接收到键盘中断，开始关闭数据中心...")
@@ -155,7 +176,6 @@ async def main() -> None:
         logger.error(f"数据中心运行异常: {e}")
     finally:
         logger.info("收到关闭信号，快速关闭数据中心...")
-        # 快速关闭，不等待异步操作
         await data_center_app.shutdown()
 
 
