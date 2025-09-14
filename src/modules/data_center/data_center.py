@@ -7,7 +7,11 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 数据中心
+@Description: 数据中心 - 业务层
+
+职责：管理数据中心的业务逻辑
+1. self._running 控制数据中心内部状态
+2. 负责管理网关连接和数据处理
 """
 from typing import Any
 
@@ -19,44 +23,48 @@ from src.utils.log import get_logger
 
 
 class DataCenter(object):
-    def __init__(self, event_bus: EventBus, data_center_config: dict[str, Any]):
+    def __init__(self, event_bus: EventBus, data_center_config: dict[str, Any]) -> None:
         self.event_bus = event_bus
-        self.data_center_config = data_center_config
-
+        self.data_center_config = data_center_config  # 数据中心配置
         self.logger = get_logger(__class__.__name__)
+        self._running: bool = False  # 数据中心运行状态
+        self.market_gateway: MarketGateway | None = None  # 行情网关
+        self.broker_info: dict = {}  # 交易所节点信息
 
-        self._running: bool = False
+        self._register_event_handlers()  # 注册事件处理器
 
-        # self.market_gateway = MarketGateway(self.event_bus)
-        # self.event_bus.start()
-        self.market_gateway: MarketGateway | None = None
-
-        self.broker_info: dict = {}
-
-        # 注册事件处理器
-        self.logger.info("开始注册事件处理器...")
-        self._register_event_handlers()
-        self.logger.info("事件处理器注册完成")
-
-    def md_gateway_login_handler(self, event: Event):
-        """处理行情网关登录事件"""
+    def md_gateway_login_handler(self, event: Event) -> None:
+        """
+        处理行情网关登录事件
+        :param event: 行情网关登录事件
+        :return:
+        """
         self.logger.info("收到行情网关登录事件，判断行情服务器是否登录成功")
         rsp_login_data: dict = event.payload
         self.logger.info(f"收到行情网关登录事件数据：{rsp_login_data}")
         if rsp_login_data and rsp_login_data.get("code") == 0:
             self.logger.info(rsp_login_data.get("message"))
 
-    def shutdown_handler(self, event: Event):
-        """处理停止事件"""
-        self.logger.info("DataCenter收到停止信号，开始停止数据中心...")
+    def datacenter_shutdown_handler(self, event: Event) -> None:
+        """
+        负责数据中心业务级别的停止（数据中心状态管理），处理停止事件
+        self._running = False → 数据中心状态更新
+        :param event: 数据中心关闭事件
+        :return: None
+        """
+        self.logger.info("数据中心收到停止信号，开始停止...")
+        self.logger.info(f"收到事件类型：{event.event_type}")
         self._running = False
 
-    def _register_event_handlers(self):
-        """注册事件处理器"""
+    def _register_event_handlers(self) -> None:
+        """
+        注册事件处理器
+        :return: None
+        """
         # 订阅行情网关登录事件
         self.event_bus.subscribe(EventType.MD_GATEWAY_LOGIN, self.md_gateway_login_handler)
         # 订阅事件总线停止事件
-        self.event_bus.subscribe(EventType.EVENT_BUS_SHUTDOWN, self.shutdown_handler)
+        self.event_bus.subscribe(EventType.EVENT_BUS_SHUTDOWN, self.datacenter_shutdown_handler)
 
     def _init_gateway(self):
         self.market_gateway = MarketGateway(self.event_bus, gateway_name="DataCenter")
@@ -68,7 +76,7 @@ class DataCenter(object):
         self.market_gateway.connect(broker_config)
 
 
-    def start(self):
+    def start(self) -> None:
         """启动数据中心"""
         try:
             if self._running:
@@ -102,7 +110,7 @@ class DataCenter(object):
             }))
             raise
 
-    def stop(self):
+    def stop(self) -> None:
         if not self._running:
             self.logger.info("数据中心未在运行")
             return
