@@ -11,7 +11,7 @@
 
 General constant enums used in the trading platform.
 """
-from enum import Enum
+from enum import Enum, IntEnum
 
 
 class ErrorReason(Enum):
@@ -174,3 +174,50 @@ class OpenDate(Enum):
     """
     TODAY = "今"
     YESTERDAY = "昨"
+
+# ================= 错误码定义 =================
+class ErrorCode(IntEnum):
+    """
+    系统的错误码，和CTP的错误码有所区别
+    详情参考：Homalos 期货量化交易系统 - API 响应规范.md
+    """
+
+    # 通用
+    SUCCESS = 0
+    PARAM_ERROR = 1001              # 参数错误
+    AUTH_FAILED = 1002              # 鉴权失败
+    PERMISSION_DENIED = 1003        # 权限不足
+    TOO_MANY_REQUESTS = 1004        # 请求过于频繁
+    NOT_FOUND = 1005                # 数据不存在
+    SYSTEM_ERROR = 1006             # 系统繁忙
+    UNKNOWN_ERROR = 1999            # 未知错误
+
+    # 行情模块 2xxx
+    MARKET_SYMBOL_NOT_FOUND = 2001  # 合约不存在
+    MARKET_DELAYED = 2002           # 行情数据延迟
+    MARKET_TYPE_INVALID = 2003      # 不支持的行情类型
+    MARKET_SUB_EXISTS = 2004        # 订阅已存在
+
+    # 交易模块 3xxx
+    TRADE_ORDER_FAILED = 3001       # 下单失败
+    TRADE_CANCEL_FAILED = 3002      # 撤单失败
+    TRADE_NO_FUNDS = 3003           # 资金不足
+    TRADE_RISK_LIMIT = 3004         # 超过风控限制
+    TRADE_ORDER_INVALID = 3005      # 无效的订单 ID
+
+    # 风控模块 4xxx
+    RISK_CHECK_FAILED = 4001        # 风控检查未通过
+    RISK_CONFIG_MISSING = 4002      # 风控配置缺失
+    RISK_SERVICE_UNAVAILABLE = 4003 # 风控服务不可用
+
+    # 策略模块 5xxx
+    STRATEGY_NOT_FOUND = 5001       # 策略未找到
+    STRATEGY_RUNTIME_ERROR = 5002   # 策略运行错误
+    STRATEGY_PARAM_INVALID = 5003   # 策略参数无效
+    STRATEGY_BLOCKED_BY_RISK = 5004 # 策略被风控阻止
+
+    # 策略模块 5xxx
+    DATA_CENTER_START_FAILED = 6001  # 据中心启动失败
+    DATA_CENTER__RUNTIME_ERROR = 6002  # 数据中心内部异常
+    DATA_CENTER_PARAM_INVALID = 6003  # 配置参数缺失或不合法
+
