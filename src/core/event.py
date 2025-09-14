@@ -60,3 +60,16 @@ class EventType:
     DATA_CENTER_START = "data_center.start"  # 数据中心启动事件
 
     DATA_CENTER_STOP = "data_center.stop"  # 数据中心停止事件
+
+
+def create_event(event_type: str, payload: Any = None, source: str = "unknown") -> Event:
+    """
+    创建一个默认的事件对象。
+    Args:
+        event_type (str): 事件类型。
+        payload (Any, optional): 事件数据。默认为空。
+        source (str): 事件来源，如果没有提供来源，则默认为"unknown"
+    Returns:
+        Event: 默认事件对象。
+    """
+    return Event(event_type=event_type, payload=payload, source=source)
