@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import SupportsInt
 
-from src.constants import INSTRUMENT_EXCHANGE_FILEPATH, PRODUCT_INFO_FILEPATH
+from src.constants import INSTRUMENT_EXCHANGE_FILENAME, PRODUCT_INFO_FILENAME
 from src.core.base_gateway import BaseGateway
 from src.core.constants import ErrorReason, Currency, Exchange, Direction, Product, OrderStatus, OrderType
 from src.core.event import EventType
@@ -42,13 +42,14 @@ from src.modules.gateway.gateway_helper import (
     build_order_data,
     build_contract_data, build_rtn_order_data, build_trade_data, update_position_detail
 )
+from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger
 from src.utils.utility import prepare_address, write_json, load_ini, write_ini, del_num
 
 
 class TraderGateway(BaseGateway):
 
-    def __init__(self, event_bus: EventBus, gateway_name: str = "TraderGateway") -> None:
+    def __init__(self, event_bus: EventBus | None = None, gateway_name: str = "TraderGateway") -> None:
         super().__init__(event_bus, gateway_name)
         self.event_bus = event_bus
         self.gateway_name: str = gateway_name
@@ -177,6 +178,7 @@ class CtpTdApi(TdApi):
     """
     CTP交易接口
     """
+
     def __init__(self, gateway: TraderGateway) -> None:
         super().__init__()
 
@@ -225,6 +227,10 @@ class CtpTdApi(TdApi):
         self.sysid_order_id_map: dict[str, str] = {}  # 系统ID和订单ID映射
 
         self.current_date: str = datetime.now().strftime("%Y%m%d")  # 当前自然日
+
+        self.instrument_exchange_filepath: str = str(get_path_ins.get_config_dir() / INSTRUMENT_EXCHANGE_FILENAME)
+
+        self.product_info_filepath: str = str(get_path_ins.get_config_dir() / PRODUCT_INFO_FILENAME)
 
     # ===================== 回调函数 =====================
     def onFrontConnected(self) -> None:
@@ -585,10 +591,10 @@ class CtpTdApi(TdApi):
                 if self.update_ins_exchange and instrument_count != 0:
                     # 保存合约交易所映射文件
                     try:
-                        write_json(str(INSTRUMENT_EXCHANGE_FILEPATH), self.instrument_exchange_map)
-                        self.logger.info(f"合约交易所映射文件保存成功: {INSTRUMENT_EXCHANGE_FILEPATH}")
+                        write_json(self.instrument_exchange_filepath, self.instrument_exchange_map)
+                        self.logger.info(f"合约交易所映射文件保存成功: {self.instrument_exchange_filepath}")
                     except Exception as e:
-                        self.logger.exception(f"写入{INSTRUMENT_EXCHANGE_FILEPATH}失败：{e}")
+                        self.logger.exception(f"写入{self.instrument_exchange_filepath}失败：{e}")
 
                 for data in self.order_data:
                     self.onRtnOrder(data)
@@ -620,7 +626,7 @@ class CtpTdApi(TdApi):
             # 获取产品代码
             product_id = data.get("ProductID")
 
-            parser = load_ini(PRODUCT_INFO_FILEPATH)
+            parser = load_ini(self.product_info_filepath)
             # 需要判断section是否存在，如果不存在会报错，option不需要检查是否存在
             if not parser.has_section(product_id):
                 parser.add_section(product_id)
@@ -631,7 +637,7 @@ class CtpTdApi(TdApi):
 
             if last:
                 self.logger.info("查询产品成功！")
-                write_ini(parser, PRODUCT_INFO_FILEPATH)
+                write_ini(parser, self.product_info_filepath)
 
     def onRspQryInstrumentCommissionRate(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
@@ -656,7 +662,7 @@ class CtpTdApi(TdApi):
                 return
 
             section = del_num(data.get("InstrumentID"))
-            parser = load_ini(PRODUCT_INFO_FILEPATH)
+            parser = load_ini(self.product_info_filepath)
             # 需要判断section是否存在，如果不存在会报错，option不需要检查是否存在
             if not parser.has_section(section):
                 parser.add_section(section)
@@ -675,7 +681,7 @@ class CtpTdApi(TdApi):
             parser.set(section, 'close_today_fee', str(data.get("CloseTodayRatioByVolume")))
 
             # 写入ini文件
-            write_ini(parser, PRODUCT_INFO_FILEPATH)
+            write_ini(parser, self.product_info_filepath)
 
     def onRspOrderInsert(self, data: dict, error: dict, reqid: SupportsInt, last: bool) -> None:
         """
