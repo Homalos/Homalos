@@ -51,8 +51,14 @@ from src.core.event import Event, EventType
 from src.utils.log.logger import get_logger
 
 
-class EventBus:
-    def __init__(self, context: str = "EventBus", max_workers: int=1000, register_signals: bool = True) -> None:
+class EventBus(object):
+    def __init__(self,
+                 context: str = "EventBus",
+                 max_workers: int=1000,
+                 register_signals: bool = True,
+                 auto_start: bool = True,  # 自动启动选项，与EventBus行为兼容
+                 ) -> None:
+
         self.logger = get_logger(context=context)
         self._context: str = context  # 上下文(可传入服务名/模块名作为上下文)
         self._subscribers: dict[str, list] = defaultdict(list)  # 存储事件类型与订阅者的映射
@@ -80,6 +86,10 @@ class EventBus:
         self._old_sigint = None
         self._old_sigterm = None
 
+        # 自动启动功能
+        if auto_start:
+            self.start()
+
     # ===================== 启动 / 停止 =====================
     def start(self):
         """启动事件总线"""
@@ -101,8 +111,9 @@ class EventBus:
         self._sync_thread = threading.Thread(target=self._sync_event_loop, daemon=True)
         self._sync_thread.start()
 
-        # 启动异步消费协程
-        self._async_task = self._loop.create_task(self._async_event_loop())
+        if self._async_task is None:
+            # 启动异步消费协程
+            self._async_task = self._loop.create_task(self._async_event_loop(), name="AsyncEventLoop")
 
         # 注册信号处理器（仅主线程执行一次，可配置）
         if (self._register_signals and not self._signal_registered
@@ -282,6 +293,7 @@ class EventBus:
                 except Empty:
                     continue
                 if event.event_type == EventType.EVENT_BUS_SHUTDOWN:  # 停止信号
+                    self._dispatch(event)  # 先分发停止事件给订阅者
                     break
                 self._dispatch(event)
         except Exception as e:
@@ -300,6 +312,7 @@ class EventBus:
                 try:
                     event = await asyncio.wait_for(self._async_queue.get(), timeout=self._queue_timeout)
                     if event.event_type == EventType.EVENT_BUS_SHUTDOWN:  # 停止信号
+                        self._dispatch(event)  # 先分发停止事件给订阅者
                         break
                     self._dispatch(event)
                 except asyncio.TimeoutError:
