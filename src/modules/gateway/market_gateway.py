@@ -16,6 +16,7 @@ from typing import Any
 
 from src.core.base_gateway import BaseGateway
 from src.core.constants import ErrorReason, Exchange
+from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.object import SubscribeRequest, ContractData, TickData
 from src.ctp.api import MdApi
@@ -27,7 +28,7 @@ from src.utils.utility import prepare_address
 
 class MarketGateway(BaseGateway):
 
-    def __init__(self, event_bus: EventBus, gateway_name: str = "MarketGateway") -> None:
+    def __init__(self, event_bus: EventBus | None = None, gateway_name: str = "MarketGateway") -> None:
         super().__init__(event_bus, gateway_name)
         self.gateway_name = gateway_name
 
@@ -208,15 +209,23 @@ class CtpMdApi(MdApi):
         last: Indicates whether this is the last return for nRequestID.
         return: None
         """
-        rsp_error_msg = extract_error_msg(error, "行情服务器登录失败")
+        rsp_error_msg = extract_error_msg(error, "行情服务器登录请求失败")
         if rsp_error_msg:
             self.login_status = False
             self.logger.exception(rsp_error_msg)
             return
         else:
             self.login_status = True
-            self.logger.info("onRspUserLogin: 行情服务器登录成功")
+            self.logger.info("行情服务器登录请求成功")
             self.update_date()
+            if self.gateway.event_bus:
+                payload = {
+                    "code": 0,
+                    "message": "行情服务器登录成功",
+                    "data": None
+                }
+                self.gateway.event_bus.publish(Event(EventType.MD_GATEWAY_LOGIN, payload=payload))
+                self.logger.info("已发布 MD_GATEWAY_LOGIN 事件")
 
     def onRspError(self, error: dict, reqid: int, last: bool) -> None:
         """
