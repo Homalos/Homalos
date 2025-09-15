@@ -10,13 +10,13 @@
 @Description: 初始化导入MdApi和TdApi，方便其它模块导入
 """
 try:
-    from .ctpmd import MdApi  # noqa
+    from .ctpmd import MdApi
 except ImportError as e:
     print(f"Warning: Failed to import MdApi: {e}")
     MdApi = None
 
 try:
-    from .ctptd import TdApi  # noqa
+    from .ctptd import TdApi
 except ImportError as e:
     print(f"Warning: Failed to import TdApi: {e}")
     TdApi = None
