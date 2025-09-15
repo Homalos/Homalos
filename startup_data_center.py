@@ -25,7 +25,7 @@ from src.modules.data_center.data_center import DataCenter
 from src.utils.config_manager import ConfigManager
 from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger, logger
-from src.utils.utility import load_yaml, get_enable_broker, convert_intervals_to_minutes
+from src.utils.utility import get_enable_broker, convert_intervals_to_minutes
 
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent

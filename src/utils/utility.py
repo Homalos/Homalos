@@ -17,7 +17,9 @@ from typing import Any
 
 import yaml
 
+from src.constants import INSTRUMENT_EXCHANGE_FILENAME
 from src.utils.config_manager import ConfigManager
+from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger
 
 _logger = get_logger(__name__)
@@ -215,4 +217,23 @@ def convert_intervals_to_minutes(self, interval_strings: list[str]) -> list[int]
 
     _logger.info(f"K线时间间隔配置: {intervals} 分钟")
     return intervals
+
+def load_all_instruments() -> dict[str, str]:
+    """
+    从instrument_exchange.json加载全市场期货合约
+    :return: 所有合约和交易所映射字典
+    """
+    try:
+        instrument_exchange_json = load_json(str(get_path_ins.get_config_dir() / INSTRUMENT_EXCHANGE_FILENAME))
+
+        if instrument_exchange_json:
+            _logger.info(f"从文件加载了 {len(instrument_exchange_json)} 个期货合约")
+            return instrument_exchange_json
+        else:
+            _logger.warning("instrument_exchange_id.json文件不存在或为空")
+            return {}
+    except Exception as e:
+        _logger.exception(f"加载合约列表失败: {e}")
+        return {}
+
 
