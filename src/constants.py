@@ -9,6 +9,11 @@
 @Software   : PyCharm
 @Description: 全局常量
 """
+from typing import Optional
+
+from src.strategy.base_strategy import BaseStrategy
+from src.utils.thread_pool import ThreadPool
+
 # ================== 项目中目录名称 ==================
 # PROJECT_NAME = "Homalos"  # 项目名称
 #
@@ -41,3 +46,11 @@ file_format = "%Y%m%d"  # 日志文件名格式
 log_time_format = "%Y-%m-%d %H:%M:%S.%f"  # 日志文件中时间格式
 
 print_time_format = "%Y-%m-%d %H:%M:%S.%f"  # 控制台打印的时间格式
+
+strategy_map: dict[str, BaseStrategy] = {}
+
+# 线程池
+thread_pool: Optional[ThreadPool] = None
+
+# tick合成K线系统
+tick_to_kline_sys = None

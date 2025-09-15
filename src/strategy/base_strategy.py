@@ -11,6 +11,7 @@
 """
 from abc import ABC, abstractmethod
 
+from src.core.constants import Interval
 from src.core.object import TickData, BarData, OrderData, TradeData
 from src.strategy.strategy_function import check_on_tick, check_on_bar
 
@@ -19,9 +20,12 @@ class BaseStrategy(object):
     def __init__(self):
         self.strategy_id: int = 0
         self.strategy_name: str = ""  # 策略名称
-        self.sub_ins_id: list = []  # 订阅的合约
-        self.sub_kline_type: list = []  # K线类型
+        self.sub_ins_id: list[str] = []  # 订阅的合约
+        self.sub_kline_type: list[Interval] = []  # K线类型
         self.strategy_content: str = ""  # 策略内容介绍
+
+        # 初始化详细策略文件
+        self.specific_strategy_map: dict[str, SpecificStrategyApi] = {}
 
     def one_min(self, now_time):
         pass
@@ -30,9 +34,13 @@ class BaseStrategy(object):
 class SpecificStrategyApi(ABC):
 
     def __init__(self, instrument_id: str, strategy_id: str, sub_kline_type: list):
+
         self.instrument_id = instrument_id
         self.strategy_id = strategy_id
         self.sub_kline_type = sub_kline_type
+
+        self.kline_lock = None
+        self.bar_data = None
 
     @abstractmethod
     def on_before_open(self) -> None:
