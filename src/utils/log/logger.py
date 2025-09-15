@@ -29,16 +29,17 @@ from pathlib import Path
 import yaml
 from loguru import logger
 
-__all__ = ["logger", "get_logger"]
-
 from src.constants import CONFIG_DIR_NAME, LOG_CONFIG_FILENAME
 from src.core.trace_context import get_trace_id
+
+__all__ = ["logger", "get_logger"]
 
 # 从当前文件往上获取项目根目录
 current_file = Path(__file__).resolve()
 
 # 从当前文件向上获取到项目根目录 /Homalos
 root_path: Path = current_file.parent.parent.parent.parent
+
 
 def _load_log_config(config_filepath: str) -> dict:
     """内部函数：加载日志配置文件，避免循环导入"""
@@ -51,6 +52,7 @@ def _load_log_config(config_filepath: str) -> dict:
     except (yaml.YAMLError, IOError):
         # 如果配置文件解析失败，返回默认配置
         return {"logging": {}}
+
 
 # ===================== 初始化全局日志配置 =====================
 # 获取日志配置文件名
@@ -77,12 +79,15 @@ log_dir_path = root_path / log_dir_name
 # 确保日志目录存在
 Path(log_dir_path).mkdir(parents=True, exist_ok=True)
 
+
 # ===================== TraceId 自动注入 Filter =====================
 class TraceIdFilter:
     """自动注入 trace_id 到日志 extra"""
+
     def __call__(self, record):
         record["extra"]["trace_id"] = get_trace_id() or "-"
         return True
+
 
 # ===================== 初始化全局日志配置 =====================
 # 清理默认 logger 配置（避免重复打印）
@@ -91,18 +96,18 @@ logger.remove()
 # 控制台输出格式（根据debug模式决定是否显示详细信息）
 if is_debug:
     console_format = ("<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-                     "<level>{level: <8}</level> | "
-                     "<magenta>[{extra[context]}]</magenta> "
-                     "<yellow>[{extra[trace_id]}]</yellow> "
-                     "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> "
-                     "- <level>{message}</level>")
+                      "<level>{level: <8}</level> | "
+                      "<magenta>[{extra[context]}]</magenta> "
+                      "<yellow>[{extra[trace_id]}]</yellow> "
+                      "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> "
+                      "- <level>{message}</level>")
 else:
     console_format = ("<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-                     "<level>{level: <8}</level> | "
-                     "<magenta>[{extra[context]}]</magenta> "
-                     "<yellow>[{extra[trace_id]}]</yellow> "
-                     "<cyan>{name}</cyan>:<cyan>{function}</cyan> "
-                     "- <level>{message}</level>")
+                      "<level>{level: <8}</level> | "
+                      "<magenta>[{extra[context]}]</magenta> "
+                      "<yellow>[{extra[trace_id]}]</yellow> "
+                      "<cyan>{name}</cyan>:<cyan>{function}</cyan> "
+                      "- <level>{message}</level>")
 
 # 控制台输出
 logger.add(
@@ -145,6 +150,7 @@ logger.add(
     format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | "
            "[{extra[context]}][{extra[trace_id]}] {name}:{function}:{line} - {message}"
 )
+
 
 # ===================== 对外 API =====================
 def get_logger(context: str = "Homalos") -> logger:
