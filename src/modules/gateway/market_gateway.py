@@ -12,7 +12,8 @@
 import traceback
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from queue import Queue
+from typing import Any, Optional
 
 from src.core.base_gateway import BaseGateway
 from src.core.constants import ErrorReason, Exchange
@@ -20,9 +21,11 @@ from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.object import SubscribeRequest, ContractData, TickData
 from src.ctp.api import MdApi
+from src.function import distribute_tick
 from src.modules.gateway.gateway_const import REASON_MAPPING, symbol_contract_map, CHINA_TZ
 from src.modules.gateway.gateway_helper import extract_error_msg, build_tick_data
 from src.utils.log import get_logger
+from src.utils.thread_pool import ThreadPool
 from src.utils.utility import prepare_address
 
 
@@ -31,11 +34,9 @@ class MarketGateway(BaseGateway):
     def __init__(self, event_bus: EventBus | None = None, gateway_name: str = "MarketGateway") -> None:
         super().__init__(event_bus, gateway_name)
         self.gateway_name = gateway_name
-
-        self.logger = get_logger(__class__.__name__)
-
         # CTP API相关
         self.md_api: CtpMdApi | None = None
+        self.logger = get_logger(__class__.__name__)
 
     def _setup_gateway_event_handlers(self) -> None:
         """设置网关事件处理器"""
@@ -126,6 +127,7 @@ class CtpMdApi(MdApi):
         self.login_status: bool = False  # 登录状态
 
         self.current_date: str = datetime.now().strftime("%Y%m%d")  # 当前自然日
+        self.tick_queue: Queue[TickData] = Queue()
 
     # ===================== 回调函数 =====================
     def onFrontConnected(self) -> None:
@@ -611,4 +613,18 @@ class CtpMdApi(MdApi):
             return False
         else:
             return True
+
+    def get_tick(self):
+        while True:
+            try:
+                tick: TickData = self.tick_queue.get()
+
+                # 使用线程池，因为当前程序是单独线程，为了防止堵塞，另起一个线程进行分发
+                self.thread_pool.submit(distribute_tick, tick)
+
+            except Exception as e:
+                self.logger.exception(f"线程池提交出错！错误：{e}")
+                self.logger.exception(traceback.format_exc())
+
+
 
