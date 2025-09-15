@@ -98,7 +98,7 @@ class BarData(BaseData):
 
     Candlestick bar data of a certain trading period.
     """
-    bar_type = None
+    bar_type: Interval = None
     update_time: datetime = None
     instrument_id: str = None
     exchange_id: Exchange = None
