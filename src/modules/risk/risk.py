@@ -19,7 +19,6 @@ class Risk:
         self.event_bus: EventBus = event_bus
         self.logger = get_logger(context="Risk")
     def risk_check(self, order: dict):
-        logger = get_logger(context="Risk")
-        logger.info(f"风控检查订单: {order}")
+        self.logger.info(f"风控检查订单: {order}")
         # 假设通过，转发给网关
         self.event_bus.publish("gateway", order)
