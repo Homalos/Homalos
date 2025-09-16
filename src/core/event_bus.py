@@ -2,49 +2,31 @@
 # -*- coding: utf-8 -*-
 """
 @ProjectName: Homalos
-@FileName   : event_bus.py
-@Date       : 2025/9/8 09:53
+@FileName   : multi_queue_event_bus.py
+@Date       : 2025/9/16 09:34
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 事件总线类（支持同步+异步）
-- 同步事件在单独线程消费 → 用线程池执行，不阻塞主线程。
-- 异步事件在 asyncio 事件循环中消费 → 每个订阅者作为任务提交。
-- 支持 start()/stop() 控制
-- 支持信号处理（SIGINT / SIGTERM）
-- 支持线程安全通过 RLock 确保。
-- 支持信号处理（SIGINT / SIGTERM）可配置
+@Description: 多队列事件总线 (支持同步/异步统一接口，兼容原 EventBus)
+事件类型分类：通过 event.event_type == "market" 判断是否走 market 队列，否则走 general 队列。
+资源回收彻底：stop() 时确保 _threads、_executors、_async_task 清理干净。
+线程池异常兼容：调度时若线程池关闭则直接执行，不丢事件。
+# 定义事件类别映射（可扩展）
+self._event_category_map = {
+    "market": "market",     # 高频行情事件
+    # "order": "order",     # 未来可以单独扩展
+    # "account": "account", # 未来可以单独扩展
+}
 
-解释：
-1. 事件消费解耦
-publish 只负责投递事件。
-_sync_event_loop 和 _async_event_loop 专门负责消费，不会阻塞发布。
-
-2. 异常处理更健壮
-_safe_sync / _safe_async 捕获订阅者异常，保证不会影响其他订阅者。
-
-3. 线程池大小可配置
-EventBus(max_workers=20) 就能调整线程池。
-
-4. 事件循环规范化
-_get_or_create_event_loop 避免 asyncio.get_event_loop() 的弃用问题。
-
-5. 线程安全
-subscribe、unsubscribe、_dispatch 都加了 RLock，防止竞争条件。
-
-6. 信号处理可配置
-仅在主线程且允许注册时注册信号处理，避免在非主线程中注册信号处理。
-在 stop() 中恢复原处理器并重置 _signal_registered。
-_signal_handler 不做阻塞操作：仅注入关停事件，然后用后台线程调用 stop()
-EventBus(register_signals=False) 就能关闭信号处理。
 """
 import asyncio
 import inspect
+import queue
 import signal
 import threading
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from queue import Queue, Empty, Full
+from queue import Empty, Full
 
 from src.core import trace_context
 from src.core.event import Event, EventType
@@ -52,36 +34,64 @@ from src.utils.log.logger import get_logger
 
 
 class EventBus(object):
+    """
+    多队列事件总线 (支持同步/异步统一接口，兼容原 EventBus)
+    - 将事件按类别分发到不同队列，避免高频事件堵塞低频关键事件
+    - 同步/异步统一接口：publish(event, async_mode=True/False)
+    - 队列划分：market（行情高频）、general（普通事件）
+    """
+
     def __init__(self,
                  context: str = "EventBus",
-                 max_workers: int=1000,
+                 max_workers: int = 1000,
                  register_signals: bool = True,
-                 auto_start: bool = True,  # 自动启动选项，与EventBus行为兼容
+                 auto_start: bool = True,
+                 default_queue_size: int = 10000,
                  ) -> None:
 
         self.logger = get_logger(context=context)
-        self._context: str = context  # 上下文(可传入服务名/模块名作为上下文)
-        self._subscribers: dict[str, list] = defaultdict(list)  # 存储事件类型与订阅者的映射
-        self._executor = ThreadPoolExecutor(max_workers=max_workers)  # 用线程池处理同步事件，max_workers：线程池大小
-        self._queue: Queue[Event] = Queue()  # 用于同步事件的队列
+        # 上下文(可传入服务名/模块名作为上下文)
+        self._context: str = context
+        self._max_workers = max_workers
+        self._default_queue_size = default_queue_size
+
+        # 存储事件类型与订阅者的映射
+        # {event_type: [(subscriber, async_mode), ...]}
+        self._subscribers: dict[str, list] = defaultdict(list)
+
+        # 线程池（按类别区分）
+        # self._executors: dict[str, ThreadPoolExecutor] = {}
+        self._executors: dict[str, ThreadPoolExecutor] = {
+            "general": ThreadPoolExecutor(max_workers=500, thread_name_prefix="general"),
+            "market": ThreadPoolExecutor(max_workers=1000, thread_name_prefix="market"),
+        }
+
+        # 用于同步事件的队列，不同类别事件对应不同队列
+        # self._queues: dict[str, Queue] = {}
+        self._queues: dict[str, queue.Queue] = {
+            "general": queue.Queue(maxsize=default_queue_size),  # 普通队列
+            "market": queue.Queue(maxsize=default_queue_size),  # 行情队列，高频
+        }
+
+        # 异步事件的队列
         self._async_queue: asyncio.Queue[Event] | None = None  # 用于异步事件的队列
+
+        # 消费线程（同步）
+        self._threads: dict[str, threading.Thread] = {}
+        # 消费任务（异步）
+        self._async_task: asyncio.Task | None = None
+
+        self._loop: asyncio.AbstractEventLoop | None = None  # 异步任务的事件循环
         self._lock = threading.RLock()
-        self._queue_timeout: float = 1.0  # 从队列中获取事件超时时间(秒)
+
+        self._queue_timeout: float = 1.0  # 从队列中放入或获取事件超时时间(秒)
         self._sync_thread_quit_timeout: float = 2.0  # 同步任务退出超时时间(秒)
 
-        # 控制运行状态
         self._active = False  # 事件总线是否激活
         self._stopped = threading.Event()  # 用于停止事件总线的事件
 
-        # 同步任务的线程
-        self._sync_thread = None
-
-        # 异步任务的事件循环
-        self._loop = None
-        self._async_task: asyncio.Task | None = None
-
-        # 是否注册过信号处理
-        self._signal_registered = False
+        # 信号处理
+        self._signal_registered = False  # 是否注册过信号处理
         self._register_signals = register_signals
         self._old_sigint = None
         self._old_sigterm = None
@@ -94,7 +104,7 @@ class EventBus(object):
     def start(self):
         """启动事件总线"""
         if self._active:
-            self.logger.warning("EventBus 已经启动，跳过重复启动")
+            self.logger.warning("EventBus 已经启动")
             return
 
         if self._loop is None:
@@ -108,14 +118,18 @@ class EventBus(object):
         self._stopped.clear()
 
         # 启动同步消费线程
-        self._sync_thread = threading.Thread(target=self._sync_event_loop, daemon=True)
-        self._sync_thread.start()
+        for qname in self._queues:
+            th = threading.Thread(
+                target=self._sync_loop, args=(qname,), daemon=True, name=f"SyncLoop-{qname}"
+            )
+            self._threads[qname] = th
+            th.start()
 
-        if self._async_task is None:
-            # 启动异步消费协程
-            self._async_task = self._loop.create_task(self._async_event_loop(), name="AsyncEventLoop")
+        # 启动异步消费任务
+        if self._async_task is None and self._loop:
+            self._async_task = self._loop.create_task(self._async_loop(), name="AsyncEventLoop")
 
-        # 注册信号处理器（仅主线程执行一次，可配置）
+        # 注册信号
         if (self._register_signals and not self._signal_registered
                 and threading.current_thread() is threading.main_thread()):
             try:
@@ -128,82 +142,77 @@ class EventBus(object):
                 # 非主线程调用时 signal.signal 会报错，忽略即可
                 pass
 
-        self.logger.info(f"{self._context} 已启动")
+        self.logger.info(f"{self._context} 已启动 (多队列模式)")
 
     def stop(self):
-        """优雅关闭事件总线"""
+        """停止事件总线，优雅关闭所有任务和线程"""
         with self._lock:
-            if not self._active:
+            if not self._active or self._stopped.is_set():
                 return
 
-            if self._stopped.is_set():
-                return
-
-            self.logger.info("正在停止...")
-
+            self.logger.info("正在停止 MultiQueueEventBus ...")
             self._active = False
-            # 标记停止
-            self._stopped.set()
+            self._stopped.set()  # 标记停止
 
-            # 通知同步/异步循环退出，给队列发送停止信号
-            self._queue.put(Event(EventType.EVENT_BUS_SHUTDOWN))
-            if self._loop and not self._loop.is_closed() and self._async_queue is not None:
-                try:
-                    self._loop.call_soon_threadsafe(self._async_queue.put_nowait, Event(EventType.EVENT_BUS_SHUTDOWN))
-                except RuntimeError:
-                    # 如果事件循环已经关闭，忽略错误
-                    pass
+            try:
+                # 发送退出信号
+                for sync_queue in self._queues.values():
+                    try:
+                        sync_queue.put(Event(EventType.EVENT_BUS_SHUTDOWN), timeout=self._queue_timeout)
+                    except (RuntimeError, Full, TimeoutError):
+                        pass  # 忽略超时或其他错误
 
-            # 等待同步线程退出
-            if self._sync_thread and self._sync_thread.is_alive():
-                self._sync_thread.join(timeout=self._sync_thread_quit_timeout)
+                # 发停止信号给异步队列
+                if self._loop and not self._loop.is_closed() and self._async_queue:
+                    try:
+                        self._loop.call_soon_threadsafe(self._async_queue.put_nowait,
+                                                        Event(EventType.EVENT_BUS_SHUTDOWN))
+                    except (RuntimeError, asyncio.QueueFull):
+                        # 如果事件循环已经关闭或队列已满，忽略错误
+                        pass
 
-            # 优雅关闭线程池
-            self._executor.shutdown(wait=True)
+                # 等待同步线程退出
+                for thread in self._threads.values():
+                    if thread and thread.is_alive():
+                        try:
+                            thread.join(timeout=self._sync_thread_quit_timeout)
+                        except Exception as e:
+                            self.logger.warning(f"等待线程退出失败: {e}")
 
-            # 取消未完成的异步任务
-            if self._async_task and not self._async_task.done():
-                self._async_task.cancel()
+                # 关闭线程池
+                for executor in self._executors.values():
+                    try:
+                        executor.shutdown(wait=True)
+                    except Exception as e:
+                        self.logger.warning(f"关闭线程池失败: {e}")
 
-            # 恢复原有信号处理器
-            if self._signal_registered and threading.current_thread() is threading.main_thread():
-                try:
-                    if self._old_sigint is not None:
-                        signal.signal(signal.SIGINT, self._old_sigint)
-                    if self._old_sigterm is not None:
-                        signal.signal(signal.SIGTERM, self._old_sigterm)
-                except ValueError:
-                    pass
-                finally:
-                    self._signal_registered = False
+                # 取消异步任务（等待完成，避免 pending 警告）
+                if self._async_task and not self._async_task.done():
+                    self._async_task.cancel()
 
-            # 清理资源
-            self._async_queue = None
-            self._loop = None
-            self._async_task = None
-            self._sync_thread = None
+            finally:
+                # 恢复信号
+                if self._signal_registered and threading.current_thread() is threading.main_thread():
+                    try:
+                        if self._old_sigint:
+                            signal.signal(signal.SIGINT, self._old_sigint)
+                        if self._old_sigterm:
+                            signal.signal(signal.SIGTERM, self._old_sigterm)
+                    except ValueError:
+                        pass
+                    finally:
+                        self._signal_registered = False
 
-            self.logger.info("已优雅停止")
+                # 清理资源（无论前面是否异常，都会执行）
+                self._loop = None
+                self._threads = {}
+                self._async_task = None
+                self.logger.info("MultiQueueEventBus 已优雅停止")
 
     def _signal_handler(self, signum, _frame):
         """接收到 SIGINT/SIGTERM 时调用 stop"""
         self.logger.info(f"收到信号 {signum}，准备停止...")
-        # 轻量化：仅注入停止事件并在后台线程触发 stop，避免在信号回调中做阻塞操作
-        try:
-            try:
-                self._queue.put_nowait(Event(EventType.EVENT_BUS_SHUTDOWN))
-            except Full:
-                # 理论上无限队列不会满，这里仅防御
-                pass
-
-            if self._loop and self._async_queue is not None:
-                try:
-                    self._loop.call_soon_threadsafe(self._async_queue.put_nowait, Event(EventType.EVENT_BUS_SHUTDOWN))
-                except (RuntimeError, asyncio.QueueFull):
-                    # 事件循环已关闭，或异步队列已满（极少发生）
-                    pass
-        finally:
-            threading.Thread(target=self.stop, daemon=True).start()
+        threading.Thread(target=self.stop, daemon=True).start()
 
     # ===================== 状态查询 =====================
     def is_active(self) -> bool:
@@ -223,21 +232,19 @@ class EventBus(object):
         with self._lock:
             return list(self._subscribers.keys())
 
-    # ===================== 基础功能 =====================
+    # ===================== 订阅 / 发布 =====================
     def subscribe(self, event_type: str, subscriber, async_mode=False) -> None:
         """
-        订阅事件，指定是否为异步处理
+        订阅事件
         :param event_type: 事件类型
         :param subscriber: 事件的订阅者
-        :param async_mode: 是否异步模式
+        :param async_mode: 是否异步模式(默认同步)
         :return:
         """
         with self._lock:
-            if event_type not in self._subscribers:
-                self._subscribers[event_type] = []
             self._subscribers[event_type].append((subscriber, async_mode))
 
-    def unsubscribe(self, event_type, subscriber) -> None:
+    def unsubscribe(self, event_type: str, subscriber) -> None:
         """
         取消订阅事件
         :param event_type: 事件类型
@@ -256,7 +263,7 @@ class EventBus(object):
     def publish(self, event: Event, async_mode=False) -> None:
         """
         发布事件（放入队列）
-        :param event:
+        :param event: 事件
         :param async_mode: 是否异步模式
         :return:
         """
@@ -266,58 +273,57 @@ class EventBus(object):
 
         # 发布事件时自动继承 trace_id
         if not event.trace_id:
-            # 如果事件本身没有 trace_id，尝试继承上下文 trace_id
-            trace_id = trace_context.get_trace_id()
-            if not trace_id:
-                trace_id = trace_context.set_trace_id()  # 自动生成
-            event.trace_id = trace_id
+            event.trace_id = trace_context.get_trace_id() or trace_context.set_trace_id()
 
         if async_mode:
-            if self._loop is not None and self._async_queue is not None:
+            if self._loop and self._async_queue:
                 try:
+                    # 使用 put/put_nowait
                     self._loop.call_soon_threadsafe(self._async_queue.put_nowait, event)
+                except asyncio.QueueFull:
+                    self.logger.warning(f"异步队列已满，丢弃事件 {event.event_type}")
                 except RuntimeError as e:
                     self.logger.error(f"异步事件发布失败: {e}")
-            else:
-                self.logger.warning("异步事件发布失败：事件循环或队列未初始化")
         else:
-            self._queue.put(event)
+            qname = "market" if event.event_type == "market" else "general"
+            try:
+                self._queues[qname].put(event, block=True, timeout=self._queue_timeout)
+            except Full:
+                self.logger.warning(f"同步队列 {qname} 已满，丢弃事件 {event.event_type}")
 
-    # ===================== 内部循环 =====================
-    def _sync_event_loop(self) -> None:
-        """后台线程：消费同步事件"""
+    # ===================== 内部消费 =====================
+    def _sync_loop(self, qname: str) -> None:
+        """消费同步事件"""
+        queue_obj = self._queues[qname]
         try:
             while self._active and not self._stopped.is_set():
                 try:
-                    event = self._queue.get(block=True, timeout=self._queue_timeout)
+                    event = queue_obj.get(block=True, timeout=self._queue_timeout)
                 except Empty:
                     continue
-                if event.event_type == EventType.EVENT_BUS_SHUTDOWN:  # 停止信号
-                    self._dispatch(event)  # 先分发停止事件给订阅者
+                if event.event_type == EventType.EVENT_BUS_SHUTDOWN:  # 停止事件
                     break
                 self._dispatch(event)
         except Exception as e:
-            self.logger.exception(f"同步事件循环异常: {e}")
+            self.logger.exception(f"同步事件循环异常({qname}): {e}")
         finally:
-            self.logger.info("同步事件循环已退出")
+            self.logger.info(f"同步事件循环已退出 ({qname})")
 
-    async def _async_event_loop(self) -> None:
-        """后台协程：消费异步事件"""
-        if self._async_queue is None:
+    async def _async_loop(self) -> None:
+        """消费异步事件"""
+        if not self._async_queue:
             self.logger.warning("异步队列未初始化")
             return
-            
         try:
             while self._active and not self._stopped.is_set():
                 try:
                     event = await asyncio.wait_for(self._async_queue.get(), timeout=self._queue_timeout)
-                    if event.event_type == EventType.EVENT_BUS_SHUTDOWN:  # 停止信号
-                        self._dispatch(event)  # 先分发停止事件给订阅者
-                        break
-                    self._dispatch(event)
                 except asyncio.TimeoutError:
-                    # 超时继续循环，检查停止条件
-                    continue
+                    continue  # 超时继续循环，检查停止条件
+                if event.event_type == EventType.EVENT_BUS_SHUTDOWN:  # 停止事件
+                    self._dispatch(event)  # 先分发停止事件给订阅者
+                    break
+                self._dispatch(event)
         except asyncio.CancelledError:
             # 任务被取消时优雅退出
             self.logger.info("异步事件循环被取消")
@@ -326,7 +332,6 @@ class EventBus(object):
         finally:
             self.logger.info("异步事件循环已退出")
 
-    # ===================== 分发逻辑 =====================
     def _dispatch(self, event: Event) -> None:
         """
         分发事件到订阅者
@@ -340,26 +345,25 @@ class EventBus(object):
             try:
                 # 自动设置 trace_id 到上下文
                 trace_context.set_trace_id(event.trace_id)
-
                 if async_mode:
                     if not inspect.iscoroutinefunction(subscriber):
                         raise ValueError(f"异步订阅者必须是 async 函数: {subscriber}")
-                    if self._loop is not None:
+                    if self._loop:
                         self._loop.create_task(self._safe_async(subscriber, event))
                 else:
-                    if inspect.iscoroutinefunction(subscriber):
-                        raise ValueError(f"同步订阅者不能是 async 函数: {subscriber}")
+                    qname = "market" if event.event_type == "market" else "general"
+                    executor = self._executors[qname]
                     # 检查线程池是否还可用
                     try:
-                        self._executor.submit(self._safe_sync, subscriber, event)
+                        executor.submit(self._safe_sync, subscriber, event)
                     except RuntimeError as e:
+                        # 线程池已关闭，直接在当前线程执行
                         if "cannot schedule new futures after shutdown" in str(e):
-                            # 线程池已关闭，直接在当前线程执行
                             self._safe_sync(subscriber, event)
                         else:
                             raise
             except Exception as e:
-                self.logger.exception(f"事件 {event.event_type} 处理失败: {e}")
+                self.logger.exception(f"事件 {event.event_type} 分发失败: {e}")
 
     # ===================== 安全执行封装 =====================
     def _safe_sync(self, subscriber, event):
@@ -383,22 +387,11 @@ class EventBus(object):
     # ===================== 事件循环管理 =====================
     @staticmethod
     def _get_or_create_event_loop():
-        """获取或创建事件循环"""
+        """获取或创建事件循环，如果没有运行的事件循环，创建一个新的"""
         try:
-            # 优先使用当前运行的事件循环
             return asyncio.get_running_loop()
         except RuntimeError:
-            # 如果没有运行的事件循环，创建一个新的
-            try:
-                # 先尝试获取当前线程的事件循环
-                loop = asyncio.get_event_loop()
-                if loop.is_closed():
-                    raise RuntimeError("Loop is closed")
-                return loop
-            except RuntimeError:
-                # 创建新的事件循环
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                # 启动事件循环（在后台线程中）
-                threading.Thread(target=loop.run_forever, daemon=True).start()
-                return loop
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            threading.Thread(target=loop.run_forever, daemon=True, name="AsyncEventLoopThread").start()
+            return loop
