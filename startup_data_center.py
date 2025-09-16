@@ -24,7 +24,7 @@ from src.core.event_bus import EventBus
 from src.modules.data_center.data_center import DataCenter
 from src.utils.config_manager import ConfigManager
 from src.utils.get_path import get_path_ins
-from src.utils.log import get_logger, logger
+from src.utils.log import get_logger
 from src.utils.utility import get_enable_broker, convert_intervals_to_minutes
 
 # 添加项目根目录到Python路径
@@ -130,22 +130,22 @@ class StartupDataCenter:
         # 启动数据中心（数据中心内部会自动创建和连接网关）
         if self.data_center:
             self.data_center.start()
-            logger.info("数据中心应用初始化成功")
+            self.logger.info("数据中心应用初始化成功")
 
         # 网关已在数据中心中自动连接
         self.running = True
-        logger.info("数据中心应用启动成功，开始7x24小时运行...")
+        self.logger.info("数据中心应用启动成功，开始7x24小时运行...")
 
         # 主循环
         try:
             while self.running:
                 # 检查组件状态
                 if self.data_center and not self.data_center.get_status():
-                    logger.warning("数据中心连接断开，等待自动重连...")
+                    self.logger.warning("数据中心连接断开，等待自动重连...")
                 # 避免CPU占用过高，添加短暂休眠
                 await asyncio.sleep(1)
         except Exception as e:
-            logger.error(f"主循环异常: {e}")
+            self.logger.error(f"主循环异常: {e}")
             return False
         return True
 
@@ -163,9 +163,9 @@ class StartupDataCenter:
             if self.event_bus:
                 self.event_bus.stop()
 
-            logger.info("数据中心应用已关闭")
+            self.logger.info("数据中心应用已关闭")
         except Exception as e:
-            logger.error(f"数据中心应用关闭失败: {e}")
+            self.logger.error(f"数据中心应用关闭失败: {e}")
 
 
 # 全局应用实例
@@ -177,14 +177,15 @@ async def main() -> None:
     主函数，启动数据中心应用
     :return: None
     """
+    main_logger = get_logger("StartupMain")
     try:
         await data_center_app.start()
     except KeyboardInterrupt:
-        logger.info("接收到键盘中断，开始关闭数据中心...")
+        main_logger.info("接收到键盘中断，开始关闭数据中心...")
     except Exception as e:
-        logger.error(f"数据中心运行异常: {e}")
+        main_logger.error(f"数据中心运行异常: {e}")
     finally:
-        logger.info("收到关闭信号，快速关闭数据中心...")
+        main_logger.info("收到关闭信号，快速关闭数据中心...")
         await data_center_app.shutdown()
 
 
