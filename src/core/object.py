@@ -106,7 +106,7 @@ class BarData(BaseData):
     open_interest: float = 0
     open_price: float = 0
     high_price: float = 0
-    low_price = float('inf')
+    low_price: float = float('inf')
     close_price: float = 0
     last_volume: int = 0  # 上一根K线的成交量，用于计算当前K线的成交量
 
