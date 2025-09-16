@@ -9,10 +9,10 @@
 @Software   : PyCharm
 @Description: 全局常量
 """
-from typing import Optional
+from typing import Optional, Any, TYPE_CHECKING
 
-from src.strategy.base_strategy import BaseStrategy
-from src.utils.thread_pool import ThreadPool
+if TYPE_CHECKING:
+    from src.utils.thread_pool import ThreadPool
 
 # ================== 项目中目录名称 ==================
 # PROJECT_NAME = "Homalos"  # 项目名称
@@ -47,10 +47,36 @@ log_time_format = "%Y-%m-%d %H:%M:%S.%f"  # 日志文件中时间格式
 
 print_time_format = "%Y-%m-%d %H:%M:%S.%f"  # 控制台打印的时间格式
 
-strategy_map: dict[str, BaseStrategy] = {}
+strategy_map: dict[str, Any] = {}
 
 # 线程池
-thread_pool: Optional[ThreadPool] = None
+thread_pool: Optional["ThreadPool"] = None
+
+def init_thread_pool(max_workers: int = 10, add_max_workers: int = 20) -> "ThreadPool":
+    """
+    初始化全局线程池
+    
+    Args:
+        max_workers: 初始线程池最大线程数
+        add_max_workers: 扩展线程池最大线程数
+        
+    Returns:
+        ThreadPool实例
+    """
+    global thread_pool
+    if thread_pool is None:
+        from src.utils.thread_pool import ThreadPool
+        thread_pool = ThreadPool(max_workers, add_max_workers)
+    return thread_pool
+
+def get_thread_pool() -> Optional["ThreadPool"]:
+    """
+    获取全局线程池实例
+    
+    Returns:
+        ThreadPool实例或None
+    """
+    return thread_pool
 
 # tick合成K线系统
 tick_to_kline_sys = None
