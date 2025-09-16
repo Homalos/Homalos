@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 自定义优先级线程池
+@Description: 自定义线程池
 """
 import threading
 from concurrent.futures import ThreadPoolExecutor, Future
@@ -19,7 +19,7 @@ from src.utils.log import get_logger
 
 class ThreadPool:
     """
-    自定义优先级线程池
+    自定义线程池
     
     特性：
     - 支持动态扩展线程池
