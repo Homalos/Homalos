@@ -9,5 +9,6 @@
 @Software   : PyCharm
 @Description: 日志默认初始化
 """
-from src.utils.log.logger import get_logger, logger
+from src.utils.log.logger import get_logger
 
+logger = get_logger()
