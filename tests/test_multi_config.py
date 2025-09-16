@@ -15,7 +15,7 @@ from pathlib import Path
 from src.core.event import Event
 from src.core.event_bus import EventBus
 from src.utils.config_manager import ConfigManager
-from src.utils.log import logger, get_logger
+from src.utils.log import get_logger, logger
 
 
 def config_update_handler_dev(event: Event):
@@ -29,10 +29,11 @@ def config_update_handler_prod(event: Event):
 
 
 async def main():
+    test_logger = get_logger("TestMultiConfig")
     config_path1 = Path(__file__).resolve().parent.parent / "config" / "extra.dev.yaml"
     config_path2 = Path(__file__).resolve().parent.parent / "config" / "extra.prod.yaml"
-    logger.info(f"开发配置路径: {config_path1}")
-    logger.info(f"生产配置路径: {config_path2}")
+    test_logger.info(f"开发配置路径: {config_path1}")
+    test_logger.info(f"生产配置路径: {config_path2}")
 
     # 创建两个独立的事件总线
     bus_dev = EventBus("DevConfigBus")
