@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor, Future
 from datetime import datetime
 from typing import Dict, Any, Callable
 
-from src.utils.log import get_logger
+from src.utils.log.logger import get_logger
 
 
 class ThreadPool:
@@ -29,7 +29,7 @@ class ThreadPool:
     - 资源清理和重置
     """
 
-    def __init__(self, max_workers: int, add_max_workers: int) -> None:
+    def __init__(self, max_workers: int, add_max_workers: int = 5) -> None:
         """
         初始化线程池
         
