@@ -45,48 +45,48 @@ class TickData(BaseData):
     instrument_id: str = None
     exchange_id: Exchange = None
     exchange_inst_id: str = None
-    last_price: float = 0
-    pre_settlement_price: float = 0
-    pre_close_price: float = 0
-    pre_open_interest: float = 0
-    open_price: float = 0
-    highest_price: float = 0
-    lowest_price: float = 0
-    volume: float = 0
-    turnover: float = 0
-    open_interest: float = 0
-    close_price: float = 0
-    settlement_price: float = 0
-    upper_limit_price: float = 0
-    lower_limit_price: float = 0
-    pre_delta: float = 0
-    curr_delta: float = 0
+    last_price: float = 0.0
+    pre_settlement_price: float = 0.0
+    pre_close_price: float = 0.0
+    pre_open_interest: float = 0.0
+    open_price: float = 0.0
+    highest_price: float = 0.0
+    lowest_price: float = 0.0
+    volume: int = 0
+    turnover: float = 0.0
+    open_interest: float = 0.0
+    close_price: float = 0.0
+    settlement_price: float = 0.0
+    upper_limit_price: float = 0.0
+    lower_limit_price: float = 0.0
+    pre_delta: float = 0.0
+    curr_delta: float = 0.0
     update_time: datetime = None
-    update_millisec: float = 0
-    bid_price_1: float = 0
-    bid_volume_1: float = 0
-    ask_price_1: float = 0
-    ask_volume_1: float = 0
-    bid_price_2: float = 0
-    bid_volume_2: float = 0
-    ask_price_2: float = 0
-    ask_volume_2: float = 0
-    bid_price_3: float = 0
-    bid_volume_3: float = 0
-    ask_price_3: float = 0
-    ask_volume_3: float = 0
-    bid_price_4: float = 0
-    bid_volume_4: float = 0
-    ask_price_4: float = 0
-    ask_volume_4: float = 0
-    bid_price_5: float = 0
-    bid_volume_5: float = 0
-    ask_price_5: float = 0
-    ask_volume_5: float = 0
-    average_price: float = 0
+    update_millisec: int = 0
+    bid_price_1: float = 0.0
+    bid_volume_1: int = 0.0
+    ask_price_1: float = 0.0
+    ask_volume_1: int = 0
+    bid_price_2: float = 0.0
+    bid_volume_2: int = 0
+    ask_price_2: float = 0.0
+    ask_volume_2: int = 0
+    bid_price_3: float = 0.0
+    bid_volume_3: int = 0
+    ask_price_3: float = 0.0
+    ask_volume_3: int = 0
+    bid_price_4: float = 0.0
+    bid_volume_4: int = 0
+    ask_price_4: float = 0.0
+    ask_volume_4: int = 0
+    bid_price_5: float = 0.0
+    bid_volume_5: int = 0
+    ask_price_5: float = 0.0
+    ask_volume_5: int = 0
+    average_price: float = 0.0
     action_day: str = None
-    banding_upper_price: float = 0
-    banding_lower_price: float = 0
+    banding_upper_price: float = 0.0
+    banding_lower_price: float = 0.0
 
     timestamp: datetime = None
 
@@ -103,11 +103,11 @@ class BarData(BaseData):
     instrument_id: str = None
     exchange_id: Exchange = None
     volume: int = 0
-    open_interest: float = 0
-    open_price: float = 0
-    high_price: float = 0
+    open_interest: float = 0.0
+    open_price: float = 0.0
+    high_price: float = 0.0
     low_price: float = float('inf')
-    close_price: float = 0
+    close_price: float = 0.0
     last_volume: int = 0  # 上一根K线的成交量，用于计算当前K线的成交量
 
 @dataclass
@@ -122,9 +122,9 @@ class OrderData(BaseData):
     order_type: OrderType = OrderType.LIMIT  # 报单类型
     direction: Direction | None = None  # 买卖方向
     offset: Offset = Offset.NONE  # 组合开平标志
-    price: float = 0  # 价格
-    volume: float = 0  # 数量
-    volume_traded: float = 0  # 今成交数量
+    price: float = 0.0  # 价格
+    volume: int = 0  # 数量
+    volume_traded: int = 0  # 今成交数量
     order_status: OrderStatus = OrderStatus.SUBMITTING  # 报单状态
     timestamp: datetime = None
 
@@ -151,8 +151,8 @@ class TradeData(BaseData):
     direction: Direction = None  # 买卖方向
 
     offset: Offset = Offset.NONE  # 开平标志
-    price: float = 0  # 价格
-    volume: float = 0  # 数量
+    price: float = 0.0  # 价格
+    volume: int = 0  # 数量
     timestamp: datetime = None
 
 
@@ -166,11 +166,11 @@ class PositionData(BaseData):
     exchange_id: Exchange = None
     direction: Direction = None
 
-    volume: float = 0
-    frozen: float = 0
-    price: float = 0
-    pnl: float = 0
-    yd_volume: float = 0  # 上日成交量
+    volume: int = 0
+    frozen: float = 0.0
+    price: float = 0.0
+    pnl: float = 0.0
+    yd_volume: int = 0  # 上日成交量
 
 
 
@@ -188,8 +188,8 @@ class AccountData(BaseData):
     available.
     """
     account_id: str = None
-    balance: float = 0
-    frozen: float = 0
+    balance: float = 0.0
+    frozen: float = 0.0
 
     def __post_init__(self) -> None:
         self.available: float = self.balance - self.frozen
@@ -204,21 +204,21 @@ class ContractData(BaseData):
     instrument_name: str = None
     product: Product = None
     size: int = 0
-    price_tick: float = 0
+    price_tick: float = 0.0
 
-    min_volume: float = 1           # 最小成交量
-    max_volume: float = None        # 最大成交量
+    min_volume: int = 1           # 最小成交量
+    max_volume: int = None        # 最大成交量
     stop_supported: bool = False    # 是否支持 stop order
     net_position: bool = False      # 网关是否使用净持仓量
     history_data: bool = False      # 网关是否提供K线历史数据
 
-    option_strike: float = 0
-    option_underlying: str = ""     # vt_symbol of underlying contract
+    option_strike: float = 0.0
+    option_underlying: str = None     # vt_symbol of underlying contract
     option_type: OptionType = None
     option_listed: datetime = None
     option_expiry: datetime = None
-    option_portfolio: str = ""
-    option_index: str = ""          # for identifying options with same strike price
+    option_portfolio: str = None
+    option_index: str = None          # for identifying options with same strike price
 
 # ================== 请求 ==================
 @dataclass
@@ -241,8 +241,8 @@ class OrderRequest:
     exchange_id: Exchange = None
     direction: Direction = None
     order_type: OrderType = None
-    volume: float = 0
-    price: float = 0
+    volume: int = 0
+    price: float = 0.0
     offset: Offset = Offset.NONE
 
     def create_order_data(self, order_id: str) -> OrderData:
@@ -278,8 +278,8 @@ class HistoryRequest:
     """
     Request sending to specific gateway for querying history data.
     """
-    instrument_id: str
-    exchange_id: Exchange
-    start_datetime: datetime
+    instrument_id: str = None
+    exchange_id: Exchange = None
+    start_datetime: datetime = None
     end_datetime: datetime = None
     interval: Interval = None
