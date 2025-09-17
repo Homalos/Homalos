@@ -13,6 +13,8 @@ from datetime import datetime
 
 from src.constants import INSTRUMENT_EXCHANGE_FILENAME
 from src.core.constants import Offset, OrderStatus, Product, Exchange, OrderType, Direction, OpenDate
+from src.core.event import EventType, Event
+from src.core.event_bus import EventBus
 from src.core.object import TickData, ContractData, OrderData, TradeData, PositionDetailData
 from src.modules.gateway.gateway_const import (
     MAX_FLOAT,
@@ -31,23 +33,22 @@ def adjust_price(price: float) -> float:
         price = 0
     return price
 
-def extract_error_msg(rsp_info: dict, custom_msg: str = "出错") -> str:
+def extract_error_msg(
+        rsp_info: dict,
+        custom_msg: str = "出错"
+) -> str:
     """
     从响应中提取错误消息
     :param rsp_info: 响应的信息
     :param custom_msg: 自定义消息
     :return: 错误消息
     """
-    if isinstance(rsp_info, dict):
-        if rsp_info and rsp_info.get("ErrorID") != 0:
-            return (f"{custom_msg}, 错误代码：{rsp_info.get('ErrorID', 'N/A')}, "
-                    f"错误信息：{rsp_info.get('ErrorMsg', 'Unknown')}")
-        elif rsp_info and rsp_info.get("ErrorID") == 0:
-            return ""
-        else:
-            return f"{custom_msg}, 未知错误：{str(rsp_info)}"
+    if rsp_info and rsp_info.get("ErrorID") != 0:
+        return (f"{custom_msg}, 错误代码：{rsp_info.get('ErrorID', 'N/A')}, "
+                f"错误信息：{rsp_info.get('ErrorMsg', 'Unknown')}")
     else:
-        return f"{custom_msg}, 未知类型错误：{type(rsp_info)}, {str(rsp_info)}"
+        return ""
+
 
 def get_exchange_name(instrument_id: str) -> str:
     """
