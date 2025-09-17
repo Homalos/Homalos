@@ -95,8 +95,7 @@ class StartupDataCenter:
         self.logger.debug("配置验证完成")
 
         # 转换为分钟间隔
-        convert_intervals_to_minutes(self, bar_generation_list)
-
+        # convert_intervals_to_minutes(self, bar_generation_list)
 
         self.data_center_config['broker'] = rsp_enable_broker
 
@@ -129,11 +128,13 @@ class StartupDataCenter:
 
         # 启动数据中心（数据中心内部会自动创建和连接网关）
         if self.data_center:
-            self.data_center.start()
-            self.logger.info("数据中心应用初始化成功")
+            self.running = self.data_center.start()
+            if not self.running:
+                self.logger.warning("数据中心启动失败")
+                return False
 
+        self.logger.info("数据中心应用初始化成功")
         # 网关已在数据中心中自动连接
-        self.running = True
         self.logger.info("数据中心应用启动成功，开始7x24小时运行...")
 
         # 主循环
