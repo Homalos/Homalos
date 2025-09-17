@@ -13,30 +13,43 @@
 1. self._running 控制数据中心内部状态
 2. 负责管理网关连接和数据处理
 """
+import csv
 import time
 from typing import Any
 
-from src.core.constants import ErrorCode
+from src.constants import INSTRUMENT_EXCHANGE_FILENAME, TICK_DIR_NAME
+from src.core.constants import ErrorCode, Interval
 from src.core.event import EventType, Event
 from src.core.event_bus import EventBus
-from src.core.object import SubscribeRequest
+from src.core.object import SubscribeRequest, TickData
 from src.modules.gateway.market_gateway import MarketGateway
 from src.modules.gateway.trader_gateway import TraderGateway
+from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger
+from src.utils.utility import load_json
 
 
 class DataCenter(object):
 
     def __init__(self, event_bus: EventBus, data_center_config: dict[str, Any]) -> None:
-        self.event_bus = event_bus
-        self.data_center_config = data_center_config  # 数据中心配置
+        self.event_bus: EventBus = event_bus
+        self.data_center_config: dict[str, Any] = data_center_config  # 数据中心配置
         self.logger = get_logger(__class__.__name__)
         self._running: bool = False  # 数据中心运行状态
         self.market_gateway: MarketGateway | None = None  # 行情网关
         self.trader_gateway: TraderGateway | None = None  # 交易网关
         self.broker_info: dict = {}  # 交易所节点信息
-        self.md_login_status = False
-        self.td_login_status = False
+        self.md_login_status: bool = False
+        self.td_login_status: bool = False
+        self.trading_day: str = ""  # 交易日
+        # 是否更新合约文件，更新一次之后 symbol_contract_map 就会有合约基本信息，比如交易所代码等
+        self.is_update_instrument_file: bool = True
+
+        self.sub_ins_list: list[str] = []  # 订阅的合约
+        self.sub_kline_type: list[Interval] = []  # 订阅的K线类型(周期)
+
+        self.csv_file = None
+        self.csv_writer = None
 
         self._register_event_handlers()  # 注册事件处理器
 
@@ -63,8 +76,9 @@ class DataCenter(object):
         rsp_login_data = event.payload
         self.logger.info(f"收到交易网关登录事件数据：{rsp_login_data}")
         if rsp_login_data and rsp_login_data.get("code") == 0:
-            self.td_login_status = True
             self.logger.info(rsp_login_data.get("message"))
+            self.td_login_status = True
+            self.trading_day = rsp_login_data.get("data", {}).get("trading_day")  # 获取登录后的交易日
 
     def datacenter_shutdown_handler(self, event: Event) -> None:
         """
@@ -77,25 +91,27 @@ class DataCenter(object):
         self.logger.info(f"收到事件类型：{event.event_type}")
         self._running = False
 
-    # def ins_file_updated_handler(self, event: Event):
-    #     self.logger.info(f"收到合约交易所映射文件更新事件，事件类型：{event.event_type}")
-    #     rsp_login_data = event.payload
-    #     if rsp_login_data and rsp_login_data.get("code") == 0:
-    #         self.logger.info(rsp_login_data.get("message"))
-    #         self.get_sub_ins_data()
-
     def td_gateway_ready_handler(self, event: Event):
         self.logger.info(f"收到交易网关就绪事件，事件类型：{event.event_type}")
         rsp_login_data = event.payload
         if rsp_login_data and rsp_login_data.get("code") == 0:
             self.logger.info(rsp_login_data.get("message"))
-            self.get_sub_ins_data()
+            self.subscribe_all_instruments()
+
+    def td_confirm_success_handler(self, event: Event):
+        self.logger.info(f"收到结算单确认成功事件，事件类型：{event.event_type}")
+        rsp_login_data = event.payload
+        if rsp_login_data and rsp_login_data.get("code") == 0:
+            self.logger.info(rsp_login_data.get("message"))
+            self.subscribe_all_instruments()
 
     def sub_ins_show_handler(self, event: Event):
-        self.logger.info(f"收到事件类型：{event.event_type}")
-        self.logger.info(f"收到tick数据：{event.payload}")
+        self.logger.info(f"返回tick事件：{event.payload.get('code')}, {event.payload.get('message')}")
+        tick: TickData = event.payload.get("data", None)
+        print(f"收到tick数据：{tick}")
 
-    def _register_event_handlers(self) -> None:
+
+    def _register_event_handlers(self, is_update_ins: bool = False) -> None:
         """
         注册事件处理器
         :return: None
@@ -106,8 +122,12 @@ class DataCenter(object):
         self.event_bus.subscribe(EventType.TD_GATEWAY_LOGIN, self.td_gateway_login_handler)
         # 订阅事件总线停止事件
         self.event_bus.subscribe(EventType.EVENT_BUS_SHUTDOWN, self.datacenter_shutdown_handler)
-        # 订阅交易网关就绪事件
-        self.event_bus.subscribe(EventType.TD_GATEWAY_READY, self.td_gateway_ready_handler)
+        if is_update_ins:
+            # 订阅交易网关就绪事件
+            self.event_bus.subscribe(EventType.TD_GATEWAY_READY, self.td_gateway_ready_handler)
+        else:
+            # 订阅结算单确认成功事件
+            self.event_bus.subscribe(EventType.TD_CONFIRM_SUCCESS, self.td_confirm_success_handler)
         # 订阅行情数据
         self.event_bus.subscribe(EventType.TICK, self.sub_ins_show_handler)
 
@@ -162,9 +182,10 @@ class DataCenter(object):
             }))
             self.logger.info("数据中心启动成功")
 
-            # 发布更新合约事件
-            self.event_bus.publish(Event(EventType.DATA_CENTER_QRY_INS, {}))
-            self.logger.info("发布更新合约事件成功")
+            if self.is_update_instrument_file:
+                # 发布更新合约事件
+                self.event_bus.publish(Event(EventType.DATA_CENTER_QRY_INS, {}))
+                self.logger.info("发布更新合约事件成功")
             return True
         except Exception as e:
             self.logger.error(f"启动数据中心失败: {e}", exc_info=True)
@@ -202,8 +223,20 @@ class DataCenter(object):
     def get_status(self) -> bool:
         return self._running
 
-    def get_sub_ins_data(self):
-        sub_req = SubscribeRequest()
-        sub_req.instrument_id = "SA601"
-        self.market_gateway.subscribe(sub_req)
+    def subscribe_all_instruments(self):
+        ins_exchange_dict = load_json(str(get_path_ins.get_config_dir() / INSTRUMENT_EXCHANGE_FILENAME))
+        # 加载所有合约代码
+        self.sub_ins_list = [ins for ins in list(ins_exchange_dict.keys())]
+        self.logger.info(f"订阅所有合约: {self.sub_ins_list}")
+
+        # 初始化生成csv文件
+        for instrument_id in self.sub_ins_list:
+            prefix_tick_path = str(get_path_ins.get_data_dir() / TICK_DIR_NAME)
+            self.csv_file = open(f"{prefix_tick_path}/{self.trading_day}/{instrument_id}.csv", 'a', newline='')
+            self.csv_writer = csv.writer(self.csv_file)
+
+        if self.sub_ins_list:
+            for ins in self.sub_ins_list:
+                self.market_gateway.subscribe(SubscribeRequest(ins))
+                time.sleep(1)
 
