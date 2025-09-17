@@ -44,6 +44,9 @@ from src.ctp.api.ctp_constant import (
     THOST_FTDC_VC_CV
 )
 
+
+# is_update_instrument: bool = False  # 是否更新合约，更新所有上市合约到instrument_exchange.json文件中
+
 # 合约数据全局缓存字典
 symbol_contract_map: dict[str, ContractData] = {}
 
