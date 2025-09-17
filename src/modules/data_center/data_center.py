@@ -109,7 +109,58 @@ class DataCenter(object):
         self.logger.info(f"返回tick事件：{event.payload.get('code')}, {event.payload.get('message')}")
         tick: TickData = event.payload.get("data", None)
         print(f"收到tick数据：{tick}")
-
+        tick_data_list = [
+            tick.trading_day,
+            tick.exchange_id,
+            tick.last_price,
+            tick.volume,
+            tick.open_interest,
+            tick.pre_settlement_price,
+            tick.pre_close_price,
+            tick.pre_open_interest,
+            tick.open_price,
+            tick.highest_price,
+            tick.lowest_price,
+            tick.volume,
+            tick.turnover,
+            tick.open_interest,
+            tick.close_price,
+            tick.settlement_price,
+            tick.upper_limit_price,
+            tick.lower_limit_price,
+            tick.pre_delta,
+            tick.curr_delta,
+            tick.update_time,
+            tick.update_millisec,
+            tick.bid_price_1,
+            tick.bid_volume_1,
+            tick.ask_price_1,
+            tick.ask_volume_1,
+            tick.bid_price_2,
+            tick.bid_volume_2,
+            tick.ask_price_2,
+            tick.ask_volume_2,
+            tick.bid_price_3,
+            tick.bid_volume_3,
+            tick.ask_price_3,
+            tick.ask_volume_3,
+            tick.bid_price_4,
+            tick.bid_volume_4,
+            tick.ask_price_4,
+            tick.ask_volume_4,
+            tick.bid_price_5,
+            tick.bid_volume_5,
+            tick.ask_price_5,
+            tick.ask_volume_5,
+            tick.average_price,
+            tick.action_day,
+            tick.banding_upper_price,
+            tick.banding_lower_price,
+            tick.timestamp
+        ]
+        self.csv_writer.writerow(tick_data_list)
+        self.csv_file.flush()
+        # TODO: 在合适的地方添加csv文件关闭逻辑 self.csv_file.close()
 
     def _register_event_handlers(self, is_update_ins: bool = False) -> None:
         """
