@@ -42,7 +42,7 @@ class EventType:
 
     TIMER = "timer"  # 定时器事件
 
-    TICK = "tick"  # Tick事件
+    TICK = "market.tick"  # Tick事件
 
     ORDER = "order"  # 订单事件
 
@@ -57,9 +57,21 @@ class EventType:
 
     MD_GATEWAY_LOGIN = "md_gateway.login"  # 行情登录
 
+    TD_GATEWAY_LOGIN = "td_gateway.login"  # 交易登录
+
+    TD_GATEWAY_READY = "td_gateway.ready"  # 交易网关就绪
+
+    TD_CONFIRM_SUCCESS = "td.confirm.success"  # 结算单确认成功
+
     DATA_CENTER_START = "data_center.start"  # 数据中心启动事件
 
     DATA_CENTER_STOP = "data_center.stop"  # 数据中心停止事件
+
+    DATA_CENTER_QRY_INS = "data_center.qry_ins"  # 数据中心查询合约事件
+
+    # INS_FILE_UPDATED = "ins_file.updated"  # 合约文件更新事件
+
+
 
 
 def create_event(event_type: str, payload: Any = None, source: str = "unknown") -> Event:
