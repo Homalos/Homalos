@@ -12,24 +12,22 @@
 from src.core.constants import Interval
 from src.core.object import OrderData, TradeData, BarData, TickData
 from src.strategy.base_strategy import BaseStrategy, SpecificStrategyApi
-from src.utils.log import get_logger
+from src.utils.log.logger import get_logger
 
 
 class StrategyDemo(BaseStrategy):
 
     def __init__(self):
         super().__init__()
-        self.strategy_id = 1
-        self.strategy_name = "策略demo1"
-        self.sub_ins_id = ["SA601"]
-        self.sub_kline_type = [Interval.MINUTE]
-        self.strategy_content = "策略示例"
+        self.strategy_id: str = "1001"
+        self.strategy_name: str = "策略demo1"
+        self.sub_ins_id: list[str] = ["SA601"]
+        self.sub_kline_type: list[Interval] = [Interval.MINUTE]
+        self.strategy_content: str = "策略示例"
 
 
-        # 初始化详细策略文件
+        # 初始化详细策略文件 - 将在外部初始化时填充
         self.specific_strategy_map = {}
-        for ins_id in self.sub_ins_id:
-            self.specific_strategy_map[ins_id] = None
 
     class Specific(SpecificStrategyApi):
 
