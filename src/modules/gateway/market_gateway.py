@@ -13,8 +13,10 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 from queue import Queue
-from typing import Any, Optional
+from typing import Any
 
+from src.constants import thread_pool
+from src.core.api_response import APIResponse
 from src.core.base_gateway import BaseGateway
 from src.core.constants import ErrorReason, Exchange
 from src.core.event import Event, EventType
@@ -25,7 +27,6 @@ from src.function import distribute_tick
 from src.modules.gateway.gateway_const import REASON_MAPPING, symbol_contract_map, CHINA_TZ
 from src.modules.gateway.gateway_helper import extract_error_msg, build_tick_data
 from src.utils.log import get_logger
-from src.utils.thread_pool import ThreadPool
 from src.utils.utility import prepare_address
 
 
@@ -119,7 +120,7 @@ class CtpMdApi(MdApi):
 
         self.address: str = ""  # 服务器地址 Server address
         self.broker_id: str = ""  # 经纪公司代码
-        self.user_id: str = ""  # 用户名
+        self.user_id: str = ""  # 用户代码
         self.password: str = ""  # 密码
         self.user_product_info = ""  # 用户端产品信息 User product information
 
@@ -281,8 +282,8 @@ class CtpMdApi(MdApi):
             return
         else:
             if data and "InstrumentID" in data:
-                symbol = data.get("InstrumentID", "UNKNOWN")
-                self.logger.info(f"symbol: {symbol}")
+                instrument_id = data.get("InstrumentID", "UNKNOWN")
+                self.logger.info(f"订阅合约: {instrument_id}")
 
     def onRtnDepthMarketData(self, data: dict) -> None:
         """
@@ -299,6 +300,7 @@ class CtpMdApi(MdApi):
         """
         # 此处要判断是否无效数据，例如非交易时间段的数据，避免无效数据推送给上层
         if data:
+            self.logger.info(f"onRtnDepthMarketData data: {data}")
             # 过滤没有时间戳的异常行情数据
             # Filter out abnormal market data without timestamps
             if not data.get("UpdateTime"):
@@ -326,10 +328,10 @@ class CtpMdApi(MdApi):
                   f"LastPrice={tick.last_price}")
 
             # TODO: 此处考虑是否推送行情数据到事件总线还是单独的行情队列
-            # self.gateway.event_bus.publish(Event(
-            #     EventType.TICK,
-            #     APIResponse.success(message="市场行情接收成功", data=data)
-            # ))
+            self.gateway.event_bus.publish(Event(
+                EventType.TICK,
+                APIResponse.success(message="推送市场行情", data=data)
+            ))
 
     def onRspUserLogout(self, data: dict, error: dict, reqid: int, last: bool):
         """
@@ -386,8 +388,8 @@ class CtpMdApi(MdApi):
             self.logger.warning("行情服务器已连接!")
             return
 
-        self.broker_id = broker_id
         self.address = address
+        self.broker_id = broker_id
         self.user_id = user_id
         self.password = password
 
@@ -620,7 +622,7 @@ class CtpMdApi(MdApi):
                 tick: TickData = self.tick_queue.get()
 
                 # 使用线程池，因为当前程序是单独线程，为了防止堵塞，另起一个线程进行分发
-                self.thread_pool.submit(distribute_tick, tick)
+                thread_pool.submit(distribute_tick, tick)
 
             except Exception as e:
                 self.logger.exception(f"线程池提交出错！错误：{e}")
