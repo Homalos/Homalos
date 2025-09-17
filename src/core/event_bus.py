@@ -17,7 +17,6 @@ self._event_category_map = {
     # "order": "order",     # 未来可以单独扩展
     # "account": "account", # 未来可以单独扩展
 }
-
 """
 import asyncio
 import inspect
@@ -127,7 +126,7 @@ class EventBus(object):
 
         # 启动异步消费任务
         if self._async_task is None and self._loop:
-            self._async_task = self._loop.create_task(self._async_loop(), name="AsyncEventLoop")
+            self._async_task = self._loop.create_task(self._async_loop(), name="AsyncLoop")
 
         # 注册信号
         if (self._register_signals and not self._signal_registered
@@ -150,7 +149,7 @@ class EventBus(object):
             if not self._active or self._stopped.is_set():
                 return
 
-            self.logger.info("正在停止 MultiQueueEventBus ...")
+            self.logger.info("正在停止 EventBus ...")
             self._active = False
             self._stopped.set()  # 标记停止
 
@@ -207,7 +206,7 @@ class EventBus(object):
                 self._loop = None
                 self._threads = {}
                 self._async_task = None
-                self.logger.info("MultiQueueEventBus 已优雅停止")
+                self.logger.info("EventBus 已优雅停止")
 
     def _signal_handler(self, signum, _frame):
         """接收到 SIGINT/SIGTERM 时调用 stop"""
@@ -285,7 +284,7 @@ class EventBus(object):
                 except RuntimeError as e:
                     self.logger.error(f"异步事件发布失败: {e}")
         else:
-            qname = "market" if event.event_type == "market" else "general"
+            qname = "market" if event.event_type.startswith("market") else "general"
             try:
                 self._queues[qname].put(event, block=True, timeout=self._queue_timeout)
             except Full:
@@ -351,7 +350,7 @@ class EventBus(object):
                     if self._loop:
                         self._loop.create_task(self._safe_async(subscriber, event))
                 else:
-                    qname = "market" if event.event_type == "market" else "general"
+                    qname = "market" if event.event_type.startswith("market") else "general"
                     executor = self._executors[qname]
                     # 检查线程池是否还可用
                     try:
