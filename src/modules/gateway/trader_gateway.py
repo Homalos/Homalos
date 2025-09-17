@@ -18,7 +18,7 @@ from typing import SupportsInt
 from src.constants import INSTRUMENT_EXCHANGE_FILENAME, PRODUCT_INFO_FILENAME
 from src.core.base_gateway import BaseGateway
 from src.core.constants import ErrorReason, Currency, Exchange, Direction, Product, OrderStatus, OrderType
-from src.core.event import EventType
+from src.core.event import EventType, Event
 from src.core.event_bus import EventBus
 from src.core.object import OrderRequest, CancelRequest, ContractData, OrderData, PositionData, AccountData, TradeData
 from src.ctp.api import TdApi
@@ -44,7 +44,7 @@ from src.modules.gateway.gateway_helper import (
 )
 from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger
-from src.utils.utility import prepare_address, write_json, load_ini, write_ini, del_num
+from src.utils.utility import prepare_address, write_json, load_ini, write_ini, del_num, delete_file
 
 
 class TraderGateway(BaseGateway):
@@ -59,6 +59,8 @@ class TraderGateway(BaseGateway):
         self.query_functions: list = []
         self.logger = get_logger(__class__.__name__)
 
+        self.event_bus.subscribe(EventType.DATA_CENTER_QRY_INS, self.update_instrument_handler)
+
     def connect(self, setting: dict) -> None:
         """
         连接交易服务器
@@ -70,20 +72,25 @@ class TraderGateway(BaseGateway):
         broker_id: str = setting.get("broker_id", "")  # 经纪商代码
         user_id: str = setting.get("user_id", "")  # 用户名
         password: str = setting.get("password", "")  # 密码
-        app_id: str = setting.get("appid", "")  # 产品名称
+        app_id: str = setting.get("app_id", "")  # 产品名称
         auth_code: str = setting.get("auth_code", "")  # 授权编码
 
         # 验证必需字段
-        if not all([broker_id, user_id, password, td_address]):
+        if not all([td_address, broker_id, user_id, password, app_id, auth_code]):
             missing_fields = []
+            if not td_address:
+                missing_fields.append("td_address")
             if not broker_id: 
                 missing_fields.append("broker_id")
             if not user_id: 
                 missing_fields.append("user_id")
             if not password: 
                 missing_fields.append("password")
-            if not td_address: 
-                missing_fields.append("td_address")
+            if not app_id:
+                missing_fields.append("app_id")
+            if not auth_code:
+                missing_fields.append("auth_code")
+
             self.logger.error(f"CTP交易网关连接参数不完整，缺少字段: {missing_fields}")
 
         td_address = prepare_address(td_address)
@@ -111,6 +118,11 @@ class TraderGateway(BaseGateway):
         :return:
         """
         self.td_api.cancel_order(req)
+
+    def update_instrument_handler(self, event: Event) -> None:
+        self.logger.info(f"收到更新合约事件：{event.event_type}")
+        self.logger.info("开始更新所有合约信息......")
+        self.td_api.query_instrument()
 
     def query_account(self) -> None:
         """查询资金"""
@@ -194,15 +206,15 @@ class CtpTdApi(TdApi):
         self.confirm_status: bool = False  # 确认结算单状态
         self.contract_inited: bool = False  # 初始化合约状态
 
-        self.broker_id: str = ""
-        self.user_id: str = ""
-        self.password: str = ""
-        self.auth_code: str = ""
-        self.app_id: str = ""
-        self.trading_day: str = ""
-        self.login_time: str = ""
-
-        self.is_update_instrument: bool = False  # 是否更新合约，更新所有上市合约到instrument_exchange.json文件中
+        self.address: str = ""  # 服务器地址 Server address
+        self.broker_id: str = ""  # 经纪公司代码
+        self.user_id: str = ""  # 用户代码
+        self.user_product_info: str = "Homalos"  # 用户端产品信息
+        self.password: str = ""  # 密码
+        self.auth_code: str = ""  # 认证码
+        self.app_id: str = ""  # App代码
+        self.trading_day: str = ""  # 交易日
+        self.login_time: str = ""  # 登录时间
 
         self.req_id: int = 0
         # 使用FrontID+SessionID+OrderRef撤单
@@ -221,7 +233,6 @@ class CtpTdApi(TdApi):
         self.order_data: list[dict] = []  # 订单数据
         self.trade_data: list[dict] = []  # 成交数据
         self.positions: dict[str, PositionData] = {}  # 持仓数据
-        self.update_ins_exchange: bool = False  # 是否更新合约代码和交易所映射
         self.instrument_exchange_map: dict = {}  # 合约代码和交易所映射
 
         self.sysid_order_id_map: dict[str, str] = {}  # 系统ID和订单ID映射
@@ -249,7 +260,7 @@ class CtpTdApi(TdApi):
         self.logger.info("交易服务器连接成功")
 
         # 若没有验证授权，则调用授权验证方法，授权回调中调用登录方法
-        if not self.auth_status:
+        if not self.auth_status and self.auth_code:
             self.authenticate()
         else:
             # 若已经授权，则直接登录方法
@@ -322,6 +333,7 @@ class CtpTdApi(TdApi):
         rsp_error_msg = extract_error_msg(error, "交易服务器授权验证失败")
         if rsp_error_msg:
             self.auth_status = False
+            self.login_status = False
             self.logger.exception(rsp_error_msg)
             return
         else:
@@ -366,14 +378,41 @@ class CtpTdApi(TdApi):
                 self.front_id = data.get("FrontID")
                 self.session_id = data.get("SessionID")
 
+                if self.gateway.event_bus:
+                    payload = {
+                        "code": 0,
+                        "message": "交易服务器登录成功",
+                        "data": {
+                            "trading_day": self.trading_day,
+                            "login_time": self.login_time,
+                            "front_id": self.front_id,
+                            "session_id": self.session_id
+                        }
+                    }
+                    self.gateway.event_bus.publish(Event(EventType.TD_GATEWAY_LOGIN, payload=payload))
+                    self.logger.info("已发布 TD_GATEWAY_LOGIN 事件")
+
                 settlement_req: dict = {
                     "BrokerID": self.broker_id,
                     "InvestorID": self.user_id
                 }
-                self.req_id += 1
-                self.logger.info("开始确认结算单......")
-                # 调用确认结算单方法 Call the settlement confirmation method
-                self.reqSettlementInfoConfirm(settlement_req, self.req_id)
+
+                if not self.confirm_status:
+                    self.req_id += 1
+                    self.logger.info("开始确认结算单......")
+                    # 调用确认结算单方法 Call the settlement confirmation method
+                    self.reqSettlementInfoConfirm(settlement_req, self.req_id)
+                else:
+                    self.logger.info("结算单已确认")
+                    # 发布结算单确认成功事件
+                    if self.gateway.event_bus:
+                        payload = {
+                            "code": 0,
+                            "message": "结算单已确认",
+                            "data": None
+                        }
+                        self.gateway.event_bus.publish(Event(EventType.TD_CONFIRM_SUCCESS, payload=payload))
+                        self.logger.info("已发布 TD_CONFIRM_SUCCESS 事件")
             if not last:
                 self.logger.info("等待确认结算单......")
 
@@ -411,15 +450,21 @@ class CtpTdApi(TdApi):
 
             if last:
                 self.logger.info("结算单确认成功")
+                # 发布结算单确认成功事件
+                if self.gateway.event_bus:
+                    payload = {
+                        "code": 0,
+                        "message": "结算单确认成功",
+                        "data": {
+                            "confirm_date": confirm_date,
+                            "confirm_time": confirm_time,
+                            "settlement_id": settlement_id
+                        }
+                    }
+                    self.gateway.event_bus.publish(Event(EventType.TD_CONFIRM_SUCCESS, payload=payload))
+                    self.logger.info("已发布 TD_CONFIRM_SUCCESS 事件")
             else:
                 self.logger.info("结算单确认中...")
-
-            # Next steps
-            # 是否更新所有合约信息
-            if self.is_update_instrument:
-                self.logger.info("开始更新所有合约信息......")
-                # self.req_id += 1
-                # self.reqQryInstrument({}, self.req_id)
 
     def onRspQryInvestorPosition(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
@@ -558,27 +603,30 @@ class CtpTdApi(TdApi):
         :param last: 指示该次返回是否为针对 reqid 的最后一次返回。
         :return: None
         """
-        rsp_error_msg = extract_error_msg(error, "请求查询合约发生错误！")
+        rsp_error_msg = extract_error_msg(error, "请求查询合约发生错误")
         if rsp_error_msg:
             self.logger.exception(rsp_error_msg)
             return
         else:
             if not data:
                 return
+
             # 获取产品类型枚举
             product: Product = PRODUCT_CTP_TO_ENUM.get(data.get("ProductClass"), None)
             if product:
                 contract = build_contract_data(data, product)
-                # TODO: 后期考虑推送合约信息到事件总线
-                # self.gateway.on_contract(contract)
-                self.logger.info(f"合约数据: {contract}")
-                instrument_id: str = contract.instrument_id
-                symbol_contract_map[instrument_id] = contract
 
-                # 更新instrument_exchange_map，只取非纯数字的合约和6位以内的合约，即只取期货合约
-                if not instrument_id.isdigit() and len(instrument_id) <= 6:
+                # TODO: 后期考虑是否推送合约信息到事件总线
+                # self.gateway.on_contract(contract)
+                product: Product = contract.product
+                if product == Product.FUTURES:
+                    self.logger.info(f"合约数据: {contract}")
+                    instrument_id: str = contract.instrument_id
+                    symbol_contract_map[instrument_id] = contract
                     # 缓存合约和交易所的映射关系
                     self.instrument_exchange_map[instrument_id] = data.get("ExchangeID", "")
+                else:
+                    self.logger.info(f"跳过非期货合约...")
 
             if last:
                 self.contract_inited = True
@@ -588,7 +636,8 @@ class CtpTdApi(TdApi):
                 instrument_count: int = len(self.instrument_exchange_map)
                 self.logger.info(f"共查询到 {instrument_count} 个合约->交易所映射")
                 # 如果需要更新并且合约数量不为0，则保存
-                if self.update_ins_exchange and instrument_count != 0:
+                if instrument_count != 0:
+                    delete_file(self.instrument_exchange_filepath)
                     # 保存合约交易所映射文件
                     try:
                         write_json(self.instrument_exchange_filepath, self.instrument_exchange_map)
@@ -604,7 +653,15 @@ class CtpTdApi(TdApi):
                     self.onRtnTrade(data)
                 self.trade_data.clear()
 
-                # TODO: 后期考试是否此处设置网关状态为就绪（同步调用）
+                # 设置网关状态为就绪
+                if self.gateway.event_bus:
+                    payload = {
+                        "code": 0,
+                        "message": "交易网关就绪",
+                        "data": None
+                    }
+                    self.gateway.event_bus.publish(Event(EventType.TD_GATEWAY_READY, payload=payload))
+                    self.logger.info("已发布 TD_GATEWAY_READY 事件")
 
     def onRspQryProduct(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
@@ -979,7 +1036,14 @@ class CtpTdApi(TdApi):
             self.logger.info("接口资源释放完毕")
 
     # ===================== 主动函数 =====================
-    def connect(self, address: str, broker_id: str, user_id: str, password: str,  auth_code: str, app_id: str) -> None:
+    def connect(self,
+                address: str,
+                broker_id: str,
+                user_id: str,
+                password: str,
+                auth_code: str,
+                app_id: str
+                ) -> None:
         """
         连接交易服务器  连接交易服务器
         :param address: 交易服务器地址  Trading server address
@@ -994,6 +1058,7 @@ class CtpTdApi(TdApi):
             self.logger.warning("交易服务器已连接!")
             return
 
+        self.address = address
         self.broker_id = broker_id
         self.user_id = user_id
         self.password = password
@@ -1005,43 +1070,47 @@ class CtpTdApi(TdApi):
         # true: use the production version of the API false: use the evaluation version of the API
         is_production_mode = True
 
-        ctp_con_dir: Path = Path.cwd().joinpath("con")
+        if not self.connect_status:
+            ctp_con_dir: Path = Path.cwd().joinpath("con")
 
-        if not ctp_con_dir.exists():
-            ctp_con_dir.mkdir()
-        # 消息的状态文件完整路径
-        # The full path to the status file for the message
-        api_path_str = str(ctp_con_dir) + "/td"
-        # 如果没有连接，创建TraderApi实例
-        self.logger.info("开始创建TraderApi实例......")
-        self.logger.info("尝试创建路径为 {} 的 API".format(api_path_str))
+            if not ctp_con_dir.exists():
+                ctp_con_dir.mkdir()
+            # 消息的状态文件完整路径
+            # The full path to the status file for the message
+            api_path_str = str(ctp_con_dir) + "/td"
+            # 如果没有连接，创建TraderApi实例
+            self.logger.info("开始创建TraderApi实例......")
+            self.logger.info("尝试创建路径为 {} 的 API".format(api_path_str))
 
-        try:
-            # 创建TraderApi实例  Create a TraderApi instance
-            # 在 c++ 底层 createFtdcMdApi 函数中自动调用 RegisterSpi 函数注册SPI实例
-            self.createFtdcTraderApi(api_path_str.encode("GBK").decode("utf-8"), is_production_mode)
-            self.logger.info("createFtdcTraderApi 调用成功")
+            try:
+                # 创建TraderApi实例  Create a TraderApi instance
+                # 在 c++ 底层 createFtdcMdApi 函数中自动调用 RegisterSpi 函数注册SPI实例
+                self.createFtdcTraderApi(api_path_str.encode("GBK").decode("utf-8"), is_production_mode)
+                self.logger.info("createFtdcTraderApi 调用成功")
 
-            # 订阅私有流和公共流。
-            # 私有流重传方式
-            # THOST_TERT_RESTART: 从本交易日开始重传
-            # THOST_TERT_RESUME: 从上次收到的续传
-            # THOST_TERT_QUICK: 只传送登录后私有流/公有流的内容
-            # 该方法要在Init方法前调用。若不调用则不会收到私有流/公有流的数据。
-            self.subscribePrivateTopic(THOST_TERT_QUICK)
-            self.subscribePublicTopic(THOST_TERT_QUICK)
+                # 订阅私有流和公共流。
+                # 私有流重传方式
+                # THOST_TERT_RESTART: 从本交易日开始重传
+                # THOST_TERT_RESUME: 从上次收到的续传
+                # THOST_TERT_QUICK: 只传送登录后私有流/公有流的内容
+                # 该方法要在Init方法前调用。若不调用则不会收到私有流/公有流的数据。
+                self.subscribePrivateTopic(THOST_TERT_QUICK)
+                self.subscribePublicTopic(THOST_TERT_QUICK)
 
-            self.registerFront(address)
-            self.logger.info("尝试使用地址初始化 API：{}......".format(address))
+                self.registerFront(address)
+                self.logger.info("尝试使用地址初始化 API：{}......".format(address))
 
-            self.init()
-            self.logger.info("init 调用成功")
-        except Exception as e_create:
-            self.logger.exception("createFtdcTraderApi 或 init 失败！错误：{}".format(e_create))
-            self.logger.exception("createFtdcTraderApi 或 init Traceback: {}".format(traceback.format_exc()))
-            return
+                self.init()
+                self.logger.info("init 调用成功")
+            except Exception as e_create:
+                self.logger.exception("createFtdcTraderApi 或 init 失败！错误：{}".format(e_create))
+                self.logger.exception("createFtdcTraderApi 或 init Traceback: {}".format(traceback.format_exc()))
+                return
 
-        self.logger.info("创建TraderApi实例成功")
+            self.logger.info("创建TraderApi实例成功")
+        else:
+            print("已连接，正在尝试身份验证...")
+            self.authenticate()
 
     def authenticate(self) -> None:
         """
@@ -1054,8 +1123,9 @@ class CtpTdApi(TdApi):
             return
 
         auth_req: dict = {
-            "UserID": self.user_id,
             "BrokerID": self.broker_id,
+            "UserID": self.user_id,
+            "UserProductInfo": self.user_product_info,
             "AuthCode": self.auth_code,
             "AppID": self.app_id
         }
@@ -1201,6 +1271,14 @@ class CtpTdApi(TdApi):
         except RuntimeError as e:
             self.logger.error("运行时错误！错误：{}".format(e))
             self.logger.error("traceback: {}".format(traceback.format_exc()))
+
+    def query_instrument(self) -> None:
+        """
+        查询合约
+        :return:
+        """
+        self.req_id += 1
+        self.reqQryInstrument({}, self.req_id)
 
     def query_account(self) -> None:
         """查询资金"""
