@@ -18,8 +18,10 @@ if TYPE_CHECKING:
 # PROJECT_NAME = "Homalos"  # 项目名称
 #
 # LOG_DIR_NAME = "log"  # 日志目录名
-#
-# DATA_DIR_NAME = "data"  # 数据目录名
+
+DATA_DIR_NAME = "data"  # 数据目录名
+
+TICK_DIR_NAME = "tick"  # TICK数据子目录名
 
 CONFIG_DIR_NAME = "config"  # 配置目录名
 
@@ -46,7 +48,6 @@ file_format = "%Y%m%d"  # 日志文件名格式
 log_time_format = "%Y-%m-%d %H:%M:%S.%f"  # 日志文件中时间格式
 
 print_time_format = "%Y-%m-%d %H:%M:%S.%f"  # 控制台打印的时间格式
-
 
 strategy_map: dict[str, Any] = {}
 
