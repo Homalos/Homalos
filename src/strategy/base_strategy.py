@@ -18,7 +18,7 @@ from src.strategy.strategy_function import check_on_tick, check_on_bar
 
 class BaseStrategy(object):
     def __init__(self):
-        self.strategy_id: int = 0
+        self.strategy_id: str = ""
         self.strategy_name: str = ""  # 策略名称
         self.sub_ins_id: list[str] = []  # 订阅的合约
         self.sub_kline_type: list[Interval] = []  # K线类型
