@@ -58,6 +58,63 @@ def get_exchange_name(instrument_id: str) -> str:
     """
     return load_json(str(get_path_ins.get_config_dir() / INSTRUMENT_EXCHANGE_FILENAME)).get(instrument_id, "")
 
+# def build_tick_data_general(data: dict) -> TickData:
+#     """
+#     组装tick数据
+#     :param data:
+#     :return:
+#     """
+#     tick: TickData = TickData(
+#         trading_day=data.get("TradingDay"),
+#         instrument_id=data.get("InstrumentID"),
+#         exchange_id=data.get("InstrumentID"),
+#         exchange_inst_id=data.get("ExchangeInstID"),
+#         last_price=adjust_price(data.get("LastPrice")),
+#         pre_settlement_price=adjust_price(data.get("PreSettlementPrice")),
+#         pre_close_price=adjust_price(data.get("PreClosePrice")),
+#         pre_open_interest=data.get("PreOpenInterest"),
+#         open_price=adjust_price(data.get("OpenPrice")),
+#         highest_price=adjust_price(data.get("HighestPrice")),
+#         lowest_price=adjust_price(data.get("LowestPrice")),
+#         volume=data["Volume"],
+#         turnover=data["Turnover"],
+#         open_interest=data["OpenInterest"],
+#         close_price=adjust_price(data.get("ClosePrice")),
+#         settlement_price=adjust_price(data.get("SettlementPrice")),
+#         upper_limit_price=adjust_price(data.get("UpperLimitPrice")),
+#         lower_limit_price=adjust_price(data.get("LowerLimitPrice")),
+#         pre_delta=data.get("PreDelta"),
+#         curr_delta=data.get("CurrDelta"),
+#         update_time=data.get("UpdateTime"),
+#         update_millisec=data.get("UpdateMillisec"),
+#         bid_price_1=adjust_price(data["BidPrice1"]),
+#         bid_volume_1=data["BidVolume1"],
+#         ask_price_1=adjust_price(data["AskPrice1"]),
+#         ask_volume_1=data["AskVolume1"],
+#         timestamp=timestamp
+#     )
+#
+#     if data["BidVolume2"] or data["AskVolume2"]:
+#         tick.bid_price_2 = adjust_price(data["BidPrice2"])
+#         tick.bid_volume_2 = data["BidVolume2"]
+#         tick.ask_price_2 = adjust_price(data["AskPrice2"])
+#         tick.ask_volume_2 = data["AskVolume2"]
+#         tick.bid_price_3 = adjust_price(data["BidPrice3"])
+#         tick.bid_volume_3 = data["BidVolume3"]
+#         tick.ask_price_3 = adjust_price(data["AskPrice3"])
+#         tick.ask_volume_3 = data["AskVolume3"]
+#         tick.bid_price_4 = adjust_price(data["BidPrice4"])
+#         tick.bid_volume_4 = data["BidVolume4"]
+#         tick.ask_price_4 = adjust_price(data["AskPrice4"])
+#         tick.ask_volume_4 = data["AskVolume4"]
+#         tick.bid_price_5 = adjust_price(data["BidPrice5"])
+#         tick.bid_volume_5 = data["BidVolume5"]
+#         tick.ask_price_5 = adjust_price(data["AskPrice5"])
+#         tick.ask_volume_5 = data["AskVolume5"]
+#
+#     return tick
+
+
 def build_tick_data(data: dict, contract: ContractData, timestamp: datetime) -> TickData:
     """
     组装tick数据
