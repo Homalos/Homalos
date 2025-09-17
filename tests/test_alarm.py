@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 闹钟系统测试和管理类 - 优化版本
+@Description: 闹钟系统测试和管理类
 """
 import datetime
 import time
@@ -43,6 +43,12 @@ class AlarmScheduler:
     3. 防止重复执行
     4. 完善异常处理
     5. 支持配置化时间设置
+
+    使用方式
+    from tests.test_alarm import AlarmScheduler
+
+    scheduler = AlarmScheduler()
+    scheduler.start()
     """
     
     def __init__(self, trading_schedule: Optional[TradingSchedule] = None):
@@ -71,7 +77,7 @@ class AlarmScheduler:
         self._execution_lock = Event()
         
         # 初始化测试策略 - 在logger初始化后
-        self._initialize_test_strategies()
+        self._initialize_strategies()
         
         # 注册关闭处理器
         atexit.register(self.stop)
@@ -80,7 +86,7 @@ class AlarmScheduler:
         
         self.logger.info("闹钟调度器初始化完成")
 
-    def _initialize_test_strategies(self) -> None:
+    def _initialize_strategies(self) -> None:
         """初始化测试策略"""
         try:
             # 创建策略实例
@@ -405,9 +411,9 @@ if __name__ == '__main__':
 
     # 创建自定义交易时间配置
     custom_schedule = TradingSchedule(
-        login_times=["08:45", "20:45", t_login],
-        pre_open_times=["08:50", "20:50", t_pre_open],
-        close_times=["21:59", t_close],
+        login_times=["08:45", "20:45", t_login],  # 登录时间
+        pre_open_times=["08:50", "20:50", t_pre_open],  # 开盘前事件时间
+        close_times=["21:59", t_close],  # 收盘后事件时间
         check_interval=60
     )
     
