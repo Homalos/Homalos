@@ -300,7 +300,6 @@ class CtpMdApi(MdApi):
         """
         # 此处要判断是否无效数据，例如非交易时间段的数据，避免无效数据推送给上层
         if data:
-            self.logger.info(f"onRtnDepthMarketData data: {data}")
             # 过滤没有时间戳的异常行情数据
             # Filter out abnormal market data without timestamps
             if not data.get("UpdateTime"):
@@ -321,7 +320,7 @@ class CtpMdApi(MdApi):
 
             timestamp_str: str = f"{date_str} {data.get('UpdateTime')}.{data.get('UpdateMillisec')}"
             timestamp: datetime = datetime.strptime(timestamp_str, "%Y%m%d %H:%M:%S.%f").replace(tzinfo=CHINA_TZ)
-
+            # 构建系统内的tick行情数据结构
             tick: TickData = build_tick_data(data, contract, timestamp)
 
             self.logger.info(f"市场行情数据接收: {tick.instrument_id} @ {tick.update_time} "
@@ -330,7 +329,7 @@ class CtpMdApi(MdApi):
             # TODO: 此处考虑是否推送行情数据到事件总线还是单独的行情队列
             self.gateway.event_bus.publish(Event(
                 EventType.TICK,
-                APIResponse.success(message="推送市场行情", data=data)
+                APIResponse.success(message="推送市场行情", data=tick)
             ))
 
     def onRspUserLogout(self, data: dict, error: dict, reqid: int, last: bool):
