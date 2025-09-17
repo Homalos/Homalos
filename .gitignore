@@ -15,6 +15,7 @@ data/
 log/
 .trae/
 config/brokers.yaml
+config/instrument_exchange.json
 .vercel/
 CLAUDE.md
 .claude/
