@@ -7,12 +7,13 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 公用的工具
+@Description: 公用的工具，和业务没有关系的工具
 """
 import configparser
 import json
 import os
 import re
+import time
 from typing import Any
 
 import yaml
@@ -23,6 +24,35 @@ from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger
 
 _logger = get_logger(__name__)
+
+
+def delete_file(file_path) -> bool:
+    """
+    如果文件存在，则删除文件
+
+    参数:
+    file_path (str): 要检查并可能删除的文件路径
+
+    返回:
+    bool: 如果文件存在并被成功删除返回True，否则返回False
+    """
+    if os.path.exists(file_path):
+        if os.path.isfile(file_path):
+            try:
+                os.remove(file_path)
+            except PermissionError:
+                _logger.info.exception(f"权限不足，无法删除文件: {file_path}")
+                return False
+            except Exception as e:
+                _logger.info.exception(f"删除文件 {file_path} 时出错: {e}")
+                return False
+            return True
+        else:
+            _logger.info.warning(f"路径存在但不是文件: {file_path}")
+            return False
+    else:
+        _logger.info.warning(f"文件 {file_path} 不存在")
+        return False
 
 
 def load_json(file_path: str) -> dict[str, Any]:
@@ -194,7 +224,7 @@ def get_enable_broker(cfg: ConfigManager) -> dict[str, Any]:
     return rsp_enable_broker
 
 
-def convert_intervals_to_minutes(self, interval_strings: list[str]) -> list[int]:
+def convert_intervals_to_minutes(interval_strings: list[str]) -> list[int]:
     """将时间间隔字符串转换为分钟数"""
     conversion_map = {
         'm': 1, 'h': 60, 'd': 1440
@@ -236,4 +266,21 @@ def load_all_instruments() -> dict[str, str]:
         _logger.exception(f"加载合约列表失败: {e}")
         return {}
 
+def wait_with_timeout(condition_check: bool, check_interval: float = 0.1, timeout: float = 5.0):
+    """
+    循环等待机制，超过指定时间自动退出
 
+    :param condition_check: 条件检查，返回True表示条件满足，停止等待
+    :param check_interval: 检查间隔(秒)，默认0.5秒
+    :param timeout: 超时时间(秒)，默认20秒
+    :return: bool: 如果条件满足返回True，超时返回False
+    """
+    start_time = time.time()
+    while not condition_check:
+        # 检查是否超时
+        elapsed_time = time.time() - start_time
+        if elapsed_time > timeout:
+            _logger.info(f"等待登录超时 ({timeout}秒)")
+            break
+        # 等待一段时间再检查
+        time.sleep(check_interval)
