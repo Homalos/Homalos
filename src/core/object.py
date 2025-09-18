@@ -8,13 +8,14 @@
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
 @Description: 交易平台中用于一般交易功能的基本数据结构。
-使用@dataclass装饰器来修饰一个类。
-使用@dataclass装饰器可以方便地定义一个数据类。数据类通常用于存储数据，并自动生成诸如__init__、__repr__、__eq__等特殊方法。
-在类中定义字段，使用类型注解来指定字段的类型。
-后初始化处理，可以用def __post_init__(self)
-类型提示必需：所有字段必须明确标注类型（如str、int），或用typing.Any表示任意类型
-可变默认值：列表、字典等可变默认值需用field(default_factory=list)避免所有实例共享引用
-继承行为：父类和子类的字段按声明顺序合并，但需注意字段顺序冲突
+
+1. 使用@dataclass装饰器来修饰一个类。
+2. 使用@dataclass装饰器可以方便地定义一个数据类。数据类通常用于存储数据，并自动生成诸如__init__、__repr__、__eq__等特殊方法。
+3. 在类中定义字段，使用类型注解来指定字段的类型。
+4. 后初始化处理，可以用def __post_init__(self)
+5. 类型提示必需：所有字段必须明确标注类型（如str、int），或用typing.Any表示任意类型
+6. 可变默认值：列表、字典等可变默认值需用field(default_factory=list)避免所有实例共享引用
+7. 继承行为：父类和子类的字段按声明顺序合并，但需注意字段顺序冲突
 """
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -26,25 +27,23 @@ from src.core.constants import Exchange, OrderType, Direction, Offset, Product, 
 class BaseData:
     """
     任何数据对象都需要一个名称作为来源，并且应该继承基础数据。
-
     Any data object needs a name to originate from and should inherit from a base data.
     """
     source_name: str = ""
-    extra: dict | None = field(default=None, init=False)  # 可变默认值需使用field，init=False：不包含在__init__参数中
+    # 可变默认值需使用field，init=False：不包含在__init__参数中
+    extra: dict | None = field(default=None, init=False)
 
 
 @dataclass
 class TickData(BaseData):
     """
     tick报价数据包含以下信息：
-        * 市场最新交易
-        * 订单簿快照
-        * 日内市场统计数据
+        1. 市场最新交易
+        2. 订单簿快照
+        3. 日内市场统计数据
     """
     trading_day: str = None
-    instrument_id: str = None
     exchange_id: Exchange = None
-    exchange_inst_id: str = None
     last_price: float = 0.0
     pre_settlement_price: float = 0.0
     pre_close_price: float = 0.0
@@ -61,7 +60,7 @@ class TickData(BaseData):
     lower_limit_price: float = 0.0
     pre_delta: float = 0.0
     curr_delta: float = 0.0
-    update_time: datetime = None
+    update_time: str = None
     update_millisec: int = 0
     bid_price_1: float = 0.0
     bid_volume_1: int = 0.0
@@ -85,9 +84,11 @@ class TickData(BaseData):
     ask_volume_5: int = 0
     average_price: float = 0.0
     action_day: str = None
+    instrument_id: str = None
+    exchange_inst_id: str = None
     banding_upper_price: float = 0.0
     banding_lower_price: float = 0.0
-
+    # 时间戳，自定义的字段，在原始数据中不存在
     timestamp: datetime = None
 
 
@@ -95,7 +96,6 @@ class TickData(BaseData):
 class BarData(BaseData):
     """
     特定交易周期的蜡烛图数据
-
     Candlestick bar data of a certain trading period.
     """
     bar_type: Interval = None
@@ -130,6 +130,7 @@ class OrderData(BaseData):
 
     def create_cancel_request(self) -> "CancelRequest":
         """
+        根据订单信息创建撤单请求对象。
         Create cancel request object from order.
         """
         req: CancelRequest = CancelRequest(
@@ -141,8 +142,8 @@ class OrderData(BaseData):
 @dataclass
 class TradeData(BaseData):
     """
-    Trade data contains information of a fill of an order. One order
-    can have several trade fills.
+    交易数据包含订单成交的相关信息。一个订单可能包含多个成交记录。
+    Trade data contains information of a fill of an order. One order can have several trade fills.
     """
     instrument_id: str = None
     exchange_id: Exchange = None
@@ -173,9 +174,11 @@ class PositionData(BaseData):
     yd_volume: int = 0  # 上日成交量
 
 
-
 @dataclass
 class PositionDetailData(BaseData):
+    """
+    PositionDetailData数据用于跟踪持仓明细。
+    """
     strategy_id: int = 0
     open_price_list: list[float] = None
 
@@ -184,8 +187,7 @@ class PositionDetailData(BaseData):
 class AccountData(BaseData):
     """
     账户数据包含余额、冻结和可用信息。
-    Account data contains information about balance, frozen and
-    available.
+    Account data contains information about balance, frozen and available.
     """
     account_id: str = None
     balance: float = 0.0
@@ -247,6 +249,7 @@ class OrderRequest:
 
     def create_order_data(self, order_id: str) -> OrderData:
         """
+        根据请求创建订单数据。
         Create order data from request.
         """
         order: OrderData = OrderData(
@@ -276,6 +279,7 @@ class CancelRequest:
 @dataclass
 class HistoryRequest:
     """
+    向特定网关发送请求以查询历史数据。
     Request sending to specific gateway for querying history data.
     """
     instrument_id: str = None
@@ -283,3 +287,12 @@ class HistoryRequest:
     start_datetime: datetime = None
     end_datetime: datetime = None
     interval: Interval = None
+
+
+@dataclass
+class TradingSchedule:
+    """交易时间配置"""
+    login_times: list[str] = field(default_factory=lambda: [""])
+    pre_open_times: list[str] = field(default_factory=lambda: [""])
+    after_close_times: list[str] = field(default_factory=lambda: [""])
+    check_interval: int = 60  # 检查间隔（秒）
