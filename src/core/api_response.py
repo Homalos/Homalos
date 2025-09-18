@@ -41,10 +41,8 @@ class APIResponse:
         }
         # 记录日志，带 trace_id
         log = _logger.bind(trace_id=trace_id)
-        if code == ErrorCode.SUCCESS:
-            log.info(f"成功响应: {message}")
-        else:
-            log.error(f"失败响应: {code} - {message}")
+        if code != ErrorCode.SUCCESS:
+            log.debug(f"失败响应: {code} - {message}")
         return resp
 
     @classmethod
