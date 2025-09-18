@@ -60,7 +60,7 @@ from src.utils.thread_pool import ThreadPool
 
 class AlarmScheduler:
     """
-    闹钟调度器 - 线程安全且功能完善的版本
+    闹钟调度器
     
     主要改进：
     1. 修复线程管理问题
