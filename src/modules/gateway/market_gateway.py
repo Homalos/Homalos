@@ -283,7 +283,7 @@ class CtpMdApi(MdApi):
         else:
             if data and "InstrumentID" in data:
                 instrument_id = data.get("InstrumentID", "UNKNOWN")
-                self.logger.info(f"订阅合约: {instrument_id}")
+                self.logger.debug(f"返回订阅 {instrument_id} 响应")
 
     def onRtnDepthMarketData(self, data: dict) -> None:
         """
@@ -323,7 +323,7 @@ class CtpMdApi(MdApi):
             # 构建系统内的tick行情数据结构
             tick: TickData = build_tick_data(data, contract, timestamp)
 
-            self.logger.info(f"市场行情数据接收: {tick.instrument_id} @ {tick.update_time} "
+            self.logger.debug(f"市场行情数据接收: {tick.instrument_id} @ {tick.update_time} "
                   f"LastPrice={tick.last_price}")
 
             # TODO: 此处考虑是否推送行情数据到事件总线还是单独的行情队列
@@ -529,10 +529,10 @@ class CtpMdApi(MdApi):
             return
 
         if not symbol:
-            self.logger.info("合约为空，跳过订阅")
+            self.logger.warning("合约为空，跳过订阅")
             return
 
-        self.logger.info(f"开始发送订阅请求 {symbol} ......")
+        self.logger.debug(f"发送订阅 {symbol} 请求...")
         try:
             ret_code = self.subscribeMarketData(symbol)
             # 0，代表成功。
@@ -545,7 +545,7 @@ class CtpMdApi(MdApi):
             # -2 indicates the number of unprocessed requests exceeds the permitted number.
             # -3 indicates the number of requests sent per second exceeds the permitted number.
             if ret_code == 0:
-                self.logger.info(f"订阅请求已发送 {symbol}")
+                self.logger.info(f"订阅 {symbol} 请求已发送")
             else:
                 self.logger.exception(f"订阅请求失败 {symbol}，返回代码={ret_code}")
         except Exception as e:
