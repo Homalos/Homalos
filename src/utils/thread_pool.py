@@ -28,7 +28,6 @@ class ThreadPool:
     """
     自定义的线程池类
     """
-
     def __init__(self, max_workers: int, add_max_workers: int = 5) -> None:
         """
         初始化线程池
@@ -63,7 +62,7 @@ class ThreadPool:
 
         self.thread_pool_map: dict[int, ThreadPoolExecutor] = {
             self.now_pool_num: ThreadPoolExecutor(max_workers=max_workers,
-                                                  thread_name_prefix=f"threadPool_{self.now_pool_num}")
+                                                  thread_name_prefix=f"ThreadPool_{self.now_pool_num}")
         }
         # 线程池中活跃线程个数的字典
         self.pool_alive_num_map: dict[int, int] = {self.now_pool_num: 0}
@@ -147,7 +146,7 @@ class ThreadPool:
 
         # 添加线程池
         self.thread_pool_map[add_pool_num] = ThreadPoolExecutor(
-            max_workers=self.add_max_workers, thread_name_prefix=f"threadPool_{add_pool_num}")
+            max_workers=self.add_max_workers, thread_name_prefix=f"ThreadPool_{add_pool_num}")
         # 添加线程池活跃线程字典
         self.pool_alive_num_map[add_pool_num] = 0
 
@@ -190,29 +189,6 @@ class ThreadPool:
         else:
             return False
 
-    @staticmethod
-    def get_pool_all_thread(prefix: str = "threadPool") -> list:
-        """
-        获取线程池中的所有线程
-        300个活跃线程，循环一万次花费1.1933586597442627s
-        :param prefix:
-        :return:
-        """
-        pool_alive_thread = []
-        for t in threading.enumerate():
-            if prefix in t.name:
-                pool_alive_thread.append(t)
-        return pool_alive_thread
-
-    @staticmethod
-    def get_pool_all_thread_num(prefix: str = "threadPool") -> int:
-        """获取线程池中所有活跃的线程的数量"""
-        pool_alive_thread = []
-        for t in threading.enumerate():
-            if prefix in t.name:
-                pool_alive_thread.append(t)
-        return len(pool_alive_thread)
-
     def callback(self, ret: Future[Any]) -> None:
         """
         线程池任务完成后的回调函数
@@ -226,11 +202,34 @@ class ThreadPool:
             if pool_num != -1 and pool_num in self.pool_alive_num_map:
                 if self.pool_alive_num_map[pool_num] > 0:
                     self.pool_alive_num_map[pool_num] -= 1
-            
+
             # 检查并记录任务执行过程中的异常
             exception = ret.exception()
             if exception is not None:
                 self.logger.exception(f"线程池任务执行异常: {exception}")
+
+    @staticmethod
+    def get_pool_all_thread(prefix: str = "ThreadPool") -> list:
+        """
+        获取线程池中的所有线程
+        300个活跃线程，循环一万次花费1.1933586597442627s
+        :param prefix:
+        :return:
+        """
+        pool_alive_thread = []
+        for t in threading.enumerate():
+            if prefix in t.name:
+                pool_alive_thread.append(t)
+        return pool_alive_thread
+
+    @staticmethod
+    def get_pool_all_thread_num(prefix: str = "ThreadPool") -> int:
+        """获取线程池中所有活跃的线程的数量"""
+        pool_alive_thread = []
+        for t in threading.enumerate():
+            if prefix in t.name:
+                pool_alive_thread.append(t)
+        return len(pool_alive_thread)
 
     @staticmethod
     def get_pool_num() -> int:
@@ -241,7 +240,7 @@ class ThreadPool:
             int: 线程池编号，如果当前线程不属于任何线程池则返回-1
         """
         thread_name = threading.current_thread().name
-        if 'threadPool' not in thread_name:
+        if 'ThreadPool' not in thread_name:
             return -1
         else:
             return int(thread_name.split('_')[1])
@@ -273,7 +272,7 @@ class ThreadPool:
             # 重建线程池
             self.thread_pool_map = {
                 self.now_pool_num: ThreadPoolExecutor(max_workers=self.max_workers,
-                                                      thread_name_prefix=f"threadPool_{self.now_pool_num}")
+                                                      thread_name_prefix=f"ThreadPool_{self.now_pool_num}")
             }
             
             # 重置计数器
@@ -294,5 +293,44 @@ class ThreadPool:
         self.logger.info(f"总线程数：{len(threading.enumerate())}")
         # 遍历所有线程池，输出每个线程池中的线程数量
         for pool_num in self.thread_pool_map.keys():
-            self.logger.info(f'线程池{pool_num}中线程总数为：{self.get_pool_all_thread_num(f"threadPool_{pool_num}")}')
+            self.logger.info(f'线程池{pool_num}中线程总数为：{self.get_pool_all_thread_num(f"ThreadPool_{pool_num}")}')
 
+
+class ThreadPoolAdapter:
+    """ThreadPool 适配器，让自定义线程池兼容 ThreadPoolExecutor 接口"""
+
+    def __init__(self, max_workers: int, add_max_workers: int | None = None, thread_name_prefix: str = "ThreadPool"):
+        """
+        初始化线程池适配器
+
+        Args:
+            max_workers: 初始最大线程数
+            add_max_workers: 扩展线程池最大线程数，默认为 max_workers
+            thread_name_prefix: 线程名称前缀（暂时不使用，保持兼容性）
+        """
+        if add_max_workers is None:
+            add_max_workers = max_workers
+
+        self._thread_pool = ThreadPool(max_workers=max_workers, add_max_workers=add_max_workers)
+        self._thread_name_prefix = thread_name_prefix
+
+    def submit(self, fn, *args, **kwargs):
+        """提交任务到线程池"""
+        return self._thread_pool.submit(fn, *args, **kwargs)
+
+    def get_thread_pool(self) -> ThreadPool:
+        """获取线程池"""
+        return self._thread_pool
+
+    def shutdown(self):
+        """关闭线程池"""
+        # ThreadPool 的 clean_pool 方法相当于 shutdown(wait=True)
+        self._thread_pool.clean_pool()
+
+    def __enter__(self):
+        """上下文管理器入口"""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """上下文管理器出口"""
+        self.shutdown()
