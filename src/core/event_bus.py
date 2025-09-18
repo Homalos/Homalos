@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 @ProjectName: Homalos
-@FileName   : enhanced_event_bus.py
+@FileName   : event_bus.py
 @Date       : 2025/9/18
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
