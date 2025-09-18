@@ -25,8 +25,8 @@ from src.core.object import SubscribeRequest, TickData
 from src.modules.gateway.market_gateway import MarketGateway
 from src.modules.gateway.trader_gateway import TraderGateway
 from src.utils.get_path import get_path_ins
-from src.utils.log import get_logger
-from src.utils.utility import load_json
+from src.utils.log import get_logger, console
+from src.utils.utility import load_json, create_folder
 
 
 class DataCenter(object):
@@ -51,7 +51,7 @@ class DataCenter(object):
         self.csv_file = None
         self.csv_writer = None
 
-        self._register_event_handlers()  # 注册事件处理器
+        self._register_event_handlers(is_update_ins = self.is_update_instrument_file)  # 注册事件处理器
 
     def md_gateway_login_handler(self, event: Event) -> None:
         """
@@ -106,15 +106,12 @@ class DataCenter(object):
             self.subscribe_all_instruments()
 
     def sub_ins_show_handler(self, event: Event):
-        self.logger.info(f"返回tick事件：{event.payload.get('code')}, {event.payload.get('message')}")
         tick: TickData = event.payload.get("data", None)
-        print(f"收到tick数据：{tick}")
+        console.info(f"收到tick数据：{tick.trading_day}, {tick.instrument_id}, {tick.last_price}")
         tick_data_list = [
             tick.trading_day,
-            tick.exchange_id,
+            tick.exchange_id.value,
             tick.last_price,
-            tick.volume,
-            tick.open_interest,
             tick.pre_settlement_price,
             tick.pre_close_price,
             tick.pre_open_interest,
@@ -154,6 +151,8 @@ class DataCenter(object):
             tick.ask_volume_5,
             tick.average_price,
             tick.action_day,
+            tick.instrument_id,
+            tick.exchange_inst_id,
             tick.banding_upper_price,
             tick.banding_lower_price,
             tick.timestamp
@@ -280,14 +279,27 @@ class DataCenter(object):
         self.sub_ins_list = [ins for ins in list(ins_exchange_dict.keys())]
         self.logger.info(f"订阅所有合约: {self.sub_ins_list}")
 
-        # 初始化生成csv文件
-        for instrument_id in self.sub_ins_list:
-            prefix_tick_path = str(get_path_ins.get_data_dir() / TICK_DIR_NAME)
-            self.csv_file = open(f"{prefix_tick_path}/{self.trading_day}/{instrument_id}.csv", 'a', newline='')
-            self.csv_writer = csv.writer(self.csv_file)
-
         if self.sub_ins_list:
+            prefix_tick_path = str(get_path_ins.get_data_dir() / TICK_DIR_NAME / self.trading_day)
+            # 按交易日创建tick存放的文件夹
+            create_folder(prefix_tick_path)
+
+            # 初始化生成csv文件
+            for instrument_id in self.sub_ins_list:
+                with open(f"{prefix_tick_path}/{instrument_id}.csv", 'a', newline='') as self.csv_file:
+                    self.csv_writer = csv.writer(self.csv_file)
+                    # 写入列名，如果没有列名可以不执行这一行
+                    self.csv_writer.writerow(['TradingDay', 'ExchangeID', 'LastPrice', 'PreSettlementPrice',
+                                     'PreClosePrice', 'PreOpenInterest', 'OpenPrice', 'HighestPrice', 'LowestPrice',
+                                     'Volume', 'Turnover', 'OpenInterest', 'ClosePrice', 'SettlementPrice',
+                                     'UpperLimitPrice', 'LowerLimitPrice', 'PreDelta', 'CurrDelta', 'UpdateTime',
+                                     'UpdateMillisec', 'BidPrice1', 'BidVolume1', 'AskPrice1', 'AskVolume1',
+                                     'BidPrice2', 'BidVolume2', 'AskPrice2', 'AskVolume2', 'BidPrice3', 'BidVolume3',
+                                     'AskPrice3', 'AskVolume3', 'BidPrice4', 'BidVolume4', 'AskPrice4', 'AskVolume4',
+                                     'BidPrice5', 'BidVolume5', 'AskPrice5', 'AskVolume5', 'AveragePrice', 'ActionDay',
+                                     'InstrumentID', 'ExchangeInstID', 'BandingUpperPrice', 'BandingLowerPrice', 'Timestamp'])
+
+
             for ins in self.sub_ins_list:
                 self.market_gateway.subscribe(SubscribeRequest(ins))
-                time.sleep(1)
 
