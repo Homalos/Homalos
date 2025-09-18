@@ -7,30 +7,55 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 闹钟系统测试和管理类
-"""
-import datetime
-import time
-import signal
-import atexit
-from threading import Thread, Event
-from typing import Dict, List, Optional, Callable, Any
-from dataclasses import dataclass, field
+@Description: 闹钟系统测试和管理类(调度器 + 执行器架构)
 
+守护线程 self._alarm_thread 的主要职责：时间调度和循环控制
+具体功能：
+1. 时间循环管理 _alarm_loop
+2. 定时触发器：每分钟（或配置的间隔）触发一次闹钟检查
+3. 生命周期管理：控制整个调度器的启动和停止
+4. 单一职责：只负责时间调度，不执行具体业务逻辑
+5. 长期运行的后台服务
+
+线程池 self.thread_pool 的主要职责：并发任务执行
+具体功能：
+1. 并发执行闹钟检查，例如：self.thread_pool.submit(self._check_alarms)
+2. 并发执行策略回调，例如 on_alarm 回调
+3. 并发执行系统事件，例如：登录事件
+线程池场景
+策略回调执行（可能耗时）
+登录/连接操作（可能阻塞）
+多合约并发处理
+系统事件处理
+
+设计优势 - 职责分离
+守护线程：专注时间管理，保证调度精度，确保不错过任何时间点
+线程池：专注任务执行，提供并发能力，高效的任务执行器
+
+时间线程 (守护线程)           线程池 (工作线程)
+     |                           |
+     ├─ 每分钟检查时间              |
+     ├─ 计算睡眠时间               |
+     ├─ 提交检查任务 ────────────→ ├─ 接收任务
+     ├─ 等待下次检查               ├─ 检查自定义闹钟
+     ├─ 循环继续...               ├─ 检查系统事件
+     |                          ├─ 执行策略回调
+     |                          ├─ 处理登录事件
+     |                          └─ 任务完成，线程回收
+"""
+import atexit
+import datetime
+import signal
+import time
+from threading import Thread, Event
+from typing import Dict, Optional, Callable, Any
+
+from src.core.object import TradingSchedule
 from src.strategy.base_strategy import BaseStrategy
 from src.strategy.strategy_demo import StrategyDemo
 from src.utils.alarm import Alarm
 from src.utils.log.logger import get_logger
 from src.utils.thread_pool import ThreadPool
-
-
-@dataclass
-class TradingSchedule:
-    """交易时间配置"""
-    login_times: List[str] = field(default_factory=lambda: ["08:45", "20:45", "22:16"])
-    pre_open_times: List[str] = field(default_factory=lambda: ["08:50", "20:50", "22:17"])
-    close_times: List[str] = field(default_factory=lambda: ["22:18"])
-    check_interval: int = 60  # 检查间隔（秒）
 
 
 class AlarmScheduler:
@@ -339,7 +364,7 @@ class AlarmScheduler:
             )
         
         # 收盘后事件
-        if current_time in self.trading_schedule.close_times:
+        if current_time in self.trading_schedule.after_close_times:
             self.logger.info(f"触发收盘后事件: {current_time}")
             self.thread_pool.submit(
                 self._safe_execute_callback,
@@ -375,7 +400,6 @@ class AlarmScheduler:
     def _safe_execute_callback(self, callback: Callable, description: str) -> None:
         """
         安全执行回调函数
-        
         :param callback: 要执行的回调函数
         :param description: 回调描述
         """
@@ -385,9 +409,9 @@ class AlarmScheduler:
         except Exception as e:
             self.logger.exception(f"{description} 执行失败: {e}")
 
-    def _signal_handler(self, signum, frame) -> None:
+    def _signal_handler(self, signum, _frame) -> None:
         """信号处理器"""
-        self.logger.info(f"收到信号 {signum}，正在关闭...")
+        self.logger.debug(f"收到信号 {signum}，正在关闭...")
         self.stop()
 
 
@@ -413,7 +437,7 @@ if __name__ == '__main__':
     custom_schedule = TradingSchedule(
         login_times=["08:45", "20:45", t_login],  # 登录时间
         pre_open_times=["08:50", "20:50", t_pre_open],  # 开盘前事件时间
-        close_times=["21:59", t_close],  # 收盘后事件时间
+        after_close_times=["21:59", t_close],  # 收盘后事件时间
         check_interval=60
     )
     
