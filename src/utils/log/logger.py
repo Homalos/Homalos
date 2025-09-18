@@ -25,6 +25,7 @@
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import yaml
 from loguru import logger
@@ -32,7 +33,7 @@ from loguru import logger
 from src.constants import CONFIG_DIR_NAME, LOG_CONFIG_FILENAME
 from src.core.trace_context import get_trace_id
 
-__all__ = ["logger", "get_logger"]
+__all__ = ["logger", "get_logger", "get_console_logger"]
 
 # 从当前文件往上获取项目根目录
 current_file = Path(__file__).resolve()
@@ -98,14 +99,14 @@ if is_debug:
     console_format = ("<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
                       "<level>{level: <8}</level> | "
                       "<magenta>[{extra[context]}]</magenta> "
-                      "<yellow>[{extra[trace_id]}]</yellow> "
+                      "<yellow>{extra[trace_id]}</yellow> "
                       "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> "
                       "- <level>{message}</level>")
 else:
     console_format = ("<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
                       "<level>{level: <8}</level> | "
                       "<magenta>[{extra[context]}]</magenta> "
-                      "<yellow>[{extra[trace_id]}]</yellow> "
+                      "<yellow>{extra[trace_id]}</yellow> "
                       "<cyan>{name}</cyan>:<cyan>{function}</cyan> "
                       "- <level>{message}</level>")
 
@@ -133,7 +134,7 @@ logger.add(
     diagnose=diagnose,
     filter=TraceIdFilter(),
     format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | "
-           "[{extra[context]}][{extra[trace_id]}] {name}:{function}:{line} - {message}"
+           "[{extra[context]}] {extra[trace_id]} {name}:{function}:{line} - {message}"
 )
 
 # 错误日志单独保存
@@ -148,16 +149,94 @@ logger.add(
     diagnose=diagnose,
     filter=TraceIdFilter(),
     format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | "
-           "[{extra[context]}][{extra[trace_id]}] {name}:{function}:{line} - {message}"
+           "[{extra[context]}] {extra[trace_id]} {name}:{function}:{line} - {message}"
+)
+
+
+# ===================== 控制台专用日志过滤器 =====================
+# 存储控制台专用的上下文
+_console_only_contexts: set[str] = set()
+
+
+class FileLogFilter:
+    """文件日志过滤器：排除控制台专用的日志"""
+    
+    def __call__(self, record):
+        # 注入 trace_id
+        record["extra"]["trace_id"] = get_trace_id() or "-"
+        
+        # 检查是否为控制台专用上下文
+        context = record["extra"].get("context", "")
+        is_console_only = any(ctx in context for ctx in _console_only_contexts)
+        
+        # 如果是控制台专用上下文，则不写入文件
+        return not is_console_only
+
+
+# 重新配置日志器，添加文件过滤器
+logger.remove()
+
+# 控制台输出（所有日志）
+logger.add(
+    sys.stdout,
+    level=level,
+    colorize=colorize,
+    format=console_format,
+    backtrace=backtrace,
+    diagnose=diagnose,
+    enqueue=enqueue,
+    filter=TraceIdFilter()
+)
+
+# 文件输出（排除控制台专用日志）
+logger.add(
+    os.path.join(log_dir_path, log_filename),
+    level=level,
+    rotation=rotation,
+    retention=retention,
+    encoding="utf-8",
+    enqueue=enqueue,
+    backtrace=backtrace,
+    diagnose=diagnose,
+    filter=FileLogFilter(),
+    format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | "
+           "[{extra[context]}] {extra[trace_id]} {name}:{function}:{line} - {message}"
+)
+
+# 错误日志单独保存（排除控制台专用日志）
+logger.add(
+    os.path.join(log_dir_path, log_error_filename),
+    level="ERROR",
+    rotation=rotation,
+    retention=retention,
+    encoding="utf-8",
+    enqueue=enqueue,
+    backtrace=backtrace,
+    diagnose=diagnose,
+    filter=FileLogFilter(),
+    format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | "
+           "[{extra[context]}] {extra[trace_id]} {name}:{function}:{line} - {message}"
 )
 
 
 # ===================== 对外 API =====================
-def get_logger(context: str = "Homalos") -> logger:
+def get_logger(context: str = "Homalos") -> Any:
     """
     根据模块上下文获取 logger
     trace_id 会自动从全局上下文获取（无需手动传）
     :param context: 模块上下文，默认"Homalos"
     :return: logger
     """
+    return logger.bind(context=context)
+
+
+def get_console_logger(context: str = "Console") -> Any:
+    """
+    获取只输出到控制台的 logger（不写入文件）
+    trace_id 会自动从全局上下文获取（无需手动传）
+    :param context: 模块上下文，默认"Console"
+    :return: 只输出到控制台的logger
+    """
+    # 将上下文添加到控制台专用集合
+    _console_only_contexts.add(context)
     return logger.bind(context=context)
