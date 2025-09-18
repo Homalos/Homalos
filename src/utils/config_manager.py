@@ -7,7 +7,8 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 支持多实例的配置管理模块
+@Description: 支持多实例的配置管理工具类。
+
 1. 启动程序 → 自动加载配置文件，例如 config.yaml。
 2. 修改配置文件（比如改交易标的、风控参数）→ 自动触发 reload()。
 3. EventBus 发布 CONFIG_UPDATED → 各个模块收到更新事件。
