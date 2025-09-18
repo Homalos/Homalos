@@ -34,7 +34,7 @@ from src.utils.log.logger import get_logger
 
 class EventBus(object):
     """
-    多队列事件总线 (支持同步/异步统一接口，兼容原 EventBus)
+    多队列事件总线 (支持同步/异步统一接口)
     - 将事件按类别分发到不同队列，避免高频事件堵塞低频关键事件
     - 同步/异步统一接口：publish(event, async_mode=True/False)
     - 队列划分：market（行情高频）、general（普通事件）
@@ -49,24 +49,20 @@ class EventBus(object):
                  ) -> None:
 
         self.logger = get_logger(context=context)
-        # 上下文(可传入服务名/模块名作为上下文)
-        self._context: str = context
+        self._context: str = context    # 上下文(可传入服务名/模块名作为上下文)
         self._max_workers = max_workers
         self._default_queue_size = default_queue_size
 
-        # 存储事件类型与订阅者的映射
-        # {event_type: [(subscriber, async_mode), ...]}
+        # 存储事件类型与订阅者的映射：{event_type: [(subscriber, async_mode), ...]}
         self._subscribers: dict[str, list] = defaultdict(list)
 
         # 线程池（按类别区分）
-        # self._executors: dict[str, ThreadPoolExecutor] = {}
         self._executors: dict[str, ThreadPoolExecutor] = {
             "general": ThreadPoolExecutor(max_workers=500, thread_name_prefix="general"),
             "market": ThreadPoolExecutor(max_workers=1000, thread_name_prefix="market"),
         }
 
         # 用于同步事件的队列，不同类别事件对应不同队列
-        # self._queues: dict[str, Queue] = {}
         self._queues: dict[str, queue.Queue] = {
             "general": queue.Queue(maxsize=default_queue_size),  # 普通队列
             "market": queue.Queue(maxsize=default_queue_size),  # 行情队列，高频
@@ -141,7 +137,7 @@ class EventBus(object):
                 # 非主线程调用时 signal.signal 会报错，忽略即可
                 pass
 
-        self.logger.info(f"{self._context} 已启动 (多队列模式)")
+        self.logger.info(f"{self._context} 已启动")
 
     def stop(self):
         """停止事件总线，优雅关闭所有任务和线程"""
