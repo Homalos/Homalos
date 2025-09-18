@@ -615,18 +615,16 @@ class CtpTdApi(TdApi):
             product: Product = PRODUCT_CTP_TO_ENUM.get(data.get("ProductClass"), None)
             if product:
                 contract = build_contract_data(data, product)
-
                 # TODO: 后期考虑是否推送合约信息到事件总线
                 # self.gateway.on_contract(contract)
                 product: Product = contract.product
                 if product == Product.FUTURES:
-                    self.logger.info(f"合约数据: {contract}")
                     instrument_id: str = contract.instrument_id
                     symbol_contract_map[instrument_id] = contract
                     # 缓存合约和交易所的映射关系
                     self.instrument_exchange_map[instrument_id] = data.get("ExchangeID", "")
                 else:
-                    self.logger.info(f"跳过非期货合约...")
+                    self.logger.debug(f"跳过非期货产品类型: {product.value}")
 
             if last:
                 self.contract_inited = True
