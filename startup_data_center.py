@@ -91,7 +91,7 @@ class StartupDataCenter:
 
         # 验证K线配置
         if not bar_generation or not bar_generation_list:
-            self.logger.warning("K线间隔未配置，请配置默认间隔: [1m, 5m, 15m, 30m, 1h, 1d]")
+            self.logger.warning("K线间隔未配置，请配置默认间隔: [1m, 5m, 15m, 30m, 60m, 1d]")
         self.logger.debug("配置验证完成")
 
         # 转换为分钟间隔
