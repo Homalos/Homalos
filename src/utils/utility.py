@@ -14,6 +14,7 @@ import json
 import os
 import re
 import time
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -25,6 +26,30 @@ from src.utils.log import get_logger
 
 _logger = get_logger(__name__)
 
+
+def create_folder(folder_path: str):
+    """
+    创建指定路径的文件夹
+
+    参数:
+        folder_path (str): 要创建的文件夹路径
+
+    返回:
+        str: 操作结果消息
+    """
+    try:
+        # 使用Path对象处理路径
+        path = Path(folder_path)
+
+        # 检查路径是否已存在
+        if path.exists():
+            _logger.warning(f"文件夹已存在: {path.absolute()}")
+        else:
+            # 创建文件夹（包括所有必要的父目录）
+            path.mkdir(parents=True, exist_ok=True)
+
+    except Exception as e:
+        _logger.exception(f"创建文件夹时出错: {str(e)}")
 
 def delete_file(file_path) -> bool:
     """
