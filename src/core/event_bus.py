@@ -2,16 +2,18 @@
 # -*- coding: utf-8 -*-
 """
 @ProjectName: Homalos
-@FileName   : multi_queue_event_bus.py
-@Date       : 2025/9/16 09:34
+@FileName   : enhanced_event_bus.py
+@Date       : 2025/9/18
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 多队列事件总线 (支持同步/异步统一接口，兼容原 EventBus)
-事件类型分类：通过 event.event_type == "market" 判断是否走 market 队列，否则走 general 队列。
-资源回收彻底：stop() 时确保 _threads、_executors、_async_task 清理干净。
-线程池异常兼容：调度时若线程池关闭则直接执行，不丢事件。
-# 定义事件类别映射（可扩展）
+@Description: 事件总线 (多队列支持同步/异步)
+特性：
+1. 使用自定义线程池，支持线程池动态扩展
+2. 高频行情事件分类：通过 event.event_type.startswith("market") 判断是否走 market 队列，否则走 general 队列。
+3. 资源回收彻底：stop() 时确保 _threads、_executors、_async_task 清理干净。
+4. 线程池异常兼容：调度时若线程池关闭则直接执行，不丢事件。
+5. 定义事件类别映射（可扩展）
 self._event_category_map = {
     "market": "market",     # 高频行情事件
     # "order": "order",     # 未来可以单独扩展
@@ -24,42 +26,50 @@ import queue
 import signal
 import threading
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
 from queue import Empty, Full
 
 from src.core import trace_context
 from src.core.event import Event, EventType
 from src.utils.log.logger import get_logger
+from src.utils.thread_pool import ThreadPoolAdapter
 
 
-class EventBus(object):
+class EventBus:
     """
     多队列事件总线 (支持同步/异步统一接口)
     - 将事件按类别分发到不同队列，避免高频事件堵塞低频关键事件
     - 同步/异步统一接口：publish(event, async_mode=True/False)
     - 队列划分：market（行情高频）、general（普通事件）
     """
-
     def __init__(self,
                  context: str = "EventBus",
-                 max_workers: int = 1000,
-                 register_signals: bool = True,
-                 auto_start: bool = True,
-                 default_queue_size: int = 10000,
+                 general_max_workers: int = 500,        # 普通队列最大线程数
+                 general_add_max_workers: int = 250,    # 普通队列动态扩展最大线程数
+                 market_max_workers: int = 1000,        # 行情高频队列最大线程数
+                 market_add_max_workers: int = 500,     # 行情高频队列动态扩展最大线程数
+                 register_signals: bool = True,         # 是否注册信号处理
+                 auto_start: bool = True,               # 是否自动启动
+                 default_queue_size: int = 10000,       # 队列最大长度
                  ) -> None:
 
         self.logger = get_logger(context=context)
-        self._context: str = context    # 上下文(可传入服务名/模块名作为上下文)
-        self._max_workers = max_workers
+        self._context: str = context        # 上下文(可传入服务名/模块名作为上下文)
         self._default_queue_size = default_queue_size
-
         # 存储事件类型与订阅者的映射：{event_type: [(subscriber, async_mode), ...]}
         self._subscribers: dict[str, list] = defaultdict(list)
 
-        # 线程池（按类别区分）
-        self._executors: dict[str, ThreadPoolExecutor] = {
-            "general": ThreadPoolExecutor(max_workers=500, thread_name_prefix="general"),
-            "market": ThreadPoolExecutor(max_workers=1000, thread_name_prefix="market"),
+        # 使用自定义线程池适配器（按类别区分）
+        self._executors: dict[str, ThreadPoolAdapter] = {
+            "general": ThreadPoolAdapter(
+                max_workers=general_max_workers,
+                add_max_workers=general_add_max_workers,
+                thread_name_prefix="general"
+            ),
+            "market": ThreadPoolAdapter(
+                max_workers=market_max_workers,
+                add_max_workers=market_add_max_workers,
+                thread_name_prefix="market"
+            ),
         }
 
         # 用于同步事件的队列，不同类别事件对应不同队列
@@ -174,10 +184,10 @@ class EventBus(object):
                         except Exception as e:
                             self.logger.warning(f"等待线程退出失败: {e}")
 
-                # 关闭线程池
+                # 关闭线程池（使用适配器的 shutdown 方法）
                 for executor in self._executors.values():
                     try:
-                        executor.shutdown(wait=True)
+                        executor.shutdown()
                     except Exception as e:
                         self.logger.warning(f"关闭线程池失败: {e}")
 
@@ -226,6 +236,22 @@ class EventBus(object):
         """获取已注册的事件类型"""
         with self._lock:
             return list(self._subscribers.keys())
+
+    def get_thread_pool_stats(self) -> dict:
+        """获取线程池统计信息"""
+        stats = {}
+        for name, executor in self._executors.items():
+            thread_pool = executor.get_thread_pool()
+            stats[name] = {
+                'total_pools': len(thread_pool.thread_pool_map),
+                'current_pool_num': thread_pool.now_pool_num,
+                'next_pool_num': thread_pool.next_pool_num,
+                'alive_threads': dict(thread_pool.pool_alive_num_map),
+                'prepare_flag': thread_pool.prepare_flag,
+                'max_workers': thread_pool.max_workers,
+                'add_max_workers': thread_pool.add_max_workers,
+            }
+        return stats
 
     # ===================== 订阅 / 发布 =====================
     def subscribe(self, event_type: str, subscriber, async_mode=False) -> None:
