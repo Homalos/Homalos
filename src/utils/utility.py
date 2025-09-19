@@ -27,6 +27,10 @@ from src.utils.log import get_logger
 _logger = get_logger(__name__)
 
 
+def sleep(seconds: float):
+    """睡眠指定秒"""
+    time.sleep(seconds)
+
 def create_folder(folder_path: str):
     """
     创建指定路径的文件夹

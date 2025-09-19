@@ -122,10 +122,9 @@ class Exchange(Enum):
     DCE = "DCE"             # 大连商品交易所 Dalian Commodity Exchange
     INE = "INE"             # 上海国际能源交易中心 Shanghai International Energy Exchange
     GFEX = "GFEX"           # 广州期货交易所 Guangzhou Futures Exchange
-    SSE = "SSE"             # 上海证券交易所 Shanghai Stock Exchange
-    SZSE = "SZSE"           # 深圳证券交易所 Shenzhen Stock Exchange
-    BSE = "BSE"             # 北京证券交易所 Beijing Stock Exchange
-    CFETS = "CFETS"         # CFETS债券做市商交易系统 CFETS Bond Market Maker Trading System
+    # SSE = "SSE"             # 上海证券交易所 Shanghai Stock Exchange
+    # SZSE = "SZSE"           # 深圳证券交易所 Shenzhen Stock Exchange
+    # BSE = "BSE"             # 北京证券交易所 Beijing Stock Exchange
 
 
 class Currency(Enum):

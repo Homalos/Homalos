@@ -34,6 +34,8 @@ SYSTEM_PROD_CONFIG_FILENAME = "extra.prod.yaml"
 
 BROKERS_FILENAME = "brokers.yaml"  # 多源服务器节点配置文件名
 
+DATA_CENTER_CONFIG_FILENAME = "data_center.yaml"
+
 LOG_CONFIG_FILENAME = "log_config.yaml"  # 全局日志配置文件名
 
 INSTRUMENT_EXCHANGE_FILENAME = "instrument_exchange.json"  # 期货合约与交易所映射信息文件名
