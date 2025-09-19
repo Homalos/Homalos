@@ -9,7 +9,7 @@
 @Software   : PyCharm
 @Description: 闹钟系统测试和管理类(调度器 + 执行器架构)
 
-守护线程 self._alarm_thread 的主要职责：时间调度和循环控制
+守护线程的主要职责：时间调度和循环控制
 具体功能：
 1. 时间循环管理 _alarm_loop
 2. 定时触发器：每分钟（或配置的间隔）触发一次闹钟检查
@@ -17,7 +17,7 @@
 4. 单一职责：只负责时间调度，不执行具体业务逻辑
 5. 长期运行的后台服务
 
-线程池 self.thread_pool 的主要职责：并发任务执行
+线程池的主要职责：并发任务执行
 具体功能：
 1. 并发执行闹钟检查，例如：self.thread_pool.submit(self._check_alarms)
 2. 并发执行策略回调，例如 on_alarm 回调
@@ -56,12 +56,13 @@ from src.strategy.strategy_demo import StrategyDemo
 from src.utils.alarm import Alarm
 from src.utils.log.logger import get_logger
 from src.utils.thread_pool import ThreadPool
+from src.utils.utility import sleep
 
 
 class AlarmScheduler:
     """
     闹钟调度器
-    
+
     主要改进：
     1. 修复线程管理问题
     2. 添加优雅关闭机制
@@ -75,40 +76,39 @@ class AlarmScheduler:
     scheduler = AlarmScheduler()
     scheduler.start()
     """
-    
+
     def __init__(self, trading_schedule: Optional[TradingSchedule] = None):
         """
         初始化闹钟调度器
-        
+
         :param trading_schedule: 交易时间配置，如果为None则使用默认配置
         """
-        # 日志和监控 - 首先初始化logger
         self.logger = get_logger(self.__class__.__name__)
         self._start_time = datetime.datetime.now()
         self._execution_count = 0
-        
+
         self.strategy_map: dict[str, BaseStrategy] = {}
-        self.alarm = Alarm()  # 使用单例模式的闹钟实例
+        self.alarm = Alarm()    # 使用单例模式的闹钟实例
         self.thread_pool = ThreadPool(35)
         self.trading_schedule = trading_schedule or TradingSchedule()
-        
+
         # 线程控制
         self._stop_event = Event()
         self._alarm_thread: Optional[Thread] = None
         self._is_running = False
-        
+
         # 防重复执行机制
         self._last_execution_time: Optional[str] = None
         self._execution_lock = Event()
-        
-        # 初始化测试策略 - 在logger初始化后
+
+        # 初始化测试策略
         self._initialize_strategies()
-        
+
         # 注册关闭处理器
         atexit.register(self.stop)
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
-        
+
         self.logger.info("闹钟调度器初始化完成")
 
     def _initialize_strategies(self) -> None:
@@ -116,7 +116,7 @@ class AlarmScheduler:
         try:
             # 创建策略实例
             strategy_demo = StrategyDemo()
-            
+
             # 为每个订阅的合约创建具体策略实例
             for instrument_id in strategy_demo.sub_ins_id:
                 specific_strategy = strategy_demo.Specific(
@@ -125,19 +125,17 @@ class AlarmScheduler:
                     sub_kline_type=strategy_demo.sub_kline_type
                 )
                 strategy_demo.specific_strategy_map[instrument_id] = specific_strategy
-            
+
             # 添加到策略映射中
             self.strategy_map[strategy_demo.strategy_id] = strategy_demo
-            
             self.logger.info(f"成功初始化测试策略: {strategy_demo.strategy_id}, 合约: {strategy_demo.sub_ins_id}")
-            
         except Exception as e:
             self.logger.exception(f"初始化测试策略失败: {e}")
 
     def add_strategy(self, strategy_id: str, strategy: BaseStrategy) -> None:
         """
         添加策略到调度器
-        
+
         :param strategy_id: 策略ID
         :param strategy: 策略实例
         """
@@ -147,7 +145,7 @@ class AlarmScheduler:
     def remove_strategy(self, strategy_id: str) -> bool:
         """
         移除策略
-        
+
         :param strategy_id: 策略ID
         :return: 移除成功返回True
         """
@@ -160,17 +158,17 @@ class AlarmScheduler:
     def start(self) -> bool:
         """
         启动闹钟调度器
-        
+
         :return: 启动成功返回True
         """
         if self._is_running:
             self.logger.warning("闹钟调度器已在运行中")
             return False
-            
+
         try:
             self._stop_event.clear()
             self._is_running = True
-            
+
             # 创建并启动守护线程
             self._alarm_thread = Thread(
                 target=self._alarm_loop,
@@ -178,10 +176,10 @@ class AlarmScheduler:
                 daemon=True
             )
             self._alarm_thread.start()
-            
+
             self.logger.info("闹钟调度器启动成功")
             return True
-            
+
         except Exception as e:
             self._is_running = False
             self.logger.exception(f"启动闹钟调度器失败: {e}")
@@ -190,30 +188,30 @@ class AlarmScheduler:
     def stop(self, timeout: float = 10.0) -> None:
         """
         停止闹钟调度器
-        
+
         :param timeout: 等待超时时间（秒）
         """
         if not self._is_running:
             return
-            
+
         self.logger.info("正在停止闹钟调度器...")
-        
+
         # 设置停止标志
         self._stop_event.set()
         self._is_running = False
-        
+
         # 等待线程结束
         if self._alarm_thread and self._alarm_thread.is_alive():
             self._alarm_thread.join(timeout=timeout)
-            
+
             if self._alarm_thread.is_alive():
                 self.logger.warning("闹钟线程未能在指定时间内停止")
             else:
                 self.logger.info("闹钟调度器已停止")
-        
+
         # 关闭线程池
         self.thread_pool.clean_pool()
-        
+
         # 清理资源
         self.alarm.clean()
 
@@ -224,7 +222,7 @@ class AlarmScheduler:
     def get_status(self) -> Dict[str, Any]:
         """
         获取调度器状态信息
-        
+
         :return: 状态信息字典
         """
         uptime = datetime.datetime.now() - self._start_time
@@ -243,29 +241,29 @@ class AlarmScheduler:
         主闹钟循环 - 在独立线程中运行
         """
         self.logger.info("闹钟循环开始运行")
-        
+
         while not self._stop_event.is_set():
             try:
                 current_time = datetime.datetime.now()
-                
+
                 # 计算到下一分钟的睡眠时间
                 if current_time.second == 0:
                     sleep_time = self.trading_schedule.check_interval
                 else:
                     sleep_time = self.trading_schedule.check_interval - current_time.second
-                
+
                 # 提交检查任务到线程池
                 self.thread_pool.submit(self._check_alarms)
-                
+
                 # 等待下一次检查，同时响应停止信号
                 if self._stop_event.wait(timeout=sleep_time):
                     break
-                    
+
             except Exception as e:
                 self.logger.exception(f"闹钟循环异常: {e}")
                 # 异常时短暂等待，避免快速循环
                 self._stop_event.wait(timeout=5)
-        
+
         self.logger.info("闹钟循环结束")
 
     def _check_alarms(self) -> None:
@@ -274,58 +272,58 @@ class AlarmScheduler:
         """
         try:
             current_time_str = datetime.datetime.now().strftime('%H:%M')
-            
+
             # 防止重复执行同一分钟的任务
             if current_time_str == self._last_execution_time:
                 return
-                
+
             # 确保同一时间只有一个检查在执行
             if self._execution_lock.is_set():
                 self.logger.debug(f"跳过重复检查: {current_time_str}")
                 return
-                
+
             self._execution_lock.set()
-            
+
             try:
                 self.logger.debug(f"检查时间: {current_time_str}")
                 self._execution_count += 1
                 self._last_execution_time = current_time_str
-                
+
                 # 检查用户自定义闹钟
                 self._check_custom_alarms(current_time_str)
-                
+
                 # 检查系统预定义时间点
                 self._check_system_events(current_time_str)
-                
+
             finally:
                 self._execution_lock.clear()
-                
+
         except Exception as e:
             self.logger.exception(f"检查闹钟时发生异常: {e}")
 
     def _check_custom_alarms(self, current_time: str) -> None:
         """
         检查用户自定义闹钟
-        
+
         :param current_time: 当前时间字符串
         """
         if self.alarm.time_in_alarm(current_time):
             self.logger.info(f"触发自定义闹钟: {current_time}")
-            
+
             try:
                 strategy_ids = self.alarm.get_strategy_ids(current_time)
-                
+
                 for strategy_id in strategy_ids:
                     if not strategy_id:
                         continue
-                        
+
                     strategy_key = strategy_id
                     if strategy_key not in self.strategy_map:
                         self.logger.warning(f"策略 {strategy_id} 不存在")
                         continue
-                    
+
                     strategy = self.strategy_map[strategy_key]
-                    
+
                     # 执行策略闹钟回调
                     for instrument_id in strategy.sub_ins_id:
                         if instrument_id in strategy.specific_strategy_map:
@@ -335,14 +333,14 @@ class AlarmScheduler:
                                 specific_strategy.on_alarm,
                                 f"策略{strategy_id}-{instrument_id}闹钟回调"
                             )
-                    
+
             except Exception as e:
                 self.logger.exception(f"执行自定义闹钟失败: {e}")
 
     def _check_system_events(self, current_time: str) -> None:
         """
         检查系统预定义事件
-        
+
         :param current_time: 当前时间字符串
         """
         # 登录事件
@@ -353,7 +351,7 @@ class AlarmScheduler:
                 self._handle_login_event,
                 "登录事件"
             )
-        
+
         # 开盘前事件
         if current_time in self.trading_schedule.pre_open_times:
             self.logger.info(f"触发开盘前事件: {current_time}")
@@ -362,7 +360,7 @@ class AlarmScheduler:
                 self._handle_pre_open_event,
                 "开盘前事件"
             )
-        
+
         # 收盘后事件
         if current_time in self.trading_schedule.after_close_times:
             self.logger.info(f"触发收盘后事件: {current_time}")
@@ -375,13 +373,13 @@ class AlarmScheduler:
     def _handle_login_event(self) -> None:
         """处理登录事件"""
         self.logger.info("开始登录账户")
-        time.sleep(3)  # 模拟登录过程
+        sleep(3)  # 模拟登录过程
         self.logger.info("登录交易账户成功")
 
     def _handle_pre_open_event(self) -> None:
         """处理开盘前事件"""
         self.logger.info("执行开盘前事件检测")
-        
+
         if self.strategy_map:
             for strategy in self.strategy_map.values():
                 for instrument_id in strategy.sub_ins_id:
@@ -440,10 +438,10 @@ if __name__ == '__main__':
         after_close_times=["21:59", t_close],  # 收盘后事件时间
         check_interval=60
     )
-    
+
     # 使用新的调度器
     scheduler = AlarmScheduler(custom_schedule)
-    
+
     # 添加一些测试闹钟 - 使用动态时间进行测试
     test_alarm_time = now_time + datetime.timedelta(seconds=30)
     test_alarm_str = test_alarm_time.time().strftime('%H:%M')
@@ -454,18 +452,18 @@ if __name__ == '__main__':
         # 启动调度器
         if scheduler.start():
             scheduler.logger.info("调度器启动成功，按 Ctrl+C 停止")
-            
+
             # 主线程保持运行
             while scheduler.is_running():
                 time.sleep(1)
-                
+
                 # 每30秒打印一次状态
                 if int(time.time()) % 30 == 0:
                     status = scheduler.get_status()
                     scheduler.logger.info(f"调度器状态: {status}")
         else:
             print("调度器启动失败")
-            
+
     except KeyboardInterrupt:
         scheduler.logger.info("收到中断信号")
     finally:
