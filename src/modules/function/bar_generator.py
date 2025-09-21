@@ -120,13 +120,13 @@ class BarGenerator:
                         self.trading_time[product][hour] = []
                         self.trading_time[product][hour].append(time_point)
 
-    def add_sub_kline_id(self, sub_kline_id_list) -> None:
+    def add_sub_kline_id(self, sub_kline_id_list: list[str]) -> None:
         # 增加订阅K线的合约名称
-        self.sub_kline_id = list(set(self.sub_kline_id + sub_kline_id_list))
+        self.sub_kline_id: list[str] = list(set(self.sub_kline_id + sub_kline_id_list))
 
-    def add_sub_kline_type(self, sub_kline_type_list) -> None:
+    def add_sub_kline_type(self, sub_kline_type_list: list[Interval]) -> None:
         # 增加订阅K线的类型
-        self.sub_kline_type = list(set(self.sub_kline_type + sub_kline_type_list))
+        self.sub_kline_type: list[Interval] = list(set(self.sub_kline_type + sub_kline_type_list))
 
     def init_min_kline_map(self) -> None:
         """
