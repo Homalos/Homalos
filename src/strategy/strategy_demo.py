@@ -28,6 +28,8 @@ class StrategyDemo(BaseStrategy):
 
         # 初始化详细策略文件 - 将在外部初始化时填充
         self.specific_strategy_map = {}
+        for ins in self.sub_ins_id:
+            self.specific_strategy_map[ins] = StrategyDemo.Specific(ins, self.strategy_id, self.sub_kline_type)
 
     class Specific(SpecificStrategyApi):
 
