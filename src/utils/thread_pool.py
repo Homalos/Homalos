@@ -251,11 +251,11 @@ class ThreadPool:
         :return:
         """
         with self.submit_lock:
-            self.logger.debug('开始清理线程池')
-            self.logger.debug(f'当前线程池总数：{len(self.thread_pool_map)}')
+            self.logger.info('开始清理线程池')
+            self.logger.info(f'当前线程池总数：{len(self.thread_pool_map)}')
             
             for pool_num in self.pool_alive_num_map.keys():
-                self.logger.debug(f'线程池{pool_num}中活跃线程数：{self.pool_alive_num_map[pool_num]}')
+                self.logger.info(f'线程池{pool_num}中活跃线程数：{self.pool_alive_num_map[pool_num]}')
             
             # 关闭所有线程池
             for pool_num in list(self.thread_pool_map.keys()):
@@ -278,9 +278,9 @@ class ThreadPool:
             # 重置计数器
             self.pool_alive_num_map = {self.now_pool_num: 0}
             
-            self.logger.debug('已重置线程池')
+            self.logger.info('已重置线程池')
             for pool_num in self.pool_alive_num_map.keys():
-                self.logger.debug(f'清理后线程池{pool_num}中活跃线程数：{self.pool_alive_num_map[pool_num]}')
+                self.logger.info(f'清理后线程池{pool_num}中活跃线程数：{self.pool_alive_num_map[pool_num]}')
 
     def show_all_thread(self) -> None:
         """
