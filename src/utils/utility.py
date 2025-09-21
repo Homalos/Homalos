@@ -70,17 +70,17 @@ def delete_file(file_path) -> bool:
             try:
                 os.remove(file_path)
             except PermissionError:
-                _logger.info.exception(f"权限不足，无法删除文件: {file_path}")
+                _logger.exception(f"权限不足，无法删除文件: {file_path}")
                 return False
             except Exception as e:
-                _logger.info.exception(f"删除文件 {file_path} 时出错: {e}")
+                _logger.exception(f"删除文件 {file_path} 时出错: {e}")
                 return False
             return True
         else:
-            _logger.info.warning(f"路径存在但不是文件: {file_path}")
+            _logger.warning(f"路径存在但不是文件: {file_path}")
             return False
     else:
-        _logger.info.warning(f"文件 {file_path} 不存在")
+        _logger.warning(f"文件 {file_path} 不存在")
         return False
 
 
