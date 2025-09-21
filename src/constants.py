@@ -14,6 +14,11 @@ from typing import Optional, Any, TYPE_CHECKING
 if TYPE_CHECKING:
     from src.utils.thread_pool import ThreadPool
 
+
+class Const:
+    # 交易日，全局变量
+    trading_day: str = None
+
 # ================== 项目中目录名称 ==================
 # PROJECT_NAME = "Homalos"  # 项目名称
 #
