@@ -29,12 +29,12 @@ def distribute_tick(tick: TickData):
 
     # tick合成K线
     if tick.instrument_id in tick_to_kline_sys.sub_kline_id:
-        tick_to_kline_sys.tickToKline(tick)
+        tick_to_kline_sys.tick_to_kline(tick)
 
-def save_tick(strategy, tick: TickData):
-    # 上锁
-    instrument_id = tick.instrument_id
-    strategy.specific_strategy_map[instrument_id].market_data_lock.acquire()
-    strategy.specific_strategy_map[instrument_id].market_data = copy.copy(tick)
-
-    thread_pool.submit(strategy.specific_strategy_map[instrument_id].on_tick)
+# def save_tick(strategy, tick: TickData):
+#     # 上锁
+#     instrument_id = tick.instrument_id
+#     strategy.specific_strategy_map[instrument_id].market_data_lock.acquire()
+#     strategy.specific_strategy_map[instrument_id].market_data = copy.copy(tick)
+#
+#     thread_pool.submit(strategy.specific_strategy_map[instrument_id].on_tick)
