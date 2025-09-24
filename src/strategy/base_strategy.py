@@ -33,11 +33,12 @@ class BaseStrategy(object):
 
 class SpecificStrategyApi(ABC):
 
-    def __init__(self, instrument_id: str, strategy_id: str, sub_kline_type: list):
+    def __init__(self, instrument_id: str, strategy_id: str, sub_kline_type: list, prefix_tick_path: str):
 
         self.instrument_id = instrument_id
         self.strategy_id = strategy_id
         self.sub_kline_type = sub_kline_type
+        self.prefix_tick_path = prefix_tick_path
 
         self.kline_lock = None
         self.bar_data = None
