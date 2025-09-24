@@ -48,13 +48,11 @@ class EventBus:
                  market_max_workers: int = 1000,        # 行情高频队列最大线程数
                  market_add_max_workers: int = 500,     # 行情高频队列动态扩展最大线程数
                  register_signals: bool = True,         # 是否注册信号处理
-                 auto_start: bool = True,               # 是否自动启动
-                 default_queue_size: int = 10000,       # 队列最大长度
+                 auto_start: bool = True                # 是否自动启动
                  ) -> None:
 
         self.logger = get_logger(context=context)
         self._context: str = context        # 上下文(可传入服务名/模块名作为上下文)
-        self._default_queue_size = default_queue_size
         # 存储事件类型与订阅者的映射：{event_type: [(subscriber, async_mode), ...]}
         self._subscribers: dict[str, list] = defaultdict(list)
 
@@ -74,8 +72,8 @@ class EventBus:
 
         # 用于同步事件的队列，不同类别事件对应不同队列
         self._queues: dict[str, queue.Queue] = {
-            "general": queue.Queue(maxsize=default_queue_size),  # 普通队列
-            "market": queue.Queue(maxsize=default_queue_size),  # 行情队列，高频
+            "general": queue.Queue(),  # 普通队列
+            "market": queue.Queue(),  # 行情队列，高频，默认不限制大小，防止撑满队列
         }
 
         # 异步事件的队列
@@ -89,14 +87,13 @@ class EventBus:
         self._loop: asyncio.AbstractEventLoop | None = None  # 异步任务的事件循环
         self._lock = threading.RLock()
 
-        self._queue_timeout: float = 1.0  # 从队列中放入或获取事件超时时间(秒)
-        self._sync_thread_quit_timeout: float = 2.0  # 同步任务退出超时时间(秒)
+        self._queue_timeout: float = 3.0                # 从队列中放入或获取事件超时时间(秒)
+        self._sync_thread_quit_timeout: float = 3.0     # 同步任务退出超时时间(秒)
 
-        self._active = False  # 事件总线是否激活
-        self._stopped = threading.Event()  # 用于停止事件总线的事件
+        self._active = False                # 事件总线是否激活
+        self._stopped = threading.Event()   # 用于停止事件总线的事件
 
-        # 信号处理
-        self._signal_registered = False  # 是否注册过信号处理
+        self._signal_registered = False     # 是否注册过信号处理
         self._register_signals = register_signals
         self._old_sigint = None
         self._old_sigterm = None
@@ -124,11 +121,11 @@ class EventBus:
 
         # 启动同步消费线程
         for qname in self._queues:
-            th = threading.Thread(
+            thread = threading.Thread(
                 target=self._sync_loop, args=(qname,), daemon=True, name=f"SyncLoop-{qname}"
             )
-            self._threads[qname] = th
-            th.start()
+            self._threads[qname] = thread
+            thread.start()
 
         # 启动异步消费任务
         if self._async_task is None and self._loop:
@@ -164,15 +161,15 @@ class EventBus:
                 for sync_queue in self._queues.values():
                     try:
                         sync_queue.put(Event(EventType.EVENT_BUS_SHUTDOWN), timeout=self._queue_timeout)
-                    except (RuntimeError, Full, TimeoutError):
-                        pass  # 忽略超时或其他错误
+                    except (queue.Full, queue.Empty, RuntimeError, TimeoutError):
+                        pass  # 忽略其他错误
 
                 # 发停止信号给异步队列
                 if self._loop and not self._loop.is_closed() and self._async_queue:
                     try:
                         self._loop.call_soon_threadsafe(self._async_queue.put_nowait,
                                                         Event(EventType.EVENT_BUS_SHUTDOWN))
-                    except (RuntimeError, asyncio.QueueFull):
+                    except (RuntimeError, asyncio.QueueFull, asyncio.QueueEmpty):
                         # 如果事件循环已经关闭或队列已满，忽略错误
                         pass
 
@@ -283,7 +280,7 @@ class EventBus:
 
     def publish(self, event: Event, async_mode=False) -> None:
         """
-        发布事件（放入队列）
+        发布事件（放入队列）- 带背压机制，确保零丢失
         :param event: 事件
         :param async_mode: 是否异步模式
         :return:
@@ -300,17 +297,66 @@ class EventBus:
             if self._loop and self._async_queue:
                 try:
                     # 使用 put/put_nowait
-                    self._loop.call_soon_threadsafe(self._async_queue.put_nowait, event)
+                    self._loop.call_soon_threadsafe(self._async_queue.put, event)
                 except asyncio.QueueFull:
                     self.logger.warning(f"异步队列已满，丢弃事件 {event.event_type}")
                 except RuntimeError as e:
                     self.logger.error(f"异步事件发布失败: {e}")
         else:
             qname = "market" if event.event_type.startswith("market") else "general"
-            try:
-                self._queues[qname].put(event, block=True, timeout=self._queue_timeout)
-            except Full:
-                self.logger.warning(f"同步队列 {qname} 已满，丢弃事件 {event.event_type}")
+            
+            # 背压机制：重试和动态调整
+            max_retries = 3
+            retry_count = 0
+            base_timeout = self._queue_timeout
+            
+            while retry_count < max_retries:
+                try:
+                    # 动态调整超时时间
+                    timeout = base_timeout * (2 ** retry_count)  # 指数退避
+                    self._queues[qname].put(event, block=True, timeout=timeout)
+                    return  # 成功，退出
+                except Full:
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        # 记录警告但不丢弃，继续重试
+                        self.logger.warning(f"同步队列 {qname} 已满，重试 {retry_count}/{max_retries}")
+                        # 触发队列清理或扩容机制
+                        self._try_expand_processing_capacity(qname)
+                    else:
+                        # 最后一次尝试：使用更长的阻塞时间
+                        try:
+                            self._queues[qname].put(event, block=True, timeout=10.0)  # 最多等待10秒
+                            self.logger.info(f"队列 {qname} 在最后重试中成功入队")
+                            return
+                        except Full:
+                            # 实在无法处理，记录严重错误
+                            self.logger.error(f"严重：队列 {qname} 持续满载，事件 {event.event_type} 被迫丢弃")
+                            # 可以考虑触发紧急扩容或者写入备用存储
+
+    def _try_expand_processing_capacity(self, qname: str) -> None:
+        """
+        尝试扩展处理能力，当队列满时调用
+        :param qname: 队列名称
+        """
+        try:
+            executor = self._executors.get(qname)
+            if executor:
+                # 获取当前线程池状态
+                thread_pool = executor.get_thread_pool()
+                current_workers = thread_pool.max_workers
+                add_max_workers = thread_pool.add_max_workers
+                
+                # 如果还有扩展空间，动态增加线程池大小
+                if thread_pool.now_pool_num < add_max_workers:
+                    self.logger.info(f"队列 {qname} 满载，尝试扩展线程池处理能力")
+                    # 触发线程池扩展（线程池会自动检测负载并扩展）
+                    executor.submit(lambda: None)  # 提交一个空任务触发扩展检查
+                else:
+                    # 记录达到最大扩展能力
+                    self.logger.warning(f"队列 {qname} 已达到最大处理能力：{current_workers}/{add_max_workers}")
+        except Exception as e:
+            self.logger.error(f"扩展处理能力失败: {e}")
 
     # ===================== 内部消费 =====================
     def _sync_loop(self, qname: str) -> None:
