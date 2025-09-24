@@ -44,7 +44,7 @@ from src.modules.gateway.gateway_helper import (
 )
 from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger
-from src.utils.utility import prepare_address, write_json, load_ini, write_ini, del_num, delete_file
+from src.utils.utility import prepare_address, write_json, load_ini, write_ini, del_num, delete_file, sleep
 
 
 class TraderGateway(BaseGateway):
@@ -134,7 +134,8 @@ class TraderGateway(BaseGateway):
 
     def close(self) -> None:
         """关闭接口"""
-        self.td_api.close()
+        if self.td_api:
+            self.td_api.close()
 
     def logout(self) -> None:
         """
@@ -635,6 +636,7 @@ class CtpTdApi(TdApi):
                 self.logger.info(f"共查询到 {instrument_count} 个合约->交易所映射")
                 # 如果需要更新并且合约数量不为0，则保存
                 if instrument_count != 0:
+                    sleep(0.5)
                     delete_file(self.instrument_exchange_filepath)
                     # 保存合约交易所映射文件
                     try:
@@ -1336,8 +1338,8 @@ class CtpTdApi(TdApi):
         """
         if self.connect_status:
             self.logger.info("关闭连接")
-            self.exit()
             self.connect_status = False
+            self.exit()
 
     def update_date(self) -> None:
         """
