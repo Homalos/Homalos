@@ -31,7 +31,7 @@ def sleep(seconds: float):
     """睡眠指定秒"""
     time.sleep(seconds)
 
-def create_folder(folder_path: str):
+def create_folder(folder_path: str) -> int:
     """
     创建指定路径的文件夹
 
@@ -44,16 +44,16 @@ def create_folder(folder_path: str):
     try:
         # 使用Path对象处理路径
         path = Path(folder_path)
-
         # 检查路径是否已存在
         if path.exists():
-            _logger.warning(f"文件夹已存在: {path.absolute()}")
+            return 1
         else:
             # 创建文件夹（包括所有必要的父目录）
             path.mkdir(parents=True, exist_ok=True)
-
+            return 0
     except Exception as e:
         _logger.exception(f"创建文件夹时出错: {str(e)}")
+        return -1
 
 def delete_file(file_path) -> bool:
     """
