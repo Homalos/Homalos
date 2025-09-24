@@ -293,7 +293,7 @@ class HistoryRequest:
 class TradingSchedule:
     """交易时间配置"""
     login_times: list[str] = field(default_factory=lambda: [""])
-    pre_open_times: list[str] = field(default_factory=lambda: [""])
+    before_open_times: list[str] = field(default_factory=lambda: [""])
     sub_id_times: list[str] = field(default_factory=lambda: [""])
     after_close_times: list[str] = field(default_factory=lambda: [""])
     check_interval: int = 60  # 检查间隔（秒）
