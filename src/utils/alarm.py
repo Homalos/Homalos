@@ -41,10 +41,10 @@ class Alarm:
         # 使用字典存储时间->策略ID集合的映射，提高查询效率
         self._alarms: Dict[str, Set[str]] = defaultdict(set)
         self._data_lock = threading.RLock()  # 使用可重入锁
-        self.logger = get_logger(self.__class__.__name__)
         self._initialized = True
+        self.logger = get_logger(self.__class__.__name__)
         
-        self.logger.info("闹钟系统初始化完成")
+        self.logger.debug("闹钟系统初始化完成")
 
     def get_strategy_ids(self, alarm_time: str) -> List[str]:
         """
