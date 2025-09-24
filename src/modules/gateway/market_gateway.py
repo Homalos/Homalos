@@ -23,7 +23,6 @@ from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.object import SubscribeRequest, ContractData, TickData
 from src.ctp.api import MdApi
-from src.function import distribute_tick
 from src.modules.gateway.gateway_const import REASON_MAPPING, symbol_contract_map, CHINA_TZ
 from src.modules.gateway.gateway_helper import extract_error_msg, build_tick_data
 from src.utils.log import get_logger
@@ -95,7 +94,7 @@ class MarketGateway(BaseGateway):
         关闭接口
         :return:
         """
-        if self.md_api and self.md_api.connect_status == True:
+        if self.md_api:
             self.md_api.close()
 
     def update_date(self) -> None:
@@ -326,10 +325,9 @@ class CtpMdApi(MdApi):
             self.logger.debug(f"市场行情数据接收: {tick.instrument_id} @ {tick.update_time} "
                   f"LastPrice={tick.last_price}")
 
-            # TODO: 此处考虑是否推送行情数据到事件总线还是单独的行情队列
             self.gateway.event_bus.publish(Event(
                 EventType.TICK,
-                APIResponse.success(message="推送市场行情", data=tick)
+                payload=APIResponse.success(message="推送市场行情", data=tick)
             ))
 
     def onRspUserLogout(self, data: dict, error: dict, reqid: int, last: bool):
@@ -614,18 +612,3 @@ class CtpMdApi(MdApi):
             return False
         else:
             return True
-
-    def get_tick(self):
-        while True:
-            try:
-                tick: TickData = self.tick_queue.get()
-
-                # 使用线程池，因为当前程序是单独线程，为了防止堵塞，另起一个线程进行分发
-                thread_pool.submit(distribute_tick, tick)
-
-            except Exception as e:
-                self.logger.exception(f"线程池提交出错！错误：{e}")
-                self.logger.exception(traceback.format_exc())
-
-
-
