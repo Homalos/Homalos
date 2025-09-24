@@ -48,17 +48,9 @@ class ThreadPool:
         # 增加线程池中最大线程池的个数
         self.add_max_workers: int = add_max_workers
 
-        # 初始警戒位置，如果达到警戒位置则寻找一个空闲线程池
-        if max_workers * 0.05 > 1:
-            self.warn_workers_num = int(max_workers * 0.95)
-        else:
-            self.warn_workers_num = max_workers - 1
-
-        # 增加线程池的警戒界位置，如果达到警戒位置则寻找一个空闲线程池
-        if add_max_workers * 0.05 > 1:
-            self.add_warn_workers_num = int(add_max_workers * 0.95)
-        else:
-            self.add_warn_workers_num = add_max_workers - 1
+        # 简化警戒位置设计，使用固定比例80%
+        self.warn_workers_num = int(max_workers * 0.8)
+        self.add_warn_workers_num = int(add_max_workers * 0.8)
 
         self.thread_pool_map: dict[int, ThreadPoolExecutor] = {
             self.now_pool_num: ThreadPoolExecutor(max_workers=max_workers,
@@ -73,7 +65,7 @@ class ThreadPool:
         # 准备信号，是否准备好下一个空闲线程池
         self.prepare_flag: bool = False
 
-        self.logger = get_logger(__class__.__name__)
+        self.logger = get_logger(self.__class__.__name__)
 
     def __enter__(self):
         """上下文管理器入口"""
@@ -85,7 +77,7 @@ class ThreadPool:
 
     def submit(self, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Future[Any]:
         """
-        提交任务到线程池
+        提交任务到线程池 - 简化版
         
         Args:
             fn: 要执行的函数
@@ -96,46 +88,44 @@ class ThreadPool:
             Future对象，可用于获取执行结果
         """
         with self.submit_lock:
-            # 根据当前线程池编号确定警戒线和最大线程数
-            if self.now_pool_num == 1:
-                warn_workers_num = self.warn_workers_num
-                max_workers = self.max_workers
-            else:
-                warn_workers_num = self.add_warn_workers_num
-                max_workers = self.add_max_workers
-            # 如果当前线程池已满，切换到下一个可用线程池
-            if self.pool_alive_num_map[self.now_pool_num] >= max_workers:
-                if self.next_pool_num != -1:
-                    self.now_pool_num = self.next_pool_num
-                    self.prepare_flag = False
-            # 如果当前线程池达到警戒线且未准备下一个线程池，则寻找空闲线程池
-            elif (self.pool_alive_num_map[self.now_pool_num] == warn_workers_num) and (self.prepare_flag is False):
+            current_pool = self.now_pool_num
+            current_active = self.pool_alive_num_map[current_pool]
+            
+            # 确定当前线程池的容量限制
+            max_capacity = self.max_workers if current_pool == 1 else self.add_max_workers
+            warn_threshold = self.warn_workers_num if current_pool == 1 else self.add_warn_workers_num
+            
+            # 线程池满载处理：切换到预备池
+            if current_active >= max_capacity and self.next_pool_num != -1:
+                self.now_pool_num = self.next_pool_num
+                self.prepare_flag = False
+                current_pool = self.now_pool_num
+            
+            # 达到警戒线：准备下一个池
+            elif current_active >= warn_threshold and not self.prepare_flag:
                 self.find_free_pool()
                 self.prepare_flag = True
 
-            # 提交任务到当前线程池并添加回调函数
-            ret = self.thread_pool_map[self.now_pool_num].submit(fn, *args, **kwargs)
-            self.pool_alive_num_map[self.now_pool_num] += 1
-            ret.add_done_callback(self.callback)
-            return ret
+            # 提交任务并更新计数
+            future = self.thread_pool_map[current_pool].submit(fn, *args, **kwargs)
+            self.pool_alive_num_map[current_pool] += 1
+            future.add_done_callback(self.callback)
+            
+            return future
 
     def find_free_pool(self) -> None:
         """
-        寻找一个空闲的线程池，如果没有则创建一个新的线程池
-        :return:
+        寻找空闲线程池或创建新池 - 简化版
         """
-        # 如果只有一个线程池则开启一个线程池，并以新建的线程池为工作线程池
-        if len(self.thread_pool_map) == 1:
-            self.next_pool_num = self.add_pool()
-
+        # 先查找现有空闲池
+        free_pool = self.which_pool_free()
+        
+        if free_pool != -1:
+            # 找到空闲池，直接使用
+            self.next_pool_num = free_pool
         else:
-            # 判断是否所有线程池活跃线程都达到上限，如果是则创建线程线程池，并以新建的线程池为工作线程池
-            # 否则寻找一个空闲的线程池为工作线程池
-            pool_num = self.which_pool_free()
-            if pool_num == -1:
-                self.next_pool_num = self.add_pool()
-            else:
-                self.next_pool_num = pool_num
+            # 无空闲池，创建新池
+            self.next_pool_num = self.add_pool()
 
     def add_pool(self) -> int:
         """
@@ -175,19 +165,13 @@ class ThreadPool:
 
     def is_pool_free(self, pool_num: int) -> bool:
         """
-        判断当前线程池是否有空闲位置
-        如果活跃线程小于60%则为空闲
-        :param pool_num:
-        :return:
+        判断线程池是否空闲 - 简化版
+        使用50%作为空闲标准，更宽松的策略
         """
-        if pool_num == 1:
-            max_workers = self.max_workers
-        else:
-            max_workers = self.add_max_workers
-        if self.pool_alive_num_map[pool_num] < max_workers * 0.6:
-            return True
-        else:
-            return False
+        max_capacity = self.max_workers if pool_num == 1 else self.add_max_workers
+        current_active = self.pool_alive_num_map.get(pool_num, 0)
+        
+        return current_active < (max_capacity * 0.5)
 
     def callback(self, ret: Future[Any]) -> None:
         """
@@ -247,22 +231,21 @@ class ThreadPool:
 
     def clean_pool(self) -> None:
         """
-        清理所有线程池并重置为初始状态
+        清理所有线程池并重置为初始状态 - 简化版
         :return:
         """
         with self.submit_lock:
-            self.logger.info('开始清理线程池')
-            self.logger.info(f'当前线程池总数：{len(self.thread_pool_map)}')
+            pool_count = len(self.thread_pool_map)
+            total_active = sum(self.pool_alive_num_map.values())
             
-            for pool_num in self.pool_alive_num_map.keys():
-                self.logger.info(f'线程池{pool_num}中活跃线程数：{self.pool_alive_num_map[pool_num]}')
+            self.logger.info(f'清理线程池: {pool_count}个池, {total_active}个活跃任务')
             
             # 关闭所有线程池
             for pool_num in list(self.thread_pool_map.keys()):
                 try:
                     self.thread_pool_map[pool_num].shutdown(wait=True)
                 except Exception as e:
-                    self.logger.exception(f'关闭线程池{pool_num}时出错: {e}')
+                    self.logger.error(f'关闭线程池{pool_num}失败: {e}')
             
             # 重置状态
             self.now_pool_num = 1
@@ -278,22 +261,37 @@ class ThreadPool:
             # 重置计数器
             self.pool_alive_num_map = {self.now_pool_num: 0}
             
-            self.logger.info('已重置线程池')
-            for pool_num in self.pool_alive_num_map.keys():
-                self.logger.info(f'清理后线程池{pool_num}中活跃线程数：{self.pool_alive_num_map[pool_num]}')
+            self.logger.info('线程池重置完成')
 
     def show_all_thread(self) -> None:
         """
-        显示所有线程池中的线程信息
-
-        Returns:
-            None
+        显示所有线程池中的线程信息 - 简化版
         """
-        # 输出系统中所有线程的数量
-        self.logger.info(f"总线程数：{len(threading.enumerate())}")
-        # 遍历所有线程池，输出每个线程池中的线程数量
+        total_threads = len(threading.enumerate())
+        pool_summary = []
+        
         for pool_num in self.thread_pool_map.keys():
-            self.logger.info(f'线程池{pool_num}中线程总数为：{self.get_pool_all_thread_num(f"ThreadPool_{pool_num}")}')
+            active_threads = self.get_pool_all_thread_num(f"ThreadPool_{pool_num}")
+            pool_summary.append(f"池{pool_num}:{active_threads}线程")
+        
+        self.logger.info(f"线程状态 - 系统总计:{total_threads}, 池分布:[{', '.join(pool_summary)}]")
+
+    def get_simple_status(self) -> dict:
+        """
+        获取简化的线程池状态信息
+        """
+        total_pools = len(self.thread_pool_map)
+        total_active = sum(self.pool_alive_num_map.values())
+        current_pool_active = self.pool_alive_num_map.get(self.now_pool_num, 0)
+        
+        return {
+            'pool_count': total_pools,
+            'total_active_tasks': total_active,
+            'current_pool': self.now_pool_num,
+            'current_pool_load': current_pool_active,
+            'next_pool_ready': self.next_pool_num != -1,
+            'status': '运行中' if total_active > 0 else '空闲'
+        }
 
 
 class ThreadPoolAdapter:
@@ -321,6 +319,10 @@ class ThreadPoolAdapter:
     def get_thread_pool(self) -> ThreadPool:
         """获取线程池"""
         return self._thread_pool
+
+    def get_simple_status(self) -> dict:
+        """获取简化状态信息"""
+        return self._thread_pool.get_simple_status()
 
     def shutdown(self):
         """关闭线程池"""
