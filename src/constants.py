@@ -15,7 +15,7 @@ from typing import Optional, Any, TYPE_CHECKING
 
 class Const:
     # 交易日，全局变量
-    trading_day: str = None
+    trading_day: str = ""
 
 # ================== 项目中目录名称 ==================
 # PROJECT_NAME = "Homalos"  # 项目名称
