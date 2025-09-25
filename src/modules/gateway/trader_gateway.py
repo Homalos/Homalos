@@ -653,15 +653,15 @@ class CtpTdApi(TdApi):
                     self.onRtnTrade(data)
                 self.trade_data.clear()
 
-                # 设置网关状态为就绪
+                # 设置查询合约状态
                 if self.gateway.event_bus:
                     payload = {
                         "code": 0,
-                        "message": "交易网关就绪",
+                        "message": "查询合约完成",
                         "data": None
                     }
-                    self.gateway.event_bus.publish(Event(EventType.TD_GATEWAY_READY, payload=payload))
-                    self.logger.info("已发布 TD_GATEWAY_READY 事件")
+                    self.gateway.event_bus.publish(Event(EventType.TD_QRY_INS, payload=payload))
+                    self.logger.info("已发布 TD_QRY_INS 事件")
 
     def onRspQryProduct(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """
