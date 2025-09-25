@@ -26,12 +26,12 @@ import queue
 import signal
 import threading
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from queue import Empty, Full
 
 from src.core import trace_context
 from src.core.event import Event, EventType
 from src.utils.log.logger import get_logger
-from src.utils.thread_pool import ThreadPoolAdapter
 
 
 class EventBus:
@@ -56,16 +56,14 @@ class EventBus:
         # 存储事件类型与订阅者的映射：{event_type: [(subscriber, async_mode), ...]}
         self._subscribers: dict[str, list] = defaultdict(list)
 
-        # 使用自定义线程池适配器（按类别区分）
-        self._executors: dict[str, ThreadPoolAdapter] = {
-            "general": ThreadPoolAdapter(
+        # 使用标准ThreadPoolExecutor避免自定义线程池的竞态问题
+        self._executors: dict[str, ThreadPoolExecutor] = {
+            "general": ThreadPoolExecutor(
                 max_workers=general_max_workers,
-                add_max_workers=general_add_max_workers,
                 thread_name_prefix="general"
             ),
-            "market": ThreadPoolAdapter(
+            "market": ThreadPoolExecutor(
                 max_workers=market_max_workers,
-                add_max_workers=market_add_max_workers,
                 thread_name_prefix="market"
             ),
         }
@@ -126,6 +124,7 @@ class EventBus:
             )
             self._threads[qname] = thread
             thread.start()
+            self.logger.info(f"已启动 {qname} 同步消费线程")
 
         # 启动异步消费任务
         if self._async_task is None and self._loop:
@@ -181,12 +180,13 @@ class EventBus:
                         except Exception as e:
                             self.logger.warning(f"等待线程退出失败: {e}")
 
-                # 关闭线程池（使用适配器的 shutdown 方法）
-                for executor in self._executors.values():
+                # 关闭线程池
+                for name, executor in self._executors.items():
                     try:
-                        executor.shutdown()
+                        executor.shutdown(wait=True)
+                        self.logger.info(f"线程池 {name} 已关闭")
                     except Exception as e:
-                        self.logger.warning(f"关闭线程池失败: {e}")
+                        self.logger.warning(f"关闭线程池 {name} 失败: {e}")
 
                 # 取消异步任务（等待完成，避免 pending 警告）
                 if self._async_task and not self._async_task.done():
@@ -238,18 +238,12 @@ class EventBus:
         """获取线程池统计信息"""
         stats = {}
         for name, executor in self._executors.items():
-            thread_pool = executor.get_thread_pool()
             queue_size = self._queues[name].qsize() if name in self._queues else 0
             stats[name] = {
-                'total_pools': len(thread_pool.thread_pool_map),
-                'current_pool_num': thread_pool.now_pool_num,
-                'next_pool_num': thread_pool.next_pool_num,
-                'alive_threads': dict(thread_pool.pool_alive_num_map),
-                'prepare_flag': thread_pool.prepare_flag,
-                'max_workers': thread_pool.max_workers,
-                'add_max_workers': thread_pool.add_max_workers,
+                'max_workers': executor._max_workers,
                 'queue_size': queue_size,  # 添加队列积压监控
-                'queue_health': 'healthy' if queue_size < 1000 else 'warning' if queue_size < 5000 else 'critical'
+                'queue_health': 'healthy' if queue_size < 1000 else 'warning' if queue_size < 5000 else 'critical',
+                'executor_type': 'ThreadPoolExecutor'
             }
         return stats
     
@@ -257,19 +251,18 @@ class EventBus:
         """获取tick队列专用状态信息"""
         market_queue = self._queues["market"]
         market_executor = self._executors["market"]
-        market_pool = market_executor.get_thread_pool()
         
         queue_size = market_queue.qsize()
         
         return {
             'queue_size': queue_size,
             'queue_health': 'healthy' if queue_size < 1000 else 'warning' if queue_size < 5000 else 'critical',
-            'thread_pools_active': len(market_pool.thread_pool_map),
-            'current_pool': market_pool.now_pool_num,
-            'max_pools': market_pool.add_max_workers,
-            'expansion_available': market_pool.now_pool_num < market_pool.add_max_workers,
-            'total_capacity': len(market_pool.thread_pool_map) * market_pool.max_workers,
-            'processing_mode': 'tick_optimized'
+            'thread_pools_active': 1,
+            'current_pool': 1,
+            'max_pools': 1,
+            'expansion_available': False,
+            'total_capacity': market_executor._max_workers,
+            'processing_mode': 'standard_executor'
         }
 
     # ===================== 订阅 / 发布 =====================
@@ -354,7 +347,7 @@ class EventBus:
                         except Full:
                             # 对于tick事件，使用阻塞模式确保不丢失
                             if event.event_type == EventType.TICK:
-                                self.logger.critical(f"tick队列满载，启用阻塞模式确保不丢失")
+                                self.logger.critical("tick队列满载，启用阻塞模式确保不丢失")
                                 self._queues[qname].put(event, block=True)  # 无超时，确保入队
                             else:
                                 # 非tick事件可以丢弃
@@ -362,31 +355,21 @@ class EventBus:
 
     def _try_expand_processing_capacity(self, qname: str) -> None:
         """
-        尝试扩展处理能力，当队列满时调用
+        尝试扩展处理能力，当队列满时调用（标准ThreadPoolExecutor版本）
         :param qname: 队列名称
         """
         try:
             executor = self._executors.get(qname)
             if executor:
-                # 获取当前线程池状态
-                thread_pool = executor.get_thread_pool()
-                current_workers = thread_pool.max_workers
-                add_max_workers = thread_pool.add_max_workers
-                
-                # 如果还有扩展空间，动态增加线程池大小
-                if thread_pool.now_pool_num < add_max_workers:
-                    self.logger.info(f"队列 {qname} 满载，尝试扩展线程池处理能力")
-                    # 触发线程池扩展（线程池会自动检测负载并扩展）
-                    executor.submit(lambda: None)  # 提交一个空任务触发扩展检查
-                else:
-                    # 记录达到最大扩展能力
-                    self.logger.warning(f"队列 {qname} 已达到最大处理能力：{current_workers}/{add_max_workers}")
+                # 标准ThreadPoolExecutor无法动态扩展，只记录警告
+                self.logger.warning(f"队列 {qname} 满载，已达到最大处理能力：{executor._max_workers}")
         except Exception as e:
             self.logger.error(f"扩展处理能力失败: {e}")
 
     # ===================== 内部消费 =====================
     def _sync_loop(self, qname: str) -> None:
         """消费同步事件"""
+        self.logger.info(f"开始 {qname} 同步事件循环")
         queue_obj = self._queues[qname]
         try:
             while self._active and not self._stopped.is_set():
