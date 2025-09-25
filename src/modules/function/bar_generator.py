@@ -561,8 +561,7 @@ class BarGenerator:
             if kline.instrument_id in strategy.sub_ins_id and kline.bar_type in strategy.sub_kline_type:
                 self.save_kline(strategy, kline)
 
-    @staticmethod
-    def save_kline(strategy: BaseStrategy, kline: BarData):
+    def save_kline(self, strategy: BaseStrategy, kline: BarData):
         instrument_id = kline.instrument_id
         if strategy.specific_strategy_map[instrument_id].kline_lock:
             strategy.specific_strategy_map[instrument_id].kline_lock.acquire()
@@ -580,6 +579,16 @@ class BarGenerator:
             return True
         
         return False
+
+    def shutdown(self):
+        """关闭BarGenerator，清理资源"""
+        try:
+            if hasattr(self, 'kline_executor') and self.kline_executor:
+                self.logger.info("关闭K线处理线程池...")
+                self.kline_executor.shutdown(wait=True)
+                self.logger.info("K线处理线程池已关闭")
+        except Exception as e:
+            self.logger.error(f"关闭K线处理线程池失败: {e}")
 
     def cleanup_old_klines(self) -> None:
         """
