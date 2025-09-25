@@ -23,14 +23,21 @@ class BaseGateway(ABC):
     def __init__(self, event_bus: EventBus, gateway_name: str) -> None:
         self.event_bus: EventBus = event_bus
         self.gateway_name: str = gateway_name
+        # 直接回调机制，绕过事件总线处理高频tick
+        self.tick_callback = None
+
+    def set_tick_callback(self, callback):
+        """设置tick直接回调函数"""
+        self.tick_callback = callback
 
     def on_tick(self, tick: TickData) -> None:
         """
-        tick行情推送
+        tick行情推送 - 使用事件总线作为主要机制
         :param tick:
         :return:
         """
-        self.event_bus.publish(Event(EventType.TICK, tick))
+        # 主要机制：使用事件总线确保数据完整性
+        self.event_bus.publish(Event(EventType.TICK, {"code": 0, "data": tick}))
 
     def on_order(self, order: OrderData) -> None:
         """
@@ -38,7 +45,7 @@ class BaseGateway(ABC):
         :param order:
         :return:
         """
-        self.event_bus.publish(Event(EventType.ORDER, order))
+        self.event_bus.publish(Event(EventType.ORDER, {"code": 0, "data": order}))
 
     def on_position(self, position: PositionData) -> None:
         """
@@ -46,7 +53,7 @@ class BaseGateway(ABC):
         :param position:
         :return:
         """
-        self.event_bus.publish(Event(EventType.POSITION, position))
+        self.event_bus.publish(Event(EventType.POSITION, {"code": 0, "data": position}))
 
     def on_account(self, account: AccountData) -> None:
         """
@@ -54,7 +61,7 @@ class BaseGateway(ABC):
         :param account:
         :return:
         """
-        self.event_bus.publish(Event(EventType.ACCOUNT, account))
+        self.event_bus.publish(Event(EventType.ACCOUNT, {"code": 0, "data": account}))
 
     def on_contract(self, contract: ContractData) -> None:
         """
@@ -62,5 +69,4 @@ class BaseGateway(ABC):
         :param contract:
         :return:
         """
-        self.event_bus.publish(Event(EventType.CONTRACT, contract))
-
+        self.event_bus.publish(Event(EventType.CONTRACT, {"code": 0, "data": contract}))
