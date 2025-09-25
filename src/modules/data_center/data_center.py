@@ -58,7 +58,7 @@ class DataCenter(object):
         self.bar_generation_interval: list = []
         self.strategy_map: dict[str, BaseStrategy] = {}             # 初始化策略映射
 
-        # 使用标准ThreadPoolExecutor，移除不再使用的tick_thread_pool
+        # 使用标准ThreadPoolExecutor
         self.thread_pool: Optional[ThreadPoolExecutor] = None
         self.thread_pools_initialized: bool = False
 
@@ -68,7 +68,7 @@ class DataCenter(object):
         self.md_login_status: bool = False                      # 行情网关登录状态
         self.td_login_status: bool = False                      # 交易网关登录状态
         self.is_login_status: bool = False                      # 登录状态
-        self.td_is_confirm: bool = False                        # 是否确认了结算单
+        self.td_is_confirmed: bool = False                      # 是否确认过了结算单
 
         self.sub_all_ins: list[str] = []                # 所有订阅列表
 
@@ -213,6 +213,9 @@ class DataCenter(object):
         # 订阅结算单确认成功事件
         self.dc_event_bus.subscribe(EventType.TD_CONFIRM_SUCCESS, self._td_confirm_handler)
 
+        # 订阅交易网关已经确认结算单事件
+        self.dc_event_bus.subscribe(EventType.TD_ALREADY_CONFIRMED, self._td_already_confirmed_handler)
+
         # 订阅交易网关查询合约事件
         self.dc_event_bus.subscribe(EventType.TD_QRY_INS, self._td_qry_ins_handler)
 
@@ -235,10 +238,14 @@ class DataCenter(object):
             self.md_login_status = True
             self.logger.info(rsp_md_login_data.get("message"))
             
-            # 如果已有订阅列表（重连情况），立即重新订阅所有合约
+            # 如果行情登录前已有订阅列表（重连情况），立即重新订阅所有合约
             if self.sub_all_ins and len(self.sub_all_ins) > 0:
-                self.logger.info(f"检测到网关重连，自动重新订阅 {len(self.sub_all_ins)} 个合约")
+                self.logger.info(f"检测到行情网关重连，自动重新订阅 {len(self.sub_all_ins)} 个合约")
                 self._subscribe_all_instruments()
+        else:
+            # 行情登录失败
+            self.md_login_status = False
+            self.logger.info(rsp_md_login_data.get("message"))
 
     def _td_login_handler(self, event: Event) -> None:
         """
@@ -249,13 +256,17 @@ class DataCenter(object):
         rsp_td_login_data = event.payload
         self.logger.info(f"收到交易网关登录事件返回信息：{rsp_td_login_data}")
         if rsp_td_login_data and rsp_td_login_data.get("code") == 0:
+            # 登录成功的标志存放在确认结算单响应函数中，因为确认过结算单后，才可以进行其他操作。
             # 如果已经确认过结算单，则直接设置登录交易成功(有时断开重连后不再需要再次确认结算单后才算登录成功)
-            if self.td_is_confirm:
-                # 交易登录成功
-                self.td_login_status = True
             self.logger.info(rsp_td_login_data.get("message"))
             # 获取登录后的交易日填充到全局变量trading_day中
             Const.trading_day = rsp_td_login_data.get("data", {}).get("trading_day")
+        else:
+            # 如果登录失败，则将结算单和登录标志都设置为False(登录失败了结算单也无法进行确认)
+            self.td_is_confirmed = False
+            self.td_login_status = False
+            # 登录失败
+            self.logger.warning(rsp_td_login_data.get("message"))
 
     def _td_confirm_handler(self, event: Event):
         """
@@ -266,7 +277,7 @@ class DataCenter(object):
         rsp_td_confirm_data = event.payload
         self.logger.info(f"收到交易网关确认结算单事件返回信息：{rsp_td_confirm_data}")
         if rsp_td_confirm_data and rsp_td_confirm_data.get("code") == 0:
-            self.td_is_confirm = True
+            self.td_is_confirmed = True
             self.td_login_status = True
             self.logger.info(rsp_td_confirm_data.get("message"))
 
@@ -275,6 +286,19 @@ class DataCenter(object):
             
             # 此处必须等待等待定时任务，因为订阅合约的前提的需要更新完所有合约代码
             # 合约代码存储在config/instrument_exchange.json文件中，订阅时从此文件加载合约代码
+
+    def _td_already_confirmed_handler(self, event: Event):
+        """
+        处理交易网关已经确认结算单事件
+        :param event: 已经确认结算单事件
+        :return:
+        """
+        rsp_td_already_confirmed_data = event.payload
+        self.logger.info(f"收到交易网关已经确认结算单事件返回信息：{rsp_td_already_confirmed_data}")
+        if rsp_td_already_confirmed_data and rsp_td_already_confirmed_data.get("code") == 0:
+            self.td_is_confirmed = True
+            self.td_login_status = True
+            self.logger.info(rsp_td_already_confirmed_data.get("message"))
 
     def _td_qry_ins_handler(self, event: Event):
         """
@@ -421,12 +445,13 @@ class DataCenter(object):
         向底层交易网关发布更新合约事件，交易网关完成登录就会自动更新合约信息
         :return:
         """
-        self.dc_event_bus.publish(Event(EventType.DATA_CENTER_QRY_INS, {}))
-        self.logger.info("发布更新合约事件成功")
+        if self.dc_event_bus:
+            self.dc_event_bus.publish(Event(EventType.DATA_CENTER_QRY_INS, {}))
+            self.logger.info("发布更新合约事件成功")
 
     # ================== 关闭和清理优化 ==================
 
-    def shutdown_dc(self, event: Event = None) -> None:
+    def shutdown_dc(self, event: Optional[Event] = None) -> None:
         """
         关闭数据中心，确保线程池正确关闭
         :return: None
@@ -443,13 +468,18 @@ class DataCenter(object):
         # 1. 先停止闹钟
         self.stop_alarm()
 
-        # 2. 无需刷新批处理队列（已改为直接处理模式）
-
-        # 3. 关闭所有CSV文件
+        # 2. 关闭所有CSV文件
         self._close_all_csv_files()
 
+        # 3. 关闭K线生成器
         try:
-            # 3. 停止网关
+            if hasattr(self, 'bar_generator') and self.bar_generator:
+                self.bar_generator.shutdown()
+        except Exception as e:
+            self.logger.error(f"关闭K线生成器失败: {e}")
+
+        try:
+            # 4. 停止网关
             if self.market_gateway:
                 self.market_gateway.close()
                 self.market_gateway = None
@@ -458,11 +488,11 @@ class DataCenter(object):
                 self.trader_gateway.close()
                 self.trader_gateway = None
 
-            # 4. 停止事件总线
+            # 5. 停止事件总线
             if self.dc_event_bus:
                 self.dc_event_bus.stop()
 
-            # 5. 最后关闭线程池
+            # 6. 最后关闭线程池
             self._shutdown_thread_pools()
 
             self.dc_running = False
@@ -651,13 +681,14 @@ class DataCenter(object):
 
                     strategy = self.strategy_map[strategy_key]
 
-                    # 执行策略闹钟回调
-                    for instrument_id in strategy.sub_ins_id:
-                        specific_strategy = strategy.specific_strategy_map[instrument_id]
-                        self.thread_pool.submit(
-                            self._safe_execute_callback,
-                            specific_strategy.on_alarm
-                        )
+                    # 线程不为None执行
+                    if self.thread_pool:
+                        # 执行策略闹钟回调
+                        for instrument_id in strategy.sub_ins_id:
+                            specific_strategy = strategy.specific_strategy_map[instrument_id]
+                            self.thread_pool.submit(
+                                specific_strategy.on_alarm
+                            )
             except Exception as e:
                 self.logger.exception(f"执行自定义闹钟失败: {e}")
 
@@ -690,12 +721,12 @@ class DataCenter(object):
 
         # 执行登录服务器
         self.logger.debug(f"[LOGIN_CHECK] 当前时间: {current_time}, 登录时间配置: {self._alarm_schedule.login_times}")
-        if current_time in self._alarm_schedule.login_times:
+        if self._alarm_schedule and current_time in self._alarm_schedule.login_times:
             self.logger.info(f"触发登录: {current_time}")
             self._connect_gateway()
 
-        # 登录成功后执行的任务
-        if self.is_login_status:
+        # 登录成功、线程不为None、alarm_schedule不为None执行的任务
+        if self.is_login_status and self.thread_pool and self._alarm_schedule:
             # 执行开盘前
             self.logger.debug(f"[BEFORE_OPEN_CHECK] 当前时间: {current_time}, 开盘前时间配置: {self._alarm_schedule.before_open_times}")
             if current_time in self._alarm_schedule.before_open_times:
@@ -724,16 +755,10 @@ class DataCenter(object):
         """
         self.logger.info(f"开始订阅 {len(self.sub_all_ins)} 个合约...")
 
-        # 分批订阅，每批50个合约
-        batch_size = 50
-        for i in range(0, len(self.sub_all_ins), batch_size):
-            batch = self.sub_all_ins[i:i + batch_size]
-            for ins in batch:
-                try:
-                    self.market_gateway.subscribe(SubscribeRequest(ins))
-                except Exception as e:
-                    self.logger.error(f"订阅合约 {ins} 失败: {e}")
-            self.logger.info(f"已订阅 {min(i + batch_size, len(self.sub_all_ins))}/{len(self.sub_all_ins)} 个合约")
+        if self.market_gateway:
+            for index, ins in enumerate(self.sub_all_ins):
+                self.market_gateway.subscribe(SubscribeRequest(ins))
+                self.logger.info(f"已订阅 {index} 个合约...")
 
         self.logger.info("所有合约订阅完成")
 
@@ -758,12 +783,11 @@ class DataCenter(object):
     def _before_open(self) -> None:
         """处理开盘前事件"""
         self.logger.info("执行开盘前事件检测...")
-        if self.strategy_map:
+        if self.thread_pool and self.strategy_map:
             for strategy in self.strategy_map.values():
                 # 对于数据中心策略，只需要在策略级别执行一次开盘前事件
                 self.logger.info(f"为策略 {strategy.strategy_id} 执行开盘前事件")
                 self.thread_pool.submit(
-                    self._safe_execute_callback,
                     self._execute_before_open,
                     strategy
                 )
@@ -786,13 +810,11 @@ class DataCenter(object):
     def _after_close(self) -> None:
         """处理收盘后事件"""
         self.logger.info("执行收盘后退出事件")
-
-        if self.strategy_map:
+        if self.thread_pool and self.strategy_map:
             for strategy in self.strategy_map.values():
                 # 对于数据中心策略，只需要在策略级别执行一次收盘后事件
                 self.logger.info(f"为策略{strategy.strategy_id}执行收盘后事件")
                 self.thread_pool.submit(
-                    self._safe_execute_callback,
                     self._execute_after_close,
                     strategy
                 )
