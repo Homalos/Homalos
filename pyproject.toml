@@ -8,6 +8,7 @@ dependencies = [
     "configparser>=7.2.0",
     "loguru>=0.7.3",
     "pandas>=2.3.2",
+    "psutil>=7.1.0",
     "pyyaml>=6.0.2",
     "tzdata>=2025.2",
     "watchfiles>=1.1.0",
