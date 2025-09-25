@@ -30,7 +30,7 @@ from typing import Any
 import yaml
 from loguru import logger
 
-from src.constants import CONFIG_DIR_NAME, LOG_CONFIG_FILENAME
+from src.constants import CONFIG_DIR_NAME, LOG_CONFIG_FILENAME, file_format
 from src.core.trace_context import get_trace_id
 
 __all__ = ["logger", "get_logger", "get_console_logger"]
@@ -67,14 +67,15 @@ is_debug = cfg.get("is_debug", False)  # 是否开启 DEBUG 模式
 log_filename = cfg.get("log_filename", "homalos.log")
 log_error_filename = cfg.get("log_error_filename", "homalos_error.log")
 log_dir_name = cfg.get("log_dir_name", "logs")
-level = cfg.get("level", "INFO")
-rotation = cfg.get("rotation", "10 MB")
-retention = cfg.get("retention", "7 days")
+level = cfg.get("level", "INFO")            # 日志级别
+rotation = cfg.get("rotation", "10 MB")     # 日志轮转
+retention = cfg.get("retention", "7 days")  # 保留天数
+compression = cfg.get("compression", "zip") # 压缩
 
-colorize = cfg.get("colorize", True)
-enqueue = cfg.get("enqueue", True)
-backtrace = cfg.get("backtrace", True)
-diagnose = cfg.get("diagnose", True)
+colorize = cfg.get("colorize", True)    # 颜色
+enqueue = cfg.get("enqueue", True)      # 线程安全
+backtrace = cfg.get("backtrace", True)  # 堆栈回溯
+diagnose = cfg.get("diagnose", True)    # 诊断
 
 log_dir_path = root_path / log_dir_name
 # 确保日志目录存在
@@ -110,12 +111,19 @@ else:
                       "<cyan>{name}</cyan>:<cyan>{function}</cyan> "
                       "- <level>{message}</level>")
 
+file_format = ("<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+               "<level>{level: <8}</level> | "
+               "<magenta>[{extra[context]}]</magenta> "
+               "<yellow>{extra[trace_id]}</yellow> "
+               "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> "
+               "- <level>{message}</level>")
+
 # 控制台输出
 logger.add(
     sys.stdout,
     level=level,
-    colorize=colorize,
     format=console_format,
+    colorize=colorize,
     backtrace=backtrace,
     diagnose=diagnose,
     enqueue=enqueue,
@@ -126,30 +134,31 @@ logger.add(
 logger.add(
     os.path.join(log_dir_path, log_filename),
     level=level,
+    format=file_format,
+    colorize=colorize,
     rotation=rotation,
     retention=retention,
+    compression=compression,
     encoding="utf-8",
     enqueue=enqueue,
     backtrace=backtrace,
     diagnose=diagnose,
-    filter=TraceIdFilter(),
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | "
-           "[{extra[context]}] {extra[trace_id]} {name}:{function}:{line} - {message}"
+    filter=TraceIdFilter()
 )
 
 # 错误日志单独保存
 logger.add(
     os.path.join(log_dir_path, log_error_filename),
     level="ERROR",
+    format=file_format,
     rotation=rotation,
     retention=retention,
+    compression=compression,
     encoding="utf-8",
     enqueue=enqueue,
     backtrace=backtrace,
     diagnose=diagnose,
-    filter=TraceIdFilter(),
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | "
-           "[{extra[context]}] {extra[trace_id]} {name}:{function}:{line} - {message}"
+    filter=TraceIdFilter()
 )
 
 
@@ -187,37 +196,6 @@ logger.add(
     enqueue=enqueue,
     filter=TraceIdFilter()
 )
-
-# 文件输出（排除控制台专用日志）
-logger.add(
-    os.path.join(log_dir_path, log_filename),
-    level=level,
-    rotation=rotation,
-    retention=retention,
-    encoding="utf-8",
-    enqueue=enqueue,
-    backtrace=backtrace,
-    diagnose=diagnose,
-    filter=FileLogFilter(),
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | "
-           "[{extra[context]}] {extra[trace_id]} {name}:{function}:{line} - {message}"
-)
-
-# 错误日志单独保存（排除控制台专用日志）
-logger.add(
-    os.path.join(log_dir_path, log_error_filename),
-    level="ERROR",
-    rotation=rotation,
-    retention=retention,
-    encoding="utf-8",
-    enqueue=enqueue,
-    backtrace=backtrace,
-    diagnose=diagnose,
-    filter=FileLogFilter(),
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | "
-           "[{extra[context]}] {extra[trace_id]} {name}:{function}:{line} - {message}"
-)
-
 
 # ===================== 对外 API =====================
 def get_logger(context: str = "Homalos") -> Any:
