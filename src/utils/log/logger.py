@@ -67,13 +67,13 @@ is_debug = cfg.get("is_debug", False)  # 是否开启 DEBUG 模式
 log_filename = cfg.get("log_filename", "homalos.log")
 log_error_filename = cfg.get("log_error_filename", "homalos_error.log")
 log_dir_name = cfg.get("log_dir_name", "logs")
-level = cfg.get("level", "INFO")            # 日志级别
-rotation = cfg.get("rotation", "10 MB")     # 日志轮转
+level = cfg.get("level", "INFO")            # 输出的最小日志级别
+rotation = cfg.get("rotation", "10 MB")     # 日志轮转大小
 retention = cfg.get("retention", "7 days")  # 保留天数
 compression = cfg.get("compression", "zip") # 压缩
 
 colorize = cfg.get("colorize", True)    # 颜色
-enqueue = cfg.get("enqueue", True)      # 线程安全
+enqueue = cfg.get("enqueue", True)      # 多进程程安全
 backtrace = cfg.get("backtrace", True)  # 堆栈回溯
 diagnose = cfg.get("diagnose", True)    # 诊断
 
@@ -97,7 +97,7 @@ logger.remove()
 
 # 控制台输出格式（根据debug模式决定是否显示详细信息）
 if is_debug:
-    console_format = ("<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+    console_format = ("<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
                       "<level>{level: <8}</level> | "
                       "<magenta>[{extra[context]}]</magenta> "
                       "<yellow>{extra[trace_id]}</yellow> "
@@ -111,7 +111,7 @@ else:
                       "<cyan>{name}</cyan>:<cyan>{function}</cyan> "
                       "- <level>{message}</level>")
 
-file_format = ("<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+file_format = ("<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
                "<level>{level: <8}</level> | "
                "<magenta>[{extra[context]}]</magenta> "
                "<yellow>{extra[trace_id]}</yellow> "
