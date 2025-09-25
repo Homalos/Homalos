@@ -239,6 +239,7 @@ class EventBus:
         stats = {}
         for name, executor in self._executors.items():
             thread_pool = executor.get_thread_pool()
+            queue_size = self._queues[name].qsize() if name in self._queues else 0
             stats[name] = {
                 'total_pools': len(thread_pool.thread_pool_map),
                 'current_pool_num': thread_pool.now_pool_num,
@@ -247,8 +248,29 @@ class EventBus:
                 'prepare_flag': thread_pool.prepare_flag,
                 'max_workers': thread_pool.max_workers,
                 'add_max_workers': thread_pool.add_max_workers,
+                'queue_size': queue_size,  # 添加队列积压监控
+                'queue_health': 'healthy' if queue_size < 1000 else 'warning' if queue_size < 5000 else 'critical'
             }
         return stats
+    
+    def get_tick_queue_status(self) -> dict:
+        """获取tick队列专用状态信息"""
+        market_queue = self._queues["market"]
+        market_executor = self._executors["market"]
+        market_pool = market_executor.get_thread_pool()
+        
+        queue_size = market_queue.qsize()
+        
+        return {
+            'queue_size': queue_size,
+            'queue_health': 'healthy' if queue_size < 1000 else 'warning' if queue_size < 5000 else 'critical',
+            'thread_pools_active': len(market_pool.thread_pool_map),
+            'current_pool': market_pool.now_pool_num,
+            'max_pools': market_pool.add_max_workers,
+            'expansion_available': market_pool.now_pool_num < market_pool.add_max_workers,
+            'total_capacity': len(market_pool.thread_pool_map) * market_pool.max_workers,
+            'processing_mode': 'tick_optimized'
+        }
 
     # ===================== 订阅 / 发布 =====================
     def subscribe(self, event_type: str, subscriber, async_mode=False) -> None:
@@ -330,9 +352,13 @@ class EventBus:
                             self.logger.info(f"队列 {qname} 在最后重试中成功入队")
                             return
                         except Full:
-                            # 实在无法处理，记录严重错误
-                            self.logger.error(f"严重：队列 {qname} 持续满载，事件 {event.event_type} 被迫丢弃")
-                            # 可以考虑触发紧急扩容或者写入备用存储
+                            # 对于tick事件，使用阻塞模式确保不丢失
+                            if event.event_type == EventType.TICK:
+                                self.logger.critical(f"tick队列满载，启用阻塞模式确保不丢失")
+                                self._queues[qname].put(event, block=True)  # 无超时，确保入队
+                            else:
+                                # 非tick事件可以丢弃
+                                self.logger.error(f"严重：队列 {qname} 持续满载，事件 {event.event_type} 被迫丢弃")
 
     def _try_expand_processing_capacity(self, qname: str) -> None:
         """
@@ -408,7 +434,7 @@ class EventBus:
         with self._lock:
             subscribers = list(self._subscribers.get(event.event_type, []))  # 拷贝快照，避免迭代时修改
 
-        for subscriber, async_mode in subscribers:
+        for i, (subscriber, async_mode) in enumerate(subscribers):
             try:
                 # 自动设置 trace_id 到上下文
                 trace_context.set_trace_id(event.trace_id)
@@ -420,12 +446,25 @@ class EventBus:
                 else:
                     qname = "market" if event.event_type.startswith("market") else "general"
                     executor = self._executors[qname]
+                    
                     # 检查线程池是否还可用
                     try:
-                        executor.submit(self._safe_sync, subscriber, event)
+                        future = executor.submit(self._safe_sync, subscriber, event)
+                        
+                        # 对于tick事件，如果提交失败立即在当前线程执行，确保不丢失
+                        if event.event_type == EventType.TICK and future is None:
+                            self.logger.warning("tick事件线程池提交失败，直接执行")
+                            self._safe_sync(subscriber, event)
                     except RuntimeError as e:
                         # 线程池已关闭，直接在当前线程执行
                         if "cannot schedule new futures after shutdown" in str(e):
+                            self._safe_sync(subscriber, event)
+                        else:
+                            raise
+                    except Exception as e:
+                        # 其他异常，对于tick事件确保不丢失
+                        if event.event_type == EventType.TICK:
+                            self.logger.error(f"tick事件提交异常，直接执行: {e}")
                             self._safe_sync(subscriber, event)
                         else:
                             raise
