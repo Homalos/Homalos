@@ -61,6 +61,8 @@ class EventType:
 
     TD_GATEWAY_READY = "td_gateway.ready"  # 交易网关就绪
 
+    TD_QRY_INS = "td.qry.ins"  # 交易网关查询合约事件
+
     TD_CONFIRM_SUCCESS = "td.confirm.success"  # 结算单确认成功
 
     DATA_CENTER_START = "data_center.start"  # 数据中心启动事件
