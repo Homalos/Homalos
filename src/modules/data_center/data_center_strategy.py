@@ -147,12 +147,13 @@ class DataCenterStrategy(BaseStrategy):
             self.logger.info("on_alarm")
 
         def on_tick(self, tick: TickData) -> None:
-            if not self.csv_writer:
+            # 检查CSV文件状态，如果文件被关闭则重新初始化
+            if not self.csv_writer or not self.csv_file or self.csv_file.closed:
                 return
 
             # 记录tick数据接收（调试用）
             self._tick_count += 1
-            
+
             # 每处理20个tick输出一次日志，避免日志过多
             if self._tick_count % 20 == 1:
                 self.logger.info(f"写入进度: 合约{self.instrument_id} 已处理{self._tick_count}条tick数据")
@@ -210,17 +211,10 @@ class DataCenterStrategy(BaseStrategy):
                 # 写入tick数据
                 self.csv_writer.writerow(tick_data_list)
                 self.csv_file.flush()
-                    
+
             except Exception as e:
                 self.logger.exception(f"写入合约 {self.instrument_id} tick数据失败: {e}")
                 # 如果写入失败，尝试重新初始化文件
-                try:
-                    if self.csv_file and not self.csv_file.closed:
-                        self.csv_file.flush()
-                    else:
-                        self.logger.warning(f"合约 {self.instrument_id} CSV文件异常，尝试重新初始化")
-                except Exception as flush_e:
-                    self.logger.error(f"文件flush失败: {flush_e}")
 
         def on_bar(self, bar: BarData) -> None:
             self.logger.info("on_bar")
