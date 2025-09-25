@@ -15,7 +15,6 @@ from pathlib import Path
 from queue import Queue
 from typing import Any
 
-from src.constants import thread_pool
 from src.core.api_response import APIResponse
 from src.core.base_gateway import BaseGateway
 from src.core.constants import ErrorReason, Exchange
