@@ -214,6 +214,15 @@ class CtpMdApi(MdApi):
         if rsp_error_msg:
             self.login_status = False
             self.logger.exception(rsp_error_msg)
+
+            if self.gateway.event_bus:
+                payload = {
+                    "code": 1,
+                    "message": "行情服务器登录失败",
+                    "data": None
+                }
+                self.gateway.event_bus.publish(Event(EventType.MD_GATEWAY_LOGIN, payload=payload))
+                self.logger.info("已发布 MD_GATEWAY_LOGIN 事件")
             return
         else:
             self.login_status = True
