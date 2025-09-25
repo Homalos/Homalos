@@ -292,6 +292,7 @@ class HistoryRequest:
 @dataclass
 class TradingSchedule:
     """交易时间配置"""
+    init_strategy_times: list[str] = field(default_factory=lambda: [""])
     login_times: list[str] = field(default_factory=lambda: [""])
     before_open_times: list[str] = field(default_factory=lambda: [""])
     sub_id_times: list[str] = field(default_factory=lambda: [""])
