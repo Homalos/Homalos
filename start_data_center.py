@@ -12,7 +12,6 @@
 import atexit
 import os
 import signal
-import subprocess
 import sys
 import threading
 import time
@@ -256,7 +255,7 @@ class StartDataCenter:
             try:
                 sys.exit(0)
             except SystemExit:
-                os._exit(1)  # 立即退出，状态码1
+                os._exit(1)  # noqa: 立即退出，状态码1
                 # os.kill(os.getpid(), signal.SIGTERM)
 
 
@@ -305,11 +304,8 @@ class StartDataCenter:
                     self.logger.info("线程池初始化确认完成")
                     return True
 
-                # 检查线程池对象是否存在
-                if (hasattr(self._data_center, 'thread_pool') and
-                        self._data_center.thread_pool is not None and
-                        hasattr(self._data_center, 'tick_thread_pool') and
-                        self._data_center.tick_thread_pool is not None):
+                # 检查线程池对象是否存在（现在只有主线程池）
+                if self._data_center.thread_pool:
                     self.logger.info("线程池对象已创建")
                     return True
 
@@ -366,7 +362,7 @@ class StartDataCenter:
 
             except Exception as e:
                 self.logger.error(f"监控循环异常: {e}")
-                time.sleep(1)  # 异常时等待1秒
+                time.sleep(0.5)  # 异常时等待
 
     def start(self) -> bool:
         """
@@ -451,7 +447,7 @@ class StartDataCenter:
                         break
 
                     # 短暂睡眠，避免CPU占用过高
-                    time.sleep(1)  # 增加睡眠时间，减少CPU占用
+                    time.sleep(0.5)  # 增加睡眠时间，减少CPU占用
 
                 except Exception as e:
                     self.logger.error(f"主循环异常: {e}")
@@ -478,7 +474,6 @@ def main() -> None:
         else:
             logger.error("数据中心启动失败")
             sys.exit(1)
-
     except KeyboardInterrupt:
         logger.info("程序被用户中断")
     except Exception as e:
@@ -486,6 +481,10 @@ def main() -> None:
         sys.exit(1)
     finally:
         logger.info("程序退出")
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(1)  # noqa
 
 
 if __name__ == '__main__':
