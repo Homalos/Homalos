@@ -14,7 +14,8 @@ import datetime
 import threading
 import traceback
 from queue import Queue
-from src.constants import strategy_map, thread_pool
+from src.constants import strategy_map
+from concurrent.futures import ThreadPoolExecutor
 from src.core.constants import Interval
 from src.core.object import BarData, TickData
 from src.strategy.base_strategy import BaseStrategy
@@ -32,6 +33,12 @@ class BarGenerator:
         self.max_kline_cache = max_kline_cache  # 每个合约最大缓存K线数量
         self.last_cleanup_time = datetime.datetime.now()  # 上次清理时间
         self.cleanup_interval = 3600  # 清理间隔（秒）
+        
+        # K线处理专用线程池
+        self.kline_executor = ThreadPoolExecutor(
+            max_workers=50,
+            thread_name_prefix='BarWorker'
+        )
 
         # 订阅K线的合约名称和合约类型
         self.sub_kline_id: list[str] = []
@@ -396,7 +403,7 @@ class BarGenerator:
 
             # 如果是1分钟K线，另需要分发到合成其他K线线程，合成其他K线
             if kline.bar_type == Interval.MINUTE:
-                thread_pool.submit(self.min1_to_other_kline, kline)
+                self.kline_executor.submit(self.min1_to_other_kline, kline)
 
             self.distribute_kline(kline)
 
@@ -560,8 +567,8 @@ class BarGenerator:
         if strategy.specific_strategy_map[instrument_id].kline_lock:
             strategy.specific_strategy_map[instrument_id].kline_lock.acquire()
             strategy.specific_strategy_map[instrument_id].bar_data = kline
-            if thread_pool:
-                thread_pool.submit(strategy.specific_strategy_map[instrument_id].on_bar)
+            # 使用本地线程池执行策略回调
+            self.kline_executor.submit(strategy.specific_strategy_map[instrument_id].on_bar)
 
     # 如果是无效数据，则返回True
     def clean_kline(self, kline: BarData):
