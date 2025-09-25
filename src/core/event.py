@@ -65,6 +65,8 @@ class EventType:
 
     TD_CONFIRM_SUCCESS = "td.confirm.success"  # 结算单确认成功
 
+    TD_ALREADY_CONFIRMED = "td.already.confirmed"  # 结算单已经确认过事件 already
+
     DATA_CENTER_START = "data_center.start"  # 数据中心启动事件
 
     DATA_CENTER_STOP = "data_center.stop"  # 数据中心停止事件
