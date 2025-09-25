@@ -47,6 +47,8 @@ PRODUCT_INFO_FILENAME = "product_info.ini"  # 合约乘数及手续费信息文�
 
 HOLIDAY_FILENAME = "holidays.json"  # 节假日文件名称
 
+BAIDU_YUN_FILES = "baidu_list.txt"
+
 # ================== 代码中常量 ==================
 filename_format = "%Y%m%d"  # 日志文件名格式
 
