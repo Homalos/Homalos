@@ -22,7 +22,6 @@ from threading import Thread
 from typing import Optional, Any, TextIO, Callable
 
 from src.constants import Const
-from src.core.constants import ErrorCode
 from src.core.event import EventType, Event
 from src.core.event_bus import EventBus
 from src.core.object import TradingSchedule, TickData, SubscribeRequest
@@ -32,7 +31,7 @@ from src.modules.gateway.market_gateway import MarketGateway
 from src.modules.gateway.trader_gateway import TraderGateway
 from src.strategy.base_strategy import BaseStrategy
 from src.utils.alarm import Alarm
-from src.utils.homalos_thread_pool import HomalosThreadPool
+from concurrent.futures import ThreadPoolExecutor
 from src.utils.log import get_logger
 
 
@@ -54,15 +53,13 @@ class DataCenter(object):
         self.dc_event_bus: Optional[EventBus] = None                # 数据中心事件总线
         self._dc_config: dict[str, Any] = dc_config                  # 数据中心所有相关配置字典
         self.dc_running: bool = False                               # 数据中心运行状态
-        self._total_tick_count: int = 0                             # tick数据总数
 
         self.bar_generator: BarGenerator = BarGenerator()           # 初始化K线合成系统
         self.bar_generation_interval: list = []
         self.strategy_map: dict[str, BaseStrategy] = {}             # 初始化策略映射
 
-        # 修改线程池初始化，但不立即启动
-        self.thread_pool: Optional[HomalosThreadPool] = None
-        self.tick_thread_pool: Optional[HomalosThreadPool] = None
+        # 使用标准ThreadPoolExecutor，移除不再使用的tick_thread_pool
+        self.thread_pool: Optional[ThreadPoolExecutor] = None
         self.thread_pools_initialized: bool = False
 
         self.market_gateway: Optional[MarketGateway] = None     # 行情网关
@@ -70,31 +67,13 @@ class DataCenter(object):
         self.broker_config: dict[str, dict] = {}                # 服务器节点配置信息
         self.md_login_status: bool = False                      # 行情网关登录状态
         self.td_login_status: bool = False                      # 交易网关登录状态
-
-        # 是否更新合约，更新所有上市合约到instrument_exchange.json文件中，每次只在开盘盘时更新一次
-        self.is_update_ins: bool = True
-        self.is_update_ins_completed: bool = False      # 是否更新合约完成
+        self.is_login_status: bool = False                      # 登录状态
+        self.td_is_confirm: bool = False                        # 是否确认了结算单
 
         self.sub_all_ins: list[str] = []                # 所有订阅列表
 
         self.csv_file: Optional[TextIO] = None
         self.csv_writer = None
-
-        # 新增：tick处理统计和流量控制
-        self._tick_counter = 0
-        self._tick_rate_limit = 10000  # 每秒最大tick处理数 (从1000提升到10000)
-        self._last_tick_time = time.time()
-        self._tick_queue_size = 0
-        self._max_queue_size = 20000  # 最大队列积压 (从5000提升到20000)
-        self._last_health_check_time = 0  # 上次健康检查时间
-        self._health_check_interval = 1.0  # 健康检查间隔（秒）
-        
-        # 批量处理相关配置 - 适应低频行情
-        self._tick_batch_size = 1   # 立即处理每个tick，不等待批量
-        self._tick_batch_timeout = 0.1  # 100毫秒超时，确保及时处理
-        self._tick_batch_queue: list[TickData] = []  # 批处理队列
-        self._last_batch_time = time.time()  # 上次批处理时间
-        self._batch_lock = threading.Lock()  # 批处理锁
 
     def init_thread_pools(self) -> None:
         """初始化线程池"""
@@ -104,19 +83,11 @@ class DataCenter(object):
 
             self.logger.info("初始化线程池...")
 
-            # 主线程池 - 处理调度任务
-            self.thread_pool = HomalosThreadPool(
+            # 主线程池 - 处理调度任务（tick现在通过event_bus处理，无需专用线程池）
+            self.thread_pool = ThreadPoolExecutor(
                 max_workers=20,
                 thread_name_prefix='DCWorker'
             )
-            self.thread_pool.start()
-
-            # Tick处理线程池 - 专门处理高频tick数据
-            self.tick_thread_pool = HomalosThreadPool(
-                max_workers=1500,  # 从800增加到1500，配合更大的队列
-                thread_name_prefix='DCTickWorker'
-            )
-            self.tick_thread_pool.start()
 
             self.thread_pools_initialized = True
             self.logger.info("线程池初始化完成")
@@ -127,35 +98,9 @@ class DataCenter(object):
             self.thread_pools_initialized = True
             raise
 
-    def _check_thread_pool_health(self) -> bool:
+    def _safe_submit_to_pool(self, pool: ThreadPoolExecutor, fn: Callable, *args, **kwargs) -> bool:
         """
-        检查线程池健康状态
-        """
-        try:
-            # 检查线程池是否已初始化
-            if not self.thread_pools_initialized:
-                return False
-
-            # 检查队列积压情况 (从80%放宽到95%)
-            if self._tick_queue_size > self._max_queue_size * 0.95:
-                self.logger.warning(f"Tick队列积压严重: {self._tick_queue_size}/{self._max_queue_size}")
-                return False
-
-            # 检查线程池状态
-            if self.thread_pool and self.tick_thread_pool:
-                tick_pool_progress = self.tick_thread_pool.get_progress()
-                main_pool_progress = self.thread_pool.get_progress()
-                self.logger.debug(f"线程池状态 - Tick池: {tick_pool_progress}, 主池: {main_pool_progress}")
-                return True
-
-            return False
-        except Exception as e:
-            self.logger.error(f"检查线程池健康状态失败: {e}")
-            return False
-
-    def _safe_submit_to_pool(self, pool: HomalosThreadPool, fn: Callable, *args, **kwargs) -> bool:
-        """
-        安全提交任务到线程池，带有优化的流量控制
+        安全提交任务到线程池
         """
         try:
             # 检查线程池是否已初始化
@@ -165,32 +110,8 @@ class DataCenter(object):
                 threading.Timer(1.0, lambda: self._safe_submit_to_pool(pool, fn, *args, **kwargs)).start()
                 return False
 
-            current_time = time.time()
-            
-            # 定期检查线程池健康状态（减少检查频率）
-            if current_time - self._last_health_check_time >= self._health_check_interval:
-                if not self._check_thread_pool_health():
-                    self.logger.warning("线程池不健康，拒绝新任务")
-                    return False
-                self._last_health_check_time = current_time
-
-            # 流量控制：检查tick处理速率
-            if current_time - self._last_tick_time < 1.0 and self._tick_counter > self._tick_rate_limit:
-                # 降低日志频率，避免日志刷屏
-                if self._tick_counter % 1000 == 0:
-                    self.logger.warning("达到tick处理速率限制，丢弃tick")
-                return False
-
-            # 提交任务
+            # 直接提交任务
             pool.submit(fn, *args, **kwargs)
-            self._tick_counter += 1
-            self._tick_queue_size += 1
-
-            # 重置计数器
-            if current_time - self._last_tick_time >= 1.0:
-                self._tick_counter = 0
-                self._last_tick_time = current_time
-
             return True
         except Exception as e:
             self.logger.error(f"提交任务到线程池失败: {e}")
@@ -236,9 +157,6 @@ class DataCenter(object):
         t_sub_id_time = now_time + datetime.timedelta(seconds=180)
         t_sub = t_sub_id_time.time().strftime('%H:%M')
 
-        t_close_time = now_time + datetime.timedelta(seconds=480)
-        t_close = t_close_time.time().strftime('%H:%M')
-
         login_times: list[str] = self._dc_config.get("login_times", [])
         login_times.append(t_login)
         before_open_times: list[str] = self._dc_config.get("before_open_times", [])
@@ -246,7 +164,6 @@ class DataCenter(object):
         sub_id_times: list[str] = self._dc_config.get("sub_id_times", [])
         sub_id_times.append(t_sub)
         after_close_times: list[str] = self._dc_config.get("after_close_times", [])
-        after_close_times.append(t_close)
         check_interval: int = self._dc_config.get("check_interval", 60)
 
         self._alarm_schedule = TradingSchedule(
@@ -256,7 +173,7 @@ class DataCenter(object):
             after_close_times=after_close_times,
             check_interval=check_interval
         )
-        self.logger.info(f"调度时间配置：")
+        self.logger.info("调度时间配置：")
         self.logger.info(f"登录: {self._alarm_schedule.login_times}")
         self.logger.info(f"开盘前: {self._alarm_schedule.before_open_times}")
         self.logger.info(f"订阅: {self._alarm_schedule.sub_id_times}")
@@ -276,12 +193,12 @@ class DataCenter(object):
         self.logger.info(f"启用的broker名称: {broker_name}，broker类型: {broker_type}")
 
     def init_dc_event_bus(self) -> None:
-        # 初始化事件总线，增加队列容量以处理高频tick数据
+        # 初始化事件总线，优化为tick处理专用配置
         self.dc_event_bus: EventBus = EventBus(
             context="DataCenter",
-            market_max_workers=3000,        # 增加market线程池到3K
-            market_add_max_workers=100,
-            general_max_workers=1000,       # 普通事件处理
+            market_max_workers=5000,        # 提升到5K，专门处理高频tick
+            market_add_max_workers=300,     # 大幅提升扩容能力到300
+            general_max_workers=1000,       # 普通事件处理保持不变
             general_add_max_workers=50,
             register_signals=False
         )
@@ -293,14 +210,13 @@ class DataCenter(object):
         self.dc_event_bus.subscribe(EventType.TD_GATEWAY_LOGIN, self._td_login_handler)
 
         # 首次底层会发布确认结算单事件，如果断开重连交易网关，底层不再确认结算单
-        if self.is_update_ins:
-            # 订阅结算单确认成功事件
-            self.dc_event_bus.subscribe(EventType.TD_CONFIRM_SUCCESS, self._td_confirm_handler)
-        else:
-            # 订阅交易网关就绪事件
-            self.dc_event_bus.subscribe(EventType.TD_GATEWAY_READY, self._td_ready_handler)
+        # 订阅结算单确认成功事件
+        self.dc_event_bus.subscribe(EventType.TD_CONFIRM_SUCCESS, self._td_confirm_handler)
 
-        # 订阅行情数据
+        # 订阅交易网关查询合约事件
+        self.dc_event_bus.subscribe(EventType.TD_QRY_INS, self._td_qry_ins_handler)
+
+        # 恢复事件总线的tick订阅作为主要机制
         self.dc_event_bus.subscribe(EventType.TICK, self._get_tick)
 
         # 订阅事件总线停止事件
@@ -318,6 +234,11 @@ class DataCenter(object):
             # 行情登录成功
             self.md_login_status = True
             self.logger.info(rsp_md_login_data.get("message"))
+            
+            # 如果已有订阅列表（重连情况），立即重新订阅所有合约
+            if self.sub_all_ins and len(self.sub_all_ins) > 0:
+                self.logger.info(f"检测到网关重连，自动重新订阅 {len(self.sub_all_ins)} 个合约")
+                self._subscribe_all_instruments()
 
     def _td_login_handler(self, event: Event) -> None:
         """
@@ -328,8 +249,10 @@ class DataCenter(object):
         rsp_td_login_data = event.payload
         self.logger.info(f"收到交易网关登录事件返回信息：{rsp_td_login_data}")
         if rsp_td_login_data and rsp_td_login_data.get("code") == 0:
-            # 交易登录成功
-            self.td_login_status = True
+            # 如果已经确认过结算单，则直接设置登录交易成功(有时断开重连后不再需要再次确认结算单后才算登录成功)
+            if self.td_is_confirm:
+                # 交易登录成功
+                self.td_login_status = True
             self.logger.info(rsp_td_login_data.get("message"))
             # 获取登录后的交易日填充到全局变量trading_day中
             Const.trading_day = rsp_td_login_data.get("data", {}).get("trading_day")
@@ -343,20 +266,41 @@ class DataCenter(object):
         rsp_td_confirm_data = event.payload
         self.logger.info(f"收到交易网关确认结算单事件返回信息：{rsp_td_confirm_data}")
         if rsp_td_confirm_data and rsp_td_confirm_data.get("code") == 0:
+            self.td_is_confirm = True
+            self.td_login_status = True
             self.logger.info(rsp_td_confirm_data.get("message"))
 
+            # 首次确认结算单后，发送查询合约事件
+            self._publish_qry_ins()
+            
+            # 此处必须等待等待定时任务，因为订阅合约的前提的需要更新完所有合约代码
+            # 合约代码存储在config/instrument_exchange.json文件中，订阅时从此文件加载合约代码
+
+    def _td_qry_ins_handler(self, event: Event):
+        """
+        处理交易网关查询合约事件
+        :param event: 交易网关查询合约事件
+        :return:
+        """
+        rsp_td_ready_data = event.payload
+        self.logger.info(f"收到交易网关查询合约事件返回信息：{rsp_td_ready_data}")
+        if rsp_td_ready_data and rsp_td_ready_data.get("code") == 0:
+            self.logger.info(rsp_td_ready_data.get("message"))
             # 初始化策略
             self.init_strategies()
 
             # 初始化订阅合约
             self.init_sub_instruments()
 
+            # 此处必须等待等待定时任务，因为订阅合约的前提的需要更新完所有合约代码
+            # 合约代码存储在config/instrument_exchange.json文件中，订阅时从此文件加载合约代码
+
     def init_strategies(self) -> None:
         """初始化数据中心策略"""
         self.logger.info("初始化数据中心策略...")
         dc_strategy: DataCenterStrategy = DataCenterStrategy()
         self.strategy_map = {dc_strategy.strategy_id: dc_strategy}
-        self.logger.info(f"成功初始化数据中心策略")
+        self.logger.info("成功初始化数据中心策略")
 
     def init_sub_instruments(self) -> None:
         """
@@ -376,130 +320,36 @@ class DataCenter(object):
 
             self.bar_generator.init_min_kline_map()
 
-        self.logger.info(f"成功初始化订阅合约")
+        self.logger.info("成功初始化订阅合约")
         self.logger.info(f"需要订阅的合约数量：{len(self.sub_all_ins)}")
-
-    def _td_ready_handler(self, event: Event):
-        """
-        处理交易网关就绪事件
-        :param event: 交易网关就绪事件
-        :return:
-        """
-        rsp_td_ready_data = event.payload
-        self.logger.info(f"收到交易网关就绪事件返回信息：{rsp_td_ready_data}")
-        if rsp_td_ready_data and rsp_td_ready_data.get("code") == 0:
-            self.logger.info(rsp_td_ready_data.get("message"))
-            # 初始化策略
-            self.init_strategies()
-
-            # 初始化订阅合约
-            self.init_sub_instruments()
 
     def _get_tick(self, event: Event) -> None:
         """
-        优化tick处理方法，使用批量处理提高吞吐量
+        优化tick处理方法
         """
-        self.logger.debug(f"收到tick事件，payload code: {event.payload.get('code')}")
         if event.payload.get("code") == 0:
             # 从tick行情事件中获取tick对象
             try:
                 tick: TickData = event.payload.get("data")
                 if tick:
-                    self.logger.debug(f"收到tick数据: {tick.instrument_id} @ {tick.last_price}")
-                    # 添加到批处理队列
-                    self._add_tick_to_batch(tick)
-                else:
-                    self.logger.warning("tick数据为空")
+                    # 直接处理tick，避免额外的事件或队列操作
+                    self._distribute_tick(tick)
 
             except Exception as e:
-                self.logger.exception(f"获取或分发tick行情数据异常：{e}")
-                return
-        else:
-            self.logger.warning(f"收到非成功的tick事件，code: {event.payload.get('code')}, message: {event.payload.get('message')}")
-
-    def _add_tick_to_batch(self, tick: TickData) -> None:
-        """
-        将tick添加到批处理队列
-        """
-        with self._batch_lock:
-            self._tick_batch_queue.append(tick)
-            current_time = time.time()
-            
-            # 检查是否需要触发批处理
-            should_process = (
-                len(self._tick_batch_queue) >= self._tick_batch_size or  # 达到批量大小
-                current_time - self._last_batch_time >= self._tick_batch_timeout  # 超时
-            )
-            
-            if should_process:
-                # 复制当前批次并清空队列
-                batch_ticks = self._tick_batch_queue.copy()
-                self._tick_batch_queue.clear()
-                self._last_batch_time = current_time
-                
-                # 异步处理批量tick
-                self._safe_submit_to_pool(
-                    self.tick_thread_pool,
-                    self._process_tick_batch,
-                    batch_ticks
-                )
-
-    def _process_tick_batch(self, tick_batch: list[TickData]) -> None:
-        """
-        批量处理tick数据
-        """
-        try:
-            for tick in tick_batch:
-                # 直接处理每个tick，减少线程切换
-                self._distribute_tick(tick)
-                
-            # 更新统计信息
-            batch_size = len(tick_batch)
-            self._total_tick_count += batch_size
-            self._tick_queue_size = max(0, self._tick_queue_size - batch_size)
-            
-            # 优化日志输出，显示实际处理模式
-            if self._total_tick_count % 1000 == 0:
-                if batch_size == 1:
-                    self.logger.info(f"已实时处理tick数量: {self._total_tick_count} (单tick模式)")
-                else:
-                    self.logger.info(f"已批量处理tick数量: {self._total_tick_count}，批次大小: {batch_size}")
-                
-        except Exception as e:
-            self.logger.exception(f"批量处理tick数据异常: {e}")
+                self.logger.error(f"tick处理异常: {e}")
 
     def _distribute_tick(self, tick: TickData) -> None:
         """
-        直接分发tick数据，不使用额外线程池
+        直接分发tick数据到策略
         """
-        try:
-            # 传递tick到策略
-            for strategy in self.strategy_map.values():
-                if tick.instrument_id in strategy.sub_ins_id:
-                    # 直接调用策略方法，避免线程池开销
-                    strategy.specific_strategy_map[tick.instrument_id].on_tick(tick)
-                    
-        except Exception as e:
-            self.logger.exception(f"直接分发tick数据异常: {e}")
-
-    def _flush_tick_batch(self) -> None:
-        """
-        强制刷新批处理队列，处理剩余的tick
-        """
-        with self._batch_lock:
-            if self._tick_batch_queue:
-                batch_ticks = self._tick_batch_queue.copy()
-                self._tick_batch_queue.clear()
-                
-                self.logger.info(f"刷新批处理队列，处理剩余 {len(batch_ticks)} 个tick")
-                
-                # 直接处理，不使用线程池（因为可能正在关闭）
-                for tick in batch_ticks:
+        # 传递tick到策略
+        for strategy_id, strategy in self.strategy_map.items():
+            if tick.instrument_id in strategy.sub_ins_id:
+                if tick.instrument_id in strategy.specific_strategy_map:
                     try:
-                        self._distribute_tick(tick)
+                        strategy.specific_strategy_map[tick.instrument_id].on_tick(tick)
                     except Exception as e:
-                        self.logger.error(f"刷新批处理时处理tick失败: {e}")
-
+                        self.logger.error(f"策略 {strategy_id} 处理合约 {tick.instrument_id} tick异常: {e}")
 
     def init_gateway(self) -> None:
         """
@@ -508,6 +358,7 @@ class DataCenter(object):
         """
         self.market_gateway = MarketGateway(self.dc_event_bus, gateway_name="Data_Center_MD")
         self.trader_gateway = TraderGateway(self.dc_event_bus, gateway_name="Data_Center_TD")
+        
         broker_info: dict = self._dc_config.get('broker', {})
         self.broker_config: dict = broker_info.get('broker_config', {})
 
@@ -517,13 +368,15 @@ class DataCenter(object):
         :return:
         """
         # 连接行情服务器并登录
-        self.market_gateway.connect(self.broker_config)
+        if self.market_gateway:
+            self.market_gateway.connect(self.broker_config)
 
-        # 连接交易服务器并登录
-        self.trader_gateway.connect(self.broker_config)
+        if self.trader_gateway:
+            # 连接交易服务器并登录
+            self.trader_gateway.connect(self.broker_config)
 
         start_time: float = time.time()
-        timeout: float = 10.0
+        timeout: float = 60.0  # 登录超时时间
 
         while not (self.md_login_status and self.td_login_status):
             # 检查是否超时
@@ -532,32 +385,34 @@ class DataCenter(object):
                 self.logger.warning(
                     f"等待登录超时 ({timeout}秒)，当前状态 - 行情网关: {self.md_login_status}, 交易网关: {self.td_login_status}")
                 break
-            time.sleep(0.1)
+            time.sleep(1)
 
         if not self.md_login_status or not self.td_login_status:
             self.logger.error(f"网关登录失败 - 行情网关: {self.md_login_status}, 交易网关: {self.td_login_status}")
+            self.is_login_status = False
             self.dc_running = False
 
-            self.dc_event_bus.publish(Event(EventType.DATA_CENTER_START, {
-                "code": ErrorCode.DATA_CENTER_START_FAILED,
-                "message": "数据中心启动失败",
-                "data": None
-            }))
+            # self.dc_event_bus.publish(Event(EventType.DATA_CENTER_START, {
+            #     "code": ErrorCode.DATA_CENTER_START_FAILED,
+            #     "message": "数据中心启动失败",
+            #     "data": None
+            # }))
             return False
 
-        self.dc_running = True
+        self.is_login_status = True     # 设置登录状态为True
+        self.dc_running = True          # 设置数据中心运行状态为True
         self.logger.info(f"所有网关登录成功 - 行情网关: {self.md_login_status}, 交易网关: {self.td_login_status}")
         self.logger.info("数据中心启动成功")
 
-        # 发布数据中心启动事件(成功)
-        self.dc_event_bus.publish(Event(EventType.DATA_CENTER_START, {
-            "code": ErrorCode.SUCCESS,
-            "message": "数据中心启动成功",
-            "data": None
-        }))
+        # # 发布数据中心启动事件(成功)
+        # self.dc_event_bus.publish(Event(EventType.DATA_CENTER_START, {
+        #     "code": ErrorCode.SUCCESS,
+        #     "message": "数据中心启动成功",
+        #     "data": None
+        # }))
 
-        # 登录成功后发送查询合约事件
-        self._publish_qry_ins()
+        # # 登录成功后发送查询合约事件
+        # self._publish_qry_ins()
 
         return True
 
@@ -588,8 +443,7 @@ class DataCenter(object):
         # 1. 先停止闹钟
         self.stop_alarm()
 
-        # 2. 刷新批处理队列，确保所有tick都被处理
-        self._flush_tick_batch()
+        # 2. 无需刷新批处理队列（已改为直接处理模式）
 
         # 3. 关闭所有CSV文件
         self._close_all_csv_files()
@@ -622,16 +476,7 @@ class DataCenter(object):
         """
         self.logger.info("开始关闭线程池...")
 
-        # 先关闭tick线程池（停止接收新任务）
-        if hasattr(self, 'tick_thread_pool') and self.tick_thread_pool:
-            try:
-                self.logger.info("关闭tick处理线程池...")
-                self.tick_thread_pool.shutdown(wait=True)
-                self.logger.info("tick处理线程池已关闭")
-            except Exception as e:
-                self.logger.error(f"关闭tick线程池失败: {e}")
-
-        # 再关闭主线程池
+        # 关闭主线程池（tick现在通过event_bus处理）
         if hasattr(self, 'thread_pool') and self.thread_pool:
             try:
                 self.logger.info("关闭主线程池...")
@@ -728,7 +573,7 @@ class DataCenter(object):
                 return
 
             # 检查线程池是否已关闭
-            if self.thread_pool.executor and hasattr(self.thread_pool.executor, '_shutdown') and self.thread_pool.executor._shutdown:
+            if hasattr(self.thread_pool, '_shutdown') and self.thread_pool._shutdown:
                 self.logger.warning("线程池已关闭，跳过任务提交")
                 return
 
@@ -848,28 +693,28 @@ class DataCenter(object):
         if current_time in self._alarm_schedule.login_times:
             self.logger.info(f"触发登录: {current_time}")
             self._connect_gateway()
-        else:
-            self.logger.debug(f"[LOGIN_CHECK] 不在登录时间内")
 
-        # 执行开盘前
-        self.logger.debug(f"[BEFORE_OPEN_CHECK] 当前时间: {current_time}, 开盘前时间配置: {self._alarm_schedule.before_open_times}")
-        if current_time in self._alarm_schedule.before_open_times:
-            self.logger.info(f"触发开盘前: {current_time}")
-            # 使用安全提交方法
-            self._safe_submit_to_pool(self.thread_pool, self._before_open)
+        # 登录成功后执行的任务
+        if self.is_login_status:
+            # 执行开盘前
+            self.logger.debug(f"[BEFORE_OPEN_CHECK] 当前时间: {current_time}, 开盘前时间配置: {self._alarm_schedule.before_open_times}")
+            if current_time in self._alarm_schedule.before_open_times:
+                self.logger.info(f"触发开盘前: {current_time}")
+                # 使用安全提交方法
+                self._safe_submit_to_pool(self.thread_pool, self._before_open)
 
-        # 执行订阅行情
-        self.logger.debug(f"[SUB_CHECK] 当前时间: {current_time}, 订阅时间配置: {self._alarm_schedule.sub_id_times}")
-        if current_time in self._alarm_schedule.sub_id_times:
-            self.logger.info(f"触发订阅所有行情: {current_time}")
-            self._subscribe_all_instruments()
+            # 执行订阅行情
+            self.logger.debug(f"[SUB_CHECK] 当前时间: {current_time}, 订阅时间配置: {self._alarm_schedule.sub_id_times}")
+            if current_time in self._alarm_schedule.sub_id_times:
+                self.logger.info(f"触发订阅所有行情: {current_time}")
+                self._subscribe_all_instruments()
 
-        # 收盘后事件
-        self.logger.debug(f"[AFTER_CLOSE_CHECK] 当前时间: {current_time}, 收盘后时间配置: {self._alarm_schedule.after_close_times}")
-        if current_time in self._alarm_schedule.after_close_times:
-            self.logger.info(f"触发收盘后事件: {current_time}")
-            # 使用安全提交方法
-            self._safe_submit_to_pool(self.thread_pool, self._after_close)
+            # 收盘后事件
+            self.logger.debug(f"[AFTER_CLOSE_CHECK] 当前时间: {current_time}, 收盘后时间配置: {self._alarm_schedule.after_close_times}")
+            if current_time in self._alarm_schedule.after_close_times:
+                self.logger.info(f"触发收盘后事件: {current_time}")
+                # 使用安全提交方法
+                self._safe_submit_to_pool(self.thread_pool, self._after_close)
             
         self.logger.debug(f"[SYSTEM_EVENTS] 系统事件检查完成 - {current_time}")
 
@@ -879,8 +724,8 @@ class DataCenter(object):
         """
         self.logger.info(f"开始订阅 {len(self.sub_all_ins)} 个合约...")
 
-        # 分批订阅，每批10个合约
-        batch_size = 10
+        # 分批订阅，每批50个合约
+        batch_size = 50
         for i in range(0, len(self.sub_all_ins), batch_size):
             batch = self.sub_all_ins[i:i + batch_size]
             for ins in batch:
@@ -888,12 +733,7 @@ class DataCenter(object):
                     self.market_gateway.subscribe(SubscribeRequest(ins))
                 except Exception as e:
                     self.logger.error(f"订阅合约 {ins} 失败: {e}")
-
             self.logger.info(f"已订阅 {min(i + batch_size, len(self.sub_all_ins))}/{len(self.sub_all_ins)} 个合约")
-
-            # 批次间短暂延迟
-            if i + batch_size < len(self.sub_all_ins):
-                time.sleep(0.1)
 
         self.logger.info("所有合约订阅完成")
 
@@ -921,7 +761,7 @@ class DataCenter(object):
         if self.strategy_map:
             for strategy in self.strategy_map.values():
                 # 对于数据中心策略，只需要在策略级别执行一次开盘前事件
-                self.logger.info(f"为策略{strategy.strategy_id}执行开盘前事件（策略级别）")
+                self.logger.info(f"为策略 {strategy.strategy_id} 执行开盘前事件")
                 self.thread_pool.submit(
                     self._safe_execute_callback,
                     self._execute_before_open,
@@ -950,7 +790,7 @@ class DataCenter(object):
         if self.strategy_map:
             for strategy in self.strategy_map.values():
                 # 对于数据中心策略，只需要在策略级别执行一次收盘后事件
-                self.logger.info(f"为策略{strategy.strategy_id}执行收盘后事件（策略级别）")
+                self.logger.info(f"为策略{strategy.strategy_id}执行收盘后事件")
                 self.thread_pool.submit(
                     self._safe_execute_callback,
                     self._execute_after_close,
@@ -974,7 +814,6 @@ class DataCenter(object):
     def is_alarm_running(self) -> bool:
         """检查调度器是否正在运行"""
         return self._alarm_running
-
 
     def stop_alarm(self, timeout: float = 10.0) -> None:
         """
@@ -1007,15 +846,21 @@ class DataCenter(object):
         获取线程池状态信息 - 优化统计逻辑
         """
         try:
-            status = {
+            # 获取事件总线tick队列状态
+            tick_queue_status = {}
+            if self.dc_event_bus:
+                try:
+                    tick_queue_status = self.dc_event_bus.get_tick_queue_status()
+                except Exception as e:
+                    tick_queue_status = {'error': f'获取tick队列状态失败: {e}'}
+
+            status: dict[str, Any] = {
                 'thread_pools_initialized': self.thread_pools_initialized,
                 'alarm_running': self._alarm_running,
                 'dc_running': self.dc_running,
                 'tick_statistics': {
-                    'total_processed': self._total_tick_count,
-                    'current_queue_size': self._tick_queue_size,
-                    'rate_limit': self._tick_rate_limit,
-                    'processing_mode': '实时单tick处理'
+                    'processing_mode': '实时处理',
+                    'event_bus_queue': tick_queue_status
                 },
                 'alarm_status': {
                     'running': self._alarm_running,
@@ -1025,108 +870,21 @@ class DataCenter(object):
 
             # 线程池状态：显示当前积压情况而非累计完成率
             if self.thread_pool:
-                main_progress = self.thread_pool.get_progress()
-                # 计算当前积压任务数
-                main_pending = max(0, main_progress['total'] - main_progress['completed'])
+                # 简化主线程池状态监控
                 status['main_pool'] = {
-                    'pending_tasks': main_pending,
-                    'completed_today': main_progress['completed'],
-                    'status': '空闲' if main_pending == 0 else f'{main_pending}个待处理'
+                    'max_workers': self.thread_pool._max_workers,
+                    'executor_type': 'ThreadPoolExecutor',
+                    'status': '运行中'
                 }
             else:
                 status['main_pool'] = {'error': '线程池未初始化'}
 
-            if self.tick_thread_pool:
-                tick_progress = self.tick_thread_pool.get_progress()
-                # 计算当前积压任务数
-                tick_pending = max(0, tick_progress['total'] - tick_progress['completed'])
-                status['tick_pool'] = {
-                    'pending_tasks': tick_pending,
-                    'completed_today': tick_progress['completed'],
-                    'status': '空闲' if tick_pending == 0 else f'{tick_pending}个待处理',
-                    'note': '实时处理模式：新tick持续到来'
-                }
-            else:
-                status['tick_pool'] = {'error': '线程池未初始化'}
+            # tick处理现在通过event_bus进行，无需专用线程池
+            status['tick_processing'] = {
+                'mode': '通过event_bus实时处理',
+                'status': '正常运行'
+            }
 
             return status
         except Exception as e:
             return {'error': f'获取状态失败: {str(e)}'}
-
-    # ================== 监控方法 ==================
-
-    def adjust_thread_pool_size(self, tick_workers: int = None, main_workers: int = None) -> bool:
-        """
-        动态调整线程池大小
-        """
-        try:
-            if tick_workers and hasattr(self, 'tick_thread_pool'):
-                # 需要重新创建线程池来调整大小
-                old_pool = self.tick_thread_pool
-                self.tick_thread_pool = HomalosThreadPool(
-                    max_workers=tick_workers,
-                    thread_name_prefix='DCTickWorker'
-                )
-                old_pool.shutdown(wait=False)
-                self.logger.info(f"Tick线程池大小调整为: {tick_workers}")
-
-            if main_workers and hasattr(self, 'thread_pool'):
-                old_pool = self.thread_pool
-                self.thread_pool = HomalosThreadPool(
-                    max_workers=main_workers,
-                    thread_name_prefix='DCWorker'
-                )
-                old_pool.shutdown(wait=False)
-                self.logger.info(f"主线程池大小调整为: {main_workers}")
-
-            return True
-        except Exception as e:
-            self.logger.error(f"调整线程池大小失败: {e}")
-            return False
-
-    def auto_adjust_thread_pools(self):
-        """
-        根据系统负载自动调整线程池大小
-        """
-        status = self.get_thread_pool_status()
-
-        # 根据tick处理负载调整线程池
-        queue_size = status['tick_statistics']['current_queue_size']
-        tick_pool_progress = status['tick_pool']
-
-        # 如果队列积压严重，增加tick处理线程
-        if queue_size > self._max_queue_size * 0.7:
-            current_workers = tick_pool_progress.get('max_workers', 1500)
-            new_workers = min(current_workers * 2, 3000)  # 最大不超过3000
-            self.adjust_thread_pool_size(tick_workers=new_workers)
-            self.logger.warning(f"检测到队列积压，tick线程池调整为: {new_workers}")
-
-        # 如果队列空闲，减少线程数节省资源
-        elif queue_size < self._max_queue_size * 0.1:
-            current_workers = tick_pool_progress.get('max_workers', 1500)
-            if current_workers > 500:  # 保持最小线程数500
-                new_workers = max(current_workers // 2, 500)
-                self.adjust_thread_pool_size(tick_workers=new_workers)
-                self.logger.info(f"队列空闲，tick线程池调整为: {new_workers}")
-
-    def monitor_and_adjust(self):
-        """
-        监控和调整线程池的定时任务
-        """
-        if not self.dc_running:
-            return
-
-        try:
-            self.auto_adjust_thread_pools()
-
-            # 每5分钟检查一次
-            threading.Timer(300, self.monitor_and_adjust).start()
-        except Exception as e:
-            self.logger.error(f"线程池监控调整失败: {e}")
-
-    # 在数据中心启动时开始监控
-    def start_monitoring(self):
-        """启动线程池监控"""
-        self.logger.info("启动线程池监控")
-        if self.dc_running:
-            threading.Timer(60, self.monitor_and_adjust).start()  # 1分钟后开始监控
