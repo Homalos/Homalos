@@ -154,7 +154,7 @@ class DataCenterStrategy(BaseStrategy):
             # 记录tick数据接收（调试用）
             self._tick_count += 1
 
-            # 每处理300个tick输出一次日志，避免日志过多
+            # 每处理 x 个tick输出一次日志，避免日志过多
             if self._tick_count % 300 == 1:
                 self.logger.info(f"写入进度: 合约{self.instrument_id} 已处理{self._tick_count}条tick数据")
 
