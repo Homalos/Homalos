@@ -24,16 +24,17 @@
 """
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
 from loguru import logger
 
-from src.constants import CONFIG_DIR_NAME, LOG_CONFIG_FILENAME, file_format
+from src.constants import CONFIG_DIR_NAME, LOG_CONFIG_FILENAME
 from src.core.trace_context import get_trace_id
 
-__all__ = ["logger", "get_logger", "get_console_logger"]
+__all__ = ["logger", "get_logger"]
 
 # 从当前文件往上获取项目根目录
 current_file = Path(__file__).resolve()
@@ -64,18 +65,24 @@ config = _load_log_config(config_path)
 cfg = config.get("logging", {})
 
 is_debug = cfg.get("is_debug", False)  # 是否开启 DEBUG 模式
-log_filename = cfg.get("log_filename", "homalos.log")
-log_error_filename = cfg.get("log_error_filename", "homalos_error.log")
-log_dir_name = cfg.get("log_dir_name", "logs")
-level = cfg.get("level", "INFO")            # 输出的最小日志级别
-rotation = cfg.get("rotation", "10 MB")     # 日志轮转大小
-retention = cfg.get("retention", "7 days")  # 保留天数
-compression = cfg.get("compression", "zip") # 压缩
+log_filename: str = cfg.get("log_filename", "homalos")
+error_filename: str = cfg.get("error_filename", "homalos_error")
+filename_format: str = cfg.get("filename_format", "%Y%m%d")
+
+log_dir_name: str = cfg.get("log_dir_name", "logs")
+level: str = cfg.get("level", "INFO")            # 输出的最小日志级别
+rotation: str = cfg.get("rotation", "10 MB")     # 日志轮转大小
+retention: str = cfg.get("retention", "7 days")  # 保留天数
+compression: str = cfg.get("compression", "zip") # 压缩
 
 colorize = cfg.get("colorize", True)    # 颜色
 enqueue = cfg.get("enqueue", True)      # 多进程程安全
 backtrace = cfg.get("backtrace", True)  # 堆栈回溯
 diagnose = cfg.get("diagnose", True)    # 诊断
+
+today = datetime.now().strftime(filename_format)
+log_real_filename = f"{log_filename}_{today}.log"
+log_real_error_filename = f"{error_filename}_{today}.log"
 
 log_dir_path = root_path / log_dir_name
 # 确保日志目录存在
@@ -111,12 +118,8 @@ else:
                       "<cyan>{name}</cyan>:<cyan>{function}</cyan> "
                       "- <level>{message}</level>")
 
-file_format = ("<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-               "<level>{level: <8}</level> | "
-               "<magenta>[{extra[context]}]</magenta> "
-               "<yellow>{extra[trace_id]}</yellow> "
-               "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> "
-               "- <level>{message}</level>")
+file_format = ("{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | [{extra[context]}] "
+               "{extra[trace_id]} {name}:{function}:{line} - {message}")
 
 # 控制台输出
 logger.add(
@@ -132,10 +135,9 @@ logger.add(
 
 # 文件输出（全量日志）
 logger.add(
-    os.path.join(log_dir_path, log_filename),
+    os.path.join(log_dir_path, log_real_filename),
     level=level,
     format=file_format,
-    colorize=colorize,
     rotation=rotation,
     retention=retention,
     compression=compression,
@@ -148,7 +150,7 @@ logger.add(
 
 # 错误日志单独保存
 logger.add(
-    os.path.join(log_dir_path, log_error_filename),
+    os.path.join(log_dir_path, log_real_error_filename),
     level="ERROR",
     format=file_format,
     rotation=rotation,
@@ -161,42 +163,6 @@ logger.add(
     filter=TraceIdFilter()
 )
 
-
-# ===================== 控制台专用日志过滤器 =====================
-# 存储控制台专用的上下文
-_console_only_contexts: set[str] = set()
-
-
-class FileLogFilter:
-    """文件日志过滤器：排除控制台专用的日志"""
-    
-    def __call__(self, record):
-        # 注入 trace_id
-        record["extra"]["trace_id"] = get_trace_id() or "-"
-        
-        # 检查是否为控制台专用上下文
-        context = record["extra"].get("context", "")
-        is_console_only = any(ctx in context for ctx in _console_only_contexts)
-        
-        # 如果是控制台专用上下文，则不写入文件
-        return not is_console_only
-
-
-# 重新配置日志器，添加文件过滤器
-logger.remove()
-
-# 控制台输出（所有日志）
-logger.add(
-    sys.stdout,
-    level=level,
-    colorize=colorize,
-    format=console_format,
-    backtrace=backtrace,
-    diagnose=diagnose,
-    enqueue=enqueue,
-    filter=TraceIdFilter()
-)
-
 # ===================== 对外 API =====================
 def get_logger(context: str = "Homalos") -> Any:
     """
@@ -205,16 +171,4 @@ def get_logger(context: str = "Homalos") -> Any:
     :param context: 模块上下文，默认"Homalos"
     :return: logger
     """
-    return logger.bind(context=context)
-
-
-def get_console_logger(context: str = "Console") -> Any:
-    """
-    获取只输出到控制台的 logger（不写入文件）
-    trace_id 会自动从全局上下文获取（无需手动传）
-    :param context: 模块上下文，默认"Console"
-    :return: 只输出到控制台的logger
-    """
-    # 将上下文添加到控制台专用集合
-    _console_only_contexts.add(context)
     return logger.bind(context=context)

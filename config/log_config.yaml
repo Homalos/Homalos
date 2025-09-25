@@ -1,7 +1,8 @@
 logging:
   is_debug: true              # 是否开启debug模式
-  log_filename: "homalos.log" # 日志文件名
-  log_error_filename: "homalos_error.log"
+  log_filename: "homalos"     # 日志文件名
+  error_filename: "homalos_error"
+  filename_format: "%Y%m%d"   # 日志文件名格式
   level: "INFO"               # 日志级别
   log_dir_name: "logs"        # 日志目录
   rotation: "50 MB"           # 单个日志文件大小上限
