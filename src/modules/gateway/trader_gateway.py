@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import SupportsInt
 
-from src.constants import INSTRUMENT_EXCHANGE_FILENAME, PRODUCT_INFO_FILENAME
+from src.constants import INSTRUMENT_EXCHANGE_FILENAME, PRODUCT_INFO_FILENAME, Const
 from src.core.base_gateway import BaseGateway
 from src.core.constants import ErrorReason, Currency, Exchange, Direction, Product, OrderStatus, OrderType
 from src.core.event import EventType, Event
@@ -204,7 +204,7 @@ class CtpTdApi(TdApi):
         self.connect_status: bool = False  # 连接状态
         self.auth_status: bool = False  # 授权状态
         self.login_status: bool = False  # 登录状态
-        self.confirm_status: bool = False  # 确认结算单状态
+        self.has_confirmed: bool = False    # 是否已确认过结算单
         self.contract_inited: bool = False  # 初始化合约状态
 
         self.address: str = ""  # 服务器地址 Server address
@@ -367,6 +367,15 @@ class CtpTdApi(TdApi):
         if rsp_error_msg:
             self.login_status = False
             self.logger.exception(rsp_error_msg)
+
+            if self.gateway.event_bus:
+                payload = {
+                    "code": 1,
+                    "message": "交易服务器登录失败",
+                    "data": None
+                }
+                self.gateway.event_bus.publish(Event(EventType.TD_GATEWAY_LOGIN, payload=payload))
+                self.logger.info("已发布 TD_GATEWAY_LOGIN 事件")
             return
         else:
             # 请求响应的所有数据包全部返回，并且没有错误，则认为成功
@@ -397,23 +406,31 @@ class CtpTdApi(TdApi):
                     "BrokerID": self.broker_id,
                     "InvestorID": self.user_id
                 }
-
-                if not self.confirm_status:
+                # 判断是否是新的交易日
+                if self.trading_day != Const.trading_day:
                     self.req_id += 1
                     self.logger.info("开始确认结算单......")
                     # 调用确认结算单方法 Call the settlement confirmation method
                     self.reqSettlementInfoConfirm(settlement_req, self.req_id)
                 else:
-                    self.logger.info("结算单已确认")
-                    # 发布结算单确认成功事件
-                    if self.gateway.event_bus:
-                        payload = {
-                            "code": 0,
-                            "message": "结算单已确认",
-                            "data": None
-                        }
-                        self.gateway.event_bus.publish(Event(EventType.TD_CONFIRM_SUCCESS, payload=payload))
-                        self.logger.info("已发布 TD_CONFIRM_SUCCESS 事件")
+                    # 同一个交易日，如果没有确认过结算单，则进行确认
+                    if not self.has_confirmed:
+                        self.req_id += 1
+                        self.logger.info("开始确认结算单......")
+                        # 调用确认结算单方法 Call the settlement confirmation method
+                        self.reqSettlementInfoConfirm(settlement_req, self.req_id)
+                    else:
+                        self.logger.info("结算单已经确认过，跳过再次确认")
+                        # 这里的处理逻辑：确认过和跳过确认都发送确认成功事件
+                        if self.gateway.event_bus:
+                            payload = {
+                                "code": 0,
+                                "message": "结算单已经确认过，跳过再次确认",
+                                "data": None
+                            }
+                            self.gateway.event_bus.publish(Event(EventType.TD_ALREADY_CONFIRMED, payload=payload))
+                            self.logger.info("已发布 TD_ALREADY_CONFIRMED 事件")
+
             if not last:
                 self.logger.info("等待确认结算单......")
 
@@ -435,7 +452,7 @@ class CtpTdApi(TdApi):
         """
         rsp_error_msg = extract_error_msg(error, "结算单确认失败！")
         if rsp_error_msg:
-            self.confirm_status = False
+            self.has_confirmed = False
             self.logger.exception(rsp_error_msg)
         else:
             if not data:
@@ -443,13 +460,14 @@ class CtpTdApi(TdApi):
 
             # 请求响应的所有数据包全部返回，并且没有错误，则认为成功
             # 当结算单确认成功后，将确认结算标志设置为True
-            self.confirm_status = True
+            self.has_confirmed = True
             confirm_date = data.get("ConfirmDate")
             confirm_time = data.get("ConfirmTime")
             settlement_id = data.get("SettlementID")
             self.logger.info(f"确认日期：{confirm_date}, 时间：{confirm_time}, 结算编号：{settlement_id}")
 
             if last:
+                Const.trading_day = confirm_date
                 self.logger.info("结算单确认成功")
                 # 发布结算单确认成功事件
                 if self.gateway.event_bus:
@@ -1387,7 +1405,7 @@ class CtpTdApi(TdApi):
         所有状态是否就绪，包括连接、认证、授权、登录、确认结算单
         :return: True or False
         """
-        if not self.connect_status or not self.auth_status or not self.login_status or not self.confirm_status:
+        if not self.connect_status or not self.auth_status or not self.login_status or not self.has_confirmed:
             return False
         else:
             return True
