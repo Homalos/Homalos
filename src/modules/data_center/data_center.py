@@ -21,15 +21,16 @@ from threading import Event as ThreadEvent
 from threading import Thread
 from typing import Optional, Any, TextIO, Callable
 
+from src.api.bar_generator import BarGenerator
 from src.constants import Const
 from src.core.event import EventType, Event
 from src.core.event_bus import EventBus
 from src.core.object import TradingSchedule, TickData, SubscribeRequest
 from src.modules.data_center.data_center_strategy import DataCenterStrategy
-from src.modules.function.bar_generator import BarGenerator
 from src.modules.gateway.market_gateway import MarketGateway
 from src.modules.gateway.trader_gateway import TraderGateway
 from src.strategy.base_strategy import BaseStrategy
+from src.strategy.strategy_pool import StrategyPool
 from src.utils.alarm import Alarm
 from concurrent.futures import ThreadPoolExecutor
 from src.utils.log import get_logger
@@ -56,6 +57,7 @@ class DataCenter(object):
 
         self.bar_generator: BarGenerator = BarGenerator()           # 初始化K线合成系统
         self.bar_generation_interval: list = []
+        self.strategy_pool: StrategyPool = StrategyPool()           # 策略池
         self.strategy_map: dict[str, BaseStrategy] = {}             # 初始化策略映射
 
         # 使用标准ThreadPoolExecutor
@@ -313,6 +315,9 @@ class DataCenter(object):
             # 初始化策略
             self.init_strategies()
 
+            self.strategy_pool.init_sub_id()
+            self.strategy_pool.init_kline_type()
+
             # 初始化订阅合约
             self.init_sub_instruments()
 
@@ -323,6 +328,7 @@ class DataCenter(object):
         """初始化数据中心策略"""
         self.logger.info("初始化数据中心策略...")
         dc_strategy: DataCenterStrategy = DataCenterStrategy()
+        self.strategy_pool.add_strategy(dc_strategy.strategy_id, dc_strategy)
         self.strategy_map = {dc_strategy.strategy_id: dc_strategy}
         self.logger.info("成功初始化数据中心策略")
 
@@ -339,8 +345,10 @@ class DataCenter(object):
 
                 # 添加订阅的K线类型
                 if strategy.sub_kline_type:
-                    self.bar_generator.add_sub_kline_id(strategy.sub_ins_id)
-                    self.bar_generator.add_sub_kline_type(strategy.sub_kline_type)
+                    # self.bar_generator.add_sub_kline_id(strategy.sub_ins_id)
+                    # self.bar_generator.add_sub_kline_type(strategy.sub_kline_type)
+                    self.bar_generator.set_kline_type(self.strategy_pool.sub_kline_type)
+                    self.logger.info(f"strategy_pool sub_kline_type：{self.strategy_pool.sub_kline_type}")
 
             self.bar_generator.init_min_kline_map()
 
@@ -369,11 +377,14 @@ class DataCenter(object):
         # 传递tick到策略
         for strategy_id, strategy in self.strategy_map.items():
             if tick.instrument_id in strategy.sub_ins_id:
-                if tick.instrument_id in strategy.specific_strategy_map:
-                    try:
-                        strategy.specific_strategy_map[tick.instrument_id].on_tick(tick)
-                    except Exception as e:
-                        self.logger.error(f"策略 {strategy_id} 处理合约 {tick.instrument_id} tick异常: {e}")
+                try:
+                    strategy.specific_strategy_map[tick.instrument_id].on_tick(tick)
+                except Exception as e:
+                    self.logger.error(f"策略 {strategy_id} 处理合约 {tick.instrument_id} tick异常: {e}")
+
+        # tick合成K线
+        if tick.instrument_id in self.bar_generator.sub_kline_type_map.keys():
+            self.bar_generator.tick_to_kline(tick)
 
     def init_gateway(self) -> None:
         """
@@ -471,12 +482,12 @@ class DataCenter(object):
         # 2. 关闭所有CSV文件
         self._close_all_csv_files()
 
-        # 3. 关闭K线生成器
-        try:
-            if hasattr(self, 'bar_generator') and self.bar_generator:
-                self.bar_generator.shutdown()
-        except Exception as e:
-            self.logger.error(f"关闭K线生成器失败: {e}")
+        # # 3. 关闭K线生成器
+        # try:
+        #     if hasattr(self, 'bar_generator') and self.bar_generator:
+        #         self.bar_generator.shutdown()
+        # except Exception as e:
+        #     self.logger.error(f"关闭K线生成器失败: {e}")
 
         try:
             # 4. 停止网关
@@ -715,6 +726,10 @@ class DataCenter(object):
         :param current_time: 当前时间字符串
         """
         self.logger.debug(f"[SYSTEM_EVENTS] 开始检查系统事件 - {current_time}")
+
+        if self.thread_pool:
+            # 执行K线任务（提交到线程池）
+            self._safe_submit_to_pool(self.thread_pool, self.bar_generator.check_min1())
         
         # 执行每分钟任务（直接执行，不提交到线程池）
         self._one_min(current_time)
