@@ -10,6 +10,7 @@
 @Description: 公用的工具，和业务没有关系的工具
 """
 import configparser
+import csv
 import json
 import os
 import re
@@ -193,6 +194,36 @@ def del_num(content) -> str:
     """
     return re.sub(r'\d', '', content)
 
+def write_csv(file_name, method, content):
+    """
+    将数据写入csv中,w代表删除原有的写入，w+代表读写，a代表追写，a+代表读+追写
+    @param file_name:
+    @param method: w代表删除原有的写入，w+代表读写，a代表追写，a+代表读+追写
+    @param content: 注意！！！，内容为一个列表，即：需要用[]括起来，如['1',str(a)]
+    """
+    # 1. 创建文件对象
+    csv_file = open(file_name, method, newline='', encoding='utf-8')
+    # 2. 基于文件对象构建 csv写入对象
+    csv_writer = csv.writer(csv_file)
+    # 3. 写入csv文件内容
+    csv_writer.writerow(content)
+    # 4. 关闭文件
+    csv_file.close()
+
+def get_file_name(path, ext):
+    """
+    获取指定路径下，指定格式的所有文件名
+    @param path: 路径，如：上一层 '../'
+    @param ext: 指定后缀
+    """
+    list_all_files = os.listdir(path)
+    list_file = []
+
+    # 获取指定格式的文件
+    for file in list_all_files:
+        if ext in file:
+            list_file.append(file)
+    return list_file[:]
 
 def get_enable_broker(cfg: ConfigManager) -> dict[str, Any]:
     """
