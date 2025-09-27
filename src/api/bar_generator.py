@@ -12,37 +12,42 @@
 import ast
 import datetime
 import threading
+import time
 import traceback
 from queue import Queue
-from src.constants import strategy_map
-from concurrent.futures import ThreadPoolExecutor
+
+from src.constants import strategy_map, TRADING_DIR_NAME, is_queue
 from src.core.constants import Interval
 from src.core.object import BarData, TickData
 from src.strategy.base_strategy import BaseStrategy
 from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger
+from src.utils.log.logger import log_object
 from src.utils.utility import del_num
 
 
 class BarGenerator:
 
-    def __init__(self, max_kline_cache: int = 1000):
+    def __init__(self):
         self.logger = get_logger(self.__class__.__name__)
 
-        # 内存管理配置
-        self.max_kline_cache = max_kline_cache  # 每个合约最大缓存K线数量
-        self.last_cleanup_time = datetime.datetime.now()  # 上次清理时间
-        self.cleanup_interval = 3600  # 清理间隔（秒）
+        # # 内存管理配置
+        # self.max_kline_cache = max_kline_cache  # 每个合约最大缓存K线数量
+        # self.last_cleanup_time = datetime.datetime.now()  # 上次清理时间
+        # self.cleanup_interval = 3600  # 清理间隔（秒）
         
-        # K线处理专用线程池
-        self.kline_executor = ThreadPoolExecutor(
-            max_workers=50,
-            thread_name_prefix='BarWorker'
-        )
+        # # K线处理专用线程池
+        # self.kline_executor = ThreadPoolExecutor(
+        #     max_workers=50,
+        #     thread_name_prefix='BarWorker'
+        # )
 
-        # 订阅K线的合约名称和合约类型
-        self.sub_kline_id: list[str] = []
-        self.sub_kline_type: list[Interval] = []
+        # # 订阅K线的合约名称和合约类型
+        # self.sub_kline_id: list[str] = []
+        # self.sub_kline_type: list[Interval] = []
+
+        self.trading_dir_path = str(get_path_ins.get_data_dir() / TRADING_DIR_NAME)
+        self.logger.info(f"交易时间文件位置：{self.trading_dir_path}")
 
         # 1分钟K线的合约字典
         self.kline_min1_map: dict[str, BarData] = {}
@@ -74,16 +79,24 @@ class BarGenerator:
         # 交易时间字典
         self.trading_time: dict = {}
 
+        self.is_queue: bool = is_queue
+
         # 初始化交易时间字典
         self.init_trading_time()
 
-        self.logger.info("已开启tick合成K线系统")
-        self.bar_thread = threading.Thread(target=self.get_kline)
-        self.bar_thread.name = "传递K线"
-        self.bar_thread.start()
+        if self.is_queue:
+            self.logger.info("已开启tick合成K线系统")
+            self.bar_thread = threading.Thread(target=self.get_kline)
+            self.bar_thread.daemon = True
+            self.bar_thread.name = "传递K线-守护线程"
+            self.bar_thread.start()
+
 
         # 初始化信号，用于判断分钟字典是否进行初始化，如有夜盘，第二天无需初始化，没有夜盘，第二天需要初始化
         self.init_flag: bool = False
+
+        # 订阅了哪些合约以及具体K线类型，如：{'FG209': ['min'], 'SA209': ['min', 'min5'], 'au2208': ['min', 'min5']}
+        self.sub_kline_type_map: dict[str, list[Interval]] = {}
 
     def init_trading_time(self) -> None:
         """
@@ -110,11 +123,10 @@ class BarGenerator:
             ...
         }
         """
-        data_dir = str(get_path_ins.get_data_dir() / "trading")
         for file in ['min3.txt', 'min5.txt', 'min15.txt', 'min30.txt', 'min60.txt']:
             product = file.replace('.txt', '')
             self.trading_time[product] = {}
-            with open(f"{data_dir}/{file}", "r") as f:
+            with open(f"{self.trading_dir_path}/{file}", "r") as f:
                 data = f.read()  # 读取文件
                 if data:
                     data = ast.literal_eval(data)
@@ -127,13 +139,21 @@ class BarGenerator:
                         self.trading_time[product][hour] = []
                         self.trading_time[product][hour].append(time_point)
 
-    def add_sub_kline_id(self, sub_kline_id_list: list[str]) -> None:
-        # 增加订阅K线的合约名称
-        self.sub_kline_id: list[str] = list(set(self.sub_kline_id + sub_kline_id_list))
+    # def add_sub_kline_id(self, sub_kline_id_list: list[str]) -> None:
+    #     # 增加订阅K线的合约名称
+    #     self.sub_kline_id: list[str] = list(set(self.sub_kline_id + sub_kline_id_list))
+    #
+    # def add_sub_kline_type(self, sub_kline_type_list: list[Interval]) -> None:
+    #     # 增加订阅K线的类型
+    #     self.sub_kline_type: list[Interval] = list(set(self.sub_kline_type + sub_kline_type_list))
 
-    def add_sub_kline_type(self, sub_kline_type_list: list[Interval]) -> None:
-        # 增加订阅K线的类型
-        self.sub_kline_type: list[Interval] = list(set(self.sub_kline_type + sub_kline_type_list))
+    def set_kline_type(self, kline_type_map):
+        """
+        设置订阅的K线类型
+        :param kline_type_map:
+        :return:
+        """
+        self.sub_kline_type_map = kline_type_map
 
     def init_min_kline_map(self) -> None:
         """
@@ -144,32 +164,32 @@ class BarGenerator:
         if self.init_flag:
             return
 
-        for instrument_id in self.sub_kline_id:
+        for instrument_id in self.sub_kline_type_map.keys():
             self.kline_min1_map[instrument_id] = BarData()
             self.kline_min1_lock_map[instrument_id] = threading.Lock()
 
             # 如果订阅了3分钟K线，则对字典进行
-            if Interval.MINUTE3 in self.sub_kline_type:
+            if Interval.MINUTE3 in self.sub_kline_type_map[instrument_id]:
                 self.kline_min3_map[instrument_id] = BarData()
                 self.kline_min3_lock_map[instrument_id] = threading.Lock()
 
             # 如果订阅了5分钟K线，则对字典进行
-            if Interval.MINUTE5 in self.sub_kline_type:
+            if Interval.MINUTE5 in self.sub_kline_type_map[instrument_id]:
                 self.kline_min5_map[instrument_id] = BarData()
                 self.kline_min5_lock_map[instrument_id] = threading.Lock()
 
             # 如果订阅了15分钟K线，则对字典进行
-            if Interval.MINUTE15 in self.sub_kline_type:
+            if Interval.MINUTE15 in self.sub_kline_type_map[instrument_id]:
                 self.kline_min15_map[instrument_id] = BarData()
                 self.kline_min15_lock_map[instrument_id] = threading.Lock()
 
             # 如果订阅了30分钟K线，则对字典进行
-            if Interval.MINUTE30 in self.sub_kline_type:
+            if Interval.MINUTE30 in self.sub_kline_type_map[instrument_id]:
                 self.kline_min30_map[instrument_id] = BarData()
                 self.kline_min30_lock_map[instrument_id] = threading.Lock()
 
             # 如果订阅了60分钟K线，则对字典进行
-            if Interval.MINUTE60 in self.sub_kline_type:
+            if Interval.MINUTE60 in self.sub_kline_type_map[instrument_id]:
                 self.kline_min60_map[instrument_id] = BarData()
                 self.kline_min60_lock_map[instrument_id] = threading.Lock()
 
@@ -177,17 +197,18 @@ class BarGenerator:
         self.init_flag = True
 
 
-    def check_min1(self, time_now):
+    def check_min1(self):
         """
         防止没有tick传来，导致没有1分钟K线生成
-        :param time_now:
         :return:
         """
+        time.sleep(3)
+        time_now = datetime.datetime.now()
         def is_new_kline_min(update_minute, true_minute):
-            if update_minute in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                                24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
-                                45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58]:
-                if abs(true_minute - update_minute) >= 2:
+            if update_minute in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+                                 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]:
+                if abs(true_minute - update_minute) >= 1:
                     return True
                 else:
                     return False
@@ -198,12 +219,9 @@ class BarGenerator:
                     return True
 
         minute = time_now.minute
-        # 修复线程安全问题：使用list()创建副本，避免在迭代过程中字典被修改
-        instrument_ids = list(self.kline_min1_map.keys())
-        for instrument_id in instrument_ids:
-            if instrument_id not in self.kline_min1_map:
-                continue
-            kline = self.kline_min1_map[instrument_id]
+        for kline in self.kline_min1_map.values():
+            if kline.instrument_id not in self.kline_min1_map.keys():
+                return
             # 如果k线时间不在交易时间，则退出
             if not self.judge_in_trading_time(del_num(kline.instrument_id), kline.update_time.strftime('%H:%M:%S')):
                 return
@@ -241,16 +259,17 @@ class BarGenerator:
                         volume - self.kline_min1_map[instrument_id].last_volume, 0)
 
                     bar = self.get_new_bar(self.kline_min1_map[instrument_id])
-                    self.kline_queue.put(bar)
+                    if self.is_queue:
+                        self.kline_queue.put(bar)
+                    else:
+                        self.distribute_kline_without_queue(bar)
 
                 self.kline_min1_map[instrument_id] = BarData()
                 self.kline_min1_map[instrument_id].bar_type = Interval.MINUTE
                 self.kline_min1_map[instrument_id].instrument_id = instrument_id
-                self.kline_min1_map[instrument_id].update_time = datetime.datetime.combine(
-                    datetime.date.today(), 
-                    datetime.time(int(time_now.hour), int(time_now.minute), 0, 0)
-                )
-                self.kline_min1_map[instrument_id].volume = int(volume)
+                self.kline_min1_map[instrument_id].update_time = datetime.time(int(time_now.hour),
+                                                                               int(time_now.minute), 0, 0)
+                self.kline_min1_map[instrument_id].volume = volume
                 self.kline_min1_map[instrument_id].open_interest = kline.open_interest
                 self.kline_min1_map[instrument_id].open_price = open_price
                 self.kline_min1_map[instrument_id].high_price = max(open_price, kline.close_price)
@@ -279,9 +298,9 @@ class BarGenerator:
             self.logger.exception(traceback.format_exc())
             return True
 
-    def is_sub_kline(self, instrument_id):
+    def is_sub_kline(self, instrument_id) -> bool:
         # 判断合约是否需要订阅K线
-        return instrument_id in self.sub_kline_id
+        return instrument_id in self.sub_kline_type_map.keys()
 
     def tick_to_kline(self, tick: TickData):
         # 不使用线程
@@ -313,14 +332,17 @@ class BarGenerator:
         # 单一合约合成1分钟K线
         # 对tick进行加锁，防止2个tick同时更改同一根K线造成一些错误
         self.kline_min1_lock_map[tick.instrument_id].acquire()
-        instrument_id = tick.instrument_id
+        instrument_id: str = tick.instrument_id
 
-        st = tick.update_time.strftime("%H:%M:%S").split(':')
-
+        st: list[str] = tick.update_time.split(':')
+        # 剔除一些有延迟的tick，比如K线时间是9：01，但是有一个9:00：59的延迟tick
+        kline_min1_update_time = self.kline_min1_map[instrument_id].update_time.strftime('%H:%M:%S')
         # 剔除函数， 剔除一些有延迟的tick，比如K线时间是9：01，但是有一个9:00：59的延迟tick
-        if tick.update_time.strftime("%H:%M:%S") < self.kline_min1_map[instrument_id].update_time.strftime('%H:%M:%S') \
-                and st[0] == self.kline_min1_map[instrument_id].update_time.strftime('%H'):
+        if tick.update_time < kline_min1_update_time and st[0] == self.kline_min1_map[instrument_id].update_time.strftime('%H'):
             self.kline_min1_lock_map[tick.instrument_id].release()
+            self.logger.info("合成K线剔除过期Tick：\n"
+                             f'tick.update_time: {tick.update_time}'
+                             f'kline_min1_update_time: {kline_min1_update_time}')
             return
 
         # 如果tick的分钟数 等于K线的分钟数，则不是新的分钟线
@@ -364,16 +386,17 @@ class BarGenerator:
                 self.kline_min1_map[instrument_id].volume = max(volume - self.kline_min1_map[instrument_id].last_volume, 0)
 
                 bar = self.get_new_bar(self.kline_min1_map[instrument_id])
-                self.kline_queue.put(bar)
+                if self.is_queue:
+                    self.kline_queue.put(bar)
+                else:
+                    self.distribute_kline_without_queue(bar)
 
             self.kline_min1_map[instrument_id] = BarData()
             self.kline_min1_map[instrument_id].bar_type = Interval.MINUTE
             self.kline_min1_map[instrument_id].instrument_id = instrument_id
-            self.kline_min1_map[instrument_id].update_time = datetime.datetime.combine(
-                datetime.date.today(), 
-                datetime.time(int(st[0]), int(st[1]), 0, 0)
-            )
-            self.kline_min1_map[instrument_id].volume = int(volume)
+            self.kline_min1_map[instrument_id].update_time = datetime.time(int(st[0]),
+                                                                           int(st[1]), 0, 0)
+            self.kline_min1_map[instrument_id].volume = volume
             self.kline_min1_map[instrument_id].open_interest = tick.open_interest
             self.kline_min1_map[instrument_id].open_price = open_price
             self.kline_min1_map[instrument_id].high_price = max(open_price, tick.last_price)
@@ -403,7 +426,8 @@ class BarGenerator:
 
             # 如果是1分钟K线，另需要分发到合成其他K线线程，合成其他K线
             if kline.bar_type == Interval.MINUTE:
-                self.kline_executor.submit(self.min1_to_other_kline, kline)
+                # self.kline_executor.submit(self.min1_to_other_kline, kline)
+                self.min1_to_other_kline(kline)
 
             self.distribute_kline(kline)
 
@@ -428,11 +452,11 @@ class BarGenerator:
                 kline_map[instrument_id].bar_type = interval
                 kline_map[instrument_id].instrument_id = instrument_id
                 kline_map[instrument_id].update_time = kline.update_time
-                kline_map[instrument_id].volume = int(kline.volume)
+                kline_map[instrument_id].volume = kline.volume
                 kline_map[instrument_id].open_interest = kline.open_interest
                 kline_map[instrument_id].open_price = kline.open_price
-                kline_map[instrument_id].high_price = kline.high_price
-                kline_map[instrument_id].low_price = kline.low_price
+                kline_map[instrument_id].high_price = max(0.0, kline.high_price)
+                kline_map[instrument_id].low_price = min(float('inf'), kline.low_price)
                 kline_map[instrument_id].close_price = kline.close_price
             else:
                 # 如果不是新K线，更新相关数据
@@ -442,15 +466,29 @@ class BarGenerator:
                 # 持仓量
                 kline_map[instrument_id].open_interest = kline.open_interest
                 # 累计成交量
-                kline_map[instrument_id].volume += int(kline.volume)
+                kline_map[instrument_id].volume += kline.volume
             
             # 检查是否到了K线结束时间，如果是则推送
             if self.is_min_kline_end(interval, kline.update_time):
                 bar = self.get_new_bar(kline_map[instrument_id])
-                self.kline_queue.put(bar)
+                if self.is_queue:
+                    self.kline_queue.put(bar)
+                else:
+                    self.distribute_kline_without_queue(bar)
                 
         finally:
             lock_map[instrument_id].release()
+
+    def distribute_kline_without_queue(self, kline):
+        # 如果是无效数据，退出
+        if self.clean_kline(kline):
+            return
+
+        # 如果是1分钟K线，另需要分发到合成其他K线线程，合成其他K线
+        if kline.bar_type == Interval.MINUTE:
+            self.min1_to_other_kline(kline)
+
+        self.distribute_kline(kline)
 
     def min1_to_other_kline(self, kline: BarData):
         """
@@ -458,18 +496,15 @@ class BarGenerator:
         :param kline:
         :return:
         """
-        # 定期清理内存
-        self.cleanup_old_klines()
-        
-        if kline.instrument_id in self.sub_kline_id and Interval.MINUTE3 in self.sub_kline_type:
+        if kline.instrument_id in self.sub_kline_type_map.keys() and Interval.MINUTE3 in self.sub_kline_type_map[kline.instrument_id]:
             self.min1_to_min3(kline)
-        if kline.instrument_id in self.sub_kline_id and Interval.MINUTE5 in self.sub_kline_type:
+        if kline.instrument_id in self.sub_kline_type_map.keys() and Interval.MINUTE5 in self.sub_kline_type_map[kline.instrument_id]:
             self.min1_to_min5(kline)
-        if kline.instrument_id in self.sub_kline_id and Interval.MINUTE15 in self.sub_kline_type:
+        if kline.instrument_id in self.sub_kline_type_map.keys() and Interval.MINUTE15 in self.sub_kline_type_map[kline.instrument_id]:
             self.min1_to_min15(kline)
-        if kline.instrument_id in self.sub_kline_id and Interval.MINUTE30 in self.sub_kline_type:
+        if kline.instrument_id in self.sub_kline_type_map.keys() and Interval.MINUTE30 in self.sub_kline_type_map[kline.instrument_id]:
             self.min1_to_min30(kline)
-        if kline.instrument_id in self.sub_kline_id and Interval.MINUTE60 in self.sub_kline_type:
+        if kline.instrument_id in self.sub_kline_type_map.keys() and Interval.MINUTE60 in self.sub_kline_type_map[kline.instrument_id]:
             self.min1_to_min60(kline)
 
     def min1_to_min3(self, kline: BarData):
@@ -561,82 +596,47 @@ class BarGenerator:
             if kline.instrument_id in strategy.sub_ins_id and kline.bar_type in strategy.sub_kline_type:
                 self.save_kline(strategy, kline)
 
-    def save_kline(self, strategy: BaseStrategy, kline: BarData):
+    @staticmethod
+    def save_kline(strategy: BaseStrategy, kline: BarData):
         instrument_id = kline.instrument_id
         if strategy.specific_strategy_map[instrument_id].kline_lock:
             strategy.specific_strategy_map[instrument_id].kline_lock.acquire()
             strategy.specific_strategy_map[instrument_id].bar_data = kline
-            # 使用本地线程池执行策略回调
-            self.kline_executor.submit(strategy.specific_strategy_map[instrument_id].on_bar)
+            # # 使用本地线程池执行策略回调
+            # self.kline_executor.submit(strategy.specific_strategy_map[instrument_id].on_bar)
+            strategy.specific_strategy_map[instrument_id].on_bar()
 
     # 如果是无效数据，则返回True
     def clean_kline(self, kline: BarData):
         if kline.instrument_id == '':
             return True
+
         if kline.volume == 0 or kline.open_interest == 0.0 or kline.open_price == 0.0 or kline.high_price == 0.0 or \
-                kline.low_price == float('inf') or kline.close_price == 0.0:
-            self.logger.warning('{} K线数据无效, updateTime:{}'.format(kline.instrument_id, kline.update_time))
+                kline.low_price == float('inf') or kline.low_price == 0.0 or kline.close_price == 0.0:
+            self.logger.warning('{} K线数据无效, update_time:{}'.format(kline.instrument_id, kline.update_time))
+            log_object(kline)
             return True
         
         return False
 
-    def shutdown(self):
-        """关闭BarGenerator，清理资源"""
-        try:
-            if hasattr(self, 'kline_executor') and self.kline_executor:
-                self.logger.info("关闭K线处理线程池...")
-                self.kline_executor.shutdown(wait=True)
-                self.logger.info("K线处理线程池已关闭")
-        except Exception as e:
-            self.logger.error(f"关闭K线处理线程池失败: {e}")
+    # def shutdown(self):
+    #     """关闭BarGenerator，清理资源"""
+    #     try:
+    #         if hasattr(self, 'kline_executor') and self.kline_executor:
+    #             self.logger.info("关闭K线处理线程池...")
+    #             self.kline_executor.shutdown(wait=True)
+    #             self.logger.info("K线处理线程池已关闭")
+    #     except Exception as e:
+    #         self.logger.error(f"关闭K线处理线程池失败: {e}")
 
-    def cleanup_old_klines(self) -> None:
-        """
-        清理过期的K线数据，释放内存
-        定期调用以防止内存泄漏
-        """
-        current_time = datetime.datetime.now()
-        if (current_time - self.last_cleanup_time).seconds < self.cleanup_interval:
-            return
-
-        self.logger.info("开始清理过期K线数据...")
-        
-        # 清理各周期K线中不活跃的合约数据
-        active_instruments = set(self.sub_kline_id)
-        
-        for kline_map, lock_map in [
-            (self.kline_min1_map, self.kline_min1_lock_map),
-            (self.kline_min3_map, self.kline_min3_lock_map),
-            (self.kline_min5_map, self.kline_min5_lock_map),
-            (self.kline_min15_map, self.kline_min15_lock_map),
-            (self.kline_min30_map, self.kline_min30_lock_map),
-            (self.kline_min60_map, self.kline_min60_lock_map)
-        ]:
-            # 获取所有合约ID的副本，避免运行时修改
-            instrument_ids = list(kline_map.keys())
-            for instrument_id in instrument_ids:
-                if instrument_id not in active_instruments:
-                    # 清理不活跃的合约数据
-                    if instrument_id in lock_map:
-                        lock_map[instrument_id].acquire()
-                        try:
-                            kline_map.pop(instrument_id, None)
-                            lock_map.pop(instrument_id, None)
-                        finally:
-                            # 安全释放锁
-                            try:
-                                lock_map[instrument_id].release()
-                            except KeyError:
-                                pass  # 锁已被删除
-        
-        self.last_cleanup_time = current_time
-        self.logger.info("K线数据清理完成")
 
     def clean_map(self):
         """完全清理所有K线数据"""
         # 订阅K线的合约名称和合约类型
-        self.sub_kline_id: list[str] = []
-        self.sub_kline_type: list[Interval] = []
+        # self.sub_kline_id: list[str] = []
+        # self.sub_kline_type: list[Interval] = []
+
+        self.sub_kline_type_map = {}
 
         # 1分钟K线的合约字典
         self.kline_min1_map: dict[str, BarData] = {}
@@ -664,3 +664,7 @@ class BarGenerator:
 
         # 初始化信号，用于判断分钟字典是否进行初始化，如有夜盘，第二天无需初始化，没有夜盘，第二天需要初始化
         self.init_flag: bool = False
+
+
+if __name__ == '__main__':
+    bar_generator = BarGenerator()
