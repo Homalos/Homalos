@@ -60,7 +60,7 @@ class TickData(BaseData):
     lower_limit_price: float = 0.0
     pre_delta: float = 0.0
     curr_delta: float = 0.0
-    update_time: datetime = None
+    update_time: str = None
     update_millisec: int = 0
     bid_price_1: float = 0.0
     bid_volume_1: int = 0.0
