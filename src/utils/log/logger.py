@@ -34,7 +34,7 @@ from loguru import logger
 from src.constants import CONFIG_DIR_NAME, LOG_CONFIG_FILENAME
 from src.core.trace_context import get_trace_id
 
-__all__ = ["logger", "get_logger"]
+__all__ = ["logger", "get_logger", "log_detail", "log_object"]
 
 # 从当前文件往上获取项目根目录
 current_file = Path(__file__).resolve()
@@ -172,3 +172,13 @@ def get_logger(context: str = "Homalos") -> Any:
     :return: logger
     """
     return logger.bind(context=context)
+
+
+def log_detail(*args):
+    content = ""
+    for arg in args:
+        content += str(arg)
+    logger.info(content)
+
+def log_object(obj):
+    log_detail('\n'.join(['%s:%s' % item for item in obj.__dict__.items()]))
