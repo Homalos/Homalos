@@ -26,6 +26,10 @@ DATA_DIR_NAME = "data"  # 数据目录名
 
 TICK_DIR_NAME = "tick"  # TICK数据子目录名
 
+TRADING_DIR_NAME = "trading"
+
+TRADING_FLOW_DIR_NAME = "trading_flow"
+
 CONFIG_DIR_NAME = "config"  # 配置目录名
 
 # ================== 项目中文件名称 ==================
@@ -63,3 +67,6 @@ strategy_map: dict[str, Any] = {}
 
 # tick合成K线系统
 tick_to_kline_sys = None
+
+# tick合成K线系统
+is_queue = True
