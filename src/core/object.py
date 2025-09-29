@@ -17,8 +17,8 @@
 6. 可变默认值：列表、字典等可变默认值需用field(default_factory=list)避免所有实例共享引用
 7. 继承行为：父类和子类的字段按声明顺序合并，但需注意字段顺序冲突
 """
+import datetime
 from dataclasses import dataclass, field
-from datetime import datetime
 
 from src.core.constants import Exchange, OrderType, Direction, Offset, Product, OptionType, OrderStatus, Interval
 
@@ -99,7 +99,7 @@ class BarData(BaseData):
     Candlestick bar data of a certain trading period.
     """
     bar_type: Interval = None
-    update_time: datetime = None
+    update_time = datetime.time()
     instrument_id: str = None
     exchange_id: Exchange = None
     volume: int = 0
