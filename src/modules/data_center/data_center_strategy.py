@@ -32,8 +32,8 @@ class DataCenterStrategy(BaseStrategy):
         self.strategy_name: str = "数据中心策略"
         self.sub_ins_id: list[str] = self.load_all_instruments()
         self.sub_kline_type: list[Interval] = [
-            # Interval.MINUTE, Interval.MINUTE3, Interval.MINUTE5,
-            # Interval.MINUTE15, Interval.MINUTE30, Interval.MINUTE60
+            Interval.MINUTE, Interval.MINUTE3, Interval.MINUTE5,
+            Interval.MINUTE15, Interval.MINUTE30, Interval.MINUTE60
         ]
         self.strategy_content: str = "数据中心策略，存储行情使用"
 
