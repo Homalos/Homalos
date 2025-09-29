@@ -31,10 +31,12 @@ from typing import Any
 import yaml
 from loguru import logger
 
-from src.constants import CONFIG_DIR_NAME, LOG_CONFIG_FILENAME
+from src.constants import CONFIG_DIR_NAME, LOG_CONFIG_FILENAME, log_time_format
 from src.core.trace_context import get_trace_id
 
 __all__ = ["logger", "get_logger", "log_detail", "log_object"]
+
+from src.utils.time import time_module_ins
 
 # 从当前文件往上获取项目根目录
 current_file = Path(__file__).resolve()
@@ -83,6 +85,8 @@ diagnose = cfg.get("diagnose", True)    # 诊断
 today = datetime.now().strftime(filename_format)
 log_real_filename = f"{log_filename}_{today}.log"
 log_real_error_filename = f"{error_filename}_{today}.log"
+
+is_detail_log = True
 
 log_dir_path = root_path / log_dir_name
 # 确保日志目录存在
@@ -174,11 +178,34 @@ def get_logger(context: str = "Homalos") -> Any:
     return logger.bind(context=context)
 
 
+def time_log_detail(*args):
+    """
+    记录其他文件，文件名称：日期Detail.txt
+    :param args:
+    :return:
+    """
+    if not is_detail_log:
+        return
+    content = ""
+    for arg in args:
+        content += str(arg)
+    with open("{}/{}detail.txt".format(str(log_dir_path), time_module_ins.now().strftime(filename_format)),
+              "a", encoding='utf-8') as f:
+        f.write('{}: {}\n'.format(time_module_ins.now().strftime(log_time_format)[:-3], content))
+
+
 def log_detail(*args):
     content = ""
     for arg in args:
         content += str(arg)
-    logger.info(content)
+    # 使用绑定了context的logger，避免KeyError: 'context'
+    # get_logger("Detail").info(content)
+    with open("{}/{}Detail.txt".format(str(log_dir_path), time_module_ins.now().strftime(filename_format)),
+              "a", encoding='utf-8') as f:
+        f.write('{}\n'.format(content))
 
 def log_object(obj):
+    # 使用绑定了context的logger，避免KeyError: 'context'
+    # detail_content = '\n'.join(['%s:%s' % item for item in obj.__dict__.items()])
+    # get_logger("Detail").info(detail_content)
     log_detail('\n'.join(['%s:%s' % item for item in obj.__dict__.items()]))
