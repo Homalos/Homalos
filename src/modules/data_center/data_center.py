@@ -728,8 +728,9 @@ class DataCenter(object):
         self.logger.debug(f"[SYSTEM_EVENTS] 开始检查系统事件 - {current_time}")
 
         if self.thread_pool:
+            self.logger.info("[KLINE_CHECK] 触发K线生成任务: {current_time}")
             # 执行K线任务（提交到线程池）
-            self._safe_submit_to_pool(self.thread_pool, self.bar_generator.check_min1())
+            self._safe_submit_to_pool(self.thread_pool, self.bar_generator.check_min1)
         
         # 执行每分钟任务（直接执行，不提交到线程池）
         self._one_min(current_time)
