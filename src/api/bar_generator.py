@@ -11,8 +11,8 @@
 """
 import ast
 import datetime
+import os
 import threading
-import time
 import traceback
 from queue import Queue
 
@@ -22,7 +22,7 @@ from src.core.object import BarData, TickData
 from src.strategy.base_strategy import BaseStrategy
 from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger
-from src.utils.log.logger import log_object
+from src.utils.log.logger import log_object, time_log_detail
 from src.utils.utility import del_num
 
 
@@ -78,11 +78,18 @@ class BarGenerator:
 
         # 交易时间字典
         self.trading_time: dict = {}
-
+        # 是否使用队列分发K线
         self.is_queue: bool = is_queue
 
         # 初始化交易时间字典
-        self.init_trading_time()
+        try:
+            self.init_trading_time()
+            self.logger.info(f"交易时间字典初始化完成，加载了 {len(self.trading_time)} 个配置")
+            self._debug_trading_time_config()
+        except Exception as e:
+            self.logger.exception(f"初始化交易时间字典失败: {e}")
+            # 如果初始化失败，创建一个空字典避免后续错误
+            self.trading_time = {}
 
         if self.is_queue:
             self.logger.info("已开启tick合成K线系统")
@@ -100,44 +107,106 @@ class BarGenerator:
 
     def init_trading_time(self) -> None:
         """
-        初始化各周期K线的交易时间字典
+        初始化各周期K线的交易时间字典和产品特定的交易时间字典
 
         该函数读取trading目录下的多个时间配置文件，将每个文件中的时间数据按小时分组存储到
         self.trading_time字典中，用于后续的交易时间判断。
 
         文件格式要求：
-        - 文件名格式：min{分钟数}.txt，如min3.txt, min5.txt等
-        - 文件内容：应为Python列表格式的字符串表示，包含多个"HHMM"格式的时间点
+        - K线周期文件：min{分钟数}.txt，如min3.txt, min5.txt等
+        - 产品特定文件：{产品代码}.txt，如lu.txt, CY.txt等
+        - 文件内容：应为Python列表格式的字符串表示，包含多个"HH:MM:SS"格式的时间点
 
         结构示例：
         self.trading_time = {
             'min3': {
-                '09': ['0930', '0933', '0936', ...],
-                '10': ['1000', '1003', '1006', ...],
+                '09': ['09:30:00', '09:33:00', '09:36:00', ...],
+                '10': ['10:00:00', '10:03:00', '10:06:00', ...],
                 ...
             },
-            'min5': {
-                '09': ['0930', '0935', '0940', ...],
+            'lu': {
+                '09': ['09:00:00', '09:01:00', '09:02:00', ...],
+                '22': ['22:40:00', '22:41:00', '22:42:00', ...],
                 ...
             },
             ...
         }
         """
+        # 确保 os 模块可用（已在顶部导入）
+        
+        # 1. 加载K线周期配置文件
         for file in ['min3.txt', 'min5.txt', 'min15.txt', 'min30.txt', 'min60.txt']:
             product = file.replace('.txt', '')
-            self.trading_time[product] = {}
-            with open(f"{self.trading_dir_path}/{file}", "r") as f:
-                data = f.read()  # 读取文件
+            self._load_trading_time_file(f"{self.trading_dir_path}/{file}", product)
+        
+        # 2. 加载产品特定的交易时间配置文件
+        try:
+            # 扫描trading目录下所有txt文件
+            trading_files = [f for f in os.listdir(self.trading_dir_path) 
+                           if f.endswith('.txt') and not f.startswith('min')]
+            
+            for file in trading_files:
+                # 产品代码就是文件名（去掉.txt后缀）
+                product_code = file.replace('.txt', '')
+                self._load_trading_time_file(f"{self.trading_dir_path}/{file}", product_code)
+                
+            self.logger.info(f"成功加载 {len(trading_files)} 个产品的交易时间配置")
+            
+        except Exception as e:
+            self.logger.exception(f"加载产品交易时间配置失败: {e}")
+    
+    def _load_trading_time_file(self, file_path: str, product_key: str) -> None:
+        """
+        加载单个交易时间配置文件
+        :param file_path: 文件路径
+        :param product_key: 产品标识（K线周期或产品代码）
+        """
+        try:
+            self.logger.debug(f"尝试加载交易时间配置文件: {file_path} -> {product_key}")
+            
+            if not os.path.exists(file_path):
+                self.logger.warning(f"交易时间配置文件不存在: {file_path}")
+                return
+                
+            with open(file_path, "r", encoding='utf-8') as f:
+                data = f.read().strip()
+                self.logger.debug(f"读取到文件内容长度: {len(data)} 字符")
+                
                 if data:
                     data = ast.literal_eval(data)
+                    self.logger.debug(f"解析后的数据长度: {len(data)} 个时间点")
+                    
             if data:
+                self.trading_time[product_key] = {}
                 for time_point in data:
-                    hour = time_point[:2]
-                    if hour in self.trading_time[product]:
-                        self.trading_time[product][hour].append(time_point)
+                    hour = time_point[:2]  # 提取小时部分
+                    if hour in self.trading_time[product_key]:
+                        self.trading_time[product_key][hour].append(time_point)
                     else:
-                        self.trading_time[product][hour] = []
-                        self.trading_time[product][hour].append(time_point)
+                        self.trading_time[product_key][hour] = [time_point]
+                        
+                self.logger.info(f"成功加载 {product_key} 的交易时间配置，共 {len(data)} 个时间点，{len(self.trading_time[product_key])} 个小时段")
+            else:
+                self.logger.warning(f"交易时间配置文件 {file_path} 内容为空")
+                
+        except Exception as e:
+            self.logger.exception(f"加载交易时间文件 {file_path} 失败: {e}")
+            self.logger.error(f"文件路径: {file_path}, 产品: {product_key}")
+
+    def _debug_trading_time_config(self) -> None:
+        """调试方法：显示加载的交易时间配置"""
+        if not self.trading_time:
+            self.logger.warning("交易时间配置为空！")
+            return
+            
+        self.logger.info("已加载的交易时间配置:")
+        for product, time_config in self.trading_time.items():
+            if time_config:
+                hour_count = len(time_config)
+                total_times = sum(len(times) for times in time_config.values())
+                self.logger.info(f"  - {product}: {hour_count} 个小时段, {total_times} 个时间点")
+            else:
+                self.logger.warning(f"  - {product}: 配置为空")
 
     # def add_sub_kline_id(self, sub_kline_id_list: list[str]) -> None:
     #     # 增加订阅K线的合约名称
@@ -202,7 +271,7 @@ class BarGenerator:
         防止没有tick传来，导致没有1分钟K线生成
         :return:
         """
-        time.sleep(3)
+        # time.sleep(3)
         time_now = datetime.datetime.now()
         def is_new_kline_min(update_minute, true_minute):
             if update_minute in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
@@ -267,6 +336,7 @@ class BarGenerator:
                 self.kline_min1_map[instrument_id] = BarData()
                 self.kline_min1_map[instrument_id].bar_type = Interval.MINUTE
                 self.kline_min1_map[instrument_id].instrument_id = instrument_id
+                self.kline_min1_map[instrument_id].exchange_id = kline.exchange_id  # 修复：设置交易所ID
                 self.kline_min1_map[instrument_id].update_time = datetime.time(int(time_now.hour),
                                                                                int(time_now.minute), 0, 0)
                 self.kline_min1_map[instrument_id].volume = volume
@@ -279,23 +349,35 @@ class BarGenerator:
 
             self.kline_min1_lock_map[kline.instrument_id].release()
 
-    def judge_in_trading_time(self, product, time):
+    def judge_in_trading_time(self, product, now_time):
         """
         判断是否在交易时间
-        :param product:
-        :param time:
-        :return:
+        :param product: 产品代码
+        :param now_time: 时间字符串 HH:MM:SS
+        :return: bool
         """
         try:
-            if time[:2] not in self.trading_time[product]:
+            # 检查产品是否在交易时间配置中
+            if product not in self.trading_time:
+                self.logger.warning(f"产品 '{product}' 的交易时间配置不存在，默认允许交易")
+                return True
+                
+            # 检查时间配置
+            product_trading_time = self.trading_time[product]
+            hour_key = now_time[:2]  # 提取小时部分
+            
+            if hour_key not in product_trading_time:
                 return False
-            if time in self.trading_time[product][time[:2]]:
+                
+            if now_time in product_trading_time[hour_key]:
                 return True
             else:
                 return False
+                
         except Exception as e:
-            self.logger.exception(f'judge_in_trading_time Error, Error: {e}')
+            self.logger.exception(f'judge_in_trading_time Error, Product: {product}, Time: {now_time}, Error: {e}')
             self.logger.exception(traceback.format_exc())
+            # 发生异常时默认允许交易，避免系统停止
             return True
 
     def is_sub_kline(self, instrument_id) -> bool:
@@ -394,6 +476,7 @@ class BarGenerator:
             self.kline_min1_map[instrument_id] = BarData()
             self.kline_min1_map[instrument_id].bar_type = Interval.MINUTE
             self.kline_min1_map[instrument_id].instrument_id = instrument_id
+            self.kline_min1_map[instrument_id].exchange_id = tick.exchange_id  # 修复：设置交易所ID
             self.kline_min1_map[instrument_id].update_time = datetime.time(int(st[0]),
                                                                            int(st[1]), 0, 0)
             self.kline_min1_map[instrument_id].volume = volume
@@ -451,6 +534,7 @@ class BarGenerator:
                 kline_map[instrument_id] = BarData()
                 kline_map[instrument_id].bar_type = interval
                 kline_map[instrument_id].instrument_id = instrument_id
+                kline_map[instrument_id].exchange_id = kline.exchange_id  # 修复：设置交易所ID
                 kline_map[instrument_id].update_time = kline.update_time
                 kline_map[instrument_id].volume = kline.volume
                 kline_map[instrument_id].open_interest = kline.open_interest
@@ -606,14 +690,34 @@ class BarGenerator:
             # self.kline_executor.submit(strategy.specific_strategy_map[instrument_id].on_bar)
             strategy.specific_strategy_map[instrument_id].on_bar()
 
+    @staticmethod
     # 如果是无效数据，则返回True
-    def clean_kline(self, kline: BarData):
-        if kline.instrument_id == '':
+    def clean_kline(kline: BarData):
+        if kline.instrument_id is None or kline.instrument_id == '':
             return True
 
-        if kline.volume == 0 or kline.open_interest == 0.0 or kline.open_price == 0.0 or kline.high_price == 0.0 or \
-                kline.low_price == float('inf') or kline.low_price == 0.0 or kline.close_price == 0.0:
-            self.logger.warning('{} K线数据无效, update_time:{}'.format(kline.instrument_id, kline.update_time))
+        # 检查价格数据是否有效
+        price_invalid = (kline.open_price == 0.0 or kline.high_price == 0.0 or 
+                        kline.low_price == float('inf') or kline.low_price == 0.0 or 
+                        kline.close_price == 0.0)
+        
+        # 检查基础数据是否有效
+        basic_invalid = kline.open_interest == 0.0
+        
+        # 修复：在非交易时间，volume为0可能是正常的，不应仅因volume为0就判定为无效
+        # 只有当价格数据或基础数据无效时才判定为无效K线
+        if price_invalid or basic_invalid:
+            time_log_detail('{} K线数据无效, update_time:{} (价格无效:{}, 基础数据无效:{})'.format(
+                kline.instrument_id, kline.update_time, price_invalid, basic_invalid))
+            time_log_detail("K线详细数据:")
+            log_object(kline)
+            return True
+        
+        # 如果只是volume为0但其他数据正常，则在调试模式下记录但不过滤
+        if kline.volume == 0:
+            time_log_detail('{} K线成交量为0, update_time:{} (非交易时间可能正常)'.format(
+                kline.instrument_id, kline.update_time))
+            time_log_detail("K线详细数据:")
             log_object(kline)
             return True
         
@@ -636,7 +740,7 @@ class BarGenerator:
         # self.sub_kline_id: list[str] = []
         # self.sub_kline_type: list[Interval] = []
 
-        self.sub_kline_type_map = {}
+        self.sub_kline_type_map: dict[str, Interval] = {}
 
         # 1分钟K线的合约字典
         self.kline_min1_map: dict[str, BarData] = {}
