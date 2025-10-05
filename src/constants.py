@@ -26,6 +26,8 @@ DATA_DIR_NAME = "data"  # 数据目录名
 
 TICK_DIR_NAME = "tick"  # TICK数据子目录名
 
+KLINE_DIR_NAME = "kline"  # K线数据子目录名
+
 TRADING_DIR_NAME = "trading"
 
 TRADING_FLOW_DIR_NAME = "trading_flow"
