@@ -56,6 +56,39 @@ def create_folder(folder_path: str) -> int:
         _logger.exception(f"创建文件夹时出错: {str(e)}")
         return -1
 
+def file_exists(file_path: str) -> bool:
+    """
+    检查文件是否存在
+
+    参数:
+    file_path (str): 文件路径
+
+    返回:
+    bool: 如果文件存在返回True，否则返回False
+    """
+    return os.path.exists(file_path) and os.path.isfile(file_path)
+
+def is_file_in_folder(dir_name):
+    """
+    如果需要多次检查同一目录中的文件
+    高效批量检查目录中的文件
+    用法：
+    checker = is_file_in_folder(dir_name)
+    for ins_id in ins.keys():
+    if checker(f"{ins_id}.csv"):
+        print(f"{ins_id}.csv 文件已存在")
+    else:
+        print(f"{ins_id}.csv 文件不存在")
+    :param dir_name:
+    :return:
+    """
+    file_set = set(os.listdir(dir_name))
+
+    def file_in_directory(filename):
+        return filename in file_set
+
+    return file_in_directory
+
 def delete_file(file_path) -> bool:
     """
     如果文件存在，则删除文件
