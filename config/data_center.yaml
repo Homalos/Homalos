@@ -6,6 +6,7 @@ base:
   name: "Homalos数据中心"                   # 数据中心名称
   description: "7x24小时运行的行情数据中心"    # 数据中心描述
   enable: true                             # 是否启用
+  debug: true                             # 是否开启调试模式
 
   # 闹钟调度器时间配置，支持多种交易时段和自定义时间设置
   alarm_schedule:
@@ -13,6 +14,9 @@ base:
     login_times:
       - "08:45"  # 早盘登录
       - "20:45"  # 夜盘登录
+    kline_times:
+      - "08:46"  # 早盘K线创建文件夹
+      - "20:46"  # 夜盘创建文件夹
     # 开盘前检测时间点
     before_open_times:
       - "08:50"  # 早盘开盘前
