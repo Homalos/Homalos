@@ -34,7 +34,7 @@ from loguru import logger
 from src.constants import CONFIG_DIR_NAME, LOG_CONFIG_FILENAME, log_time_format
 from src.core.trace_context import get_trace_id
 
-__all__ = ["logger", "get_logger", "log_detail", "log_object"]
+__all__ = ["logger", "get_logger", "log_detail", "log_object", "time_log_detail"]
 
 from src.utils.time import time_module_ins
 
