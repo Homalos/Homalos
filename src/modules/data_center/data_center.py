@@ -330,6 +330,11 @@ class DataCenter(object):
         dc_strategy: DataCenterStrategy = DataCenterStrategy()
         self.strategy_pool.add_strategy(dc_strategy.strategy_id, dc_strategy)
         self.strategy_map = {dc_strategy.strategy_id: dc_strategy}
+        
+        # 【关键修复】将策略同步到全局 strategy_map
+        from src import constants
+        constants.strategy_map = self.strategy_map
+        
         self.logger.info("成功初始化数据中心策略")
 
     def init_sub_instruments(self) -> None:
@@ -348,7 +353,6 @@ class DataCenter(object):
                     # self.bar_generator.add_sub_kline_id(strategy.sub_ins_id)
                     # self.bar_generator.add_sub_kline_type(strategy.sub_kline_type)
                     self.bar_generator.set_kline_type(self.strategy_pool.sub_kline_type)
-                    self.logger.info(f"strategy_pool sub_kline_type：{self.strategy_pool.sub_kline_type}")
 
             self.bar_generator.init_min_kline_map()
 
@@ -725,10 +729,10 @@ class DataCenter(object):
         系统事件检查
         :param current_time: 当前时间字符串
         """
-        self.logger.debug(f"[SYSTEM_EVENTS] 开始检查系统事件 - {current_time}")
+        self.logger.debug("[SYSTEM_EVENTS] 开始检查系统事件")
 
         if self.thread_pool:
-            self.logger.info("[KLINE_CHECK] 触发K线生成任务: {current_time}")
+            self.logger.info("[KLINE_CHECK] 触发K线生成任务")
             # 执行K线任务（提交到线程池）
             self._safe_submit_to_pool(self.thread_pool, self.bar_generator.check_min1)
         
@@ -736,34 +740,34 @@ class DataCenter(object):
         self._one_min(current_time)
 
         # 执行登录服务器
-        self.logger.debug(f"[LOGIN_CHECK] 当前时间: {current_time}, 登录时间配置: {self._alarm_schedule.login_times}")
+        self.logger.debug(f"[LOGIN_CHECK] 登录时间配置: {self._alarm_schedule.login_times}")
         if self._alarm_schedule and current_time in self._alarm_schedule.login_times:
-            self.logger.info(f"触发登录: {current_time}")
+            self.logger.info("触发登录")
             self._connect_gateway()
 
         # 登录成功、线程不为None、alarm_schedule不为None执行的任务
         if self.is_login_status and self.thread_pool and self._alarm_schedule:
             # 执行开盘前
-            self.logger.debug(f"[BEFORE_OPEN_CHECK] 当前时间: {current_time}, 开盘前时间配置: {self._alarm_schedule.before_open_times}")
+            self.logger.debug(f"[BEFORE_OPEN_CHECK] 开盘前时间配置: {self._alarm_schedule.before_open_times}")
             if current_time in self._alarm_schedule.before_open_times:
-                self.logger.info(f"触发开盘前: {current_time}")
+                self.logger.info("触发开盘前")
                 # 使用安全提交方法
                 self._safe_submit_to_pool(self.thread_pool, self._before_open)
 
             # 执行订阅行情
-            self.logger.debug(f"[SUB_CHECK] 当前时间: {current_time}, 订阅时间配置: {self._alarm_schedule.sub_id_times}")
+            self.logger.debug(f"[SUB_CHECK] 订阅时间配置: {self._alarm_schedule.sub_id_times}")
             if current_time in self._alarm_schedule.sub_id_times:
-                self.logger.info(f"触发订阅所有行情: {current_time}")
+                self.logger.info("触发订阅所有行情")
                 self._subscribe_all_instruments()
 
             # 收盘后事件
-            self.logger.debug(f"[AFTER_CLOSE_CHECK] 当前时间: {current_time}, 收盘后时间配置: {self._alarm_schedule.after_close_times}")
+            self.logger.debug(f"[AFTER_CLOSE_CHECK] 收盘后时间配置: {self._alarm_schedule.after_close_times}")
             if current_time in self._alarm_schedule.after_close_times:
-                self.logger.info(f"触发收盘后事件: {current_time}")
+                self.logger.info("触发收盘后事件")
                 # 使用安全提交方法
                 self._safe_submit_to_pool(self.thread_pool, self._after_close)
             
-        self.logger.debug(f"[SYSTEM_EVENTS] 系统事件检查完成 - {current_time}")
+        self.logger.debug(f"[SYSTEM_EVENTS] 系统事件检查完成")
 
     def _subscribe_all_instruments(self) -> None:
         """
