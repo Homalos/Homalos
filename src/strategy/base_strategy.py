@@ -10,6 +10,7 @@
 @Description: 策略基类
 """
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from src.core.constants import Interval
 from src.core.object import TickData, BarData, OrderData, TradeData
@@ -33,15 +34,14 @@ class BaseStrategy(object):
 
 class SpecificStrategyApi(ABC):
 
-    def __init__(self, instrument_id: str, strategy_id: str, sub_kline_type: list, prefix_tick_path: str):
+    def __init__(self, instrument_id: str, strategy_id: str, sub_kline_type: list):
 
         self.instrument_id = instrument_id
         self.strategy_id = strategy_id
         self.sub_kline_type = sub_kline_type
-        self.prefix_tick_path = prefix_tick_path
 
         self.kline_lock = None
-        self.bar_data = None
+        self.bar_data: Optional[BarData] = None
 
     @abstractmethod
     def on_before_open(self) -> None:
