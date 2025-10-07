@@ -9,8 +9,10 @@
 @Software   : PyCharm
 @Description: 全局常量
 """
+import os
 from typing import Optional, Any, TYPE_CHECKING
 
+from src.utils.get_path import get_path_ins
 
 
 class Const:
@@ -27,6 +29,8 @@ DATA_DIR_NAME = "data"  # 数据目录名
 TICK_DIR_NAME = "tick"  # TICK数据子目录名
 
 KLINE_DIR_NAME = "kline"  # K线数据子目录名
+
+RES_USAGE_DIR_NAME = "resource_usage"  # 资源占用文件目录名
 
 TRADING_DIR_NAME = "trading"
 
@@ -64,11 +68,21 @@ print_time_format = "%Y-%m-%d %H:%M:%S.%f"  # 控制台打印的时间格式
 
 strategy_map: dict[str, Any] = {}
 
-# ================== 全局线程池已移除 ==================
-# 原全局线程池存在竞态条件，已用ThreadPoolExecutor替换
-
 # tick合成K线系统
 tick_to_kline_sys = None
 
 # tick合成K线系统
 is_queue = True
+
+# 文件名称是否按照真实时间来
+file_time_is_true = True
+
+# 记录文件中时间是否按照真实时间来
+content_time_is_true = True
+
+# 表头
+pool_column = ['当前时间', "未完成任务数量"]
+
+# 在程序首次运行时是否抹除今天之前的记录
+is_first = False
+
