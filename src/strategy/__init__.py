@@ -2,10 +2,13 @@
 # -*- coding: utf-8 -*-
 """
 @ProjectName: Homalos
-@FileName   : __init__.py.py
+@FileName   : __init__.py
 @Date       : 2025/9/10 16:44
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: description
+@Description: 初始化策略池
 """
+from src.strategy.strategy_pool import StrategyPool
+
+strategy_pool_ins = StrategyPool()
