@@ -14,13 +14,13 @@ import os
 from pathlib import Path
 from typing import TextIO, Optional, Any
 
-from src.constants import INSTRUMENT_EXCHANGE_FILENAME, TICK_DIR_NAME, Const
+from src.constants import INSTRUMENT_EXCHANGE_FILENAME, TICK_DIR_NAME, Const, KLINE_DIR_NAME
 from src.core.constants import Interval
 from src.core.object import TickData, BarData, TradeData, OrderData
 from src.strategy.base_strategy import BaseStrategy, SpecificStrategyApi
 from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger
-from src.utils.utility import load_json, create_folder
+from src.utils.utility import load_json, create_folder, is_file_in_folder, write_csv
 
 
 class DataCenterStrategy(BaseStrategy):
@@ -28,7 +28,7 @@ class DataCenterStrategy(BaseStrategy):
     def __init__(self):
         super().__init__()
         self.logger = get_logger(__class__.__name__)
-        self.strategy_id: str = "0001"
+        self.strategy_id: str = "data_center"
         self.strategy_name: str = "数据中心策略"
         self.sub_ins_id: list[str] = self.load_all_instruments()
         self.sub_kline_type: list[Interval] = [
@@ -38,6 +38,7 @@ class DataCenterStrategy(BaseStrategy):
         self.strategy_content: str = "数据中心策略，存储行情使用"
 
         self.prefix_tick_path: str = str(get_path_ins.get_data_dir() / TICK_DIR_NAME / Const.trading_day)
+        self.prefix_kline_path: str = str(get_path_ins.get_data_dir() / KLINE_DIR_NAME / Const.trading_day)
 
         # 初始化详细策略文件 - 将在外部初始化时填充
         self.specific_strategy_map: dict[str, SpecificStrategyApi] = {}
@@ -45,29 +46,47 @@ class DataCenterStrategy(BaseStrategy):
             self.specific_strategy_map[ins] = DataCenterStrategy.Specific(
                 ins,
                 self.strategy_id,
-                self.sub_kline_type,
-                self.prefix_tick_path
+                self.sub_kline_type
             )
         self.csv_file: Optional[TextIO] = None
         self.csv_writer: Optional[Any] = None
 
+        self.csv_kline_file: Optional[TextIO] = None
+        self.csv_kline_writer: Optional[Any] = None
+
     def one_min(self, now_time: str) -> None:
-        self.logger.info(f"one_min：{now_time}")
+        self.logger.info(f"one_min now_time：{now_time}")
         if self.sub_ins_id:
             # 按交易日创建tick存放的文件夹（已在初始化时创建，这里只是确保）
-            rsp_int = create_folder(self.prefix_tick_path)
-            if rsp_int == -1:
-                self.logger.exception(f"数据中心策略一分钟回调: 无法创建交易日文件夹 {self.prefix_tick_path}")
-                raise Exception("无法创建交易日文件夹")
+            rsp_create_tick_int = create_folder(self.prefix_tick_path)
+            if rsp_create_tick_int == -1:
+                self.logger.exception(f"数据中心策略一分钟回调: 无法创建tick交易日文件夹 {self.prefix_tick_path}")
+                raise Exception("无法创建tick交易日文件夹")
 
-            if rsp_int == 1:
+            if rsp_create_tick_int == 1:
                 return
 
-            if rsp_int == 0:
+            if rsp_create_tick_int == 0:
                 # 新创建交易日文件夹，再创建CSV文件
-                self.create_csv_file()
+                self.create_tick_csv_file()
 
-    def create_csv_file(self):
+
+        # if not self.is_open_flag:
+        #     return
+        if self.sub_kline_type:
+            rsp_create_kline_int = create_folder(self.prefix_kline_path)
+            if rsp_create_kline_int == -1:
+                self.logger.exception(f"数据中心策略一分钟回调: 无法创建kline交易日文件夹 {self.prefix_kline_path}")
+                raise Exception("无法创建kline交易日文件夹")
+
+            if rsp_create_kline_int == 1:
+                return
+
+            if rsp_create_kline_int == 0:
+                # 新创建交易日文件夹，再创建CSV文件
+                self.create_kline_csv_file()
+
+    def create_tick_csv_file(self):
         for ins in self.sub_ins_id:
             csv_file_path = Path(f"{self.prefix_tick_path}/{ins}.csv")
             if not csv_file_path.exists():
@@ -87,6 +106,28 @@ class DataCenterStrategy(BaseStrategy):
                 ])
                 self.csv_file.flush()
 
+    def create_kline_csv_file(self):
+        # 新创建交易日文件夹，再创建CSV文件
+        checker_kline_file = is_file_in_folder(self.prefix_kline_path)
+        for ins in self.sub_ins_id:
+            for kline_type in self.sub_kline_type:
+                if checker_kline_file(f"{ins}_{kline_type.value}.csv"):
+                    continue
+
+                self.csv_kline_file = open(f"{self.prefix_kline_path}/{ins}_{kline_type.value}.csv", 'a', newline='', encoding='utf-8')
+                self.csv_kline_writer = csv.writer(self.csv_kline_file)
+                self.csv_kline_writer.writerow([
+                    'bar_type', 'update_time', 'instrument_id',
+                    'exchange_id', 'volume', 'open_interest', 'open_price',
+                    'high_price', 'low_price', 'close_price', 'last_volume'
+                ])
+                self.csv_kline_file.flush()
+                # write_csv(f"{self.prefix_kline_path}/{ins}_{kline_type.value}.csv", 'w',
+                #           ['bar_type', "now_time", 'update_time', 'instrument_id',
+                #            'exchange_id', 'volume', 'open_interest', 'open_price',
+                #            'high_price', 'low_price', 'close_price', 'last_volume'])
+
+
     @staticmethod
     def load_all_instruments() -> list[str]:
         """
@@ -101,27 +142,55 @@ class DataCenterStrategy(BaseStrategy):
 
     class Specific(SpecificStrategyApi):
 
-        def __init__(self, instrument_id: str, strategy_id: str, sub_kline_type: list, prefix_tick_path: str):
-            super().__init__(instrument_id, strategy_id, sub_kline_type, prefix_tick_path)
+        def __init__(self, instrument_id: str, strategy_id: str, sub_kline_type: list[Interval]):
+            super().__init__(instrument_id, strategy_id, sub_kline_type)
 
             self.logger = get_logger(self.__class__.__name__)
             self.csv_file: Optional[TextIO] = None
             self.csv_writer: Optional[Any] = None  # csv.writer对象
+            self.csv_kline_file: Optional[TextIO] = None
+            self.csv_writer_kline: Optional[Any] = None
             self._tick_count: int = 0  # 初始化tick计数器
             self.instrument_id: str = instrument_id
             self.strategy_id: str = strategy_id
             self.sub_kline_type: list[Interval] = sub_kline_type
-            self.prefix_tick_path: str = prefix_tick_path
+            # 初始化策略的时候，已经登录成功，所以可以正常获取到交易日
+            self.prefix_tick_path: str = str(get_path_ins.get_data_dir() / TICK_DIR_NAME / Const.trading_day)
+            self.prefix_kline_path: str = str(get_path_ins.get_data_dir() / KLINE_DIR_NAME / Const.trading_day)
 
         def on_before_open(self) -> None:
             """
             开盘前事件处理 - 检查CSV文件状态，但不强制初始化
             优化：避免大量合约同时初始化，让CSV文件在首次接收tick时再初始化
             """
+            # 确保tick目录存在
+            os.makedirs(self.prefix_tick_path, exist_ok=True)
+            
             # 1. 创建文件对象
             self.csv_file = open(f"{self.prefix_tick_path}/{self.instrument_id}.csv", 'a', newline='')
             # 2. 基于文件对象构建 csv写入对象
             self.csv_writer = csv.writer(self.csv_file)
+
+            # 确保kline目录存在
+            os.makedirs(self.prefix_kline_path, exist_ok=True)
+            
+            for kline_type in self.sub_kline_type:
+                csv_kline_path = f"{self.prefix_kline_path}/{self.instrument_id}_{kline_type.value}.csv"
+                
+                # 检查文件是否存在且为空，如果是新文件则需要写入表头
+                is_new_file = not os.path.exists(csv_kline_path) or os.path.getsize(csv_kline_path) == 0
+                
+                self.csv_kline_file = open(csv_kline_path, 'a', newline='')
+                self.csv_writer_kline = csv.writer(self.csv_kline_file)
+                
+                # 如果是新文件，写入表头
+                if is_new_file:
+                    self.csv_writer_kline.writerow([
+                        'bar_type', 'update_time', 'instrument_id',
+                        'exchange_id', 'volume', 'open_interest', 'open_price',
+                        'high_price', 'low_price', 'close_price', 'last_volume'
+                    ])
+                    self.csv_kline_file.flush()
 
         def on_after_close(self) -> None:
             """收盘后关闭CSV文件"""
@@ -217,7 +286,11 @@ class DataCenterStrategy(BaseStrategy):
                 # 如果写入失败，尝试重新初始化文件
 
         def on_bar(self, bar: BarData) -> None:
-            self.logger.info("on_bar")
+            content = [bar.bar_type.value, bar.update_time.strftime("%H:%M:%S"), bar.instrument_id,
+                       bar.exchange_id.value, bar.volume, bar.open_interest, bar.open_price, bar.high_price,
+                       bar.low_price, bar.close_price, bar.last_volume]
+            csv_path = f"{self.prefix_kline_path}/{self.instrument_id}_{bar.bar_type.value}.csv"
+            write_csv(csv_path, 'a', content)
 
         def on_rtn_trade(self, trade: TradeData) -> None:
             self.logger.info("on_rtn_trade")
