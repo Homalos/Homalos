@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 策略词
+@Description: 策略池
 """
 from src.constants import TRADING_FLOW_DIR_NAME
 from src.core.constants import Interval
