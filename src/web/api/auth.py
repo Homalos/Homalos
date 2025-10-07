@@ -1,0 +1,84 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@ProjectName: Homalos
+@FileName   : auth.py
+@Date       : 2025/10/8
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
+@Software   : PyCharm
+@Description: 认证相关API路由
+"""
+from fastapi import APIRouter, Depends
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.web.core.database import get_db
+from src.web.core.security import get_current_user
+from src.web.schemas.user import UserCreate, UserResponse
+from src.web.schemas.token import Token
+from src.web.services.auth_service import AuthService
+from src.web.models.user import User
+
+router = APIRouter(prefix="/auth", tags=["认证"])
+
+
+@router.post("/register", response_model=UserResponse, summary="用户注册")
+async def register(
+    user: UserCreate,
+    db: AsyncSession = Depends(get_db)
+) -> UserResponse:
+    """
+    用户注册
+    
+    - **username**: 用户名（3-50字符）
+    - **password**: 密码（6-50字符）
+    - **email**: 邮箱（可选）
+    - **full_name**: 全名（可选）
+    """
+    auth_service = AuthService(db)
+    new_user = await auth_service.register(user)
+    return UserResponse.model_validate(new_user)
+
+
+@router.post("/login", response_model=Token, summary="用户登录")
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db)
+) -> Token:
+    """
+    用户登录（OAuth2密码模式）
+    
+    - **username**: 用户名
+    - **password**: 密码
+    
+    返回JWT访问令牌
+    """
+    auth_service = AuthService(db)
+    return await auth_service.login(form_data.username, form_data.password)
+
+
+@router.get("/me", response_model=UserResponse, summary="获取当前用户信息")
+async def get_current_user_info(
+    current_user: User = Depends(get_current_user)
+) -> UserResponse:
+    """
+    获取当前登录用户的信息
+    
+    需要在请求头中提供有效的JWT令牌：
+    ```
+    Authorization: Bearer <access_token>
+    ```
+    """
+    return UserResponse.model_validate(current_user)
+
+
+@router.post("/logout", summary="用户登出")
+async def logout(current_user: User = Depends(get_current_user)):
+    """
+    用户登出
+    
+    前端需要删除本地存储的token
+    """
+    return {"message": "登出成功"}
+
