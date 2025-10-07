@@ -5,13 +5,20 @@ description = "基于Python的期货量化交易系统"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "aiosqlite>=0.21.0",
     "bypy>=1.8.9",
     "chinese-days>=0.0.1",
     "configparser>=7.2.0",
+    "fastapi>=0.118.0",
     "loguru>=0.7.3",
     "pandas>=2.3.2",
+    "passlib[bcrypt]>=1.7.4",
     "psutil>=7.1.0",
+    "python-jose[cryptography]>=3.5.0",
+    "python-multipart>=0.0.20",
     "pyyaml>=6.0.2",
+    "sqlalchemy>=2.0.43",
     "tzdata>=2025.2",
+    "uvicorn[standard]>=0.37.0",
     "watchfiles>=1.1.0",
 ]
