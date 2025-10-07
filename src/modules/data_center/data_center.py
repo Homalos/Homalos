@@ -321,7 +321,7 @@ class DataCenter(object):
             # 初始化订阅合约
             self.init_sub_instruments()
 
-            # 此处必须等待等待定时任务，因为订阅合约的前提的需要更新完所有合约代码
+            # 订阅合约的前提的需要更新完所有合约代码
             # 合约代码存储在config/instrument_exchange.json文件中，订阅时从此文件加载合约代码
 
     def init_strategies(self) -> None:
