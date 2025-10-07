@@ -220,3 +220,14 @@ class ErrorCode(IntEnum):
     DATA_CENTER__RUNTIME_ERROR = 6002  # 数据中心内部异常
     DATA_CENTER_PARAM_INVALID = 6003  # 配置参数缺失或不合法
 
+
+class Task(Enum):
+    """
+    任务类型
+    """
+    DAILY = "daily"
+    ONCE = "once"
+    MINUTE = "minute"
+    WEEKDAY = "weekday"
+    MONTHLY = "monthly"
+

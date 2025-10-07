@@ -89,6 +89,10 @@ def is_file_in_folder(dir_name):
 
     return file_in_directory
 
+def is_file_in(filename, dir_name):
+    checker = is_file_in_folder(dir_name)
+    return checker(filename)
+
 def delete_file(file_path) -> bool:
     """
     如果文件存在，则删除文件
@@ -377,3 +381,8 @@ def wait_with_timeout(condition_check: bool, check_interval: float = 0.1, timeou
             break
         # 等待一段时间再检查
         time.sleep(check_interval)
+
+
+# if __name__ == '__main__':
+#     is_exist = is_file_in('SA601_1m.csv', 'D:/Project/PycharmProjects/Homalos/data/kline/20250930')
+#     print(is_exist)
