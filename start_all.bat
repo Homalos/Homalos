@@ -1,31 +1,31 @@
 @echo off
 echo ============================================================
-echo   Homalos é‡åŒ–äº¤æ˜“ç³»ç»Ÿ - WebæœåŠ¡å¯åŠ¨
+echo   Homalos Á¿»¯½»Ò×ÏµÍ³ - Web·þÎñÆô¶¯
 echo ============================================================
 echo.
 
-echo [1/2] å¯åŠ¨åŽç«¯æœåŠ¡ (ç«¯å£: 8000)...
+echo [1/2] Æô¶¯ºó¶Ë·þÎñ (¶Ë¿Ú: 8000)...
 start "Homalos Backend" cmd /k "call .venv\Scripts\activate && python start_web.py"
 timeout /t 3
 
-echo [2/2] å¯åŠ¨å‰ç«¯æœåŠ¡ (ç«¯å£: 5173)...
+echo [2/2] Æô¶¯Ç°¶Ë·þÎñ (¶Ë¿Ú: 5173)...
 start "Homalos Frontend" cmd /k "cd web-ui && npm run dev"
 timeout /t 2
 
 echo.
 echo ============================================================
-echo   æœåŠ¡å¯åŠ¨å®Œæˆï¼
+echo   ·þÎñÆô¶¯Íê³É£¡
 echo ============================================================
 echo.
-echo   åŽç«¯æœåŠ¡: http://localhost:8000
-echo   APIæ–‡æ¡£:  http://localhost:8000/docs
-echo   å‰ç«¯é¡µé¢: http://localhost:5173
+echo   ºó¶Ë·þÎñ: http://localhost:8000
+echo   APIÎÄµµ:  http://localhost:8000/docs
+echo   Ç°¶ËÒ³Ãæ: http://localhost:5173
 echo.
-echo   é»˜è®¤ç®¡ç†å‘˜è´¦æˆ·:
-echo   ç”¨æˆ·å: admin
-echo   å¯†ç : admin123
+echo   Ä¬ÈÏ¹ÜÀíÔ±ÕË»§:
+echo   ÓÃ»§Ãû: admin
+echo   ÃÜÂë: admin123
 echo.
-echo   æŒ‰ä»»æ„é”®æ‰“å¼€å‰ç«¯é¡µé¢...
+echo   °´ÈÎÒâ¼ü´ò¿ªÇ°¶ËÒ³Ãæ...
 echo ============================================================
 pause > nul
 
