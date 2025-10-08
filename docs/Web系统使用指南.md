@@ -113,6 +113,58 @@ uvicorn src.web.main:app --reload --port 8000
   ```
 - **响应**: 用户信息对象
 
+## 前端架构
+
+### 目录结构
+
+```
+web-ui/
+├── public/                     # 静态资源
+├── src/
+│   ├── api/                   # API请求
+│   │   ├── request.js        # Axios配置
+│   │   └── auth.js           # 认证API
+│   ├── assets/                # 资源文件
+│   ├── components/            # 通用组件
+│   ├── router/                # 路由配置
+│   │   └── index.js
+│   ├── stores/                # Pinia状态管理
+│   │   └── user.js           # 用户状态
+│   ├── utils/                 # 工具函数
+│   ├── views/                 # 页面组件
+│   │   ├── Login.vue         # 登录页
+│   │   └── Home.vue          # 主页
+│   ├── App.vue                # 根组件
+│   └── main.js                # 入口文件
+├── index.html
+├── package.json
+└── vite.config.js             # Vite配置
+```
+
+## 初始化管理员账户
+
+在首次使用Web系统前，需要创建管理员账户：
+
+### 方式1：使用批处理文件（Windows）
+
+```bash
+init_admin.bat
+```
+
+### 方式2：使用Python脚本
+
+```bash
+.venv\Scripts\activate
+python -m src.web.scripts.init_admin
+```
+
+这将创建默认管理员账户：
+- **用户名**: admin
+- **密码**: admin123
+- **角色**: 管理员
+
+**重要提示**：首次登录后请立即修改默认密码！
+
 ## 前端开发
 
 ### 创建Vue 3项目
@@ -335,14 +387,70 @@ npm run dev
 
 访问 http://localhost:5173
 
-## 测试流程
+## 完整使用流程
 
-1. 启动后端服务（8000端口）
-2. 启动前端服务（5173端口）
-3. 访问前端页面
-4. 先注册用户（通过API文档 http://localhost:8000/docs）
-5. 使用注册的用户名密码登录
-6. 登录成功后跳转到主页
+### 第一步：初始化环境
+
+1. **安装后端依赖**：
+   ```bash
+   .venv\Scripts\activate
+   uv pip install fastapi uvicorn sqlalchemy aiosqlite python-jose passlib bcrypt email-validator
+   ```
+
+2. **安装前端依赖**（已在`web-ui`目录创建项目）：
+   ```bash
+   cd web-ui
+   npm install
+   cd ..
+   ```
+
+### 第二步：初始化管理员账户
+
+```bash
+init_admin.bat
+```
+
+或
+
+```bash
+.venv\Scripts\activate
+python -m src.web.scripts.init_admin
+```
+
+### 第三步：启动后端服务
+
+```bash
+start_web.bat
+```
+
+后端服务将运行在 http://localhost:8000
+
+### 第四步：启动前端服务
+
+在新的终端窗口：
+
+```bash
+cd web-ui
+npm run dev
+```
+
+前端服务将运行在 http://localhost:5173
+
+### 第五步：访问系统
+
+1. 浏览器访问：http://localhost:5173
+2. 使用管理员账户登录：
+   - 用户名：`admin`
+   - 密码：`admin123`
+3. 登录成功后将看到系统主界面
+
+### 快速测试
+
+也可以通过API文档直接测试后端接口：
+
+1. 访问 http://localhost:8000/docs
+2. 测试注册、登录接口
+3. 使用返回的token进行认证
 
 ## 数据库
 
