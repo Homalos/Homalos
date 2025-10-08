@@ -7,8 +7,8 @@ import request from './request'
  * @param {string} data.password - 密码
  */
 export function login(data) {
-  // FastAPI的OAuth2PasswordRequestForm需要使用form-data格式
-  const formData = new FormData()
+  // FastAPI的OAuth2PasswordRequestForm需要使用application/x-www-form-urlencoded格式
+  const formData = new URLSearchParams()
   formData.append('username', data.username)
   formData.append('password', data.password)
   
@@ -17,7 +17,7 @@ export function login(data) {
     method: 'post',
     data: formData,
     headers: {
-      'Content-Type': 'multipart/form-data'
+      'Content-Type': 'application/x-www-form-urlencoded'
     }
   })
 }
@@ -30,7 +30,10 @@ export function register(data) {
   return request({
     url: '/api/auth/register',
     method: 'post',
-    data
+    data,
+    headers: {
+      'Content-Type': 'application/json'
+    }
   })
 }
 
