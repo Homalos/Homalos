@@ -219,7 +219,7 @@ const fetchSystemStats = async () => {
  */
 const startMonitoring = () => {
   fetchSystemStats()  // 立即获取一次
-  monitorTimer = setInterval(fetchSystemStats, 5000)  // 每5秒刷新
+  monitorTimer = setInterval(fetchSystemStats, 3000)  // 每3秒刷新
 }
 
 /**
