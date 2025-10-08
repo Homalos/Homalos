@@ -27,3 +27,77 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
 This project is a new development fork of Homalos, a Python-based event-driven futures trading platform designed to be deployed on a single machine with minimal external dependencies.
 
 - **Current Status**: Under development
+
+## Features
+
+- ✅ Event-driven architecture
+- ✅ CTP (Shanghai Futures Exchange) integration
+- ✅ Real-time market data processing
+- ✅ K-line data generation (1m, 3m, 5m, 15m, 30m, 60m)
+- ✅ **Web Management Interface** (FastAPI + Vue 3)
+  - User authentication (JWT)
+  - System monitoring dashboard
+  - Strategy management
+  - Real-time data visualization
+
+## Web Interface
+
+Homalos now includes a modern web management interface built with FastAPI and Vue 3.
+
+### Quick Start
+
+1. **Initialize Admin Account**
+   ```bash
+   init_admin.bat
+   ```
+   Default credentials: `admin` / `admin123`
+
+2. **Start All Services**
+   ```bash
+   start_all.bat
+   ```
+   This will start both backend (port 8000) and frontend (port 5173)
+
+3. **Access Web Interface**
+   - Frontend: http://localhost:5173
+   - API Docs: http://localhost:8000/docs
+
+### Tech Stack
+
+**Backend:**
+- FastAPI
+- SQLAlchemy 2.0 + SQLite
+- JWT Authentication
+- Argon2 Password Hashing
+
+**Frontend:**
+- Vue 3 + Vite
+- Element Plus UI
+- Vue Router 4
+- Pinia State Management
+- Axios
+
+### Documentation
+
+See [Web System Guide](docs/Web系统使用指南.md) for detailed documentation.
+
+## Installation
+
+```bash
+# Clone repository
+git clone https://github.com/Homalos/Homalos.git
+cd Homalos
+
+# Install Python dependencies
+.venv\Scripts\activate
+uv pip install -r requirements.txt
+
+# Install frontend dependencies
+cd web-ui
+npm install
+cd ..
+```
+
+## License
+
+MIT License
