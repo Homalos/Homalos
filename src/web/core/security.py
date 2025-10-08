@@ -26,8 +26,8 @@ SECRET_KEY = "homalos-secret-key-change-in-production-2025"  # 生产环境必�
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24小时
 
-# 密码加密上下文
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# 密码加密上下文 (使用argon2替代bcrypt以避免Windows兼容性问题)
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 # OAuth2认证方案
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
