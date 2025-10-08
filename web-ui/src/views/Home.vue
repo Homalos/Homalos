@@ -53,31 +53,24 @@
             </div>
           </template>
           <el-row :gutter="20">
-            <el-col :span="6">
+            <el-col :span="8">
               <el-statistic title="系统状态" value="运行中">
                 <template #prefix>
                   <el-icon color="#67C23A"><SuccessFilled /></el-icon>
                 </template>
               </el-statistic>
             </el-col>
-            <el-col :span="6">
+            <el-col :span="8">
               <el-statistic title="CPU使用率" :value="systemInfo.cpu" suffix="%">
                 <template #prefix>
                   <el-icon><Cpu /></el-icon>
                 </template>
               </el-statistic>
             </el-col>
-            <el-col :span="6">
+            <el-col :span="8">
               <el-statistic title="内存使用率" :value="systemInfo.memory" suffix="%">
                 <template #prefix>
                   <el-icon><Memo /></el-icon>
-                </template>
-              </el-statistic>
-            </el-col>
-            <el-col :span="6">
-              <el-statistic title="活跃策略" :value="systemInfo.activeStrategies">
-                <template #prefix>
-                  <el-icon><DataAnalysis /></el-icon>
                 </template>
               </el-statistic>
             </el-col>
@@ -91,17 +84,44 @@
               <el-button type="primary" size="small">添加策略</el-button>
             </div>
           </template>
+          <!-- 策略统计 -->
+          <el-row :gutter="20" style="margin-bottom: 20px;">
+            <el-col :span="8">
+              <el-statistic title="活跃策略" :value="systemInfo.activeStrategies">
+                <template #prefix>
+                  <el-icon color="#409eff"><DataAnalysis /></el-icon>
+                </template>
+              </el-statistic>
+            </el-col>
+            <el-col :span="8">
+              <el-statistic title="运行中" :value="runningStrategiesCount">
+                <template #prefix>
+                  <el-icon color="#67C23A"><SuccessFilled /></el-icon>
+                </template>
+              </el-statistic>
+            </el-col>
+            <el-col :span="8">
+              <el-statistic title="已停止" :value="stoppedStrategiesCount">
+                <template #prefix>
+                  <el-icon color="#909399"><Setting /></el-icon>
+                </template>
+              </el-statistic>
+            </el-col>
+          </el-row>
           <el-table :data="strategies" style="width: 100%">
+            <el-table-column prop="id" label="策略ID" width="100" />
             <el-table-column prop="name" label="策略名称" />
-            <el-table-column prop="status" label="状态">
+            <el-table-column prop="status" label="状态" width="100">
               <template #default="scope">
                 <el-tag :type="scope.row.status === '运行中' ? 'success' : 'info'">
                   {{ scope.row.status }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="profit" label="收益率" />
-            <el-table-column label="操作">
+            <el-table-column prop="startTime" label="启动时间" width="180" />
+            <el-table-column prop="runningTime" label="运行时长" width="120" />
+            <el-table-column prop="profit" label="收益率" width="100" />
+            <el-table-column label="操作" width="220">
               <template #default="scope">
                 <el-button
                   size="small"
@@ -110,6 +130,7 @@
                   {{ scope.row.status === '运行中' ? '停止' : '启动' }}
                 </el-button>
                 <el-button size="small" type="primary">配置</el-button>
+                <el-button size="small" type="danger" @click="handleDeleteStrategy(scope.row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -147,7 +168,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   User,
@@ -159,7 +180,7 @@ import {
   Cpu,
   Memo
 } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getSystemStats } from '@/api/monitor'
 
@@ -182,10 +203,41 @@ const systemInfo = reactive({
 })
 
 const strategies = ref([
-  { name: '趋势跟踪策略', status: '运行中', profit: '+12.5%' },
-  { name: '均值回归策略', status: '已停止', profit: '+8.3%' },
-  { name: '套利策略', status: '运行中', profit: '+15.7%' }
+  { 
+    id: 'STR001', 
+    name: '趋势跟踪策略', 
+    status: '运行中', 
+    startTime: '2025-10-08 09:30:00',
+    runningTime: '12h15m',
+    profit: '+12.5%' 
+  },
+  { 
+    id: 'STR002', 
+    name: '均值回归策略', 
+    status: '已停止', 
+    startTime: '2025-10-07 14:20:00',
+    runningTime: '-',
+    profit: '+8.3%' 
+  },
+  { 
+    id: 'STR003', 
+    name: '套利策略', 
+    status: '运行中', 
+    startTime: '2025-10-08 10:45:00',
+    runningTime: '10h50m',
+    profit: '+15.7%' 
+  }
 ])
+
+// 计算运行中的策略数量
+const runningStrategiesCount = computed(() => {
+  return strategies.value.filter(s => s.status === '运行中').length
+})
+
+// 计算已停止的策略数量
+const stoppedStrategiesCount = computed(() => {
+  return strategies.value.filter(s => s.status === '已停止').length
+})
 
 const settings = reactive({
   systemName: 'Homalos',
@@ -242,6 +294,30 @@ const handleCommand = (command) => {
     ElMessage.success('已退出登录')
     router.push('/login')
   }
+}
+
+/**
+ * 删除策略
+ */
+const handleDeleteStrategy = (strategy) => {
+  ElMessageBox.confirm(
+    `确定要删除策略 "${strategy.name}" (ID: ${strategy.id}) 吗？`,
+    '删除确认',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(() => {
+    // 从策略列表中移除
+    const index = strategies.value.findIndex(s => s.id === strategy.id)
+    if (index !== -1) {
+      strategies.value.splice(index, 1)
+      ElMessage.success(`策略 "${strategy.name}" 已删除`)
+    }
+  }).catch(() => {
+    // 用户取消删除
+  })
 }
 
 onMounted(async () => {
