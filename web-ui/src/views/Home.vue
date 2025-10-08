@@ -6,6 +6,19 @@
         <h2>Homalos 量化交易系统</h2>
       </div>
       <div class="header-right">
+        <!-- 通知图标 -->
+        <el-badge :value="unreadCount" :hidden="unreadCount === 0" class="header-icon">
+          <el-icon :size="20" @click="handleNotificationClick">
+            <Bell />
+          </el-icon>
+        </el-badge>
+        
+        <!-- 设置图标 -->
+        <el-icon :size="20" class="header-icon" @click="handleSettingsClick">
+          <Setting />
+        </el-icon>
+        
+        <!-- 用户信息 -->
         <el-dropdown @command="handleCommand">
           <span class="user-info">
             <el-icon><User /></el-icon>
@@ -37,9 +50,17 @@
             <el-icon><DataAnalysis /></el-icon>
             <span>策略管理</span>
           </el-menu-item>
+          <el-menu-item index="notifications">
+            <el-icon><Bell /></el-icon>
+            <span>通知中心</span>
+          </el-menu-item>
           <el-menu-item index="settings">
             <el-icon><Setting /></el-icon>
             <span>系统设置</span>
+          </el-menu-item>
+          <el-menu-item index="about">
+            <el-icon><InfoFilled /></el-icon>
+            <span>关于</span>
           </el-menu-item>
         </el-menu>
       </el-aside>
@@ -135,16 +156,61 @@
           </el-table>
         </el-card>
 
+        <!-- 通知中心 -->
+        <el-card v-if="activeMenu === 'notifications'" shadow="hover">
+          <template #header>
+            <div class="card-header">
+              <span>通知中心</span>
+              <el-button v-if="unreadCount > 0" type="primary" size="small" @click="markAllAsRead">全部已读</el-button>
+            </div>
+          </template>
+          
+          <div v-if="notifications.length === 0" class="empty-notification">
+            <el-empty description="暂无通知" />
+          </div>
+          
+          <el-timeline v-else class="notification-timeline">
+            <el-timeline-item
+              v-for="notification in notifications"
+              :key="notification.id"
+              :timestamp="notification.time"
+              placement="top"
+              :type="notification.type"
+              :hollow="notification.isRead"
+            >
+              <el-card
+                :class="['notification-item', { 'unread': !notification.isRead }]"
+                shadow="hover"
+                @click="markAsRead(notification)"
+              >
+                <div class="notification-header">
+                  <span class="notification-title">
+                    <span v-if="!notification.isRead" class="unread-dot"></span>
+                    {{ notification.title }}
+                  </span>
+                  <el-tag :type="getNotificationTagType(notification.level)" size="small">
+                    {{ notification.level }}
+                  </el-tag>
+                </div>
+                <div class="notification-content">{{ notification.content }}</div>
+                <div class="notification-footer">
+                  <span class="notification-time">{{ notification.time }}</span>
+                  <el-button v-if="!notification.isRead" type="text" size="small" @click.stop="markAsRead(notification)">
+                    标记已读
+                  </el-button>
+                </div>
+              </el-card>
+            </el-timeline-item>
+          </el-timeline>
+        </el-card>
+
         <el-card v-if="activeMenu === 'settings'" shadow="hover">
           <template #header>
             <div class="card-header">
               <span>系统设置</span>
             </div>
           </template>
-          <el-form label-width="120px">
-            <el-form-item label="系统名称">
-              <el-input v-model="settings.systemName" />
-            </el-form-item>
+          <el-form label-width="140px">
             <el-form-item label="自动启动">
               <el-switch v-model="settings.autoStart" />
             </el-form-item>
@@ -156,10 +222,54 @@
                 <el-option label="ERROR" value="error" />
               </el-select>
             </el-form-item>
+            <el-form-item label="消息通知方式">
+              <el-checkbox-group v-model="settings.notificationMethods">
+                <el-checkbox label="dingtalk">钉钉</el-checkbox>
+                <el-checkbox label="wecom">企业微信</el-checkbox>
+                <el-checkbox label="email">邮箱</el-checkbox>
+              </el-checkbox-group>
+            </el-form-item>
             <el-form-item>
               <el-button type="primary">保存设置</el-button>
             </el-form-item>
           </el-form>
+        </el-card>
+
+        <el-card v-if="activeMenu === 'about'" shadow="hover">
+          <template #header>
+            <div class="card-header">
+              <span>关于系统</span>
+            </div>
+          </template>
+          <el-descriptions :column="1" border size="large">
+            <el-descriptions-item label="系统名称">
+              <span style="font-weight: 600; font-size: 16px;">Homalos 量化交易系统</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="版本">
+              <el-tag type="success">v1.0.0</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="作者">
+              Homalos Team
+            </el-descriptions-item>
+            <el-descriptions-item label="版权">
+              Copyright © 2025 Homalos. All rights reserved.
+            </el-descriptions-item>
+            <el-descriptions-item label="简介">
+              Homalos 是一个专业的期货量化交易系统，提供策略开发、回测、实盘交易等功能，助力投资者实现量化交易目标。
+            </el-descriptions-item>
+            <el-descriptions-item label="技术栈">
+              <div style="line-height: 1.8;">
+                <div>后端：Python 3.10 + FastAPI + SQLite</div>
+                <div>前端：Vue 3 + Element Plus + Vite</div>
+                <div>数据：行情接口 + 数据中心</div>
+              </div>
+            </el-descriptions-item>
+            <el-descriptions-item label="联系方式">
+              <div>
+                <el-link type="primary" href="https://github.com/homalos" target="_blank">GitHub</el-link>
+              </div>
+            </el-descriptions-item>
+          </el-descriptions>
         </el-card>
 
         <!-- 策略详情面板 -->
@@ -200,7 +310,18 @@
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="holdPrice" label="持仓价" width="100" />
+                <el-table-column prop="holdPrice" label="成本价" width="100" />
+                <el-table-column prop="latestPrice" label="最新价" width="100" />
+                <el-table-column prop="tradeTime" label="成交时间" width="160" />
+                <el-table-column prop="orderStatus" label="委托状态" width="100">
+                  <template #default="scope">
+                    <el-tag 
+                      :type="scope.row.orderStatus === '全部成交' ? 'success' : scope.row.orderStatus === '部分成交' ? 'warning' : 'info'"
+                    >
+                      {{ scope.row.orderStatus }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
                 <el-table-column prop="takeProfitPrice" label="止盈价" width="100" />
                 <el-table-column prop="stopLossPrice" label="止损价" width="100" />
                 <el-table-column prop="margin" label="保证金" width="120">
@@ -208,7 +329,7 @@
                     {{ scope.row.margin.toFixed(2) }}
                   </template>
                 </el-table-column>
-                <el-table-column prop="profitLoss" label="盈亏额" width="100">
+                <el-table-column prop="profitLoss" label="浮动盈亏" width="100">
                   <template #default="scope">
                     <span :style="{ color: scope.row.profitLoss >= 0 ? '#67C23A' : '#F56C6C' }">
                       {{ scope.row.profitLoss >= 0 ? '+' : '' }}{{ scope.row.profitLoss.toFixed(2) }}
@@ -232,11 +353,24 @@
               </el-table>
             </el-card>
 
-            <!-- 3. 参数配置 -->
+            <!-- 3. 风险控制 -->
+            <el-card shadow="never" class="detail-section">
+              <template #header>
+                <span class="section-title">风险控制</span>
+              </template>
+              <el-descriptions :column="2" border>
+                <el-descriptions-item label="最大仓位">{{ currentStrategy.riskControl.maxPosition }} 手</el-descriptions-item>
+                <el-descriptions-item label="止损比例">{{ currentStrategy.riskControl.stopLossRatio }}%</el-descriptions-item>
+                <el-descriptions-item label="止盈比例">{{ currentStrategy.riskControl.takeProfitRatio }}%</el-descriptions-item>
+                <el-descriptions-item label="最大回撤">{{ currentStrategy.riskControl.maxDrawdown }}%</el-descriptions-item>
+              </el-descriptions>
+            </el-card>
+
+            <!-- 4. 风险控制参数配置 -->
             <el-card shadow="never" class="detail-section">
               <template #header>
                 <div class="section-header">
-                  <span class="section-title">参数配置</span>
+                  <span class="section-title">风险控制参数配置</span>
                   <div>
                     <el-button size="small" @click="handleCancelEdit">取消</el-button>
                     <el-button size="small" type="primary" @click="handleSaveParameters">保存</el-button>
@@ -245,35 +379,21 @@
               </template>
               
               <el-form :model="editableParameters" label-width="140px">
-                <!-- 交易参数 -->
-                <el-divider content-position="left">交易参数</el-divider>
-                <el-form-item label="最大订单数">
-                  <el-input-number v-model="editableParameters.trading.maxOrders" :min="1" :max="20" />
-                </el-form-item>
-
                 <!-- 风险参数 -->
                 <el-divider content-position="left">风险参数</el-divider>
-                <el-form-item label="止损百分比（%）">
-                  <el-input-number v-model="editableParameters.risk.stopLossPercent" :min="0.1" :max="10" :step="0.1" :precision="1" />
+                <el-form-item label="最大仓位（手）">
+                  <el-input-number v-model="editableParameters.riskControl.maxPosition" :min="1" :max="200" />
                 </el-form-item>
-                <el-form-item label="止盈百分比（%）">
-                  <el-input-number v-model="editableParameters.risk.takeProfitPercent" :min="0.1" :max="20" :step="0.1" :precision="1" />
+                <el-form-item label="止损比例（%）">
+                  <el-input-number v-model="editableParameters.riskControl.stopLossRatio" :min="0.1" :max="10" :step="0.1" :precision="1" />
+                </el-form-item>
+                <el-form-item label="止盈比例（%）">
+                  <el-input-number v-model="editableParameters.riskControl.takeProfitRatio" :min="0.1" :max="20" :step="0.1" :precision="1" />
                 </el-form-item>
                 <el-form-item label="最大回撤（%）">
-                  <el-input-number v-model="editableParameters.risk.maxDrawdown" :min="1" :max="50" :step="1" :precision="1" />
+                  <el-input-number v-model="editableParameters.riskControl.maxDrawdown" :min="1" :max="50" :step="1" :precision="1" />
                 </el-form-item>
               </el-form>
-            </el-card>
-
-            <!-- 4. 风险控制 -->
-            <el-card shadow="never" class="detail-section">
-              <template #header>
-                <span class="section-title">风险控制</span>
-              </template>
-              <el-descriptions :column="2" border>
-                <el-descriptions-item label="最大仓位">{{ currentStrategy.riskControl.maxPosition }} 手</el-descriptions-item>
-                <el-descriptions-item label="止损比例">{{ currentStrategy.riskControl.stopLossRatio }}%</el-descriptions-item>
-              </el-descriptions>
             </el-card>
           </div>
         </el-drawer>
@@ -293,7 +413,9 @@ import {
   Setting,
   SuccessFilled,
   Cpu,
-  Memo
+  Memo,
+  InfoFilled,
+  Bell
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -303,6 +425,60 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const activeMenu = ref('dashboard')
+
+// 通知列表（硬编码数据）
+const notifications = ref([
+  {
+    id: 1,
+    title: '策略运行异常',
+    content: '趋势跟踪策略在AU2406合约上出现异常，已自动停止运行，请检查策略参数。',
+    time: '2025-10-08 22:30:15',
+    level: '紧急',
+    type: 'danger',
+    isRead: false
+  },
+  {
+    id: 2,
+    title: '持仓盈利提醒',
+    content: '均值回归策略在CU2406合约上盈利已达到止盈价，建议关注市场行情及时调整。',
+    time: '2025-10-08 21:45:30',
+    level: '重要',
+    type: 'warning',
+    isRead: false
+  },
+  {
+    id: 3,
+    title: '系统更新通知',
+    content: '系统将于今晚23:00进行例行维护，预计维护时间30分钟，期间系统将暂停交易。',
+    time: '2025-10-08 20:15:00',
+    level: '通知',
+    type: 'primary',
+    isRead: false
+  },
+  {
+    id: 4,
+    title: '风险控制提醒',
+    content: '当前账户总持仓占比已达70%，接近风控阈值，建议适当降低仓位。',
+    time: '2025-10-08 18:20:45',
+    level: '重要',
+    type: 'warning',
+    isRead: true
+  },
+  {
+    id: 5,
+    title: '策略启动成功',
+    content: '套利策略已成功启动，当前运行状态正常，开始执行交易逻辑。',
+    time: '2025-10-08 15:30:00',
+    level: '通知',
+    type: 'success',
+    isRead: true
+  }
+])
+
+// 未读通知数量（计算属性）
+const unreadCount = computed(() => {
+  return notifications.value.filter(n => !n.isRead).length
+})
 
 // 定时器引用
 let monitorTimer = null
@@ -339,6 +515,9 @@ const strategies = ref([
         volume: 10,
         direction: '多',
         holdPrice: 450.5,
+        latestPrice: 462.3,
+        tradeTime: '2025-10-08 09:15:32',
+        orderStatus: '全部成交',
         takeProfitPrice: 460.0,
         stopLossPrice: 445.0,
         margin: 45050.0,
@@ -351,6 +530,9 @@ const strategies = ref([
         volume: 20,
         direction: '空',
         holdPrice: 5200.0,
+        latestPrice: 5175.0,
+        tradeTime: '2025-10-08 10:20:15',
+        orderStatus: '部分成交',
         takeProfitPrice: 5100.0,
         stopLossPrice: 5250.0,
         margin: 104000.0,
@@ -386,6 +568,8 @@ const strategies = ref([
     riskControl: {
       maxPosition: 50,
       stopLossRatio: 2.0,
+      takeProfitRatio: 3.0,
+      maxDrawdown: 10.0,
       maxLeverage: 3.0,
       riskLevel: '中'
     }
@@ -411,6 +595,9 @@ const strategies = ref([
         volume: 15,
         direction: '多',
         holdPrice: 68500.0,
+        latestPrice: 69065.0,
+        tradeTime: '2025-10-07 14:30:28',
+        orderStatus: '全部成交',
         takeProfitPrice: 70000.0,
         stopLossPrice: 67500.0,
         margin: 102750.0,
@@ -446,6 +633,8 @@ const strategies = ref([
     riskControl: {
       maxPosition: 30,
       stopLossRatio: 1.5,
+      takeProfitRatio: 2.5,
+      maxDrawdown: 8.0,
       maxLeverage: 2.0,
       riskLevel: '低'
     }
@@ -471,6 +660,9 @@ const strategies = ref([
         volume: 25,
         direction: '多',
         holdPrice: 3850.0,
+        latestPrice: 3875.0,
+        tradeTime: '2025-10-08 11:05:45',
+        orderStatus: '待成交',
         takeProfitPrice: 3900.0,
         stopLossPrice: 3820.0,
         margin: 96250.0,
@@ -483,6 +675,9 @@ const strategies = ref([
         volume: 25,
         direction: '空',
         holdPrice: 3880.0,
+        latestPrice: 3850.0,
+        tradeTime: '2025-10-08 13:22:18',
+        orderStatus: '全部成交',
         takeProfitPrice: 3830.0,
         stopLossPrice: 3910.0,
         margin: 97000.0,
@@ -518,6 +713,8 @@ const strategies = ref([
     riskControl: {
       maxPosition: 100,
       stopLossRatio: 0.8,
+      takeProfitRatio: 1.5,
+      maxDrawdown: 5.0,
       maxLeverage: 5.0,
       riskLevel: '高'
     }
@@ -540,13 +737,15 @@ const currentStrategy = ref(null)
 const editableParameters = reactive({
   trading: {},
   risk: {},
-  indicator: {}
+  indicator: {},
+  riskControl: {}
 })
 
 const settings = reactive({
   systemName: 'Homalos',
   autoStart: true,
-  logLevel: 'info'
+  logLevel: 'info',
+  notificationMethods: ['dingtalk', 'email']  // 默认启用钉钉和邮箱
 })
 
 /**
@@ -601,6 +800,60 @@ const handleCommand = (command) => {
 }
 
 /**
+ * 处理通知图标点击，跳转到通知中心
+ */
+const handleNotificationClick = () => {
+  activeMenu.value = 'notifications'
+}
+
+/**
+ * 处理设置图标点击，跳转到系统设置页面
+ */
+const handleSettingsClick = () => {
+  activeMenu.value = 'settings'
+}
+
+/**
+ * 标记单条通知为已读
+ */
+const markAsRead = (notification) => {
+  if (!notification.isRead) {
+    notification.isRead = true
+    ElMessage.success('通知已标记为已读')
+  }
+}
+
+/**
+ * 全部标记为已读
+ */
+const markAllAsRead = () => {
+  ElMessageBox.confirm('确定将所有通知标记为已读吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'info'
+  }).then(() => {
+    notifications.value.forEach(n => {
+      n.isRead = true
+    })
+    ElMessage.success('所有通知已标记为已读')
+  }).catch(() => {
+    // 取消操作
+  })
+}
+
+/**
+ * 获取通知标签类型
+ */
+const getNotificationTagType = (level) => {
+  const typeMap = {
+    '紧急': 'danger',
+    '重要': 'warning',
+    '通知': 'info'
+  }
+  return typeMap[level] || 'info'
+}
+
+/**
  * 显示策略详情
  */
 const handleShowDetail = (strategy) => {
@@ -609,6 +862,7 @@ const handleShowDetail = (strategy) => {
   editableParameters.trading = { ...strategy.parameters.trading }
   editableParameters.risk = { ...strategy.parameters.risk }
   editableParameters.indicator = { ...strategy.parameters.indicator }
+  editableParameters.riskControl = { ...strategy.riskControl }
   detailDrawerVisible.value = true
 }
 
@@ -622,6 +876,7 @@ const handleSaveParameters = () => {
   currentStrategy.value.parameters.trading = { ...editableParameters.trading }
   currentStrategy.value.parameters.risk = { ...editableParameters.risk }
   currentStrategy.value.parameters.indicator = { ...editableParameters.indicator }
+  currentStrategy.value.riskControl = { ...editableParameters.riskControl }
   
   // 更新最后修改时间
   const now = new Date()
@@ -648,6 +903,7 @@ const handleCancelEdit = () => {
   editableParameters.trading = { ...currentStrategy.value.parameters.trading }
   editableParameters.risk = { ...currentStrategy.value.parameters.risk }
   editableParameters.indicator = { ...currentStrategy.value.parameters.indicator }
+  editableParameters.riskControl = { ...currentStrategy.value.riskControl }
   
   ElMessage.info('已取消编辑')
 }
@@ -732,6 +988,16 @@ onUnmounted(() => {
 .header-right {
   display: flex;
   align-items: center;
+  gap: 20px;
+}
+
+.header-icon {
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.header-icon:hover {
+  opacity: 0.8;
 }
 
 .user-info {
@@ -802,5 +1068,81 @@ onUnmounted(() => {
   font-weight: 600;
   color: #606266;
 }
+
+/* 通知中心样式 */
+.empty-notification {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+}
+
+.notification-timeline {
+  margin-top: 20px;
+  padding-left: 20px;
+}
+
+.notification-item {
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 0;
+}
+
+.notification-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.notification-item.unread {
+  background-color: #f0f9ff;
+  border-left: 3px solid #409eff;
+}
+
+.notification-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.notification-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.unread-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: #409eff;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.notification-content {
+  color: #606266;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+  word-break: break-word;
+}
+
+.notification-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid #ebeef5;
+}
+
+.notification-time {
+  font-size: 12px;
+  color: #909399;
+}
+
 </style>
 
