@@ -120,7 +120,6 @@
             </el-table-column>
             <el-table-column prop="startTime" label="启动时间" width="180" />
             <el-table-column prop="runningTime" label="运行时长" width="120" />
-            <el-table-column prop="profit" label="收益率" width="100" />
             <el-table-column label="操作" width="220">
               <template #default="scope">
                 <el-button
