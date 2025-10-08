@@ -128,7 +128,7 @@
                 >
                   {{ scope.row.status === '运行中' ? '停止' : '启动' }}
                 </el-button>
-                <el-button size="small" type="primary">配置</el-button>
+                <el-button size="small" type="primary" @click="handleShowDetail(scope.row)">详情</el-button>
                 <el-button size="small" type="danger" @click="handleDeleteStrategy(scope.row)">删除</el-button>
               </template>
             </el-table-column>
@@ -161,6 +161,122 @@
             </el-form-item>
           </el-form>
         </el-card>
+
+        <!-- 策略详情面板 -->
+        <el-drawer
+          v-model="detailDrawerVisible"
+          :title="`策略详情 - ${currentStrategy?.name || ''}`"
+          size="70%"
+          direction="rtl"
+        >
+          <div v-if="currentStrategy" class="strategy-detail">
+            <!-- 1. 基础信息 -->
+            <el-card shadow="never" class="detail-section">
+              <template #header>
+                <span class="section-title">基础信息</span>
+              </template>
+              <el-descriptions :column="2" border>
+                <el-descriptions-item label="策略名称">{{ currentStrategy.name }}</el-descriptions-item>
+                <el-descriptions-item label="策略ID">{{ currentStrategy.id }}</el-descriptions-item>
+                <el-descriptions-item label="作者">{{ currentStrategy.author }}</el-descriptions-item>
+                <el-descriptions-item label="创建时间">{{ currentStrategy.createTime }}</el-descriptions-item>
+                <el-descriptions-item label="最后修改时间" :span="2">{{ currentStrategy.lastModifyTime }}</el-descriptions-item>
+                <el-descriptions-item label="策略描述" :span="2">{{ currentStrategy.description }}</el-descriptions-item>
+              </el-descriptions>
+            </el-card>
+
+            <!-- 2. 持仓信息 -->
+            <el-card shadow="never" class="detail-section">
+              <template #header>
+                <span class="section-title">持仓信息</span>
+              </template>
+              <el-table :data="currentStrategy.positions" border stripe>
+                <el-table-column prop="contract" label="合约代码" width="100" />
+                <el-table-column prop="volume" label="持仓量" width="80" />
+                <el-table-column prop="direction" label="方向" width="60">
+                  <template #default="scope">
+                    <el-tag :type="scope.row.direction === '多' ? 'success' : 'danger'">
+                      {{ scope.row.direction }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="holdPrice" label="持仓价" width="100" />
+                <el-table-column prop="takeProfitPrice" label="止盈价" width="100" />
+                <el-table-column prop="stopLossPrice" label="止损价" width="100" />
+                <el-table-column prop="margin" label="保证金" width="120">
+                  <template #default="scope">
+                    {{ scope.row.margin.toFixed(2) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="profitLoss" label="盈亏额" width="100">
+                  <template #default="scope">
+                    <span :style="{ color: scope.row.profitLoss >= 0 ? '#67C23A' : '#F56C6C' }">
+                      {{ scope.row.profitLoss >= 0 ? '+' : '' }}{{ scope.row.profitLoss.toFixed(2) }}
+                    </span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="profitLossRatio" label="盈亏比" width="80">
+                  <template #default="scope">
+                    <span :style="{ color: scope.row.profitLossRatio >= 0 ? '#67C23A' : '#F56C6C' }">
+                      {{ scope.row.profitLossRatio >= 0 ? '+' : '' }}{{ scope.row.profitLossRatio.toFixed(2) }}
+                    </span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="returnRate" label="收益率" width="100">
+                  <template #default="scope">
+                    <span :style="{ color: scope.row.returnRate >= 0 ? '#67C23A' : '#F56C6C' }">
+                      {{ scope.row.returnRate >= 0 ? '+' : '' }}{{ scope.row.returnRate.toFixed(2) }}%
+                    </span>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-card>
+
+            <!-- 3. 参数配置 -->
+            <el-card shadow="never" class="detail-section">
+              <template #header>
+                <div class="section-header">
+                  <span class="section-title">参数配置</span>
+                  <div>
+                    <el-button size="small" @click="handleCancelEdit">取消</el-button>
+                    <el-button size="small" type="primary" @click="handleSaveParameters">保存</el-button>
+                  </div>
+                </div>
+              </template>
+              
+              <el-form :model="editableParameters" label-width="140px">
+                <!-- 交易参数 -->
+                <el-divider content-position="left">交易参数</el-divider>
+                <el-form-item label="最大订单数">
+                  <el-input-number v-model="editableParameters.trading.maxOrders" :min="1" :max="20" />
+                </el-form-item>
+
+                <!-- 风险参数 -->
+                <el-divider content-position="left">风险参数</el-divider>
+                <el-form-item label="止损百分比（%）">
+                  <el-input-number v-model="editableParameters.risk.stopLossPercent" :min="0.1" :max="10" :step="0.1" :precision="1" />
+                </el-form-item>
+                <el-form-item label="止盈百分比（%）">
+                  <el-input-number v-model="editableParameters.risk.takeProfitPercent" :min="0.1" :max="20" :step="0.1" :precision="1" />
+                </el-form-item>
+                <el-form-item label="最大回撤（%）">
+                  <el-input-number v-model="editableParameters.risk.maxDrawdown" :min="1" :max="50" :step="1" :precision="1" />
+                </el-form-item>
+              </el-form>
+            </el-card>
+
+            <!-- 4. 风险控制 -->
+            <el-card shadow="never" class="detail-section">
+              <template #header>
+                <span class="section-title">风险控制</span>
+              </template>
+              <el-descriptions :column="2" border>
+                <el-descriptions-item label="最大仓位">{{ currentStrategy.riskControl.maxPosition }} 手</el-descriptions-item>
+                <el-descriptions-item label="止损比例">{{ currentStrategy.riskControl.stopLossRatio }}%</el-descriptions-item>
+              </el-descriptions>
+            </el-card>
+          </div>
+        </el-drawer>
       </el-main>
     </el-container>
   </el-container>
@@ -203,28 +319,208 @@ const systemInfo = reactive({
 
 const strategies = ref([
   { 
+    // === 基础字段 ===
     id: 'STR001', 
     name: '趋势跟踪策略', 
     status: '运行中', 
     startTime: '2025-10-08 09:30:00',
     runningTime: '12h15m',
-    profit: '+12.5%' 
+    
+    // === 基础信息 ===
+    description: '基于趋势线和移动平均线的跟踪策略，适用于趋势明显的市场环境，通过识别市场趋势方向进行交易',
+    author: '张三',
+    createTime: '2025-10-01 14:20:00',
+    lastModifyTime: '2025-10-07 16:45:00',
+    
+    // === 持仓信息 ===
+    positions: [
+      {
+        contract: 'AU2406',
+        volume: 10,
+        direction: '多',
+        holdPrice: 450.5,
+        takeProfitPrice: 460.0,
+        stopLossPrice: 445.0,
+        margin: 45050.0,
+        profitLoss: 1200.5,
+        profitLossRatio: 2.67,
+        returnRate: 2.67
+      },
+      {
+        contract: 'AG2406',
+        volume: 20,
+        direction: '空',
+        holdPrice: 5200.0,
+        takeProfitPrice: 5100.0,
+        stopLossPrice: 5250.0,
+        margin: 104000.0,
+        profitLoss: -500.0,
+        profitLossRatio: -0.48,
+        returnRate: -0.48
+      }
+    ],
+    
+    // === 参数配置 ===
+    parameters: {
+      trading: {
+        lotSize: 1,
+        maxOrders: 5,
+        orderInterval: 60,
+        enableCompound: true
+      },
+      risk: {
+        stopLossPercent: 2.0,
+        takeProfitPercent: 3.0,
+        maxDrawdown: 10.0,
+        riskRewardRatio: 1.5
+      },
+      indicator: {
+        maPeriod: 20,
+        maType: 'SMA',
+        rsiPeriod: 14,
+        enableMACD: true
+      }
+    },
+    
+    // === 风险控制 ===
+    riskControl: {
+      maxPosition: 50,
+      stopLossRatio: 2.0,
+      maxLeverage: 3.0,
+      riskLevel: '中'
+    }
   },
   { 
+    // === 基础字段 ===
     id: 'STR002', 
     name: '均值回归策略', 
     status: '已停止', 
     startTime: '2025-10-07 14:20:00',
     runningTime: '-',
-    profit: '+8.3%' 
+    
+    // === 基础信息 ===
+    description: '当价格偏离均值时进行反向交易，预期价格会回归均值，适用于震荡市场',
+    author: '李四',
+    createTime: '2025-09-25 10:30:00',
+    lastModifyTime: '2025-10-06 09:15:00',
+    
+    // === 持仓信息 ===
+    positions: [
+      {
+        contract: 'CU2406',
+        volume: 15,
+        direction: '多',
+        holdPrice: 68500.0,
+        takeProfitPrice: 70000.0,
+        stopLossPrice: 67500.0,
+        margin: 102750.0,
+        profitLoss: 850.0,
+        profitLossRatio: 0.83,
+        returnRate: 0.83
+      }
+    ],
+    
+    // === 参数配置 ===
+    parameters: {
+      trading: {
+        lotSize: 2,
+        maxOrders: 3,
+        orderInterval: 120,
+        enableCompound: false
+      },
+      risk: {
+        stopLossPercent: 1.5,
+        takeProfitPercent: 2.5,
+        maxDrawdown: 8.0,
+        riskRewardRatio: 1.8
+      },
+      indicator: {
+        maPeriod: 30,
+        maType: 'EMA',
+        rsiPeriod: 10,
+        enableMACD: false
+      }
+    },
+    
+    // === 风险控制 ===
+    riskControl: {
+      maxPosition: 30,
+      stopLossRatio: 1.5,
+      maxLeverage: 2.0,
+      riskLevel: '低'
+    }
   },
   { 
+    // === 基础字段 ===
     id: 'STR003', 
     name: '套利策略', 
     status: '运行中', 
     startTime: '2025-10-08 10:45:00',
     runningTime: '10h50m',
-    profit: '+15.7%' 
+    
+    // === 基础信息 ===
+    description: '利用不同合约或市场间的价差进行套利交易，风险相对较低，收益稳定',
+    author: '王五',
+    createTime: '2025-10-03 11:00:00',
+    lastModifyTime: '2025-10-08 08:30:00',
+    
+    // === 持仓信息 ===
+    positions: [
+      {
+        contract: 'RB2406',
+        volume: 25,
+        direction: '多',
+        holdPrice: 3850.0,
+        takeProfitPrice: 3900.0,
+        stopLossPrice: 3820.0,
+        margin: 96250.0,
+        profitLoss: 625.0,
+        profitLossRatio: 0.65,
+        returnRate: 0.65
+      },
+      {
+        contract: 'RB2409',
+        volume: 25,
+        direction: '空',
+        holdPrice: 3880.0,
+        takeProfitPrice: 3830.0,
+        stopLossPrice: 3910.0,
+        margin: 97000.0,
+        profitLoss: 750.0,
+        profitLossRatio: 0.77,
+        returnRate: 0.77
+      }
+    ],
+    
+    // === 参数配置 ===
+    parameters: {
+      trading: {
+        lotSize: 3,
+        maxOrders: 10,
+        orderInterval: 30,
+        enableCompound: true
+      },
+      risk: {
+        stopLossPercent: 0.8,
+        takeProfitPercent: 1.5,
+        maxDrawdown: 5.0,
+        riskRewardRatio: 2.0
+      },
+      indicator: {
+        maPeriod: 15,
+        maType: 'WMA',
+        rsiPeriod: 12,
+        enableMACD: true
+      }
+    },
+    
+    // === 风险控制 ===
+    riskControl: {
+      maxPosition: 100,
+      stopLossRatio: 0.8,
+      maxLeverage: 5.0,
+      riskLevel: '高'
+    }
   }
 ])
 
@@ -236,6 +532,15 @@ const runningStrategiesCount = computed(() => {
 // 计算已停止的策略数量
 const stoppedStrategiesCount = computed(() => {
   return strategies.value.filter(s => s.status === '已停止').length
+})
+
+// 详情面板状态
+const detailDrawerVisible = ref(false)
+const currentStrategy = ref(null)
+const editableParameters = reactive({
+  trading: {},
+  risk: {},
+  indicator: {}
 })
 
 const settings = reactive({
@@ -293,6 +598,70 @@ const handleCommand = (command) => {
     ElMessage.success('已退出登录')
     router.push('/login')
   }
+}
+
+/**
+ * 显示策略详情
+ */
+const handleShowDetail = (strategy) => {
+  currentStrategy.value = strategy
+  // 深拷贝参数到可编辑对象
+  editableParameters.trading = { ...strategy.parameters.trading }
+  editableParameters.risk = { ...strategy.parameters.risk }
+  editableParameters.indicator = { ...strategy.parameters.indicator }
+  detailDrawerVisible.value = true
+}
+
+/**
+ * 保存参数配置
+ */
+const handleSaveParameters = () => {
+  if (!currentStrategy.value) return
+  
+  // 更新策略参数
+  currentStrategy.value.parameters.trading = { ...editableParameters.trading }
+  currentStrategy.value.parameters.risk = { ...editableParameters.risk }
+  currentStrategy.value.parameters.indicator = { ...editableParameters.indicator }
+  
+  // 更新最后修改时间
+  const now = new Date()
+  currentStrategy.value.lastModifyTime = now.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).replace(/\//g, '-')
+  
+  ElMessage.success('参数保存成功')
+}
+
+/**
+ * 取消编辑
+ */
+const handleCancelEdit = () => {
+  if (!currentStrategy.value) return
+  
+  // 恢复原始参数
+  editableParameters.trading = { ...currentStrategy.value.parameters.trading }
+  editableParameters.risk = { ...currentStrategy.value.parameters.risk }
+  editableParameters.indicator = { ...currentStrategy.value.parameters.indicator }
+  
+  ElMessage.info('已取消编辑')
+}
+
+/**
+ * 获取风险等级标签类型
+ */
+const getRiskLevelType = (level) => {
+  const typeMap = {
+    '低': 'success',
+    '中': 'warning',
+    '高': 'danger'
+  }
+  return typeMap[level] || 'info'
 }
 
 /**
@@ -395,6 +764,43 @@ onUnmounted(() => {
 
 :deep(.el-statistic) {
   text-align: center;
+}
+
+/* 策略详情面板样式 */
+.strategy-detail {
+  padding: 0 20px 20px;
+}
+
+.detail-section {
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 持仓表格紧凑布局 */
+.detail-section :deep(.el-table) {
+  font-size: 13px;
+}
+
+/* 表单项间距 */
+.detail-section :deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+/* 分割线样式 */
+.detail-section :deep(.el-divider__text) {
+  font-weight: 600;
+  color: #606266;
 }
 </style>
 
