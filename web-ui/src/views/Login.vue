@@ -89,11 +89,11 @@ const handleLogin = async () => {
       if (success) {
         ElMessage.success('登录成功')
         router.push('/')
-      } else {
-        ElMessage.error('登录失败，请检查用户名和密码')
       }
+      // 失败的情况由响应拦截器处理错误消息，不需要再次显示
     } catch (error) {
-      ElMessage.error('登录失败，请稍后重试')
+      // 错误消息已由响应拦截器显示，这里不再重复显示
+      console.error('登录异常:', error)
     } finally {
       loading.value = false
     }
