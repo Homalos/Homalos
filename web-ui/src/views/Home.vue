@@ -147,7 +147,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   User,
@@ -161,16 +161,24 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { getSystemStats } from '@/api/monitor'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const activeMenu = ref('dashboard')
 
+// 定时器引用
+let monitorTimer = null
+
+// 系统监控信息
 const systemInfo = reactive({
-  cpu: 25,
-  memory: 45,
-  activeStrategies: 3
+  cpu: 0,
+  memory: 0,
+  activeStrategies: 3,  // 硬编码值
+  lastUpdate: null,
+  loading: false,
+  error: null
 })
 
 const strategies = ref([
@@ -184,6 +192,45 @@ const settings = reactive({
   autoStart: true,
   logLevel: 'info'
 })
+
+/**
+ * 获取系统监控数据
+ */
+const fetchSystemStats = async () => {
+  try {
+    systemInfo.loading = true
+    const data = await getSystemStats()
+    
+    systemInfo.cpu = data.cpu_percent
+    systemInfo.memory = data.memory_percent
+    systemInfo.lastUpdate = data.timestamp
+    systemInfo.error = null
+  } catch (error) {
+    console.error('获取监控数据失败:', error)
+    systemInfo.error = '获取监控数据失败'
+    // 保留上次的数据，不清空
+  } finally {
+    systemInfo.loading = false
+  }
+}
+
+/**
+ * 启动监控数据轮询
+ */
+const startMonitoring = () => {
+  fetchSystemStats()  // 立即获取一次
+  monitorTimer = setInterval(fetchSystemStats, 5000)  // 每5秒刷新
+}
+
+/**
+ * 停止监控数据轮询
+ */
+const stopMonitoring = () => {
+  if (monitorTimer) {
+    clearInterval(monitorTimer)
+    monitorTimer = null
+  }
+}
 
 const handleMenuSelect = (index) => {
   activeMenu.value = index
@@ -199,7 +246,22 @@ const handleCommand = (command) => {
 
 onMounted(async () => {
   // 获取用户信息
-  await userStore.fetchUserInfo()
+  if (!userStore.userInfo) {
+    const success = await userStore.fetchUserInfo()
+    if (!success) {
+      ElMessage.error('获取用户信息失败，请重新登录')
+      router.push('/login')
+      return
+    }
+  }
+  
+  // 启动监控
+  startMonitoring()
+})
+
+onUnmounted(() => {
+  // 组件卸载时停止监控
+  stopMonitoring()
 })
 </script>
 
