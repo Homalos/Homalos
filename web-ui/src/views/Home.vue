@@ -50,6 +50,10 @@
             <el-icon><DataAnalysis /></el-icon>
             <span>策略管理</span>
           </el-menu-item>
+          <el-menu-item index="task-scheduler">
+            <el-icon><Timer /></el-icon>
+            <span>任务调度器</span>
+          </el-menu-item>
           <el-menu-item index="notifications">
             <el-icon><Bell /></el-icon>
             <span>通知中心</span>
@@ -687,7 +691,11 @@ import {
   VideoPause,
   Warning,
   Document,
-  Plus
+  Plus,
+  Timer,
+  Clock,
+  Delete,
+  Edit
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -761,6 +769,83 @@ const strategyTemplates = [
     }
   }
 ]
+
+// 任务调度器数据（硬编码）
+const scheduledTasks = ref([
+  {
+    id: 1,
+    name: "每日数据备份",
+    type: "daily",
+    config: { time: "23:00" },
+    status: "enabled",
+    createTime: "2025-10-01 10:30:00",
+    lastExecuteTime: "2025-10-08 23:00:00",
+    executionHistory: [
+      { time: "2025-10-08 23:00:00", status: "success", duration: "2.5s" },
+      { time: "2025-10-07 23:00:00", status: "success", duration: "2.3s" },
+      { time: "2025-10-06 23:00:00", status: "failed", duration: "0.5s", error: "网络连接失败" }
+    ]
+  },
+  {
+    id: 2,
+    name: "周报生成",
+    type: "weekday",
+    config: { time: "09:00", dayOfWeek: ["周一"] },
+    status: "enabled",
+    createTime: "2025-09-25 15:20:00",
+    lastExecuteTime: "2025-10-07 09:00:00",
+    executionHistory: [
+      { time: "2025-10-07 09:00:00", status: "success", duration: "5.2s" }
+    ]
+  },
+  {
+    id: 3,
+    name: "实时监控检查",
+    type: "minute",
+    config: {},
+    status: "enabled",
+    createTime: "2025-10-08 20:00:00",
+    lastExecuteTime: "2025-10-10 00:05:00",
+    executionHistory: []
+  },
+  {
+    id: 4,
+    name: "月度报表",
+    type: "monthly",
+    config: { time: "08:00", monthDay: ["01", "15"] },
+    status: "disabled",
+    createTime: "2025-09-20 11:00:00",
+    lastExecuteTime: "2025-10-01 08:00:00",
+    executionHistory: [
+      { time: "2025-10-01 08:00:00", status: "success", duration: "8.5s" }
+    ]
+  },
+  {
+    id: 5,
+    name: "临时数据清理",
+    type: "once",
+    config: { dateTime: "2025-10-10 02:00:00" },
+    status: "disabled",
+    createTime: "2025-10-09 18:30:00",
+    lastExecuteTime: null,
+    executionHistory: []
+  }
+])
+
+// 任务类型映射
+const taskTypeMap = {
+  daily: { name: '每日任务', color: '#409EFF' },
+  once: { name: '一次性任务', color: '#67C23A' },
+  minute: { name: '每分钟任务', color: '#E6A23C' },
+  weekday: { name: '每周任务', color: '#F56C6C' },
+  monthly: { name: '每月任务', color: '#909399' }
+}
+
+// 星期映射
+const weekDayMap = {
+  '周一': 'Mon', '周二': 'Tue', '周三': 'Wed', 
+  '周四': 'Thu', '周五': 'Fri', '周六': 'Sat', '周日': 'Sun'
+}
 
 // 通知列表（硬编码数据）
 const notifications = ref([
@@ -1102,12 +1187,43 @@ const stoppedStrategiesCount = computed(() => {
   return strategies.value.filter(s => s.status === '已停止').length
 })
 
+// 计算任务总数
+const totalTasksCount = computed(() => scheduledTasks.value.length)
+
+// 计算启用的任务数
+const enabledTasksCount = computed(() => 
+  scheduledTasks.value.filter(t => t.status === 'enabled').length
+)
+
+// 计算禁用的任务数
+const disabledTasksCount = computed(() => 
+  scheduledTasks.value.filter(t => t.status === 'disabled').length
+)
+
 // 详情面板状态
 const detailDrawerVisible = ref(false)
 const currentStrategy = ref(null)
 
 // 添加策略对话框状态
 const addStrategyDialogVisible = ref(false)
+
+// 任务调度器对话框状态
+const addTaskDialogVisible = ref(false)
+const editTaskDialogVisible = ref(false)
+const historyDialogVisible = ref(false)
+const currentTask = ref(null)
+
+// 新任务表单数据
+const newTaskForm = reactive({
+  name: '',
+  type: 'daily',
+  config: {
+    time: '09:00',
+    dateTime: '',
+    dayOfWeek: [],
+    monthDay: []
+  }
+})
 const editableParameters = reactive({
   trading: {},
   risk: {},
@@ -1303,6 +1419,146 @@ const getCurrentTime = () => {
     second: '2-digit',
     hour12: false
   }).replace(/\//g, '-')
+}
+
+/**
+ * 计算下次执行时间
+ */
+const calculateNextRunTime = (task) => {
+  if (task.status === 'disabled') return null
+  
+  const now = new Date()
+  
+  switch (task.type) {
+    case 'minute': {
+      const nextMinute = new Date(now)
+      nextMinute.setMinutes(now.getMinutes() + 1)
+      nextMinute.setSeconds(0, 0)
+      return nextMinute
+    }
+    
+    case 'daily': {
+      const [hour, minute] = task.config.time.split(':')
+      const todayTime = new Date(now)
+      todayTime.setHours(parseInt(hour), parseInt(minute), 0, 0)
+      if (todayTime > now) {
+        return todayTime
+      } else {
+        const tomorrowTime = new Date(todayTime)
+        tomorrowTime.setDate(todayTime.getDate() + 1)
+        return tomorrowTime
+      }
+    }
+    
+    case 'once': {
+      return new Date(task.config.dateTime)
+    }
+    
+    case 'weekday': {
+      const [hour, minute] = task.config.time.split(':')
+      const currentDay = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][now.getDay()]
+      
+      for (let i = 0; i <= 7; i++) {
+        const checkDate = new Date(now)
+        checkDate.setDate(now.getDate() + i)
+        const checkDay = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][checkDate.getDay()]
+        
+        if (task.config.dayOfWeek.includes(checkDay)) {
+          checkDate.setHours(parseInt(hour), parseInt(minute), 0, 0)
+          if (checkDate > now) {
+            return checkDate
+          }
+        }
+      }
+      return null
+    }
+    
+    case 'monthly': {
+      const [hour, minute] = task.config.time.split(':')
+      const currentDay = String(now.getDate()).padStart(2, '0')
+      
+      for (let i = 0; i < 62; i++) {
+        const checkDate = new Date(now)
+        checkDate.setDate(now.getDate() + i)
+        const checkDay = String(checkDate.getDate()).padStart(2, '0')
+        
+        if (task.config.monthDay.includes(checkDay)) {
+          checkDate.setHours(parseInt(hour), parseInt(minute), 0, 0)
+          if (checkDate > now) {
+            return checkDate
+          }
+        }
+      }
+      return null
+    }
+    
+    default:
+      return null
+  }
+}
+
+/**
+ * 获取相对时间显示
+ */
+const getRelativeTime = (targetTime) => {
+  if (!targetTime) return '-'
+  
+  const now = new Date()
+  const diff = targetTime - now
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+  
+  if (minutes < 0) return '已过期'
+  if (minutes < 1) return '即将执行'
+  if (minutes < 60) return `${minutes}分钟后`
+  if (hours < 24) {
+    if (hours < 1) return `${minutes}分钟后`
+    return `${hours}小时后`
+  }
+  if (days === 0) {
+    return `今天 ${targetTime.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})}`
+  }
+  if (days === 1) {
+    return `明天 ${targetTime.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})}`
+  }
+  
+  return targetTime.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+/**
+ * 格式化任务配置显示
+ */
+const formatTaskConfig = (task) => {
+  switch (task.type) {
+    case 'daily':
+      return `每天 ${task.config.time}`
+    case 'once':
+      return task.config.dateTime
+    case 'minute':
+      return '每分钟执行'
+    case 'weekday':
+      return `每${task.config.dayOfWeek.join('、')} ${task.config.time}`
+    case 'monthly':
+      return `每月${task.config.monthDay.join('、')}号 ${task.config.time}`
+    default:
+      return '-'
+  }
+}
+
+/**
+ * 生成任务ID
+ */
+const generateTaskId = () => {
+  const maxId = scheduledTasks.value.reduce((max, t) => {
+    return t.id > max ? t.id : max
+  }, 0)
+  return maxId + 1
 }
 
 /**
