@@ -394,6 +394,97 @@
           </el-timeline>
         </el-card>
 
+        <!-- 任务调度器面板 -->
+        <el-card v-if="activeMenu === 'task-scheduler'" shadow="hover">
+          <template #header>
+            <div class="card-header">
+              <span>任务调度器</span>
+              <el-button type="primary" size="small" @click="addTaskDialogVisible = true">
+                <el-icon style="margin-right: 5px;"><Plus /></el-icon>
+                添加任务
+              </el-button>
+            </div>
+          </template>
+          
+          <!-- 任务统计 -->
+          <el-row :gutter="20" style="margin-bottom: 20px;">
+            <el-col :span="8">
+              <el-statistic title="总任务数" :value="totalTasksCount">
+                <template #prefix>
+                  <el-icon color="#409eff"><Timer /></el-icon>
+                </template>
+              </el-statistic>
+            </el-col>
+            <el-col :span="8">
+              <el-statistic title="已启用" :value="enabledTasksCount">
+                <template #prefix>
+                  <el-icon color="#67C23A"><VideoPlay /></el-icon>
+                </template>
+              </el-statistic>
+            </el-col>
+            <el-col :span="8">
+              <el-statistic title="已禁用" :value="disabledTasksCount">
+                <template #prefix>
+                  <el-icon color="#909399"><VideoPause /></el-icon>
+                </template>
+              </el-statistic>
+            </el-col>
+          </el-row>
+          
+          <!-- 任务列表表格 -->
+          <el-table :data="scheduledTasks" stripe style="width: 100%">
+            <el-table-column prop="id" label="ID" width="60" />
+            <el-table-column prop="name" label="任务名称" width="150" />
+            <el-table-column label="任务类型" width="120">
+              <template #default="{ row }">
+                <el-tag :color="taskTypeMap[row.type].color" style="color: white;">
+                  {{ taskTypeMap[row.type].name }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="执行配置" width="200">
+              <template #default="{ row }">
+                {{ formatTaskConfig(row) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="下次执行" width="180">
+              <template #default="{ row }">
+                {{ getRelativeTime(calculateNextRunTime(row)) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="状态" width="100">
+              <template #default="{ row }">
+                <el-tag :type="row.status === 'enabled' ? 'success' : 'info'">
+                  {{ row.status === 'enabled' ? '已启用' : '已禁用' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="300">
+              <template #default="{ row }">
+                <el-button 
+                  size="small" 
+                  :type="row.status === 'enabled' ? 'warning' : 'success'"
+                  @click="handleToggleTaskStatus(row)"
+                >
+                  {{ row.status === 'enabled' ? '禁用' : '启用' }}
+                </el-button>
+                <el-button size="small" @click="handleEditTask(row)">
+                  <el-icon style="margin-right: 3px;"><Edit /></el-icon>
+                  编辑
+                </el-button>
+                <el-button size="small" @click="handleShowHistory(row)">
+                  <el-icon style="margin-right: 3px;"><Clock /></el-icon>
+                  历史
+                </el-button>
+                <el-button size="small" type="danger" @click="handleDeleteTask(row.id)">
+                  <el-icon style="margin-right: 3px;"><Delete /></el-icon>
+                  删除
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+
         <el-card v-if="activeMenu === 'settings'" shadow="hover">
           <template #header>
             <div class="card-header">
@@ -1313,6 +1404,134 @@ const handleNotificationClick = () => {
  */
 const handleSettingsClick = () => {
   activeMenu.value = 'settings'
+}
+
+/**
+ * 启用/禁用任务
+ */
+const handleToggleTaskStatus = (task) => {
+  task.status = task.status === 'enabled' ? 'disabled' : 'enabled'
+  const statusText = task.status === 'enabled' ? '启用' : '禁用'
+  ElMessage.success(`任务 "${task.name}" 已${statusText}`)
+}
+
+/**
+ * 删除任务
+ */
+const handleDeleteTask = (taskId) => {
+  ElMessageBox.confirm(
+    '确定要删除这个任务吗？',
+    '确认删除',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    const index = scheduledTasks.value.findIndex(t => t.id === taskId)
+    if (index !== -1) {
+      const taskName = scheduledTasks.value[index].name
+      scheduledTasks.value.splice(index, 1)
+      ElMessage.success(`任务 "${taskName}" 已删除`)
+    }
+  }).catch(() => {
+    // 用户取消删除
+  })
+}
+
+/**
+ * 显示执行历史
+ */
+const handleShowHistory = (task) => {
+  currentTask.value = task
+  historyDialogVisible.value = true
+}
+
+/**
+ * 编辑任务
+ */
+const handleEditTask = (task) => {
+  currentTask.value = task
+  newTaskForm.name = task.name
+  newTaskForm.type = task.type
+  newTaskForm.config = { ...task.config }
+  editTaskDialogVisible.value = true
+}
+
+/**
+ * 保存新任务
+ */
+const handleSaveTask = () => {
+  if (!newTaskForm.name.trim()) {
+    ElMessage.warning('请输入任务名称')
+    return
+  }
+  
+  // 验证配置
+  if (newTaskForm.type === 'daily' && !newTaskForm.config.time) {
+    ElMessage.warning('请选择执行时间')
+    return
+  }
+  if (newTaskForm.type === 'once' && !newTaskForm.config.dateTime) {
+    ElMessage.warning('请选择执行时间')
+    return
+  }
+  if (newTaskForm.type === 'weekday') {
+    if (!newTaskForm.config.time || newTaskForm.config.dayOfWeek.length === 0) {
+      ElMessage.warning('请选择执行时间和星期')
+      return
+    }
+  }
+  if (newTaskForm.type === 'monthly') {
+    if (!newTaskForm.config.time || newTaskForm.config.monthDay.length === 0) {
+      ElMessage.warning('请选择执行时间和日期')
+      return
+    }
+  }
+  
+  const newTask = {
+    id: generateTaskId(),
+    name: newTaskForm.name,
+    type: newTaskForm.type,
+    config: { ...newTaskForm.config },
+    status: 'disabled',  // 默认禁用
+    createTime: getCurrentTime(),
+    lastExecuteTime: null,
+    executionHistory: []
+  }
+  
+  scheduledTasks.value.push(newTask)
+  addTaskDialogVisible.value = false
+  
+  // 重置表单
+  newTaskForm.name = ''
+  newTaskForm.type = 'daily'
+  newTaskForm.config = {
+    time: '09:00',
+    dateTime: '',
+    dayOfWeek: [],
+    monthDay: []
+  }
+  
+  ElMessage.success(`任务 "${newTask.name}" 已添加`)
+}
+
+/**
+ * 更新任务
+ */
+const handleUpdateTask = () => {
+  if (!newTaskForm.name.trim()) {
+    ElMessage.warning('请输入任务名称')
+    return
+  }
+  
+  const task = currentTask.value
+  task.name = newTaskForm.name
+  task.type = newTaskForm.type
+  task.config = { ...newTaskForm.config }
+  
+  editTaskDialogVisible.value = false
+  ElMessage.success(`任务 "${task.name}" 已更新`)
 }
 
 /**
