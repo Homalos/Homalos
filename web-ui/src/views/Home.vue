@@ -108,10 +108,10 @@
                   :value="dashboardData.account.floatingProfitLoss" 
                   precision="2" 
                   prefix="¥"
-                  :value-style="{ color: dashboardData.account.floatingProfitLoss >= 0 ? '#67C23A' : '#F56C6C' }"
+                  :value-style="{ color: dashboardData.account.floatingProfitLoss > 0 ? '#F56C6C' : dashboardData.account.floatingProfitLoss < 0 ? '#67C23A' : '#000000' }"
                 >
                   <template #prefix>
-                    <el-icon :color="dashboardData.account.floatingProfitLoss >= 0 ? '#67C23A' : '#F56C6C'">
+                    <el-icon :color="dashboardData.account.floatingProfitLoss > 0 ? '#F56C6C' : dashboardData.account.floatingProfitLoss < 0 ? '#67C23A' : '#000000'">
                       <TrendCharts />
                     </el-icon>
                   </template>
@@ -136,10 +136,10 @@
                       :value="dashboardData.todayPerformance.returnRate" 
                       precision="2" 
                       suffix="%"
-                      :value-style="{ color: dashboardData.todayPerformance.returnRate >= 0 ? '#67C23A' : '#F56C6C' }"
+                      :value-style="{ color: dashboardData.todayPerformance.returnRate > 0 ? '#F56C6C' : dashboardData.todayPerformance.returnRate < 0 ? '#67C23A' : '#000000' }"
                     >
                       <template #prefix>
-                        <el-icon :color="dashboardData.todayPerformance.returnRate >= 0 ? '#67C23A' : '#F56C6C'">
+                        <el-icon :color="dashboardData.todayPerformance.returnRate > 0 ? '#F56C6C' : dashboardData.todayPerformance.returnRate < 0 ? '#67C23A' : '#000000'">
                           <DataLine />
                         </el-icon>
                       </template>
@@ -151,10 +151,10 @@
                       :value="dashboardData.todayPerformance.profitLoss" 
                       precision="2" 
                       prefix="¥"
-                      :value-style="{ color: dashboardData.todayPerformance.profitLoss >= 0 ? '#67C23A' : '#F56C6C' }"
+                      :value-style="{ color: dashboardData.todayPerformance.profitLoss > 0 ? '#F56C6C' : dashboardData.todayPerformance.profitLoss < 0 ? '#67C23A' : '#000000' }"
                     >
                       <template #prefix>
-                        <el-icon :color="dashboardData.todayPerformance.profitLoss >= 0 ? '#67C23A' : '#F56C6C'">
+                        <el-icon :color="dashboardData.todayPerformance.profitLoss > 0 ? '#F56C6C' : dashboardData.todayPerformance.profitLoss < 0 ? '#67C23A' : '#000000'">
                           <Coin />
                         </el-icon>
                       </template>
@@ -331,6 +331,18 @@
             </el-table-column>
             <el-table-column prop="startTime" label="启动时间" width="180" />
             <el-table-column prop="runningTime" label="运行时长" width="120" />
+            <el-table-column label="交易次数" width="100">
+              <template #default="scope">
+                {{ scope.row.positions.length }}
+              </template>
+            </el-table-column>
+            <el-table-column label="盈亏" width="120">
+              <template #default="scope">
+                <span :style="{ color: getTotalProfitLoss(scope.row) > 0 ? '#F56C6C' : getTotalProfitLoss(scope.row) < 0 ? '#67C23A' : '#000000' }">
+                  {{ getTotalProfitLoss(scope.row) > 0 ? '+' : '' }}{{ getTotalProfitLoss(scope.row).toFixed(2) }}
+                </span>
+              </template>
+            </el-table-column>
             <el-table-column label="操作" width="220">
               <template #default="scope">
                 <el-button
@@ -680,7 +692,7 @@
                 <el-table-column prop="volume" label="持仓量" width="80" />
                 <el-table-column prop="direction" label="方向" width="60">
                   <template #default="scope">
-                    <el-tag :type="scope.row.direction === '多' ? 'success' : 'danger'">
+                    <el-tag :type="scope.row.direction === '多' ? 'danger' : 'success'">
                       {{ scope.row.direction }}
                     </el-tag>
                   </template>
@@ -706,15 +718,15 @@
                 </el-table-column>
                 <el-table-column prop="profitLoss" label="浮动盈亏" width="100">
                   <template #default="scope">
-                    <span :style="{ color: scope.row.profitLoss >= 0 ? '#67C23A' : '#F56C6C' }">
-                      {{ scope.row.profitLoss >= 0 ? '+' : '' }}{{ scope.row.profitLoss.toFixed(2) }}
+                    <span :style="{ color: scope.row.profitLoss > 0 ? '#F56C6C' : scope.row.profitLoss < 0 ? '#67C23A' : '#000000' }">
+                      {{ scope.row.profitLoss > 0 ? '+' : '' }}{{ scope.row.profitLoss.toFixed(2) }}
                     </span>
                   </template>
                 </el-table-column>
                 <el-table-column prop="returnRate" label="收益率" width="100">
                   <template #default="scope">
-                    <span :style="{ color: scope.row.returnRate >= 0 ? '#67C23A' : '#F56C6C' }">
-                      {{ scope.row.returnRate >= 0 ? '+' : '' }}{{ scope.row.returnRate.toFixed(2) }}%
+                    <span :style="{ color: scope.row.returnRate > 0 ? '#F56C6C' : scope.row.returnRate < 0 ? '#67C23A' : '#000000' }">
+                      {{ scope.row.returnRate > 0 ? '+' : '' }}{{ scope.row.returnRate.toFixed(2) }}%
                     </span>
                   </template>
                 </el-table-column>
@@ -1238,10 +1250,10 @@ const strategyLogs = ref([
 
 // 日志级别映射
 const logLevelMap = {
-  info: { name: '信息', color: '#409EFF' },
-  success: { name: '成功', color: '#67C23A' },
-  warning: { name: '警告', color: '#E6A23C' },
-  error: { name: '错误', color: '#F56C6C' }
+  info: { name: '信息', color: 'info' },
+  success: { name: '成功', color: 'success' },
+  warning: { name: '警告', color: 'warning' },
+  error: { name: '错误', color: 'danger' }
 }
 
 // 当前选择的日志级别
@@ -2391,6 +2403,18 @@ const handleCancelEdit = () => {
   editableParameters.riskControl = { ...currentStrategy.value.riskControl }
   
   ElMessage.info('已取消编辑')
+}
+
+/**
+ * 计算策略的总浮动盈亏
+ */
+const getTotalProfitLoss = (strategy) => {
+  if (!strategy.positions || strategy.positions.length === 0) {
+    return 0
+  }
+  return strategy.positions.reduce((total, position) => {
+    return total + (position.profitLoss || 0)
+  }, 0)
 }
 
 /**
