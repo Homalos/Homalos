@@ -13,6 +13,11 @@
           </el-icon>
         </el-badge>
         
+        <!-- 控制台图标 -->
+        <el-icon :size="20" class="header-icon" @click="handleConsoleClick">
+          <Operation />
+        </el-icon>
+        
         <!-- 设置图标 -->
         <el-icon :size="20" class="header-icon" @click="handleSettingsClick">
           <Setting />
@@ -45,6 +50,10 @@
           <el-menu-item index="dashboard">
             <el-icon><Monitor /></el-icon>
             <span>仪表盘</span>
+          </el-menu-item>
+          <el-menu-item index="console">
+            <el-icon><Operation /></el-icon>
+            <span>控制台</span>
           </el-menu-item>
           <el-menu-item index="strategy">
             <el-icon><DataAnalysis /></el-icon>
@@ -285,6 +294,179 @@
                 </div>
               </el-col>
             </el-row>
+          </el-card>
+        </div>
+
+        <!-- 控制台 -->
+        <div v-if="activeMenu === 'console'">
+          <!-- 1. 系统控制 -->
+          <el-row :gutter="20" style="margin-bottom: 20px;">
+            <!-- 量化交易系统 -->
+            <el-col :span="12">
+              <el-card shadow="hover">
+                <template #header>
+                  <div class="card-header">
+                    <span>量化交易系统</span>
+                    <el-tag :type="consoleData.tradingSystem.status === 'running' ? 'success' : 'info'">
+                      {{ consoleData.tradingSystem.status === 'running' ? '运行中' : '已停止' }}
+                    </el-tag>
+                  </div>
+                </template>
+                <div style="padding: 20px 0;">
+                  <el-row :gutter="20" style="margin-bottom: 20px;">
+                    <el-col :span="12">
+                      <el-statistic title="系统状态">
+                        <template #prefix>
+                          <el-icon :color="consoleData.tradingSystem.status === 'running' ? '#67C23A' : '#909399'">
+                            <SuccessFilled v-if="consoleData.tradingSystem.status === 'running'" />
+                            <VideoPause v-else />
+                          </el-icon>
+                        </template>
+                        <template #formatter>
+                          {{ consoleData.tradingSystem.status === 'running' ? '运行中' : '已停止' }}
+                        </template>
+                      </el-statistic>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-statistic title="运行时长" :value="consoleData.tradingSystem.runningTime">
+                        <template #prefix>
+                          <el-icon color="#409EFF"><Clock /></el-icon>
+                        </template>
+                      </el-statistic>
+                    </el-col>
+                  </el-row>
+                  <el-row :gutter="10">
+                    <el-col :span="12">
+                      <el-button 
+                        type="success" 
+                        style="width: 100%;"
+                        :disabled="consoleData.tradingSystem.status === 'running'"
+                        @click="handleStartTradingSystem"
+                      >
+                        <el-icon><VideoPlay /></el-icon>
+                        启动系统
+                      </el-button>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-button 
+                        type="danger" 
+                        style="width: 100%;"
+                        :disabled="consoleData.tradingSystem.status === 'stopped'"
+                        @click="handleStopTradingSystem"
+                      >
+                        <el-icon><VideoPause /></el-icon>
+                        停止系统
+                      </el-button>
+                    </el-col>
+                  </el-row>
+                </div>
+              </el-card>
+            </el-col>
+
+            <!-- 数据中心 -->
+            <el-col :span="12">
+              <el-card shadow="hover">
+                <template #header>
+                  <div class="card-header">
+                    <span>数据中心</span>
+                    <el-tag :type="consoleData.dataCenter.status === 'running' ? 'success' : 'info'">
+                      {{ consoleData.dataCenter.status === 'running' ? '运行中' : '已停止' }}
+                    </el-tag>
+                  </div>
+                </template>
+                <div style="padding: 20px 0;">
+                  <el-row :gutter="20" style="margin-bottom: 20px;">
+                    <el-col :span="12">
+                      <el-statistic title="系统状态">
+                        <template #prefix>
+                          <el-icon :color="consoleData.dataCenter.status === 'running' ? '#67C23A' : '#909399'">
+                            <SuccessFilled v-if="consoleData.dataCenter.status === 'running'" />
+                            <VideoPause v-else />
+                          </el-icon>
+                        </template>
+                        <template #formatter>
+                          {{ consoleData.dataCenter.status === 'running' ? '运行中' : '已停止' }}
+                        </template>
+                      </el-statistic>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-statistic title="运行时长" :value="consoleData.dataCenter.runningTime">
+                        <template #prefix>
+                          <el-icon color="#409EFF"><Clock /></el-icon>
+                        </template>
+                      </el-statistic>
+                    </el-col>
+                  </el-row>
+                  <el-row :gutter="10">
+                    <el-col :span="12">
+                      <el-button 
+                        type="success" 
+                        style="width: 100%;"
+                        :disabled="consoleData.dataCenter.status === 'running'"
+                        @click="handleStartDataCenter"
+                      >
+                        <el-icon><VideoPlay /></el-icon>
+                        启动数据中心
+                      </el-button>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-button 
+                        type="danger" 
+                        style="width: 100%;"
+                        :disabled="consoleData.dataCenter.status === 'stopped'"
+                        @click="handleStopDataCenter"
+                      >
+                        <el-icon><VideoPause /></el-icon>
+                        停止数据中心
+                      </el-button>
+                    </el-col>
+                  </el-row>
+                </div>
+              </el-card>
+            </el-col>
+          </el-row>
+
+          <!-- 2. 控制台日志 -->
+          <el-card shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <span>控制台日志</span>
+                <el-select 
+                  v-model="selectedConsoleLogLevel" 
+                  placeholder="选择日志级别" 
+                  size="small" 
+                  style="width: 150px;"
+                >
+                  <el-option label="全部" value="all" />
+                  <el-option label="信息" value="info" />
+                  <el-option label="成功" value="success" />
+                  <el-option label="警告" value="warning" />
+                  <el-option label="错误" value="error" />
+                </el-select>
+              </div>
+            </template>
+            <div class="log-container">
+              <el-timeline v-if="filteredConsoleLogs.length > 0">
+                <el-timeline-item 
+                  v-for="log in filteredConsoleLogs" 
+                  :key="log.id"
+                  :timestamp="log.timestamp"
+                  placement="top"
+                >
+                  <div class="log-item">
+                    <el-tag 
+                      :type="logLevelMap[log.level].color" 
+                      size="small" 
+                      style="margin-right: 8px;"
+                    >
+                      {{ log.category }}
+                    </el-tag>
+                    <span class="log-message">{{ log.message }}</span>
+                  </div>
+                </el-timeline-item>
+              </el-timeline>
+              <el-empty v-else description="暂无日志记录" />
+            </div>
           </el-card>
         </div>
 
@@ -1094,296 +1276,35 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getSystemStats } from '@/api/monitor'
+// Mock 数据导入
+import {
+  strategyTemplates,
+  strategyLogsData,
+  scheduledTasksData,
+  notificationsData,
+  consoleLogsData,
+  strategiesData,
+  dashboardData as dashboardDataImport
+} from '@/mock'
+// 常量导入
+import { logLevelMap, taskTypeMap, weekDayMap } from '@/constants'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const activeMenu = ref('dashboard')
 
-// 策略模板库（硬编码数据，模拟.py文件）
-const strategyTemplates = [
-  {
-    fileName: 'trend_following_strategy.py',
-    name: '趋势跟踪策略',
-    description: '基于移动平均线和趋势线识别市场趋势方向，顺势而为，适合趋势明显的市场环境',
-    author: '系统管理员',
-    defaultRiskControl: {
-      maxPosition: 50,
-      stopLossRatio: 2.0,
-      takeProfitRatio: 3.0,
-      maxDrawdown: 10.0
-    }
-  },
-  {
-    fileName: 'mean_reversion_strategy.py',
-    name: '均值回归策略',
-    description: '当价格偏离均值过多时进行反向交易，预期价格会回归均值，适用于震荡市场',
-    author: '系统管理员',
-    defaultRiskControl: {
-      maxPosition: 30,
-      stopLossRatio: 1.5,
-      takeProfitRatio: 2.5,
-      maxDrawdown: 8.0
-    }
-  },
-  {
-    fileName: 'breakout_strategy.py',
-    name: '突破策略',
-    description: '监控关键支撑和阻力位，当价格突破时快速进场，捕捉强势行情',
-    author: '系统管理员',
-    defaultRiskControl: {
-      maxPosition: 40,
-      stopLossRatio: 2.5,
-      takeProfitRatio: 4.0,
-      maxDrawdown: 12.0
-    }
-  },
-  {
-    fileName: 'grid_trading_strategy.py',
-    name: '网格交易策略',
-    description: '在价格区间内设置多个网格，低买高卖，适合震荡行情下的稳健获利',
-    author: '系统管理员',
-    defaultRiskControl: {
-      maxPosition: 60,
-      stopLossRatio: 1.0,
-      takeProfitRatio: 1.5,
-      maxDrawdown: 6.0
-    }
-  },
-  {
-    fileName: 'volatility_strategy.py',
-    name: '波动率策略',
-    description: '基于市场波动率变化进行交易决策，在波动加剧时捕捉机会',
-    author: '系统管理员',
-    defaultRiskControl: {
-      maxPosition: 35,
-      stopLossRatio: 3.0,
-      takeProfitRatio: 5.0,
-      maxDrawdown: 15.0
-    }
-  }
-]
-
-// 策略操作日志（硬编码）
-const strategyLogs = ref([
-  {
-    id: 1,
-    timestamp: '2025-10-09 10:30:15',
-    level: 'success',
-    category: '添加策略',
-    message: '成功添加策略 "趋势跟踪策略"',
-    details: { strategyId: 'STR001', strategyName: '趋势跟踪策略' }
-  },
-  {
-    id: 2,
-    timestamp: '2025-10-09 10:31:22',
-    level: 'success',
-    category: '启动策略',
-    message: '策略 "趋势跟踪策略" 已启动',
-    details: { strategyId: 'STR001', strategyName: '趋势跟踪策略' }
-  },
-  {
-    id: 3,
-    timestamp: '2025-10-09 12:15:45',
-    level: 'info',
-    category: '持仓变动',
-    message: '策略 "趋势跟踪策略" 在 AU2406 建立多头持仓 10 手',
-    details: { strategyId: 'STR001', contract: 'AU2406', direction: '多', volume: 10 }
-  },
-  {
-    id: 4,
-    timestamp: '2025-10-09 14:20:00',
-    level: 'success',
-    category: '添加策略',
-    message: '成功添加策略 "均值回归策略"',
-    details: { strategyId: 'STR002', strategyName: '均值回归策略' }
-  },
-  {
-    id: 5,
-    timestamp: '2025-10-09 14:25:30',
-    level: 'warning',
-    category: '停止策略',
-    message: '策略 "均值回归策略" 已停止',
-    details: { strategyId: 'STR002', strategyName: '均值回归策略' }
-  },
-  {
-    id: 6,
-    timestamp: '2025-10-09 15:10:12',
-    level: 'info',
-    category: '参数配置',
-    message: '策略 "趋势跟踪策略" 风险参数已更新',
-    details: { strategyId: 'STR001', maxPosition: 50, stopLossRatio: 2.0 }
-  },
-  {
-    id: 7,
-    timestamp: '2025-10-09 16:45:00',
-    level: 'success',
-    category: '添加策略',
-    message: '成功添加策略 "套利策略"',
-    details: { strategyId: 'STR003', strategyName: '套利策略' }
-  },
-  {
-    id: 8,
-    timestamp: '2025-10-09 16:46:15',
-    level: 'success',
-    category: '启动策略',
-    message: '策略 "套利策略" 已启动',
-    details: { strategyId: 'STR003', strategyName: '套利策略' }
-  },
-  {
-    id: 9,
-    timestamp: '2025-10-09 18:30:25',
-    level: 'warning',
-    category: '风险控制',
-    message: '策略 "趋势跟踪策略" 触发止损，自动平仓',
-    details: { strategyId: 'STR001', contract: 'AG2406', reason: '止损' }
-  },
-  {
-    id: 10,
-    timestamp: '2025-10-09 20:15:40',
-    level: 'error',
-    category: '策略异常',
-    message: '策略 "套利策略" 运行异常：网络连接失败',
-    details: { strategyId: 'STR003', error: '网络连接失败' }
-  }
-])
-
-// 日志级别映射
-const logLevelMap = {
-  info: { name: '信息', color: 'info' },
-  success: { name: '成功', color: 'success' },
-  warning: { name: '警告', color: 'warning' },
-  error: { name: '错误', color: 'danger' }
-}
+// 使用导入的策略日志数据初始化
+const strategyLogs = ref(strategyLogsData)
 
 // 当前选择的日志级别
 const selectedLogLevel = ref('all')
 
-// 任务调度器数据（硬编码）
-const scheduledTasks = ref([
-  {
-    id: 1,
-    name: "每日数据备份",
-    type: "daily",
-    config: { time: "23:00" },
-    status: "enabled",
-    createTime: "2025-10-01 10:30:00",
-    lastExecuteTime: "2025-10-08 23:00:00",
-    executionHistory: [
-      { time: "2025-10-08 23:00:00", status: "success", duration: "2.5s" },
-      { time: "2025-10-07 23:00:00", status: "success", duration: "2.3s" },
-      { time: "2025-10-06 23:00:00", status: "failed", duration: "0.5s", error: "网络连接失败" }
-    ]
-  },
-  {
-    id: 2,
-    name: "周报生成",
-    type: "weekday",
-    config: { time: "09:00", dayOfWeek: ["周一"] },
-    status: "enabled",
-    createTime: "2025-09-25 15:20:00",
-    lastExecuteTime: "2025-10-07 09:00:00",
-    executionHistory: [
-      { time: "2025-10-07 09:00:00", status: "success", duration: "5.2s" }
-    ]
-  },
-  {
-    id: 3,
-    name: "实时监控检查",
-    type: "minute",
-    config: {},
-    status: "enabled",
-    createTime: "2025-10-08 20:00:00",
-    lastExecuteTime: "2025-10-10 00:05:00",
-    executionHistory: []
-  },
-  {
-    id: 4,
-    name: "月度报表",
-    type: "monthly",
-    config: { time: "08:00", monthDay: ["01", "15"] },
-    status: "disabled",
-    createTime: "2025-09-20 11:00:00",
-    lastExecuteTime: "2025-10-01 08:00:00",
-    executionHistory: [
-      { time: "2025-10-01 08:00:00", status: "success", duration: "8.5s" }
-    ]
-  },
-  {
-    id: 5,
-    name: "临时数据清理",
-    type: "once",
-    config: { dateTime: "2025-10-10 02:00:00" },
-    status: "disabled",
-    createTime: "2025-10-09 18:30:00",
-    lastExecuteTime: null,
-    executionHistory: []
-  }
-])
+// 使用导入的任务调度器数据初始化
+const scheduledTasks = ref(scheduledTasksData)
 
-// 任务类型映射
-const taskTypeMap = {
-  daily: { name: '每日任务', color: '#409EFF' },
-  once: { name: '一次性任务', color: '#67C23A' },
-  minute: { name: '每分钟任务', color: '#E6A23C' },
-  weekday: { name: '每周任务', color: '#F56C6C' },
-  monthly: { name: '每月任务', color: '#909399' }
-}
-
-// 星期映射
-const weekDayMap = {
-  '周一': 'Mon', '周二': 'Tue', '周三': 'Wed', 
-  '周四': 'Thu', '周五': 'Fri', '周六': 'Sat', '周日': 'Sun'
-}
-
-// 通知列表（硬编码数据）
-const notifications = ref([
-  {
-    id: 1,
-    title: '策略运行异常',
-    content: '趋势跟踪策略在AU2406合约上出现异常，已自动停止运行，请检查策略参数。',
-    time: '2025-10-08 22:30:15',
-    level: '紧急',
-    type: 'danger',
-    isRead: false
-  },
-  {
-    id: 2,
-    title: '持仓盈利提醒',
-    content: '均值回归策略在CU2406合约上盈利已达到止盈价，建议关注市场行情及时调整。',
-    time: '2025-10-08 21:45:30',
-    level: '重要',
-    type: 'warning',
-    isRead: false
-  },
-  {
-    id: 3,
-    title: '系统更新通知',
-    content: '系统将于今晚23:00进行例行维护，预计维护时间30分钟，期间系统将暂停交易。',
-    time: '2025-10-08 20:15:00',
-    level: '通知',
-    type: 'primary',
-    isRead: false
-  },
-  {
-    id: 4,
-    title: '风险控制提醒',
-    content: '当前账户总持仓占比已达70%，接近风控阈值，建议适当降低仓位。',
-    time: '2025-10-08 18:20:45',
-    level: '重要',
-    type: 'warning',
-    isRead: true
-  },
-  {
-    id: 5,
-    title: '策略启动成功',
-    content: '套利策略已成功启动，当前运行状态正常，开始执行交易逻辑。',
-    time: '2025-10-08 15:30:00',
-    level: '通知',
-    type: 'success',
-    isRead: true
-  }
-])
+// 使用导入的通知列表数据初始化
+const notifications = ref(notificationsData)
 
 // 未读通知数量（计算属性）
 const unreadCount = computed(() => {
@@ -1402,264 +1323,29 @@ const systemInfo = reactive({
   error: null
 })
 
-// 仪表盘数据（硬编码）
-const dashboardData = reactive({
-  // 账户总览
-  account: {
-    totalAssets: 1285600.50,     // 总资产
-    availableFunds: 856420.30,   // 可用资金
-    marginUsed: 327230.20,       // 保证金占用
-    floatingProfitLoss: 12850.50 // 浮动盈亏
+// 使用导入的仪表盘数据初始化
+const dashboardData = reactive(dashboardDataImport)
+
+// 控制台数据
+const consoleData = reactive({
+  tradingSystem: {
+    status: 'stopped',  // running | stopped
+    runningTime: '-'
   },
-  // 今日表现
-  todayPerformance: {
-    returnRate: 2.35,    // 当日收益率(%)
-    profitLoss: 28560.80, // 盈亏金额
-    tradeCount: 47       // 交易次数
-  },
-  // 策略运行状态
-  strategyStatus: {
-    running: 2,   // 运行中
-    stopped: 1,   // 已停止
-    error: 0      // 异常
-  },
-  // 持仓概览
-  positions: [
-    { name: '黄金(AU)', ratio: 35, color: '#409EFF' },
-    { name: '白银(AG)', ratio: 25, color: '#67C23A' },
-    { name: '螺纹钢(RB)', ratio: 20, color: '#E6A23C' },
-    { name: '铜(CU)', ratio: 15, color: '#F56C6C' },
-    { name: '其他', ratio: 5, color: '#909399' }
-  ]
+  dataCenter: {
+    status: 'stopped',  // running | stopped
+    runningTime: '-'
+  }
 })
 
-const strategies = ref([
-  { 
-    // === 基础字段 ===
-    id: 'STR001', 
-    name: '趋势跟踪策略', 
-    status: '运行中', 
-    startTime: '2025-10-08 09:30:00',
-    runningTime: '12h15m',
-    
-    // === 基础信息 ===
-    description: '基于趋势线和移动平均线的跟踪策略，适用于趋势明显的市场环境，通过识别市场趋势方向进行交易',
-    author: '张三',
-    createTime: '2025-10-01 14:20:00',
-    lastModifyTime: '2025-10-07 16:45:00',
-    
-    // === 持仓信息 ===
-    positions: [
-      {
-        contract: 'AU2406',
-        volume: 10,
-        direction: '多',
-        holdPrice: 450.5,
-        latestPrice: 462.3,
-        tradeTime: '2025-10-08 09:15:32',
-        orderStatus: '全部成交',
-        takeProfitPrice: 460.0,
-        stopLossPrice: 445.0,
-        margin: 45050.0,
-        profitLoss: 1200.5,
-        profitLossRatio: 2.67,
-        returnRate: 2.67
-      },
-      {
-        contract: 'AG2406',
-        volume: 20,
-        direction: '空',
-        holdPrice: 5200.0,
-        latestPrice: 5175.0,
-        tradeTime: '2025-10-08 10:20:15',
-        orderStatus: '部分成交',
-        takeProfitPrice: 5100.0,
-        stopLossPrice: 5250.0,
-        margin: 104000.0,
-        profitLoss: -500.0,
-        profitLossRatio: -0.48,
-        returnRate: -0.48
-      }
-    ],
-    
-    // === 参数配置 ===
-    parameters: {
-      trading: {
-        lotSize: 1,
-        maxOrders: 5,
-        orderInterval: 60,
-        enableCompound: true
-      },
-      risk: {
-        stopLossPercent: 2.0,
-        takeProfitPercent: 3.0,
-        maxDrawdown: 10.0,
-        riskRewardRatio: 1.5
-      },
-      indicator: {
-        maPeriod: 20,
-        maType: 'SMA',
-        rsiPeriod: 14,
-        enableMACD: true
-      }
-    },
-    
-    // === 风险控制 ===
-    riskControl: {
-      maxPosition: 50,
-      stopLossRatio: 2.0,
-      takeProfitRatio: 3.0,
-      maxDrawdown: 10.0,
-      maxLeverage: 3.0,
-      riskLevel: '中'
-    }
-  },
-  { 
-    // === 基础字段 ===
-    id: 'STR002', 
-    name: '均值回归策略', 
-    status: '已停止', 
-    startTime: '2025-10-07 14:20:00',
-    runningTime: '-',
-    
-    // === 基础信息 ===
-    description: '当价格偏离均值时进行反向交易，预期价格会回归均值，适用于震荡市场',
-    author: '李四',
-    createTime: '2025-09-25 10:30:00',
-    lastModifyTime: '2025-10-06 09:15:00',
-    
-    // === 持仓信息 ===
-    positions: [
-      {
-        contract: 'CU2406',
-        volume: 15,
-        direction: '多',
-        holdPrice: 68500.0,
-        latestPrice: 69065.0,
-        tradeTime: '2025-10-07 14:30:28',
-        orderStatus: '全部成交',
-        takeProfitPrice: 70000.0,
-        stopLossPrice: 67500.0,
-        margin: 102750.0,
-        profitLoss: 850.0,
-        profitLossRatio: 0.83,
-        returnRate: 0.83
-      }
-    ],
-    
-    // === 参数配置 ===
-    parameters: {
-      trading: {
-        lotSize: 2,
-        maxOrders: 3,
-        orderInterval: 120,
-        enableCompound: false
-      },
-      risk: {
-        stopLossPercent: 1.5,
-        takeProfitPercent: 2.5,
-        maxDrawdown: 8.0,
-        riskRewardRatio: 1.8
-      },
-      indicator: {
-        maPeriod: 30,
-        maType: 'EMA',
-        rsiPeriod: 10,
-        enableMACD: false
-      }
-    },
-    
-    // === 风险控制 ===
-    riskControl: {
-      maxPosition: 30,
-      stopLossRatio: 1.5,
-      takeProfitRatio: 2.5,
-      maxDrawdown: 8.0,
-      maxLeverage: 2.0,
-      riskLevel: '低'
-    }
-  },
-  { 
-    // === 基础字段 ===
-    id: 'STR003', 
-    name: '套利策略', 
-    status: '运行中', 
-    startTime: '2025-10-08 10:45:00',
-    runningTime: '10h50m',
-    
-    // === 基础信息 ===
-    description: '利用不同合约或市场间的价差进行套利交易，风险相对较低，收益稳定',
-    author: '王五',
-    createTime: '2025-10-03 11:00:00',
-    lastModifyTime: '2025-10-08 08:30:00',
-    
-    // === 持仓信息 ===
-    positions: [
-      {
-        contract: 'RB2406',
-        volume: 25,
-        direction: '多',
-        holdPrice: 3850.0,
-        latestPrice: 3875.0,
-        tradeTime: '2025-10-08 11:05:45',
-        orderStatus: '待成交',
-        takeProfitPrice: 3900.0,
-        stopLossPrice: 3820.0,
-        margin: 96250.0,
-        profitLoss: 625.0,
-        profitLossRatio: 0.65,
-        returnRate: 0.65
-      },
-      {
-        contract: 'RB2409',
-        volume: 25,
-        direction: '空',
-        holdPrice: 3880.0,
-        latestPrice: 3850.0,
-        tradeTime: '2025-10-08 13:22:18',
-        orderStatus: '全部成交',
-        takeProfitPrice: 3830.0,
-        stopLossPrice: 3910.0,
-        margin: 97000.0,
-        profitLoss: 750.0,
-        profitLossRatio: 0.77,
-        returnRate: 0.77
-      }
-    ],
-    
-    // === 参数配置 ===
-    parameters: {
-      trading: {
-        lotSize: 3,
-        maxOrders: 10,
-        orderInterval: 30,
-        enableCompound: true
-      },
-      risk: {
-        stopLossPercent: 0.8,
-        takeProfitPercent: 1.5,
-        maxDrawdown: 5.0,
-        riskRewardRatio: 2.0
-      },
-      indicator: {
-        maPeriod: 15,
-        maType: 'WMA',
-        rsiPeriod: 12,
-        enableMACD: true
-      }
-    },
-    
-    // === 风险控制 ===
-    riskControl: {
-      maxPosition: 100,
-      stopLossRatio: 0.8,
-      takeProfitRatio: 1.5,
-      maxDrawdown: 5.0,
-      maxLeverage: 5.0,
-      riskLevel: '高'
-    }
-  }
-])
+// 使用导入的控制台日志数据初始化
+const consoleLogs = ref(consoleLogsData)
+
+// 当前选择的控制台日志级别
+const selectedConsoleLogLevel = ref('all')
+
+// 使用导入的策略数据初始化
+const strategies = ref(strategiesData)
 
 // 计算活跃策略数量（策略总数）
 const activeStrategiesCount = computed(() => {
@@ -1695,6 +1381,14 @@ const filteredStrategyLogs = computed(() => {
     return strategyLogs.value
   }
   return strategyLogs.value.filter(log => log.level === selectedLogLevel.value)
+})
+
+// 过滤后的控制台日志
+const filteredConsoleLogs = computed(() => {
+  if (selectedConsoleLogLevel.value === 'all') {
+    return consoleLogs.value
+  }
+  return consoleLogs.value.filter(log => log.level === selectedConsoleLogLevel.value)
 })
 
 // 详情面板状态
@@ -1810,6 +1504,107 @@ const handleNotificationClick = () => {
  */
 const handleSettingsClick = () => {
   activeMenu.value = 'settings'
+}
+
+/**
+ * 控制台图标点击
+ */
+const handleConsoleClick = () => {
+  activeMenu.value = 'console'
+}
+
+/**
+ * 添加控制台日志
+ */
+const addConsoleLog = (level, category, message, details = {}) => {
+  const newLog = {
+    id: consoleLogs.value.length > 0 
+      ? Math.max(...consoleLogs.value.map(l => l.id)) + 1 
+      : 1,
+    timestamp: getCurrentTime(),
+    level,
+    category,
+    message,
+    details
+  }
+  consoleLogs.value.unshift(newLog) // 添加到开头
+  
+  // 限制日志数量（最多保留100条）
+  if (consoleLogs.value.length > 100) {
+    consoleLogs.value = consoleLogs.value.slice(0, 100)
+  }
+}
+
+/**
+ * 启动量化交易系统
+ */
+const handleStartTradingSystem = () => {
+  consoleData.tradingSystem.status = 'running'
+  consoleData.tradingSystem.runningTime = '0m'
+  
+  // 添加日志
+  addConsoleLog(
+    'success',
+    '系统启动',
+    '量化交易系统启动成功',
+    { component: 'tradingSystem' }
+  )
+  
+  ElMessage.success('量化交易系统已启动')
+}
+
+/**
+ * 停止量化交易系统
+ */
+const handleStopTradingSystem = () => {
+  consoleData.tradingSystem.status = 'stopped'
+  consoleData.tradingSystem.runningTime = '-'
+  
+  // 添加日志
+  addConsoleLog(
+    'warning',
+    '系统停止',
+    '量化交易系统已停止',
+    { component: 'tradingSystem' }
+  )
+  
+  ElMessage.warning('量化交易系统已停止')
+}
+
+/**
+ * 启动数据中心
+ */
+const handleStartDataCenter = () => {
+  consoleData.dataCenter.status = 'running'
+  consoleData.dataCenter.runningTime = '0m'
+  
+  // 添加日志
+  addConsoleLog(
+    'success',
+    '系统启动',
+    '数据中心启动成功',
+    { component: 'dataCenter' }
+  )
+  
+  ElMessage.success('数据中心已启动')
+}
+
+/**
+ * 停止数据中心
+ */
+const handleStopDataCenter = () => {
+  consoleData.dataCenter.status = 'stopped'
+  consoleData.dataCenter.runningTime = '-'
+  
+  // 添加日志
+  addConsoleLog(
+    'warning',
+    '系统停止',
+    '数据中心已停止',
+    { component: 'dataCenter' }
+  )
+  
+  ElMessage.warning('数据中心已停止')
 }
 
 /**
