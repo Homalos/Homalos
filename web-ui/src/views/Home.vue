@@ -1288,6 +1288,19 @@ import {
 } from '@/mock'
 // 常量导入
 import { logLevelMap, taskTypeMap, weekDayMap } from '@/constants'
+// 工具函数导入
+import {
+  getCurrentTime,
+  getRelativeTime,
+  calculateNextRunTime,
+  formatTaskConfig,
+  generateTaskId,
+  generateStrategyId,
+  getTotalProfitLoss,
+  getRiskLevelType,
+  getNotificationTagType,
+  addLog
+} from '@/utils'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -1514,25 +1527,10 @@ const handleConsoleClick = () => {
 }
 
 /**
- * 添加控制台日志
+ * 添加控制台日志（包装函数）
  */
 const addConsoleLog = (level, category, message, details = {}) => {
-  const newLog = {
-    id: consoleLogs.value.length > 0 
-      ? Math.max(...consoleLogs.value.map(l => l.id)) + 1 
-      : 1,
-    timestamp: getCurrentTime(),
-    level,
-    category,
-    message,
-    details
-  }
-  consoleLogs.value.unshift(newLog) // 添加到开头
-  
-  // 限制日志数量（最多保留100条）
-  if (consoleLogs.value.length > 100) {
-    consoleLogs.value = consoleLogs.value.slice(0, 100)
-  }
+  addLog(consoleLogs, level, category, message, details, getCurrentTime)
 }
 
 /**
@@ -1691,7 +1689,7 @@ const handleSaveTask = () => {
   }
   
   const newTask = {
-    id: generateTaskId(),
+    id: generateTaskId(scheduledTasks.value),
     name: newTaskForm.name,
     type: newTaskForm.type,
     config: { ...newTaskForm.config },
@@ -1803,211 +1801,20 @@ const markAllAsRead = () => {
   })
 }
 
-/**
- * 获取通知标签类型
- */
-const getNotificationTagType = (level) => {
-  const typeMap = {
-    '紧急': 'danger',
-    '重要': 'warning',
-    '通知': 'info'
-  }
-  return typeMap[level] || 'info'
-}
+
 
 /**
- * 生成唯一的策略ID
- */
-const generateStrategyId = () => {
-  const maxId = strategies.value.reduce((max, s) => {
-    const num = parseInt(s.id.replace('STR', ''))
-    return num > max ? num : max
-  }, 0)
-  return `STR${String(maxId + 1).padStart(3, '0')}`
-}
-
-/**
- * 获取格式化的当前时间
- */
-const getCurrentTime = () => {
-  return new Date().toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  }).replace(/\//g, '-')
-}
-
-/**
- * 计算下次执行时间
- */
-const calculateNextRunTime = (task) => {
-  if (task.status === 'disabled') return null
-  
-  const now = new Date()
-  
-  switch (task.type) {
-    case 'minute': {
-      const nextMinute = new Date(now)
-      nextMinute.setMinutes(now.getMinutes() + 1)
-      nextMinute.setSeconds(0, 0)
-      return nextMinute
-    }
-    
-    case 'daily': {
-      const [hour, minute] = task.config.time.split(':')
-      const todayTime = new Date(now)
-      todayTime.setHours(parseInt(hour), parseInt(minute), 0, 0)
-      if (todayTime > now) {
-        return todayTime
-      } else {
-        const tomorrowTime = new Date(todayTime)
-        tomorrowTime.setDate(todayTime.getDate() + 1)
-        return tomorrowTime
-      }
-    }
-    
-    case 'once': {
-      return new Date(task.config.dateTime)
-    }
-    
-    case 'weekday': {
-      const [hour, minute] = task.config.time.split(':')
-      const currentDay = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][now.getDay()]
-      
-      for (let i = 0; i <= 7; i++) {
-        const checkDate = new Date(now)
-        checkDate.setDate(now.getDate() + i)
-        const checkDay = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][checkDate.getDay()]
-        
-        if (task.config.dayOfWeek.includes(checkDay)) {
-          checkDate.setHours(parseInt(hour), parseInt(minute), 0, 0)
-          if (checkDate > now) {
-            return checkDate
-          }
-        }
-      }
-      return null
-    }
-    
-    case 'monthly': {
-      const [hour, minute] = task.config.time.split(':')
-      const currentDay = String(now.getDate()).padStart(2, '0')
-      
-      for (let i = 0; i < 62; i++) {
-        const checkDate = new Date(now)
-        checkDate.setDate(now.getDate() + i)
-        const checkDay = String(checkDate.getDate()).padStart(2, '0')
-        
-        if (task.config.monthDay.includes(checkDay)) {
-          checkDate.setHours(parseInt(hour), parseInt(minute), 0, 0)
-          if (checkDate > now) {
-            return checkDate
-          }
-        }
-      }
-      return null
-    }
-    
-    default:
-      return null
-  }
-}
-
-/**
- * 获取相对时间显示
- */
-const getRelativeTime = (targetTime) => {
-  if (!targetTime) return '-'
-  
-  const now = new Date()
-  const diff = targetTime - now
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
-  
-  if (minutes < 0) return '已过期'
-  if (minutes < 1) return '即将执行'
-  if (minutes < 60) return `${minutes}分钟后`
-  if (hours < 24) {
-    if (hours < 1) return `${minutes}分钟后`
-    return `${hours}小时后`
-  }
-  if (days === 0) {
-    return `今天 ${targetTime.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})}`
-  }
-  if (days === 1) {
-    return `明天 ${targetTime.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})}`
-  }
-  
-  return targetTime.toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-/**
- * 格式化任务配置显示
- */
-const formatTaskConfig = (task) => {
-  switch (task.type) {
-    case 'daily':
-      return `每天 ${task.config.time}`
-    case 'once':
-      return task.config.dateTime
-    case 'minute':
-      return '每分钟执行'
-    case 'weekday':
-      return `每${task.config.dayOfWeek.join('、')} ${task.config.time}`
-    case 'monthly':
-      return `每月${task.config.monthDay.join('、')}号 ${task.config.time}`
-    default:
-      return '-'
-  }
-}
-
-/**
- * 生成任务ID
- */
-const generateTaskId = () => {
-  const maxId = scheduledTasks.value.reduce((max, t) => {
-    return t.id > max ? t.id : max
-  }, 0)
-  return maxId + 1
-}
-
-/**
- * 添加策略日志
+ * 添加策略日志（包装函数）
  */
 const addStrategyLog = (level, category, message, details = {}) => {
-  const newLog = {
-    id: strategyLogs.value.length > 0 
-      ? Math.max(...strategyLogs.value.map(l => l.id)) + 1 
-      : 1,
-    timestamp: getCurrentTime(),
-    level,
-    category,
-    message,
-    details
-  }
-  strategyLogs.value.unshift(newLog) // 添加到开头
-  
-  // 限制日志数量（最多保留100条）
-  if (strategyLogs.value.length > 100) {
-    strategyLogs.value = strategyLogs.value.slice(0, 100)
-  }
+  addLog(strategyLogs, level, category, message, details, getCurrentTime)
 }
 
 /**
  * 添加策略到列表
  */
 const handleAddStrategy = (template) => {
-  const newStrategyId = generateStrategyId()
+  const newStrategyId = generateStrategyId(strategies.value)
   const currentTime = getCurrentTime()
   
   const newStrategy = {
@@ -2200,29 +2007,6 @@ const handleCancelEdit = () => {
   ElMessage.info('已取消编辑')
 }
 
-/**
- * 计算策略的总浮动盈亏
- */
-const getTotalProfitLoss = (strategy) => {
-  if (!strategy.positions || strategy.positions.length === 0) {
-    return 0
-  }
-  return strategy.positions.reduce((total, position) => {
-    return total + (position.profitLoss || 0)
-  }, 0)
-}
-
-/**
- * 获取风险等级标签类型
- */
-const getRiskLevelType = (level) => {
-  const typeMap = {
-    '低': 'success',
-    '中': 'warning',
-    '高': 'danger'
-  }
-  return typeMap[level] || 'info'
-}
 
 onMounted(async () => {
   // 获取用户信息
