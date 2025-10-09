@@ -1301,139 +1301,86 @@ import {
   getNotificationTagType,
   addLog
 } from '@/utils'
+// Composables 导入
+import {
+  useSystemMonitor,
+  useStrategyManagement,
+  useTaskScheduler,
+  useNotifications,
+  useConsole
+} from '@/composables'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const activeMenu = ref('dashboard')
 
-// 使用导入的策略日志数据初始化
-const strategyLogs = ref(strategyLogsData)
+// ===== 使用 Composables =====
+const {
+  systemInfo,
+  startMonitoring,
+  stopMonitoring
+} = useSystemMonitor()
 
-// 当前选择的日志级别
-const selectedLogLevel = ref('all')
+const {
+  strategies,
+  strategyLogs,
+  selectedLogLevel,
+  detailDrawerVisible,
+  currentStrategy,
+  addStrategyDialogVisible,
+  editableParameters,
+  activeStrategiesCount,
+  runningStrategiesCount,
+  stoppedStrategiesCount,
+  filteredStrategyLogs,
+  handleAddStrategy,
+  handleStartStrategy,
+  handleStopStrategy,
+  handleDeleteStrategy,
+  handleShowDetail,
+  handleSaveParameters,
+  handleCancelEdit
+} = useStrategyManagement()
 
-// 使用导入的任务调度器数据初始化
-const scheduledTasks = ref(scheduledTasksData)
+const {
+  scheduledTasks,
+  addTaskDialogVisible,
+  editTaskDialogVisible,
+  historyDialogVisible,
+  currentTask,
+  newTaskForm,
+  totalTasksCount,
+  enabledTasksCount,
+  disabledTasksCount,
+  handleToggleTaskStatus,
+  handleDeleteTask,
+  handleShowHistory,
+  handleEditTask,
+  handleSaveTask,
+  handleUpdateTask
+} = useTaskScheduler()
 
-// 使用导入的通知列表数据初始化
-const notifications = ref(notificationsData)
+const {
+  notifications,
+  unreadCount,
+  markAsRead,
+  markAllAsRead
+} = useNotifications()
 
-// 未读通知数量（计算属性）
-const unreadCount = computed(() => {
-  return notifications.value.filter(n => !n.isRead).length
-})
-
-// 定时器引用
-let monitorTimer = null
-
-// 系统监控信息
-const systemInfo = reactive({
-  cpu: 0,
-  memory: 0,
-  lastUpdate: null,
-  loading: false,
-  error: null
-})
+const {
+  consoleData,
+  consoleLogs,
+  selectedConsoleLogLevel,
+  filteredConsoleLogs,
+  handleStartTradingSystem,
+  handleStopTradingSystem,
+  handleStartDataCenter,
+  handleStopDataCenter
+} = useConsole()
 
 // 使用导入的仪表盘数据初始化
 const dashboardData = reactive(dashboardDataImport)
-
-// 控制台数据
-const consoleData = reactive({
-  tradingSystem: {
-    status: 'stopped',  // running | stopped
-    runningTime: '-'
-  },
-  dataCenter: {
-    status: 'stopped',  // running | stopped
-    runningTime: '-'
-  }
-})
-
-// 使用导入的控制台日志数据初始化
-const consoleLogs = ref(consoleLogsData)
-
-// 当前选择的控制台日志级别
-const selectedConsoleLogLevel = ref('all')
-
-// 使用导入的策略数据初始化
-const strategies = ref(strategiesData)
-
-// 计算活跃策略数量（策略总数）
-const activeStrategiesCount = computed(() => {
-  return strategies.value.length
-})
-
-// 计算运行中的策略数量
-const runningStrategiesCount = computed(() => {
-  return strategies.value.filter(s => s.status === '运行中').length
-})
-
-// 计算已停止的策略数量
-const stoppedStrategiesCount = computed(() => {
-  return strategies.value.filter(s => s.status === '已停止').length
-})
-
-// 计算任务总数
-const totalTasksCount = computed(() => scheduledTasks.value.length)
-
-// 计算启用的任务数
-const enabledTasksCount = computed(() => 
-  scheduledTasks.value.filter(t => t.status === 'enabled').length
-)
-
-// 计算禁用的任务数
-const disabledTasksCount = computed(() => 
-  scheduledTasks.value.filter(t => t.status === 'disabled').length
-)
-
-// 过滤后的策略日志
-const filteredStrategyLogs = computed(() => {
-  if (selectedLogLevel.value === 'all') {
-    return strategyLogs.value
-  }
-  return strategyLogs.value.filter(log => log.level === selectedLogLevel.value)
-})
-
-// 过滤后的控制台日志
-const filteredConsoleLogs = computed(() => {
-  if (selectedConsoleLogLevel.value === 'all') {
-    return consoleLogs.value
-  }
-  return consoleLogs.value.filter(log => log.level === selectedConsoleLogLevel.value)
-})
-
-// 详情面板状态
-const detailDrawerVisible = ref(false)
-const currentStrategy = ref(null)
-
-// 添加策略对话框状态
-const addStrategyDialogVisible = ref(false)
-
-// 任务调度器对话框状态
-const addTaskDialogVisible = ref(false)
-const editTaskDialogVisible = ref(false)
-const historyDialogVisible = ref(false)
-const currentTask = ref(null)
-
-// 新任务表单数据
-const newTaskForm = reactive({
-  name: '',
-  type: 'daily',
-  config: {
-    time: '09:00',
-    dateTime: '',
-    dayOfWeek: [],
-    monthDay: []
-  }
-})
-const editableParameters = reactive({
-  trading: {},
-  risk: {},
-  indicator: {},
-  riskControl: {}
-})
 
 const settings = reactive({
   systemName: 'Homalos',
@@ -1454,44 +1401,6 @@ const settings = reactive({
   }
 })
 
-/**
- * 获取系统监控数据
- */
-const fetchSystemStats = async () => {
-  try {
-    systemInfo.loading = true
-    const data = await getSystemStats()
-    
-    systemInfo.cpu = data.cpu_percent
-    systemInfo.memory = data.memory_percent
-    systemInfo.lastUpdate = data.timestamp
-    systemInfo.error = null
-  } catch (error) {
-    console.error('获取监控数据失败:', error)
-    systemInfo.error = '获取监控数据失败'
-    // 保留上次的数据，不清空
-  } finally {
-    systemInfo.loading = false
-  }
-}
-
-/**
- * 启动监控数据轮询
- */
-const startMonitoring = () => {
-  fetchSystemStats()  // 立即获取一次
-  monitorTimer = setInterval(fetchSystemStats, 3000)  // 每3秒刷新
-}
-
-/**
- * 停止监控数据轮询
- */
-const stopMonitoring = () => {
-  if (monitorTimer) {
-    clearInterval(monitorTimer)
-    monitorTimer = null
-  }
-}
 
 const handleMenuSelect = (index) => {
   activeMenu.value = index
@@ -1524,213 +1433,6 @@ const handleSettingsClick = () => {
  */
 const handleConsoleClick = () => {
   activeMenu.value = 'console'
-}
-
-/**
- * 添加控制台日志（包装函数）
- */
-const addConsoleLog = (level, category, message, details = {}) => {
-  addLog(consoleLogs, level, category, message, details, getCurrentTime)
-}
-
-/**
- * 启动量化交易系统
- */
-const handleStartTradingSystem = () => {
-  consoleData.tradingSystem.status = 'running'
-  consoleData.tradingSystem.runningTime = '0m'
-  
-  // 添加日志
-  addConsoleLog(
-    'success',
-    '系统启动',
-    '量化交易系统启动成功',
-    { component: 'tradingSystem' }
-  )
-  
-  ElMessage.success('量化交易系统已启动')
-}
-
-/**
- * 停止量化交易系统
- */
-const handleStopTradingSystem = () => {
-  consoleData.tradingSystem.status = 'stopped'
-  consoleData.tradingSystem.runningTime = '-'
-  
-  // 添加日志
-  addConsoleLog(
-    'warning',
-    '系统停止',
-    '量化交易系统已停止',
-    { component: 'tradingSystem' }
-  )
-  
-  ElMessage.warning('量化交易系统已停止')
-}
-
-/**
- * 启动数据中心
- */
-const handleStartDataCenter = () => {
-  consoleData.dataCenter.status = 'running'
-  consoleData.dataCenter.runningTime = '0m'
-  
-  // 添加日志
-  addConsoleLog(
-    'success',
-    '系统启动',
-    '数据中心启动成功',
-    { component: 'dataCenter' }
-  )
-  
-  ElMessage.success('数据中心已启动')
-}
-
-/**
- * 停止数据中心
- */
-const handleStopDataCenter = () => {
-  consoleData.dataCenter.status = 'stopped'
-  consoleData.dataCenter.runningTime = '-'
-  
-  // 添加日志
-  addConsoleLog(
-    'warning',
-    '系统停止',
-    '数据中心已停止',
-    { component: 'dataCenter' }
-  )
-  
-  ElMessage.warning('数据中心已停止')
-}
-
-/**
- * 启用/禁用任务
- */
-const handleToggleTaskStatus = (task) => {
-  task.status = task.status === 'enabled' ? 'disabled' : 'enabled'
-  const statusText = task.status === 'enabled' ? '启用' : '禁用'
-  ElMessage.success(`任务 "${task.name}" 已${statusText}`)
-}
-
-/**
- * 删除任务
- */
-const handleDeleteTask = (taskId) => {
-  ElMessageBox.confirm(
-    '确定要删除这个任务吗？',
-    '确认删除',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    const index = scheduledTasks.value.findIndex(t => t.id === taskId)
-    if (index !== -1) {
-      const taskName = scheduledTasks.value[index].name
-      scheduledTasks.value.splice(index, 1)
-      ElMessage.success(`任务 "${taskName}" 已删除`)
-    }
-  }).catch(() => {
-    // 用户取消删除
-  })
-}
-
-/**
- * 显示执行历史
- */
-const handleShowHistory = (task) => {
-  currentTask.value = task
-  historyDialogVisible.value = true
-}
-
-/**
- * 编辑任务
- */
-const handleEditTask = (task) => {
-  currentTask.value = task
-  newTaskForm.name = task.name
-  newTaskForm.type = task.type
-  newTaskForm.config = { ...task.config }
-  editTaskDialogVisible.value = true
-}
-
-/**
- * 保存新任务
- */
-const handleSaveTask = () => {
-  if (!newTaskForm.name.trim()) {
-    ElMessage.warning('请输入任务名称')
-    return
-  }
-  
-  // 验证配置
-  if (newTaskForm.type === 'daily' && !newTaskForm.config.time) {
-    ElMessage.warning('请选择执行时间')
-    return
-  }
-  if (newTaskForm.type === 'once' && !newTaskForm.config.dateTime) {
-    ElMessage.warning('请选择执行时间')
-    return
-  }
-  if (newTaskForm.type === 'weekday') {
-    if (!newTaskForm.config.time || newTaskForm.config.dayOfWeek.length === 0) {
-      ElMessage.warning('请选择执行时间和星期')
-      return
-    }
-  }
-  if (newTaskForm.type === 'monthly') {
-    if (!newTaskForm.config.time || newTaskForm.config.monthDay.length === 0) {
-      ElMessage.warning('请选择执行时间和日期')
-      return
-    }
-  }
-  
-  const newTask = {
-    id: generateTaskId(scheduledTasks.value),
-    name: newTaskForm.name,
-    type: newTaskForm.type,
-    config: { ...newTaskForm.config },
-    status: 'disabled',  // 默认禁用
-    createTime: getCurrentTime(),
-    lastExecuteTime: null,
-    executionHistory: []
-  }
-  
-  scheduledTasks.value.push(newTask)
-  addTaskDialogVisible.value = false
-  
-  // 重置表单
-  newTaskForm.name = ''
-  newTaskForm.type = 'daily'
-  newTaskForm.config = {
-    time: '09:00',
-    dateTime: '',
-    dayOfWeek: [],
-    monthDay: []
-  }
-  
-  ElMessage.success(`任务 "${newTask.name}" 已添加`)
-}
-
-/**
- * 更新任务
- */
-const handleUpdateTask = () => {
-  if (!newTaskForm.name.trim()) {
-    ElMessage.warning('请输入任务名称')
-    return
-  }
-  
-  const task = currentTask.value
-  task.name = newTaskForm.name
-  task.type = newTaskForm.type
-  task.config = { ...newTaskForm.config }
-  
-  editTaskDialogVisible.value = false
-  ElMessage.success(`任务 "${task.name}" 已更新`)
 }
 
 /**
@@ -1773,239 +1475,12 @@ const saveSettings = () => {
   ElMessage.success('系统设置保存成功')
 }
 
-/**
- * 标记单条通知为已读
- */
-const markAsRead = (notification) => {
-  if (!notification.isRead) {
-    notification.isRead = true
-    ElMessage.success('通知已标记为已读')
-  }
-}
-
-/**
- * 全部标记为已读
- */
-const markAllAsRead = () => {
-  ElMessageBox.confirm('确定将所有通知标记为已读吗？', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'info'
-  }).then(() => {
-    notifications.value.forEach(n => {
-      n.isRead = true
-    })
-    ElMessage.success('所有通知已标记为已读')
-  }).catch(() => {
-    // 取消操作
-  })
-}
-
-
-
-/**
- * 添加策略日志（包装函数）
- */
-const addStrategyLog = (level, category, message, details = {}) => {
-  addLog(strategyLogs, level, category, message, details, getCurrentTime)
-}
-
-/**
- * 添加策略到列表
- */
-const handleAddStrategy = (template) => {
-  const newStrategyId = generateStrategyId(strategies.value)
-  const currentTime = getCurrentTime()
-  
-  const newStrategy = {
-    // 基础字段
-    id: newStrategyId,
-    name: template.name,
-    status: '已停止',
-    startTime: '',
-    runningTime: '-',
-    
-    // 基础信息
-    description: template.description,
-    author: template.author,
-    createTime: currentTime,
-    lastModifyTime: currentTime,
-    
-    // 持仓信息（空数组）
-    positions: [],
-    
-    // 参数配置（简化版）
-    parameters: {
-      trading: {},
-      risk: {},
-      indicator: {}
-    },
-    
-    // 风险控制（使用模板的默认值）
-    riskControl: {
-      maxPosition: template.defaultRiskControl.maxPosition,
-      stopLossRatio: template.defaultRiskControl.stopLossRatio,
-      takeProfitRatio: template.defaultRiskControl.takeProfitRatio,
-      maxDrawdown: template.defaultRiskControl.maxDrawdown
-    }
-  }
-  
-  // 添加到策略列表
-  strategies.value.push(newStrategy)
-  
-  // 添加日志
-  addStrategyLog(
-    'success',
-    '添加策略',
-    `成功添加策略 "${template.name}"`,
-    { strategyId: newStrategyId, strategyName: template.name }
-  )
-  
-  // 关闭对话框
-  addStrategyDialogVisible.value = false
-  
-  // 显示成功提示
-  ElMessage.success(`策略 "${template.name}" 已成功添加到列表`)
-}
-
-/**
- * 启动策略
- */
-const handleStartStrategy = (strategy) => {
-  strategy.status = '运行中'
-  strategy.startTime = getCurrentTime()
-  
-  // 添加日志
-  addStrategyLog(
-    'success',
-    '启动策略',
-    `策略 "${strategy.name}" 已启动`,
-    { strategyId: strategy.id, strategyName: strategy.name }
-  )
-  
-  ElMessage.success(`策略 "${strategy.name}" 已启动`)
-}
-
-/**
- * 停止策略
- */
-const handleStopStrategy = (strategy) => {
-  strategy.status = '已停止'
-  strategy.runningTime = '-'
-  
-  // 添加日志
-  addStrategyLog(
-    'warning',
-    '停止策略',
-    `策略 "${strategy.name}" 已停止`,
-    { strategyId: strategy.id, strategyName: strategy.name }
-  )
-  
-  ElMessage.success(`策略 "${strategy.name}" 已停止`)
-}
-
-/**
- * 删除策略
- */
-const handleDeleteStrategy = (strategyId) => {
-  ElMessageBox.confirm(
-    '确定要删除这个策略吗？',
-    '确认删除',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    const index = strategies.value.findIndex(s => s.id === strategyId)
-    if (index !== -1) {
-      const strategy = strategies.value[index]
-      strategies.value.splice(index, 1)
-      
-      // 添加日志
-      addStrategyLog(
-        'warning',
-        '删除策略',
-        `策略 "${strategy.name}" 已删除`,
-        { strategyId: strategy.id, strategyName: strategy.name }
-      )
-      
-      ElMessage.success(`策略 "${strategy.name}" 已删除`)
-    }
-  }).catch(() => {
-    // 用户取消删除
-  })
-}
-
-/**
- * 显示策略详情
- */
-const handleShowDetail = (strategy) => {
-  currentStrategy.value = strategy
-  // 深拷贝参数到可编辑对象
-  editableParameters.trading = { ...strategy.parameters.trading }
-  editableParameters.risk = { ...strategy.parameters.risk }
-  editableParameters.indicator = { ...strategy.parameters.indicator }
-  editableParameters.riskControl = { ...strategy.riskControl }
-  detailDrawerVisible.value = true
-}
-
-/**
- * 保存参数配置
- */
-const handleSaveParameters = () => {
-  if (!currentStrategy.value) return
-  
-  // 更新策略参数
-  currentStrategy.value.parameters.trading = { ...editableParameters.trading }
-  currentStrategy.value.parameters.risk = { ...editableParameters.risk }
-  currentStrategy.value.parameters.indicator = { ...editableParameters.indicator }
-  currentStrategy.value.riskControl = { ...editableParameters.riskControl }
-  
-  // 更新最后修改时间
-  const now = new Date()
-  currentStrategy.value.lastModifyTime = now.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  }).replace(/\//g, '-')
-  
-  // 添加日志
-  addStrategyLog(
-    'info',
-    '参数配置',
-    `策略 "${currentStrategy.value.name}" 风险控制参数已更新`,
-    { 
-      strategyId: currentStrategy.value.id, 
-      strategyName: currentStrategy.value.name,
-      maxPosition: editableParameters.riskControl.maxPosition,
-      stopLossRatio: editableParameters.riskControl.stopLossRatio,
-      takeProfitRatio: editableParameters.riskControl.takeProfitRatio,
-      maxDrawdown: editableParameters.riskControl.maxDrawdown
-    }
-  )
-  
-  ElMessage.success('参数保存成功')
-}
-
-/**
- * 取消编辑
- */
-const handleCancelEdit = () => {
-  if (!currentStrategy.value) return
-  
-  // 恢复原始参数
-  editableParameters.trading = { ...currentStrategy.value.parameters.trading }
-  editableParameters.risk = { ...currentStrategy.value.parameters.risk }
-  editableParameters.indicator = { ...currentStrategy.value.parameters.indicator }
-  editableParameters.riskControl = { ...currentStrategy.value.riskControl }
-  
-  ElMessage.info('已取消编辑')
-}
+// ===== 所有业务逻辑已提取到 Composables =====
+// 策略管理逻辑 -> useStrategyManagement.js
+// 任务调度逻辑 -> useTaskScheduler.js
+// 通知管理逻辑 -> useNotifications.js
+// 控制台逻辑 -> useConsole.js
+// 系统监控逻辑 -> useSystemMonitor.js
 
 
 onMounted(async () => {
