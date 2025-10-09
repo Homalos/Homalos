@@ -288,13 +288,13 @@
           <template #header>
             <div class="card-header">
               <span>策略管理</span>
-              <el-button type="primary" size="small">添加策略</el-button>
+              <el-button type="primary" size="small" @click="addStrategyDialogVisible = true">添加策略</el-button>
             </div>
           </template>
           <!-- 策略统计 -->
           <el-row :gutter="20" style="margin-bottom: 20px;">
             <el-col :span="8">
-              <el-statistic title="活跃策略" :value="systemInfo.activeStrategies">
+              <el-statistic title="活跃策略" :value="activeStrategiesCount">
                 <template #prefix>
                   <el-icon color="#409eff"><DataAnalysis /></el-icon>
                 </template>
@@ -410,13 +410,54 @@
             </el-form-item>
             <el-form-item label="消息通知方式">
               <el-checkbox-group v-model="settings.notificationMethods">
-                <el-checkbox label="dingtalk">钉钉</el-checkbox>
-                <el-checkbox label="wecom">企业微信</el-checkbox>
-                <el-checkbox label="email">邮箱</el-checkbox>
+                <div style="margin-bottom: 15px;">
+                  <el-checkbox label="dingtalk">钉钉</el-checkbox>
+                  <!-- 钉钉配置展开区域 -->
+                  <div v-if="settings.notificationMethods.includes('dingtalk')" style="margin-left: 24px; margin-top: 10px;">
+                    <el-input 
+                      v-model="settings.notificationConfig.dingtalk.id" 
+                      placeholder="请输入钉钉机器人ID"
+                      style="width: 400px;"
+                    />
+                  </div>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                  <el-checkbox label="wecom">企业微信</el-checkbox>
+                  <!-- 企业微信配置展开区域 -->
+                  <div v-if="settings.notificationMethods.includes('wecom')" style="margin-left: 24px; margin-top: 10px;">
+                    <el-input 
+                      v-model="settings.notificationConfig.wecom.id" 
+                      placeholder="请输入企业微信机器人ID"
+                      style="width: 400px;"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <el-checkbox label="email">邮箱</el-checkbox>
+                  <!-- 邮箱配置展开区域 -->
+                  <div v-if="settings.notificationMethods.includes('email')" style="margin-left: 24px; margin-top: 10px;">
+                    <div style="margin-bottom: 10px;">
+                      <el-input 
+                        v-model="settings.notificationConfig.email.address" 
+                        placeholder="请输入邮箱地址"
+                        style="width: 400px;"
+                      />
+                    </div>
+                    <div>
+                      <el-input 
+                        v-model="settings.notificationConfig.email.smtpServer" 
+                        placeholder="请输入SMTP服务器"
+                        style="width: 400px;"
+                      />
+                    </div>
+                  </div>
+                </div>
               </el-checkbox-group>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary">保存设置</el-button>
+              <el-button type="primary" @click="saveSettings">保存设置</el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -576,6 +617,46 @@
             </el-card>
           </div>
         </el-drawer>
+
+        <!-- 添加策略对话框 -->
+        <el-dialog
+          v-model="addStrategyDialogVisible"
+          title="选择要添加的策略"
+          width="80%"
+          :close-on-click-modal="false"
+        >
+          <el-row :gutter="20">
+            <el-col :span="24" v-for="template in strategyTemplates" :key="template.fileName" style="margin-bottom: 20px;">
+              <el-card class="strategy-card" shadow="hover">
+                <!-- 文件名 -->
+                <div class="strategy-file-name">
+                  <el-icon :size="18" color="#409eff"><Document /></el-icon>
+                  <span style="margin-left: 8px; font-family: 'Courier New', monospace; color: #606266;">{{ template.fileName }}</span>
+                </div>
+                
+                <!-- 策略名称 -->
+                <h3 style="margin: 15px 0 10px 0; font-size: 18px; color: #303133;">{{ template.name }}</h3>
+                
+                <!-- 策略描述 -->
+                <p class="strategy-description">{{ template.description }}</p>
+                
+                <!-- 默认参数预览 -->
+                <div class="strategy-params">
+                  <el-tag size="small" style="margin-right: 8px;">最大仓位: {{ template.defaultRiskControl.maxPosition }}</el-tag>
+                  <el-tag size="small" type="warning" style="margin-right: 8px;">止损: {{ template.defaultRiskControl.stopLossRatio }}%</el-tag>
+                  <el-tag size="small" type="success" style="margin-right: 8px;">止盈: {{ template.defaultRiskControl.takeProfitRatio }}%</el-tag>
+                  <el-tag size="small" type="info">回撤: {{ template.defaultRiskControl.maxDrawdown }}%</el-tag>
+                </div>
+                
+                <!-- 添加按钮 -->
+                <el-button type="primary" style="width: 100%; margin-top: 15px;" @click="handleAddStrategy(template)">
+                  <el-icon style="margin-right: 5px;"><Plus /></el-icon>
+                  添加此策略
+                </el-button>
+              </el-card>
+            </el-col>
+          </el-row>
+        </el-dialog>
       </el-main>
     </el-container>
   </el-container>
@@ -604,7 +685,9 @@ import {
   Operation,
   VideoPlay,
   VideoPause,
-  Warning
+  Warning,
+  Document,
+  Plus
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -614,6 +697,70 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const activeMenu = ref('dashboard')
+
+// 策略模板库（硬编码数据，模拟.py文件）
+const strategyTemplates = [
+  {
+    fileName: 'trend_following_strategy.py',
+    name: '趋势跟踪策略',
+    description: '基于移动平均线和趋势线识别市场趋势方向，顺势而为，适合趋势明显的市场环境',
+    author: '系统管理员',
+    defaultRiskControl: {
+      maxPosition: 50,
+      stopLossRatio: 2.0,
+      takeProfitRatio: 3.0,
+      maxDrawdown: 10.0
+    }
+  },
+  {
+    fileName: 'mean_reversion_strategy.py',
+    name: '均值回归策略',
+    description: '当价格偏离均值过多时进行反向交易，预期价格会回归均值，适用于震荡市场',
+    author: '系统管理员',
+    defaultRiskControl: {
+      maxPosition: 30,
+      stopLossRatio: 1.5,
+      takeProfitRatio: 2.5,
+      maxDrawdown: 8.0
+    }
+  },
+  {
+    fileName: 'breakout_strategy.py',
+    name: '突破策略',
+    description: '监控关键支撑和阻力位，当价格突破时快速进场，捕捉强势行情',
+    author: '系统管理员',
+    defaultRiskControl: {
+      maxPosition: 40,
+      stopLossRatio: 2.5,
+      takeProfitRatio: 4.0,
+      maxDrawdown: 12.0
+    }
+  },
+  {
+    fileName: 'grid_trading_strategy.py',
+    name: '网格交易策略',
+    description: '在价格区间内设置多个网格，低买高卖，适合震荡行情下的稳健获利',
+    author: '系统管理员',
+    defaultRiskControl: {
+      maxPosition: 60,
+      stopLossRatio: 1.0,
+      takeProfitRatio: 1.5,
+      maxDrawdown: 6.0
+    }
+  },
+  {
+    fileName: 'volatility_strategy.py',
+    name: '波动率策略',
+    description: '基于市场波动率变化进行交易决策，在波动加剧时捕捉机会',
+    author: '系统管理员',
+    defaultRiskControl: {
+      maxPosition: 35,
+      stopLossRatio: 3.0,
+      takeProfitRatio: 5.0,
+      maxDrawdown: 15.0
+    }
+  }
+]
 
 // 通知列表（硬编码数据）
 const notifications = ref([
@@ -676,7 +823,6 @@ let monitorTimer = null
 const systemInfo = reactive({
   cpu: 0,
   memory: 0,
-  activeStrategies: 3,  // 硬编码值
   lastUpdate: null,
   loading: false,
   error: null
@@ -941,6 +1087,11 @@ const strategies = ref([
   }
 ])
 
+// 计算活跃策略数量（策略总数）
+const activeStrategiesCount = computed(() => {
+  return strategies.value.length
+})
+
 // 计算运行中的策略数量
 const runningStrategiesCount = computed(() => {
   return strategies.value.filter(s => s.status === '运行中').length
@@ -954,6 +1105,9 @@ const stoppedStrategiesCount = computed(() => {
 // 详情面板状态
 const detailDrawerVisible = ref(false)
 const currentStrategy = ref(null)
+
+// 添加策略对话框状态
+const addStrategyDialogVisible = ref(false)
 const editableParameters = reactive({
   trading: {},
   risk: {},
@@ -965,7 +1119,19 @@ const settings = reactive({
   systemName: 'Homalos',
   autoStart: true,
   logLevel: 'info',
-  notificationMethods: ['dingtalk', 'email']  // 默认启用钉钉和邮箱
+  notificationMethods: ['dingtalk', 'email'],  // 默认启用钉钉和邮箱
+  notificationConfig: {
+    dingtalk: {
+      id: ''  // 钉钉机器人ID
+    },
+    wecom: {
+      id: ''  // 企业微信机器人ID
+    },
+    email: {
+      address: '',      // 邮箱地址
+      smtpServer: ''   // SMTP服务器
+    }
+  }
 })
 
 /**
@@ -1034,6 +1200,46 @@ const handleSettingsClick = () => {
 }
 
 /**
+ * 保存系统设置
+ */
+const saveSettings = () => {
+  // 验证已启用的通知方式是否都已配置
+  const errors = []
+  
+  if (settings.notificationMethods.includes('dingtalk')) {
+    if (!settings.notificationConfig.dingtalk.id) {
+      errors.push('钉钉机器人ID')
+    }
+  }
+  
+  if (settings.notificationMethods.includes('wecom')) {
+    if (!settings.notificationConfig.wecom.id) {
+      errors.push('企业微信机器人ID')
+    }
+  }
+  
+  if (settings.notificationMethods.includes('email')) {
+    if (!settings.notificationConfig.email.address) {
+      errors.push('邮箱地址')
+    }
+    if (!settings.notificationConfig.email.smtpServer) {
+      errors.push('SMTP服务器')
+    }
+  }
+  
+  // 如果有未填写的配置，显示警告
+  if (errors.length > 0) {
+    ElMessage.warning(`请填写以下配置项：${errors.join('、')}`)
+    return
+  }
+  
+  // TODO: 这里应该调用API保存配置到后端
+  console.log('保存系统设置:', settings)
+  
+  ElMessage.success('系统设置保存成功')
+}
+
+/**
  * 标记单条通知为已读
  */
 const markAsRead = (notification) => {
@@ -1071,6 +1277,82 @@ const getNotificationTagType = (level) => {
     '通知': 'info'
   }
   return typeMap[level] || 'info'
+}
+
+/**
+ * 生成唯一的策略ID
+ */
+const generateStrategyId = () => {
+  const maxId = strategies.value.reduce((max, s) => {
+    const num = parseInt(s.id.replace('STR', ''))
+    return num > max ? num : max
+  }, 0)
+  return `STR${String(maxId + 1).padStart(3, '0')}`
+}
+
+/**
+ * 获取格式化的当前时间
+ */
+const getCurrentTime = () => {
+  return new Date().toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).replace(/\//g, '-')
+}
+
+/**
+ * 添加策略到列表
+ */
+const handleAddStrategy = (template) => {
+  const newStrategyId = generateStrategyId()
+  const currentTime = getCurrentTime()
+  
+  const newStrategy = {
+    // 基础字段
+    id: newStrategyId,
+    name: template.name,
+    status: '已停止',
+    startTime: '',
+    runningTime: '-',
+    
+    // 基础信息
+    description: template.description,
+    author: template.author,
+    createTime: currentTime,
+    lastModifyTime: currentTime,
+    
+    // 持仓信息（空数组）
+    positions: [],
+    
+    // 参数配置（简化版）
+    parameters: {
+      trading: {},
+      risk: {},
+      indicator: {}
+    },
+    
+    // 风险控制（使用模板的默认值）
+    riskControl: {
+      maxPosition: template.defaultRiskControl.maxPosition,
+      stopLossRatio: template.defaultRiskControl.stopLossRatio,
+      takeProfitRatio: template.defaultRiskControl.takeProfitRatio,
+      maxDrawdown: template.defaultRiskControl.maxDrawdown
+    }
+  }
+  
+  // 添加到策略列表
+  strategies.value.push(newStrategy)
+  
+  // 关闭对话框
+  addStrategyDialogVisible.value = false
+  
+  // 显示成功提示
+  ElMessage.success(`策略 "${template.name}" 已成功添加到列表`)
 }
 
 /**
@@ -1373,6 +1655,39 @@ onUnmounted(() => {
   background-color: #f5f7fa;
   border-radius: 4px;
   text-align: center;
+}
+
+.strategy-card {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.strategy-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.strategy-file-name {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.strategy-description {
+  color: #606266;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 10px 0;
+  min-height: 44px;
+}
+
+.strategy-params {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #ebeef5;
 }
 
 </style>
