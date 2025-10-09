@@ -334,16 +334,69 @@
             <el-table-column label="操作" width="220">
               <template #default="scope">
                 <el-button
+                  v-if="scope.row.status === '已停止'"
                   size="small"
-                  :type="scope.row.status === '运行中' ? 'warning' : 'success'"
+                  type="success"
+                  @click="handleStartStrategy(scope.row)"
                 >
-                  {{ scope.row.status === '运行中' ? '停止' : '启动' }}
+                  启动
+                </el-button>
+                <el-button
+                  v-if="scope.row.status === '运行中'"
+                  size="small"
+                  type="warning"
+                  @click="handleStopStrategy(scope.row)"
+                >
+                  停止
                 </el-button>
                 <el-button size="small" type="primary" @click="handleShowDetail(scope.row)">详情</el-button>
-                <el-button size="small" type="danger" @click="handleDeleteStrategy(scope.row)">删除</el-button>
+                <el-button size="small" type="danger" @click="handleDeleteStrategy(scope.row.id)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
+        </el-card>
+
+        <!-- 操作日志 -->
+        <el-card v-if="activeMenu === 'strategy'" shadow="hover" style="margin-top: 20px;">
+          <template #header>
+            <div class="card-header">
+              <span>操作日志</span>
+              <el-select 
+                v-model="selectedLogLevel" 
+                placeholder="选择日志级别" 
+                size="small" 
+                style="width: 150px;"
+              >
+                <el-option label="全部" value="all" />
+                <el-option label="信息" value="info" />
+                <el-option label="成功" value="success" />
+                <el-option label="警告" value="warning" />
+                <el-option label="错误" value="error" />
+              </el-select>
+            </div>
+          </template>
+          <div class="log-container">
+            <el-timeline v-if="filteredStrategyLogs.length > 0">
+              <el-timeline-item 
+                v-for="log in filteredStrategyLogs" 
+                :key="log.id"
+                :timestamp="log.timestamp"
+                placement="top"
+              >
+                <div class="log-item">
+                  <el-tag 
+                    :type="logLevelMap[log.level].color" 
+                    size="small" 
+                    style="margin-right: 8px;"
+                  >
+                    {{ log.category }}
+                  </el-tag>
+                  <span class="log-message">{{ log.message }}</span>
+                </div>
+              </el-timeline-item>
+            </el-timeline>
+            <el-empty v-else description="暂无日志记录" />
+          </div>
         </el-card>
 
         <!-- 通知中心 -->
@@ -1099,6 +1152,101 @@ const strategyTemplates = [
   }
 ]
 
+// 策略操作日志（硬编码）
+const strategyLogs = ref([
+  {
+    id: 1,
+    timestamp: '2025-10-09 10:30:15',
+    level: 'success',
+    category: '添加策略',
+    message: '成功添加策略 "趋势跟踪策略"',
+    details: { strategyId: 'STR001', strategyName: '趋势跟踪策略' }
+  },
+  {
+    id: 2,
+    timestamp: '2025-10-09 10:31:22',
+    level: 'success',
+    category: '启动策略',
+    message: '策略 "趋势跟踪策略" 已启动',
+    details: { strategyId: 'STR001', strategyName: '趋势跟踪策略' }
+  },
+  {
+    id: 3,
+    timestamp: '2025-10-09 12:15:45',
+    level: 'info',
+    category: '持仓变动',
+    message: '策略 "趋势跟踪策略" 在 AU2406 建立多头持仓 10 手',
+    details: { strategyId: 'STR001', contract: 'AU2406', direction: '多', volume: 10 }
+  },
+  {
+    id: 4,
+    timestamp: '2025-10-09 14:20:00',
+    level: 'success',
+    category: '添加策略',
+    message: '成功添加策略 "均值回归策略"',
+    details: { strategyId: 'STR002', strategyName: '均值回归策略' }
+  },
+  {
+    id: 5,
+    timestamp: '2025-10-09 14:25:30',
+    level: 'warning',
+    category: '停止策略',
+    message: '策略 "均值回归策略" 已停止',
+    details: { strategyId: 'STR002', strategyName: '均值回归策略' }
+  },
+  {
+    id: 6,
+    timestamp: '2025-10-09 15:10:12',
+    level: 'info',
+    category: '参数配置',
+    message: '策略 "趋势跟踪策略" 风险参数已更新',
+    details: { strategyId: 'STR001', maxPosition: 50, stopLossRatio: 2.0 }
+  },
+  {
+    id: 7,
+    timestamp: '2025-10-09 16:45:00',
+    level: 'success',
+    category: '添加策略',
+    message: '成功添加策略 "套利策略"',
+    details: { strategyId: 'STR003', strategyName: '套利策略' }
+  },
+  {
+    id: 8,
+    timestamp: '2025-10-09 16:46:15',
+    level: 'success',
+    category: '启动策略',
+    message: '策略 "套利策略" 已启动',
+    details: { strategyId: 'STR003', strategyName: '套利策略' }
+  },
+  {
+    id: 9,
+    timestamp: '2025-10-09 18:30:25',
+    level: 'warning',
+    category: '风险控制',
+    message: '策略 "趋势跟踪策略" 触发止损，自动平仓',
+    details: { strategyId: 'STR001', contract: 'AG2406', reason: '止损' }
+  },
+  {
+    id: 10,
+    timestamp: '2025-10-09 20:15:40',
+    level: 'error',
+    category: '策略异常',
+    message: '策略 "套利策略" 运行异常：网络连接失败',
+    details: { strategyId: 'STR003', error: '网络连接失败' }
+  }
+])
+
+// 日志级别映射
+const logLevelMap = {
+  info: { name: '信息', color: '#409EFF' },
+  success: { name: '成功', color: '#67C23A' },
+  warning: { name: '警告', color: '#E6A23C' },
+  error: { name: '错误', color: '#F56C6C' }
+}
+
+// 当前选择的日志级别
+const selectedLogLevel = ref('all')
+
 // 任务调度器数据（硬编码）
 const scheduledTasks = ref([
   {
@@ -1528,6 +1676,14 @@ const enabledTasksCount = computed(() =>
 const disabledTasksCount = computed(() => 
   scheduledTasks.value.filter(t => t.status === 'disabled').length
 )
+
+// 过滤后的策略日志
+const filteredStrategyLogs = computed(() => {
+  if (selectedLogLevel.value === 'all') {
+    return strategyLogs.value
+  }
+  return strategyLogs.value.filter(log => log.level === selectedLogLevel.value)
+})
 
 // 详情面板状态
 const detailDrawerVisible = ref(false)
@@ -2019,6 +2175,28 @@ const generateTaskId = () => {
 }
 
 /**
+ * 添加策略日志
+ */
+const addStrategyLog = (level, category, message, details = {}) => {
+  const newLog = {
+    id: strategyLogs.value.length > 0 
+      ? Math.max(...strategyLogs.value.map(l => l.id)) + 1 
+      : 1,
+    timestamp: getCurrentTime(),
+    level,
+    category,
+    message,
+    details
+  }
+  strategyLogs.value.unshift(newLog) // 添加到开头
+  
+  // 限制日志数量（最多保留100条）
+  if (strategyLogs.value.length > 100) {
+    strategyLogs.value = strategyLogs.value.slice(0, 100)
+  }
+}
+
+/**
  * 添加策略到列表
  */
 const handleAddStrategy = (template) => {
@@ -2061,11 +2239,88 @@ const handleAddStrategy = (template) => {
   // 添加到策略列表
   strategies.value.push(newStrategy)
   
+  // 添加日志
+  addStrategyLog(
+    'success',
+    '添加策略',
+    `成功添加策略 "${template.name}"`,
+    { strategyId: newStrategyId, strategyName: template.name }
+  )
+  
   // 关闭对话框
   addStrategyDialogVisible.value = false
   
   // 显示成功提示
   ElMessage.success(`策略 "${template.name}" 已成功添加到列表`)
+}
+
+/**
+ * 启动策略
+ */
+const handleStartStrategy = (strategy) => {
+  strategy.status = '运行中'
+  strategy.startTime = getCurrentTime()
+  
+  // 添加日志
+  addStrategyLog(
+    'success',
+    '启动策略',
+    `策略 "${strategy.name}" 已启动`,
+    { strategyId: strategy.id, strategyName: strategy.name }
+  )
+  
+  ElMessage.success(`策略 "${strategy.name}" 已启动`)
+}
+
+/**
+ * 停止策略
+ */
+const handleStopStrategy = (strategy) => {
+  strategy.status = '已停止'
+  strategy.runningTime = '-'
+  
+  // 添加日志
+  addStrategyLog(
+    'warning',
+    '停止策略',
+    `策略 "${strategy.name}" 已停止`,
+    { strategyId: strategy.id, strategyName: strategy.name }
+  )
+  
+  ElMessage.success(`策略 "${strategy.name}" 已停止`)
+}
+
+/**
+ * 删除策略
+ */
+const handleDeleteStrategy = (strategyId) => {
+  ElMessageBox.confirm(
+    '确定要删除这个策略吗？',
+    '确认删除',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    const index = strategies.value.findIndex(s => s.id === strategyId)
+    if (index !== -1) {
+      const strategy = strategies.value[index]
+      strategies.value.splice(index, 1)
+      
+      // 添加日志
+      addStrategyLog(
+        'warning',
+        '删除策略',
+        `策略 "${strategy.name}" 已删除`,
+        { strategyId: strategy.id, strategyName: strategy.name }
+      )
+      
+      ElMessage.success(`策略 "${strategy.name}" 已删除`)
+    }
+  }).catch(() => {
+    // 用户取消删除
+  })
 }
 
 /**
@@ -2105,6 +2360,21 @@ const handleSaveParameters = () => {
     hour12: false
   }).replace(/\//g, '-')
   
+  // 添加日志
+  addStrategyLog(
+    'info',
+    '参数配置',
+    `策略 "${currentStrategy.value.name}" 风险控制参数已更新`,
+    { 
+      strategyId: currentStrategy.value.id, 
+      strategyName: currentStrategy.value.name,
+      maxPosition: editableParameters.riskControl.maxPosition,
+      stopLossRatio: editableParameters.riskControl.stopLossRatio,
+      takeProfitRatio: editableParameters.riskControl.takeProfitRatio,
+      maxDrawdown: editableParameters.riskControl.maxDrawdown
+    }
+  )
+  
   ElMessage.success('参数保存成功')
 }
 
@@ -2133,30 +2403,6 @@ const getRiskLevelType = (level) => {
     '高': 'danger'
   }
   return typeMap[level] || 'info'
-}
-
-/**
- * 删除策略
- */
-const handleDeleteStrategy = (strategy) => {
-  ElMessageBox.confirm(
-    `确定要删除策略 "${strategy.name}" (ID: ${strategy.id}) 吗？`,
-    '删除确认',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  ).then(() => {
-    // 从策略列表中移除
-    const index = strategies.value.findIndex(s => s.id === strategy.id)
-    if (index !== -1) {
-      strategies.value.splice(index, 1)
-      ElMessage.success(`策略 "${strategy.name}" 已删除`)
-    }
-  }).catch(() => {
-    // 用户取消删除
-  })
 }
 
 onMounted(async () => {
@@ -2401,6 +2647,22 @@ onUnmounted(() => {
   margin-top: 15px;
   padding-top: 15px;
   border-top: 1px solid #ebeef5;
+}
+
+/* 日志容器样式 */
+.log-container {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.log-item {
+  display: flex;
+  align-items: center;
+}
+
+.log-message {
+  color: #606266;
+  font-size: 14px;
 }
 
 </style>
