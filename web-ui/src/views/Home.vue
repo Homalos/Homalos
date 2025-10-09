@@ -752,6 +752,244 @@
             </el-col>
           </el-row>
         </el-dialog>
+
+        <!-- 添加/编辑任务对话框 -->
+        <el-dialog 
+          v-model="addTaskDialogVisible" 
+          title="添加任务" 
+          width="600px"
+          :close-on-click-modal="false"
+        >
+          <el-form :model="newTaskForm" label-width="120px">
+            <el-form-item label="任务名称" required>
+              <el-input v-model="newTaskForm.name" placeholder="请输入任务名称" />
+            </el-form-item>
+            
+            <el-form-item label="任务类型" required>
+              <el-select v-model="newTaskForm.type" style="width: 100%;">
+                <el-option label="每日任务" value="daily" />
+                <el-option label="一次性任务" value="once" />
+                <el-option label="每分钟任务" value="minute" />
+                <el-option label="每周任务" value="weekday" />
+                <el-option label="每月任务" value="monthly" />
+              </el-select>
+            </el-form-item>
+            
+            <!-- 每日任务配置 -->
+            <el-form-item v-if="newTaskForm.type === 'daily'" label="执行时间" required>
+              <el-time-picker 
+                v-model="newTaskForm.config.time" 
+                format="HH:mm" 
+                value-format="HH:mm"
+                placeholder="选择时间"
+              />
+            </el-form-item>
+            
+            <!-- 一次性任务配置 -->
+            <el-form-item v-if="newTaskForm.type === 'once'" label="执行时间" required>
+              <el-date-picker 
+                v-model="newTaskForm.config.dateTime" 
+                type="datetime" 
+                format="YYYY-MM-DD HH:mm"
+                value-format="YYYY-MM-DD HH:mm:00"
+                placeholder="选择日期时间"
+              />
+            </el-form-item>
+            
+            <!-- 每周任务配置 -->
+            <template v-if="newTaskForm.type === 'weekday'">
+              <el-form-item label="执行时间" required>
+                <el-time-picker 
+                  v-model="newTaskForm.config.time" 
+                  format="HH:mm" 
+                  value-format="HH:mm"
+                  placeholder="选择时间"
+                />
+              </el-form-item>
+              <el-form-item label="星期" required>
+                <el-checkbox-group v-model="newTaskForm.config.dayOfWeek">
+                  <el-checkbox label="周一" />
+                  <el-checkbox label="周二" />
+                  <el-checkbox label="周三" />
+                  <el-checkbox label="周四" />
+                  <el-checkbox label="周五" />
+                  <el-checkbox label="周六" />
+                  <el-checkbox label="周日" />
+                </el-checkbox-group>
+              </el-form-item>
+            </template>
+            
+            <!-- 每月任务配置 -->
+            <template v-if="newTaskForm.type === 'monthly'">
+              <el-form-item label="执行时间" required>
+                <el-time-picker 
+                  v-model="newTaskForm.config.time" 
+                  format="HH:mm" 
+                  value-format="HH:mm"
+                  placeholder="选择时间"
+                />
+              </el-form-item>
+              <el-form-item label="日期" required>
+                <el-select v-model="newTaskForm.config.monthDay" multiple placeholder="选择日期" style="width: 100%;">
+                  <el-option v-for="day in 31" :key="day" 
+                             :label="`${day}号`" 
+                             :value="String(day).padStart(2, '0')" />
+                </el-select>
+              </el-form-item>
+            </template>
+            
+            <el-form-item v-if="newTaskForm.type === 'minute'" label="说明">
+              <el-alert 
+                type="info" 
+                :closable="false"
+                show-icon
+              >
+                此任务将每分钟执行一次
+              </el-alert>
+            </el-form-item>
+          </el-form>
+          
+          <template #footer>
+            <el-button @click="addTaskDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="handleSaveTask">保存</el-button>
+          </template>
+        </el-dialog>
+
+        <!-- 编辑任务对话框 -->
+        <el-dialog 
+          v-model="editTaskDialogVisible" 
+          title="编辑任务" 
+          width="600px"
+          :close-on-click-modal="false"
+        >
+          <el-form :model="newTaskForm" label-width="120px">
+            <el-form-item label="任务名称" required>
+              <el-input v-model="newTaskForm.name" placeholder="请输入任务名称" />
+            </el-form-item>
+            
+            <el-form-item label="任务类型" required>
+              <el-select v-model="newTaskForm.type" style="width: 100%;">
+                <el-option label="每日任务" value="daily" />
+                <el-option label="一次性任务" value="once" />
+                <el-option label="每分钟任务" value="minute" />
+                <el-option label="每周任务" value="weekday" />
+                <el-option label="每月任务" value="monthly" />
+              </el-select>
+            </el-form-item>
+            
+            <!-- 每日任务配置 -->
+            <el-form-item v-if="newTaskForm.type === 'daily'" label="执行时间" required>
+              <el-time-picker 
+                v-model="newTaskForm.config.time" 
+                format="HH:mm" 
+                value-format="HH:mm"
+                placeholder="选择时间"
+              />
+            </el-form-item>
+            
+            <!-- 一次性任务配置 -->
+            <el-form-item v-if="newTaskForm.type === 'once'" label="执行时间" required>
+              <el-date-picker 
+                v-model="newTaskForm.config.dateTime" 
+                type="datetime" 
+                format="YYYY-MM-DD HH:mm"
+                value-format="YYYY-MM-DD HH:mm:00"
+                placeholder="选择日期时间"
+              />
+            </el-form-item>
+            
+            <!-- 每周任务配置 -->
+            <template v-if="newTaskForm.type === 'weekday'">
+              <el-form-item label="执行时间" required>
+                <el-time-picker 
+                  v-model="newTaskForm.config.time" 
+                  format="HH:mm" 
+                  value-format="HH:mm"
+                  placeholder="选择时间"
+                />
+              </el-form-item>
+              <el-form-item label="星期" required>
+                <el-checkbox-group v-model="newTaskForm.config.dayOfWeek">
+                  <el-checkbox label="周一" />
+                  <el-checkbox label="周二" />
+                  <el-checkbox label="周三" />
+                  <el-checkbox label="周四" />
+                  <el-checkbox label="周五" />
+                  <el-checkbox label="周六" />
+                  <el-checkbox label="周日" />
+                </el-checkbox-group>
+              </el-form-item>
+            </template>
+            
+            <!-- 每月任务配置 -->
+            <template v-if="newTaskForm.type === 'monthly'">
+              <el-form-item label="执行时间" required>
+                <el-time-picker 
+                  v-model="newTaskForm.config.time" 
+                  format="HH:mm" 
+                  value-format="HH:mm"
+                  placeholder="选择时间"
+                />
+              </el-form-item>
+              <el-form-item label="日期" required>
+                <el-select v-model="newTaskForm.config.monthDay" multiple placeholder="选择日期" style="width: 100%;">
+                  <el-option v-for="day in 31" :key="day" 
+                             :label="`${day}号`" 
+                             :value="String(day).padStart(2, '0')" />
+                </el-select>
+              </el-form-item>
+            </template>
+            
+            <el-form-item v-if="newTaskForm.type === 'minute'" label="说明">
+              <el-alert 
+                type="info" 
+                :closable="false"
+                show-icon
+              >
+                此任务将每分钟执行一次
+              </el-alert>
+            </el-form-item>
+          </el-form>
+          
+          <template #footer>
+            <el-button @click="editTaskDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="handleUpdateTask">保存</el-button>
+          </template>
+        </el-dialog>
+
+        <!-- 执行历史对话框 -->
+        <el-dialog 
+          v-model="historyDialogVisible" 
+          :title="`执行历史 - ${currentTask?.name}`" 
+          width="700px"
+        >
+          <el-timeline v-if="currentTask?.executionHistory && currentTask.executionHistory.length > 0">
+            <el-timeline-item 
+              v-for="(record, index) in currentTask.executionHistory" 
+              :key="index"
+              :type="record.status === 'success' ? 'success' : 'danger'"
+              :icon="record.status === 'success' ? SuccessFilled : Warning"
+            >
+              <el-card>
+                <div style="margin-bottom: 8px;">
+                  <strong style="font-size: 14px;">{{ record.time }}</strong>
+                </div>
+                <div style="margin-bottom: 5px;">
+                  状态: 
+                  <el-tag :type="record.status === 'success' ? 'success' : 'danger'" size="small">
+                    {{ record.status === 'success' ? '成功' : '失败' }}
+                  </el-tag>
+                </div>
+                <div style="margin-bottom: 5px;">耗时: <el-tag size="small">{{ record.duration }}</el-tag></div>
+                <div v-if="record.error" style="color: #F56C6C; margin-top: 8px; padding: 8px; background-color: #FEF0F0; border-radius: 4px;">
+                  <el-icon style="margin-right: 5px;"><Warning /></el-icon>
+                  错误: {{ record.error }}
+                </div>
+              </el-card>
+            </el-timeline-item>
+          </el-timeline>
+          <el-empty v-else description="暂无执行历史" />
+        </el-dialog>
       </el-main>
     </el-container>
   </el-container>
