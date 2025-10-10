@@ -77,7 +77,15 @@ rotation: str = cfg.get("rotation", "10 MB")     # 日志轮转大小
 retention: str = cfg.get("retention", "7 days")  # 保留天数
 compression: str = cfg.get("compression", "zip") # 压缩
 
-colorize = cfg.get("colorize", True)    # 颜色
+# 检测是否应该启用颜色输出
+# 1. 如果设置了 NO_COLOR 环境变量，禁用颜色
+# 2. 如果 stdout 不是 TTY（如重定向到文件），禁用颜色
+# 3. 否则使用配置文件中的设置
+should_colorize = cfg.get("colorize", True)
+if os.environ.get("NO_COLOR") or not sys.stdout.isatty():
+    should_colorize = False
+
+colorize = should_colorize              # 颜色
 enqueue = cfg.get("enqueue", True)      # 多进程程安全
 backtrace = cfg.get("backtrace", True)  # 堆栈回溯
 diagnose = cfg.get("diagnose", True)    # 诊断
