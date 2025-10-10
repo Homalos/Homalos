@@ -217,3 +217,29 @@ def log_object(obj):
     # detail_content = '\n'.join(['%s:%s' % item for item in obj.__dict__.items()])
     # get_logger("Detail").info(detail_content)
     log_detail('\n'.join(['%s:%s' % item for item in obj.__dict__.items()]))
+
+
+# ===================== SSE日志流支持 =====================
+# 根据环境变量决定是否启用SSE日志
+if os.environ.get("ENABLE_SSE_LOGS", "false").lower() == "true":
+    try:
+        from src.web.services.log_buffer import sse_log_sink
+        
+        # 添加SSE sink
+        logger.add(
+            sse_log_sink,
+            format="{message}",  # sink内部自己处理格式
+            level="INFO",         # 只推送INFO及以上级别
+            enqueue=True,         # 异步处理
+            catch=True            # 捕获sink内部异常
+        )
+        
+        # 使用绑定的logger避免context错误
+        sse_logger = logger.bind(context="SSE")
+        sse_logger.info("SSE日志流已启用")
+        
+    except ImportError:
+        # Web服务未启动时，log_buffer模块不存在，忽略
+        pass
+    except Exception as e:
+        print(f"启用SSE日志流失败: {e}", file=sys.stderr)
