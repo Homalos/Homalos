@@ -31,7 +31,7 @@ This project is a new development fork of Homalos, a Python-based event-driven f
 ## Features
 
 - ✅ Event-driven architecture
-- ✅ CTP (Shanghai Futures Exchange) integration
+- ✅ CTP-API (Comprehensive trading platform API) integration
 - ✅ Real-time market data processing
 - ✅ K-line data generation (1m, 3m, 5m, 15m, 30m, 60m)
 - ✅ **Web Management Interface** (FastAPI + Vue 3)

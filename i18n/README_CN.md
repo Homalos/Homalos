@@ -31,7 +31,7 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
 ## 功能特性
 
 - ✅ 事件驱动架构
-- ✅ CTP（上海期货交易所）集成
+- ✅ CTP-API（综合交易平台API）集成
 - ✅ 实时行情数据处理
 - ✅ K线数据生成（1m、3m、5m、15m、30m、60m）
 - ✅ **Web管理界面**（FastAPI + Vue 3）
