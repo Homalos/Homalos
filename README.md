@@ -37,8 +37,22 @@ This project is a new development fork of Homalos, a Python-based event-driven f
 - ✅ **Web Management Interface** (FastAPI + Vue 3)
   - User authentication (JWT)
   - System monitoring dashboard
-  - Strategy management
+  - Strategy management with detailed panel
+  - Task scheduler
+  - Notification center
+  - Data center control via Web API
   - Real-time data visualization
+
+### ✨ Recent Updates (v0.0.1.20251010)
+
+- 🎨 **Enhanced Strategy Management**: Detailed drawer panel with positions, risk control parameters, and operation logs
+- 📊 **Extended Dashboard**: Account overview, daily performance, position distribution, and key metrics
+- ⏰ **Task Scheduler**: Manage scheduled tasks (daily/once/minute/weekly/monthly)
+- 🎮 **Console Panel**: Control trading system and data center with real-time status monitoring
+- 🔔 **Notification Center**: Unified message management with unread badges
+- 🏗️ **Frontend Optimization**: Modularized code structure, reduced Home.vue from 3060 to 1663 lines
+- 🚀 **Data Center API**: Full process management (start/stop/restart) with monitoring and audit logs
+- 🐛 **Bug Fixes**: Chinese log encoding, async operations, and multiple UI improvements
 
 ## Web Interface
 
