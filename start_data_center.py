@@ -336,7 +336,9 @@ class StartDataCenter:
         """监控循环"""
         self.logger.info("监控循环开始")
         last_status_time = time.time()
+        last_status_write_time = time.time()
         status_interval = 30  # 每30秒输出一次状态
+        status_write_interval = 5  # 每5秒写入一次状态文件
 
         while self._running and self._data_center and not self._shutdown_in_progress:
             try:
@@ -356,6 +358,12 @@ class StartDataCenter:
                     else:
                         self.logger.info("数据中心运行中...")
                     last_status_time = current_time
+
+                # 定期写入状态文件供Web服务读取
+                if current_time - last_status_write_time >= status_write_interval:
+                    if hasattr(self._data_center, 'write_status_file'):
+                        self._data_center.write_status_file()
+                    last_status_write_time = current_time
 
                 # 短暂睡眠，避免CPU占用过高
                 time.sleep(0.5)
