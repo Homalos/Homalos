@@ -10,6 +10,7 @@
 @Description: 用户数据模型
 """
 from sqlalchemy import Column, String, Boolean, DateTime
+from sqlalchemy.orm import relationship
 from .base import BaseModel
 
 
@@ -24,4 +25,12 @@ class User(BaseModel):
     role = Column(String(20), default="user", nullable=False, comment="角色：admin/user")
     is_active = Column(Boolean, default=True, nullable=False, comment="是否激活")
     last_login = Column(DateTime, nullable=True, comment="最后登录时间")
+    
+    # 关联审计日志
+    audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan")
+    
+    @property
+    def is_admin(self) -> bool:
+        """判断是否为管理员"""
+        return self.role == "admin"
 
