@@ -10,4 +10,5 @@
 @Description: 数据模型模块
 """
 from .user import User  # noqa: F401
+from .audit_log import AuditLog  # noqa: F401
 
