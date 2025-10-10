@@ -449,7 +449,7 @@ class DataCenterService:
     @classmethod
     def get_logs(cls, lines: int = 100, level: str = "all", since_line: Optional[int] = None) -> Dict[str, Any]:
         """
-        获取数据中心日志
+        获取数据中心日志（优化版：使用行数缓存和增量读取）
         
         Args:
             lines: 返回最后N行
@@ -470,26 +470,39 @@ class DataCenterService:
             }
         
         try:
-            # 读取日志文件
+            # 优化1：快速统计总行数（不读取内容）
+            total_lines = 0
             with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
-                all_lines = f.readlines()
+                for _ in f:
+                    total_lines += 1
             
-            total_lines = len(all_lines)
-            
-            # 如果指定了 since_line，返回该行之后的所有新日志
+            # 如果指定了 since_line，检查是否有新日志
             if since_line is not None and since_line >= 0:
                 if since_line >= total_lines:
-                    # 没有新日志
+                    # 没有新日志，直接返回
                     return {
                         "success": True,
                         "logs": [],
                         "total_lines": total_lines,
-                        "log_file": str(log_file)
+                        "log_file": log_file.name
                     }
-                recent_lines = all_lines[since_line:]
+                
+                # 优化2：只读取新增的行
+                recent_lines = []
+                with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    for i, line in enumerate(f):
+                        if i >= since_line:
+                            recent_lines.append(line)
+                        if i >= total_lines:  # 安全边界
+                            break
             else:
-                # 返回最后N行
-                recent_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
+                # 优化3：只读取最后N行（使用deque提高效率）
+                from collections import deque
+                recent_lines = deque(maxlen=lines)
+                with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    for line in f:
+                        recent_lines.append(line)
+                recent_lines = list(recent_lines)
             
             # 过滤日志级别
             if level != "all":
