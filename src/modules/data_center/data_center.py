@@ -881,6 +881,34 @@ class DataCenter(object):
 
         self.logger.info("闹钟停止完成")
 
+    # ================== 状态文件写入方法 ==================
+
+    def write_status_file(self) -> None:
+        """
+        写入状态文件供Web服务读取
+        """
+        try:
+            import json
+            from pathlib import Path
+            
+            status_file = Path("runtime/datacenter_status.json")
+            status_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            status = {
+                "dc_running": self.dc_running,
+                "md_login_status": self.md_login_status,
+                "td_login_status": self.td_login_status,
+                "is_login_status": self.is_login_status,
+                "alarm_running": self._alarm_running,
+                "subscribed_count": len(self.sub_all_ins) if self.sub_all_ins else 0,
+                "update_time": datetime.datetime.now().isoformat()
+            }
+            
+            status_file.write_text(json.dumps(status, ensure_ascii=False, indent=2), encoding='utf-8')
+            
+        except Exception as e:
+            self.logger.error(f"写入状态文件失败: {e}")
+
     # ================== 新增监控方法 ==================
 
     def get_thread_pool_status(self) -> dict:
