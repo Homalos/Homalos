@@ -1,5 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
+title 压缩备份当前目录指定文件夹和文件
 
 echo 文件列表处理...
 echo.
