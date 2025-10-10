@@ -126,6 +126,7 @@
     "sc2607": "INE",
     "sc2608": "INE",
     "sc2809": "INE",
+    "sc2610": "INE",
     "PK601": "CZCE",
     "PK511": "CZCE",
     "PK510": "CZCE",
@@ -266,6 +267,7 @@
     "lu2607": "INE",
     "lu2608": "INE",
     "lu2609": "INE",
+    "lu2610": "INE",
     "CY601": "CZCE",
     "CY511": "CZCE",
     "CY510": "CZCE",
@@ -311,6 +313,7 @@
     "fu2607": "SHFE",
     "fu2608": "SHFE",
     "fu2609": "SHFE",
+    "fu2610": "SHFE",
     "au2510": "SHFE",
     "au2602": "SHFE",
     "au2512": "SHFE",
@@ -813,8 +816,5 @@
     "si2603": "GFEX",
     "si2607": "GFEX",
     "si2608": "GFEX",
-    "si2609": "GFEX",
-    "lu2610": "INE",
-    "sc2610": "INE",
-    "fu2610": "SHFE"
+    "si2609": "GFEX"
 }
