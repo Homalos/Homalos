@@ -121,6 +121,9 @@
   - 将同步方法改为async/await模式
 - 🐛 修复数据中心日志初始硬编码问题
 - 🐛 修复多个UI显示和交互问题
+- 🐛 修复数据中心启动失败问题（AttributeError: '_LOG_FILE' not found）
+  - 原因：将 `_LOG_FILE` 重构为 `_LOG_DIR` 后，遗漏更新 `_ensure_runtime_dir()` 方法中的引用
+  - 解决：将 `cls._LOG_FILE.parent.mkdir()` 修改为 `cls._LOG_DIR.mkdir()`
 
 ### 📚 文档更新
 - 📝 完善中文README（README_CN.md）

@@ -75,6 +75,7 @@ class LogsResponse(BaseModel):
     message: Optional[str] = None
     logs: Optional[List[str]] = None
     total_lines: Optional[int] = None
+    log_file: Optional[str] = None
 
 
 class ConfigResponse(BaseModel):

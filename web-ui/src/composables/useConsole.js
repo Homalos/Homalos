@@ -7,7 +7,8 @@ import {
   startDataCenter,
   stopDataCenter,
   restartDataCenter,
-  getDataCenterStatus
+  getDataCenterStatus,
+  getDataCenterLogs
 } from '@/api/datacenter'
 import { getCurrentTime, addLog } from '@/utils'
 
@@ -38,6 +39,8 @@ export function useConsole() {
   const selectedDataCenterLogLevel = ref('all')
   
   let statusTimer = null  // 状态轮询定时器
+  let logsTimer = null    // 日志轮询定时器
+  let lastLogLine = 0     // 记录最后读取的日志行号
 
   // ===== 工具函数 =====
   
@@ -149,8 +152,9 @@ export function useConsole() {
       // 立即刷新一次状态
       await fetchDataCenterStatus()
       
-      // 启动状态轮询
+      // 启动状态轮询和日志轮询
       startStatusPolling()
+      startLogsPolling()
       
     } catch (error) {
       const errorMsg = extractErrorMessage(error)
@@ -204,8 +208,12 @@ export function useConsole() {
       
       ElMessage.warning('数据中心已停止')
       
-      // 停止状态轮询
+      // 停止状态轮询和日志轮询
       stopStatusPolling()
+      stopLogsPolling()
+      
+      // 重置日志行号
+      lastLogLine = 0
       
     } catch (error) {
       if (error === 'cancel') return  // 用户取消
@@ -250,8 +258,9 @@ export function useConsole() {
       // 立即刷新一次状态
       await fetchDataCenterStatus()
       
-      // 重启状态轮询
+      // 重启状态轮询和日志轮询
       startStatusPolling()
+      startLogsPolling()
       
     } catch (error) {
       if (error === 'cancel') return  // 用户取消
@@ -330,6 +339,118 @@ export function useConsole() {
     }
   }
 
+  /**
+   * 解析日志行并转换为日志对象
+   */
+  const parseLogLine = (line, index) => {
+    // 日志格式: 2025-10-10 12:34:56.789 | INFO     | [DataCenter] trace_id DataCenter:init_gateway:123 - Message
+    const logPatterns = [
+      // 匹配格式1: YYYY-MM-DD HH:mm:ss.SSS | LEVEL | [Context] ...
+      /^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[.,]\d{3})\s*\|\s*(\w+)\s*\|\s*\[([^\]]+)\]/,
+      // 匹配格式2: YYYY-MM-DD HH:mm:ss | LEVEL | [Context] ...
+      /^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*\|\s*(\w+)\s*\|\s*\[([^\]]+)\]/,
+      // 匹配格式3: YYYY-MM-DD HH:mm:ss.SSS - LEVEL - ...
+      /^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[.,]\d{3})\s*-\s*(\w+)\s*-/
+    ]
+    
+    for (const pattern of logPatterns) {
+      const match = line.match(pattern)
+      if (match) {
+        const timestamp = match[1]
+        const level = match[2].trim().toLowerCase()
+        const category = match[3] ? match[3].trim() : 'System'
+        const message = line.substring(match[0].length).trim()
+        
+        return {
+          id: `log_${Date.now()}_${index}`,
+          timestamp,
+          level,
+          category,
+          message: message.replace(/^-\s*/, '')  // 移除开头的 -
+        }
+      }
+    }
+    
+    // 如果没有匹配到格式，返回原始日志行
+    return {
+      id: `log_${Date.now()}_${index}`,
+      timestamp: getCurrentTime(),
+      level: 'info',
+      category: 'System',
+      message: line
+    }
+  }
+
+  /**
+   * 获取数据中心日志
+   */
+  const fetchDataCenterLogs = async (incremental = false) => {
+    try {
+      const params = {
+        lines: 100,
+        level: 'all'
+      }
+      
+      // 如果是增量更新，使用 since_line
+      if (incremental && lastLogLine > 0) {
+        params.sinceLine = lastLogLine
+      }
+      
+      const response = await getDataCenterLogs(params.lines, params.level, params.sinceLine)
+      
+      if (response.success && response.logs && response.logs.length > 0) {
+        const newLogs = response.logs
+          .map((line, index) => parseLogLine(line, index))
+          .filter(log => log.message)  // 过滤空消息
+        
+        if (incremental) {
+          // 增量添加到现有日志
+          dataCenterLogs.value.push(...newLogs)
+          
+          // 限制日志数量，最多保留500条
+          if (dataCenterLogs.value.length > 500) {
+            dataCenterLogs.value = dataCenterLogs.value.slice(-500)
+          }
+        } else {
+          // 首次加载，直接替换
+          dataCenterLogs.value = newLogs
+        }
+        
+        // 更新最后读取的行号
+        if (response.total_lines) {
+          lastLogLine = response.total_lines
+        }
+      }
+    } catch (error) {
+      console.error('获取数据中心日志失败:', error)
+    }
+  }
+
+  /**
+   * 启动日志轮询
+   */
+  const startLogsPolling = () => {
+    if (logsTimer) return
+    
+    // 首次加载完整日志
+    fetchDataCenterLogs(false)
+    
+    // 之后每3秒增量获取新日志
+    logsTimer = setInterval(() => {
+      fetchDataCenterLogs(true)
+    }, 3000)
+  }
+
+  /**
+   * 停止日志轮询
+   */
+  const stopLogsPolling = () => {
+    if (logsTimer) {
+      clearInterval(logsTimer)
+      logsTimer = null
+    }
+  }
+
   // 组件挂载时检查状态
   onMounted(() => {
     fetchDataCenterStatus()
@@ -337,6 +458,7 @@ export function useConsole() {
     setTimeout(() => {
       if (consoleData.dataCenter.status === 'running') {
         startStatusPolling()
+        startLogsPolling()
       }
     }, 1000)
   })
@@ -344,6 +466,7 @@ export function useConsole() {
   // 组件卸载时清理
   onUnmounted(() => {
     stopStatusPolling()
+    stopLogsPolling()
   })
 
   return {

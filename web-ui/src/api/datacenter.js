@@ -51,14 +51,19 @@ export function getDataCenterStatus() {
 /**
  * 获取数据中心日志
  * @param {Number} lines - 返回最后N行
- * @param {String} level - 日志级别 (all/INFO/WARNING/ERROR)
+ * @param {String} level - 日志级别 (all/INFO/WARNING/ERROR/DEBUG)
+ * @param {Number} sinceLine - 从第N行之后开始读取（用于增量更新）
  * @returns {Promise} 日志信息
  */
-export function getDataCenterLogs(lines = 100, level = 'all') {
+export function getDataCenterLogs(lines = 100, level = 'all', sinceLine = null) {
+  const params = { lines, level }
+  if (sinceLine !== null) {
+    params.since_line = sinceLine
+  }
   return request({
     url: '/api/datacenter/logs',
     method: 'get',
-    params: { lines, level }
+    params
   })
 }
 

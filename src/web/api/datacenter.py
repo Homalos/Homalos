@@ -147,16 +147,18 @@ async def get_status(
 async def get_logs(
     lines: int = 100,
     level: str = "all",
+    since_line: int = None,
     current_user: User = Depends(get_current_user)
 ):
     """
     获取数据中心日志
     
     参数:
-    - **lines**: 返回最后N行，默认100
-    - **level**: 日志级别 (all/INFO/WARNING/ERROR)
+    - **lines**: 返回最后N行，默认100（当since_line未指定时有效）
+    - **level**: 日志级别 (all/INFO/WARNING/ERROR/DEBUG)
+    - **since_line**: 从第N行之后开始读取，用于增量更新（可选）
     """
-    result = DataCenterService.get_logs(lines=lines, level=level)
+    result = DataCenterService.get_logs(lines=lines, level=level, since_line=since_line)
     
     if not result["success"]:
         raise HTTPException(

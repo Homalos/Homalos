@@ -31,13 +31,13 @@ class DataCenterService:
     _RUNTIME_DIR = Path("runtime")
     _PID_FILE = _RUNTIME_DIR / "datacenter.pid"
     _STATUS_FILE = _RUNTIME_DIR / "datacenter_status.json"
-    _LOG_FILE = Path("logs/datacenter.log")
+    _LOG_DIR = Path("logs")  # 日志目录
     
     @classmethod
     def _ensure_runtime_dir(cls):
         """确保运行时目录存在"""
         cls._RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
-        cls._LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        cls._LOG_DIR.mkdir(parents=True, exist_ok=True)
     
     @classmethod
     async def start(cls, user_id: int, db) -> Dict[str, Any]:
@@ -90,10 +90,13 @@ class DataCenterService:
             else:
                 creationflags = 0
             
+            # 创建临时日志文件用于进程输出（stdout/stderr）
+            process_log_file = cls._LOG_DIR / "datacenter_process.log"
+            
             # 启动数据中心进程
             process = subprocess.Popen(
                 [python_exe, str(script_path)],
-                stdout=open(cls._LOG_FILE, 'a', encoding='utf-8'),
+                stdout=open(process_log_file, 'a', encoding='utf-8'),
                 stderr=subprocess.STDOUT,
                 creationflags=creationflags,
                 cwd=str(Path.cwd()),  # 设置工作目录
@@ -313,7 +316,7 @@ class DataCenterService:
         
         try:
             return psutil.pid_exists(pid) and psutil.Process(pid).is_running()
-        except:
+        except Exception:
             return False
     
     @classmethod
@@ -417,41 +420,95 @@ class DataCenterService:
             # 不抛出异常，避免影响主流程
     
     @classmethod
-    def get_logs(cls, lines: int = 100, level: str = "all") -> Dict[str, Any]:
+    def _get_current_log_file(cls) -> Optional[Path]:
+        """
+        获取当前日期的日志文件路径
+        
+        Returns:
+            日志文件路径或None
+        """
+        try:
+            # 从日志配置中获取文件名格式
+            from datetime import datetime
+            today = datetime.now().strftime("%Y%m%d")
+            log_file = cls._LOG_DIR / f"homalos_{today}.log"
+            
+            if log_file.exists():
+                return log_file
+            
+            # 如果当天日志不存在，尝试查找最新的日志文件
+            log_files = sorted(cls._LOG_DIR.glob("homalos_*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if log_files:
+                return log_files[0]
+            
+            return None
+        except Exception as e:
+            logger.error(f"查找日志文件失败: {e}")
+            return None
+    
+    @classmethod
+    def get_logs(cls, lines: int = 100, level: str = "all", since_line: Optional[int] = None) -> Dict[str, Any]:
         """
         获取数据中心日志
         
         Args:
             lines: 返回最后N行
-            level: 日志级别过滤 (all/INFO/WARNING/ERROR)
+            level: 日志级别过滤 (all/INFO/WARNING/ERROR/DEBUG)
+            since_line: 从第N行之后开始读取（用于增量更新）
             
         Returns:
-            {"success": True/False, "logs": list, "total_lines": int}
+            {"success": True/False, "logs": list, "total_lines": int, "log_file": str}
         """
-        if not cls._LOG_FILE.exists():
-            return {"success": False, "message": "日志文件不存在"}
+        log_file = cls._get_current_log_file()
+        
+        if not log_file:
+            return {
+                "success": False, 
+                "message": "日志文件不存在",
+                "logs": [],
+                "total_lines": 0
+            }
         
         try:
-            # 读取最后N行
-            with open(cls._LOG_FILE, 'r', encoding='utf-8') as f:
+            # 读取日志文件
+            with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
                 all_lines = f.readlines()
+            
+            total_lines = len(all_lines)
+            
+            # 如果指定了 since_line，返回该行之后的所有新日志
+            if since_line is not None and since_line >= 0:
+                if since_line >= total_lines:
+                    # 没有新日志
+                    return {
+                        "success": True,
+                        "logs": [],
+                        "total_lines": total_lines,
+                        "log_file": str(log_file)
+                    }
+                recent_lines = all_lines[since_line:]
+            else:
+                # 返回最后N行
                 recent_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
             
             # 过滤日志级别
             if level != "all":
                 level_upper = level.upper()
-                recent_lines = [
-                    line for line in recent_lines 
-                    if level_upper in line
-                ]
+                filtered_lines = []
+                for line in recent_lines:
+                    # 检查日志级别（支持常见格式）
+                    if f" {level_upper} " in line or f"|{level_upper}|" in line or f"-{level_upper}-" in line:
+                        filtered_lines.append(line)
+                recent_lines = filtered_lines
             
             return {
                 "success": True,
                 "logs": [line.rstrip() for line in recent_lines],  # 移除行尾换行符
-                "total_lines": len(all_lines)
+                "total_lines": total_lines,
+                "log_file": log_file.name
             }
         except Exception as e:
             error_msg = f"读取日志失败: {e}"
             logger.error(error_msg, exc_info=True)
-            return {"success": False, "message": error_msg}
+            return {"success": False, "message": error_msg, "logs": [], "total_lines": 0}
 
