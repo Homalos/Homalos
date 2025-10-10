@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from src.web.api import auth, monitor
+from src.web.api import auth, monitor, datacenter
 from src.web.core.database import init_db, close_db
 from src.utils.log import get_logger
 
@@ -69,6 +69,7 @@ app.add_middleware(
 # 注册路由
 app.include_router(auth.router, prefix="/api")
 app.include_router(monitor.router, prefix="/api")
+app.include_router(datacenter.router, prefix="/api")
 
 
 @app.get("/", tags=["根路径"])
