@@ -41,6 +41,8 @@ export function useConsole() {
   let statusTimer = null  // 状态轮询定时器
   let logsTimer = null    // 日志轮询定时器
   let lastLogLine = 0     // 记录最后读取的日志行号
+  let eventSource = null  // SSE连接对象
+  let useSSE = true       // 是否使用SSE（降级标志）
 
   // ===== 工具函数 =====
   
@@ -152,9 +154,9 @@ export function useConsole() {
       // 立即刷新一次状态
       await fetchDataCenterStatus()
       
-      // 启动状态轮询和日志轮询
+      // 启动状态轮询和日志流（SSE或轮询）
       startStatusPolling()
-      startLogsPolling()
+      startDataCenterLogs()
       
     } catch (error) {
       const errorMsg = extractErrorMessage(error)
@@ -208,12 +210,9 @@ export function useConsole() {
       
       ElMessage.warning('数据中心已停止')
       
-      // 停止状态轮询和日志轮询
+      // 停止状态轮询和日志流
       stopStatusPolling()
-      stopLogsPolling()
-      
-      // 重置日志行号
-      lastLogLine = 0
+      stopDataCenterLogs()
       
     } catch (error) {
       if (error === 'cancel') return  // 用户取消
@@ -326,7 +325,7 @@ export function useConsole() {
     if (statusTimer) return
     
     fetchDataCenterStatus()  // 立即获取一次
-    statusTimer = setInterval(fetchDataCenterStatus, 5000)  // 每5秒刷新
+    statusTimer = setInterval(fetchDataCenterStatus, 10000)  // 每10秒刷新（优化：降低轮询频率）
   }
 
   /**
@@ -435,10 +434,10 @@ export function useConsole() {
     // 首次加载完整日志
     fetchDataCenterLogs(false)
     
-    // 之后每3秒增量获取新日志
+    // 之后每5秒增量获取新日志（优化：降低轮询频率，减少CPU占用）
     logsTimer = setInterval(() => {
       fetchDataCenterLogs(true)
-    }, 3000)
+    }, 5000)
   }
 
   /**
@@ -451,6 +450,121 @@ export function useConsole() {
     }
   }
 
+  /**
+   * 添加数据中心日志到显示列表
+   */
+  const addDataCenterLog = (log) => {
+    const logEntry = {
+      id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: log.timestamp,
+      level: log.level.toLowerCase(),
+      category: log.context || 'System',
+      message: log.message
+    }
+    
+    dataCenterLogs.value.push(logEntry)
+    
+    // 限制日志数量，最多保留500条
+    if (dataCenterLogs.value.length > 500) {
+      dataCenterLogs.value = dataCenterLogs.value.slice(-500)
+    }
+  }
+
+  /**
+   * 启动SSE日志流
+   */
+  const startSSELogs = () => {
+    if (eventSource) return
+    
+    console.log('[SSE] 启动SSE日志流...')
+    
+    try {
+      // 创建EventSource连接
+      eventSource = new EventSource('/api/datacenter/logs/stream', {
+        withCredentials: true  // 携带认证信息
+      })
+      
+      // 接收日志消息
+      eventSource.onmessage = (event) => {
+        try {
+          const log = JSON.parse(event.data)
+          addDataCenterLog(log)
+        } catch (error) {
+          console.error('[SSE] 解析日志失败:', error, event.data)
+        }
+      }
+      
+      // 连接打开
+      eventSource.onopen = () => {
+        console.log('[SSE] 连接已建立')
+        useSSE = true
+      }
+      
+      // 错误处理
+      eventSource.onerror = (error) => {
+        console.error('[SSE] 连接错误:', error)
+        
+        // 检查连接状态
+        if (eventSource.readyState === EventSource.CLOSED) {
+          console.warn('[SSE] 连接已关闭，降级到轮询模式')
+          stopSSELogs()
+          useSSE = false
+          
+          // 降级到轮询
+          startLogsPolling()
+        } else if (eventSource.readyState === EventSource.CONNECTING) {
+          console.log('[SSE] 正在重连...')
+        }
+      }
+      
+    } catch (error) {
+      console.error('[SSE] 创建SSE连接失败:', error)
+      useSSE = false
+      // 降级到轮询
+      startLogsPolling()
+    }
+  }
+
+  /**
+   * 停止SSE日志流
+   */
+  const stopSSELogs = () => {
+    if (eventSource) {
+      console.log('[SSE] 关闭SSE连接')
+      eventSource.close()
+      eventSource = null
+    }
+  }
+
+  /**
+   * 启动数据中心日志（智能选择SSE或轮询）
+   */
+  const startDataCenterLogs = () => {
+    // 检查浏览器是否支持SSE
+    if (typeof EventSource === 'undefined') {
+      console.warn('[SSE] 浏览器不支持EventSource，使用轮询模式')
+      useSSE = false
+      startLogsPolling()
+      return
+    }
+    
+    // 优先使用SSE
+    if (useSSE) {
+      startSSELogs()
+    } else {
+      startLogsPolling()
+    }
+  }
+
+  /**
+   * 停止数据中心日志
+   */
+  const stopDataCenterLogs = () => {
+    stopSSELogs()
+    stopLogsPolling()
+    lastLogLine = 0
+  }
+
   // 组件挂载时检查状态
   onMounted(() => {
     fetchDataCenterStatus()
@@ -458,7 +572,7 @@ export function useConsole() {
     setTimeout(() => {
       if (consoleData.dataCenter.status === 'running') {
         startStatusPolling()
-        startLogsPolling()
+        startDataCenterLogs()  // 使用智能选择（SSE或轮询）
       }
     }, 1000)
   })
@@ -466,7 +580,7 @@ export function useConsole() {
   // 组件卸载时清理
   onUnmounted(() => {
     stopStatusPolling()
-    stopLogsPolling()
+    stopDataCenterLogs()  // 同时清理SSE和轮询
   })
 
   return {
