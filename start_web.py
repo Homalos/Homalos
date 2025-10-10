@@ -9,9 +9,13 @@
 @Software   : PyCharm
 @Description: 启动Web服务
 """
+import os
 import uvicorn
 
 if __name__ == "__main__":
+    # 启用SSE日志流
+    os.environ['ENABLE_SSE_LOGS'] = 'true'
+    
     uvicorn.run(
         "src.web.main:app",
         host="0.0.0.0",
