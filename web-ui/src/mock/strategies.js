@@ -25,7 +25,6 @@ export const strategiesData = [
         holdPrice: 450.5,
         latestPrice: 462.3,
         tradeTime: '2025-10-08 09:15:32',
-        orderStatus: '全部成交',
         takeProfitPrice: 460.0,
         stopLossPrice: 445.0,
         margin: 45050.0,
@@ -40,13 +39,49 @@ export const strategiesData = [
         holdPrice: 5200.0,
         latestPrice: 5175.0,
         tradeTime: '2025-10-08 10:20:15',
-        orderStatus: '部分成交',
         takeProfitPrice: 5100.0,
         stopLossPrice: 5250.0,
         margin: 104000.0,
         profitLoss: -500.0,
         profitLossRatio: -0.48,
         returnRate: -0.48
+      }
+    ],
+    
+    // === 委托列表 ===
+    orders: [
+      {
+        orderTime: '2025-10-08 09:15:20',
+        contract: 'AU2406',
+        direction: '买',
+        offset: '开仓',
+        orderPrice: 450.5,
+        orderVolume: 10,
+        filledVolume: 10,
+        status: 'filled',
+        orderType: 'limit'
+      },
+      {
+        orderTime: '2025-10-08 10:20:08',
+        contract: 'AG2406',
+        direction: '卖',
+        offset: '开仓',
+        orderPrice: 5200.0,
+        orderVolume: 25,
+        filledVolume: 20,
+        status: 'partiallyFilled',
+        orderType: 'limit'
+      },
+      {
+        orderTime: '2025-10-08 14:30:15',
+        contract: 'CU2406',
+        direction: '买',
+        offset: '开仓',
+        orderPrice: 68500.0,
+        orderVolume: 5,
+        filledVolume: 0,
+        status: 'submitted',
+        orderType: 'limit'
       }
     ],
     
@@ -105,13 +140,38 @@ export const strategiesData = [
         holdPrice: 68500.0,
         latestPrice: 69065.0,
         tradeTime: '2025-10-07 14:30:28',
-        orderStatus: '全部成交',
         takeProfitPrice: 70000.0,
         stopLossPrice: 67500.0,
         margin: 102750.0,
         profitLoss: 850.0,
         profitLossRatio: 0.83,
         returnRate: 0.83
+      }
+    ],
+    
+    // === 委托列表 ===
+    orders: [
+      {
+        orderTime: '2025-10-07 14:30:15',
+        contract: 'CU2406',
+        direction: '买',
+        offset: '开仓',
+        orderPrice: 68500.0,
+        orderVolume: 15,
+        filledVolume: 15,
+        status: 'filled',
+        orderType: 'market'
+      },
+      {
+        orderTime: '2025-10-07 16:45:22',
+        contract: 'AL2406',
+        direction: '卖',
+        offset: '开仓',
+        orderPrice: 19200.0,
+        orderVolume: 10,
+        filledVolume: 0,
+        status: 'cancelled',
+        orderType: 'limit'
       }
     ],
     
@@ -170,7 +230,6 @@ export const strategiesData = [
         holdPrice: 3850.0,
         latestPrice: 3875.0,
         tradeTime: '2025-10-08 11:05:45',
-        orderStatus: '待成交',
         takeProfitPrice: 3900.0,
         stopLossPrice: 3820.0,
         margin: 96250.0,
@@ -185,13 +244,60 @@ export const strategiesData = [
         holdPrice: 3880.0,
         latestPrice: 3850.0,
         tradeTime: '2025-10-08 13:22:18',
-        orderStatus: '全部成交',
         takeProfitPrice: 3830.0,
         stopLossPrice: 3910.0,
         margin: 97000.0,
         profitLoss: 750.0,
         profitLossRatio: 0.77,
         returnRate: 0.77
+      }
+    ],
+    
+    // === 委托列表 ===
+    orders: [
+      {
+        orderTime: '2025-10-08 11:05:32',
+        contract: 'RB2406',
+        direction: '买',
+        offset: '开仓',
+        orderPrice: 3850.0,
+        orderVolume: 25,
+        filledVolume: 25,
+        status: 'filled',
+        orderType: 'limit'
+      },
+      {
+        orderTime: '2025-10-08 13:22:10',
+        contract: 'RB2409',
+        direction: '卖',
+        offset: '开仓',
+        orderPrice: 3880.0,
+        orderVolume: 25,
+        filledVolume: 25,
+        status: 'filled',
+        orderType: 'limit'
+      },
+      {
+        orderTime: '2025-10-08 15:30:00',
+        contract: 'RB2406',
+        direction: '卖',
+        offset: '平仓',
+        orderPrice: 3900.0,
+        orderVolume: 10,
+        filledVolume: 0,
+        status: 'rejected',
+        orderType: 'conditional'
+      },
+      {
+        orderTime: '2025-10-08 16:00:00',
+        contract: 'I2406',
+        direction: '买',
+        offset: '开仓',
+        orderPrice: 950.0,
+        orderVolume: 30,
+        filledVolume: 15,
+        status: 'partiallyFilled',
+        orderType: 'limit'
       }
     ],
     
