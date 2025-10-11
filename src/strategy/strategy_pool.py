@@ -13,6 +13,7 @@ from src.constants import TRADING_FLOW_DIR_NAME, trade_file_head
 from src.core.constants import Interval
 from src.strategy.base_strategy import BaseStrategy
 from src.utils.get_path import get_path_ins
+from src.utils.log import get_logger
 from src.utils.utility import write_csv, get_file_name
 
 
@@ -22,12 +23,14 @@ class StrategyPool(object):
         """
         初始化策略池
         """
+        # 策略字典
         self.strategy_map: dict[str, BaseStrategy] = {}
         # 订阅了哪些合约，如：['au2208', 'FG209', 'SA209']
         self.sub_ins_id: list[str] = []
         # 订阅了哪些合约以及具体K线类型
         # 如：{'FG209': ['min'], 'SA209': ['min', 'min5'], 'au2208': ['min', 'min5']}
         self.sub_kline_type: dict[str, list[Interval]] = {}
+        self.logger = get_logger(__class__.__name__)
 
     def init_sub(self) -> None:
         """
@@ -64,6 +67,11 @@ class StrategyPool(object):
             策略列表
         """
         return self.strategy_map.values()
+
+    def get_strategy_pool_info(self):
+        self.logger.info(f"共运行 {len(self.strategy_map)} 个策略：")
+        for strategy in self.strategy_map.values():
+            self.logger.info(strategy.strategy_id, strategy.strategy_name, strategy.strategy_content)
 
     def init_sub_id(self):
         # 遍历所有策略，将所有策略的合约进行合并
