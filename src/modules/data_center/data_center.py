@@ -21,7 +21,7 @@ from threading import Event as ThreadEvent
 from threading import Thread
 from typing import Optional, Any, TextIO, Callable
 
-from src.api.bar_generator import BarGenerator
+from src.api.bar_generator.bar_generator import BarGenerator
 from src.constants import Const
 from src.core.event import EventType, Event
 from src.core.event_bus import EventBus
