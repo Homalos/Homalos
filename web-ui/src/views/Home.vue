@@ -135,7 +135,7 @@
               <el-card shadow="hover">
                 <template #header>
                   <div class="card-header">
-                    <span>今日表现</span>
+                    <span>今日表现（{{ todayDate }}）</span>
                   </div>
                 </template>
                 <el-row :gutter="20">
@@ -579,6 +579,18 @@
           <el-table :data="strategies" style="width: 100%">
             <el-table-column prop="id" label="策略ID" width="100" />
             <el-table-column prop="name" label="策略名称" />
+            <el-table-column label="浮动盈亏" width="120">
+              <template #default="scope">
+                <span :style="{ color: getTotalProfitLoss(scope.row) > 0 ? '#F56C6C' : getTotalProfitLoss(scope.row) < 0 ? '#67C23A' : '#000000' }">
+                  {{ getTotalProfitLoss(scope.row) > 0 ? '+' : '' }}{{ getTotalProfitLoss(scope.row).toFixed(2) }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column label="交易次数" width="100">
+              <template #default="scope">
+                {{ scope.row.positions.length }}
+              </template>
+            </el-table-column>
             <el-table-column prop="status" label="状态" width="100">
               <template #default="scope">
                 <el-tag :type="scope.row.status === '运行中' ? 'success' : 'info'">
@@ -588,18 +600,6 @@
             </el-table-column>
             <el-table-column prop="startTime" label="启动时间" width="180" />
             <el-table-column prop="runningTime" label="运行时长" width="120" />
-            <el-table-column label="交易次数" width="100">
-              <template #default="scope">
-                {{ scope.row.positions.length }}
-              </template>
-            </el-table-column>
-            <el-table-column label="盈亏" width="120">
-              <template #default="scope">
-                <span :style="{ color: getTotalProfitLoss(scope.row) > 0 ? '#F56C6C' : getTotalProfitLoss(scope.row) < 0 ? '#67C23A' : '#000000' }">
-                  {{ getTotalProfitLoss(scope.row) > 0 ? '+' : '' }}{{ getTotalProfitLoss(scope.row).toFixed(2) }}
-                </span>
-              </template>
-            </el-table-column>
             <el-table-column label="操作" width="220">
               <template #default="scope">
                 <el-button
@@ -946,31 +946,22 @@
               </template>
               <el-table :data="currentStrategy.positions" border stripe>
                 <el-table-column prop="contract" label="合约代码" width="100" />
-                <el-table-column prop="volume" label="持仓量" width="80" />
-                <el-table-column prop="direction" label="方向" width="60">
+                <el-table-column prop="direction" label="买卖方向" width="90">
                   <template #default="scope">
                     <el-tag :type="scope.row.direction === '多' ? 'danger' : 'success'">
                       {{ scope.row.direction }}
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="holdPrice" label="成本价" width="100" />
-                <el-table-column prop="latestPrice" label="最新价" width="100" />
-                <el-table-column prop="tradeTime" label="成交时间" width="160" />
-                <el-table-column prop="orderStatus" label="委托状态" width="100">
+                <el-table-column prop="volume" label="持仓量" width="80" />
+                <el-table-column prop="holdPrice" label="开仓均价" width="100">
                   <template #default="scope">
-                    <el-tag 
-                      :type="scope.row.orderStatus === '全部成交' ? 'success' : scope.row.orderStatus === '部分成交' ? 'warning' : 'info'"
-                    >
-                      {{ scope.row.orderStatus }}
-                    </el-tag>
+                    {{ scope.row.holdPrice.toFixed(2) }}
                   </template>
                 </el-table-column>
-                <el-table-column prop="takeProfitPrice" label="止盈价" width="100" />
-                <el-table-column prop="stopLossPrice" label="止损价" width="100" />
-                <el-table-column prop="margin" label="保证金" width="120">
+                <el-table-column prop="latestPrice" label="当前价格" width="100">
                   <template #default="scope">
-                    {{ scope.row.margin.toFixed(2) }}
+                    {{ scope.row.latestPrice.toFixed(2) }}
                   </template>
                 </el-table-column>
                 <el-table-column prop="profitLoss" label="浮动盈亏" width="100">
@@ -980,17 +971,114 @@
                     </span>
                   </template>
                 </el-table-column>
-                <el-table-column prop="returnRate" label="收益率" width="100">
+                <el-table-column prop="returnRate" label="持仓盈亏比例" width="120">
                   <template #default="scope">
                     <span :style="{ color: scope.row.returnRate > 0 ? '#F56C6C' : scope.row.returnRate < 0 ? '#67C23A' : '#000000' }">
                       {{ scope.row.returnRate > 0 ? '+' : '' }}{{ scope.row.returnRate.toFixed(2) }}%
                     </span>
                   </template>
                 </el-table-column>
+                <el-table-column prop="margin" label="保证金占用" width="120">
+                  <template #default="scope">
+                    {{ scope.row.margin.toFixed(2) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="takeProfitPrice" label="止盈价" width="100">
+                  <template #default="scope">
+                    {{ scope.row.takeProfitPrice.toFixed(2) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="stopLossPrice" label="止损价" width="100">
+                  <template #default="scope">
+                    {{ scope.row.stopLossPrice.toFixed(2) }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="280" fixed="right">
+                  <template #default="scope">
+                    <el-button size="small" type="danger" @click="handleClosePosition(scope.row)">
+                      一键平仓
+                    </el-button>
+                    <el-button size="small" type="warning" @click="handlePartialClose(scope.row)">
+                      部分平仓
+                    </el-button>
+                    <el-button size="small" type="primary" @click="handleReversePosition(scope.row)">
+                      反手开仓
+                    </el-button>
+                  </template>
+                </el-table-column>
               </el-table>
             </el-card>
 
-            <!-- 3. 风险控制 -->
+            <!-- 3. 委托列表 -->
+            <el-card shadow="never" class="detail-section">
+              <template #header>
+                <span class="section-title">委托列表</span>
+              </template>
+              <el-table :data="currentStrategy.orders" border stripe>
+                <el-table-column prop="orderTime" label="委托时间" width="160" />
+                <el-table-column prop="contract" label="合约代码" width="100" />
+                <el-table-column prop="direction" label="买卖方向" width="80">
+                  <template #default="scope">
+                    <el-tag :type="scope.row.direction === '买' ? 'danger' : 'success'">
+                      {{ scope.row.direction }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="offset" label="开平仓" width="80">
+                  <template #default="scope">
+                    <el-tag :type="scope.row.offset === '开仓' ? 'warning' : 'info'">
+                      {{ scope.row.offset }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="orderPrice" label="委托价格" width="100">
+                  <template #default="scope">
+                    {{ scope.row.orderPrice.toFixed(2) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="orderVolume" label="委托数量" width="80" />
+                <el-table-column prop="filledVolume" label="已成交数量" width="100" />
+                <el-table-column prop="status" label="委托状态" width="100">
+                  <template #default="scope">
+                    <el-tag :type="orderStatusMap[scope.row.status].color">
+                      {{ orderStatusMap[scope.row.status].name }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="orderType" label="委托类型" width="100">
+                  <template #default="scope">
+                    <el-tag :type="orderTypeMap[scope.row.orderType].color">
+                      {{ orderTypeMap[scope.row.orderType].name }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="180" fixed="right">
+                  <template #default="scope">
+                    <el-button 
+                      v-if="scope.row.status === 'submitted' || scope.row.status === 'partiallyFilled'"
+                      size="small" 
+                      type="warning"
+                      @click="handleCancelOrder(scope.row)"
+                    >
+                      撤单
+                    </el-button>
+                    <el-button 
+                      v-if="scope.row.status === 'submitted' || scope.row.status === 'partiallyFilled'"
+                      size="small" 
+                      type="primary"
+                      @click="handleModifyOrder(scope.row)"
+                    >
+                      修改
+                    </el-button>
+                    <span v-if="scope.row.status === 'filled' || scope.row.status === 'cancelled' || scope.row.status === 'rejected'">
+                      -
+                    </span>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-card>
+
+            <!-- 4. 风险控制 -->
             <el-card shadow="never" class="detail-section">
               <template #header>
                 <span class="section-title">风险控制</span>
@@ -1362,7 +1450,7 @@ import {
   dashboardData as dashboardDataImport
 } from '@/mock'
 // 常量导入
-import { logLevelMap, taskTypeMap, weekDayMap } from '@/constants'
+import { logLevelMap, taskTypeMap, weekDayMap, orderStatusMap, orderTypeMap } from '@/constants'
 // 工具函数导入
 import {
   getCurrentTime,
@@ -1460,6 +1548,16 @@ const {
 // 使用导入的仪表盘数据初始化
 const dashboardData = reactive(dashboardDataImport)
 
+// 今日日期显示
+const todayDate = computed(() => {
+  const date = new Date()
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+})
+
 const settings = reactive({
   systemName: 'Homalos',
   autoStart: true,
@@ -1551,6 +1649,140 @@ const saveSettings = () => {
   console.log('保存系统设置:', settings)
   
   ElMessage.success('系统设置保存成功')
+}
+
+/**
+ * 撤单处理
+ */
+const handleCancelOrder = (order) => {
+  ElMessageBox.confirm(
+    `确认撤销委托？合约：${order.contract}，方向：${order.direction}，数量：${order.orderVolume}`,
+    '撤单确认',
+    {
+      confirmButtonText: '确认撤单',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    // TODO: 调用API撤销委托
+    console.log('撤销委托:', order)
+    ElMessage.success('委托已撤销')
+    
+    // 更新委托状态为已撤单
+    order.status = 'cancelled'
+  }).catch(() => {
+    ElMessage.info('已取消操作')
+  })
+}
+
+/**
+ * 修改委托处理
+ */
+const handleModifyOrder = (order) => {
+  ElMessageBox.prompt(
+    `当前委托价格：${order.orderPrice}，委托数量：${order.orderVolume}`,
+    '修改委托',
+    {
+      confirmButtonText: '确认修改',
+      cancelButtonText: '取消',
+      inputPattern: /^\d+(\.\d+)?$/,
+      inputErrorMessage: '请输入有效的数字',
+      inputPlaceholder: '请输入新的委托价格'
+    }
+  ).then(({ value }) => {
+    // TODO: 调用API修改委托
+    console.log('修改委托:', order, '新价格:', value)
+    ElMessage.success(`委托价格已修改为 ${value}`)
+    
+    // 更新委托价格
+    order.orderPrice = parseFloat(value)
+  }).catch(() => {
+    ElMessage.info('已取消操作')
+  })
+}
+
+/**
+ * 一键平仓处理
+ */
+const handleClosePosition = (position) => {
+  ElMessageBox.confirm(
+    `确认平仓？\n合约：${position.contract}\n方向：${position.direction}\n持仓量：${position.volume} 手\n当前价格：${position.latestPrice.toFixed(2)}\n预计盈亏：${position.profitLoss > 0 ? '+' : ''}${position.profitLoss.toFixed(2)}`,
+    '一键平仓确认',
+    {
+      confirmButtonText: '确认平仓',
+      cancelButtonText: '取消',
+      type: 'warning',
+      dangerouslyUseHTMLString: false
+    }
+  ).then(() => {
+    // TODO: 调用API执行平仓操作
+    console.log('一键平仓:', position)
+    ElMessage.success('平仓指令已提交')
+    
+    // 模拟平仓后移除持仓
+    // 实际应用中应该等待后端返回确认
+  }).catch(() => {
+    ElMessage.info('已取消平仓操作')
+  })
+}
+
+/**
+ * 部分平仓处理
+ */
+const handlePartialClose = (position) => {
+  ElMessageBox.prompt(
+    `当前持仓量：${position.volume} 手\n请输入平仓数量（1-${position.volume}）`,
+    '部分平仓',
+    {
+      confirmButtonText: '确认平仓',
+      cancelButtonText: '取消',
+      inputPattern: /^\d+$/,
+      inputErrorMessage: '请输入有效的整数',
+      inputPlaceholder: '请输入平仓数量',
+      inputValidator: (value) => {
+        const num = parseInt(value)
+        if (num < 1 || num > position.volume) {
+          return `平仓数量必须在 1 到 ${position.volume} 之间`
+        }
+        return true
+      }
+    }
+  ).then(({ value }) => {
+    // TODO: 调用API执行部分平仓操作
+    console.log('部分平仓:', position, '数量:', value)
+    ElMessage.success(`已提交平仓 ${value} 手的指令`)
+    
+    // 模拟部分平仓后更新持仓量
+    // 实际应用中应该等待后端返回确认
+  }).catch(() => {
+    ElMessage.info('已取消平仓操作')
+  })
+}
+
+/**
+ * 反手开仓处理
+ */
+const handleReversePosition = (position) => {
+  const reverseDirection = position.direction === '多' ? '空' : '多'
+  ElMessageBox.confirm(
+    `确认反手开仓？\n当前持仓：${position.contract} ${position.direction} ${position.volume} 手\n操作说明：\n1. 平掉当前 ${position.direction} 仓 ${position.volume} 手\n2. 开立 ${reverseDirection} 仓 ${position.volume} 手`,
+    '反手开仓确认',
+    {
+      confirmButtonText: '确认反手',
+      cancelButtonText: '取消',
+      type: 'warning',
+      dangerouslyUseHTMLString: false
+    }
+  ).then(() => {
+    // TODO: 调用API执行反手操作
+    console.log('反手开仓:', position, '新方向:', reverseDirection)
+    ElMessage.success('反手操作指令已提交')
+    
+    // 模拟反手后更新持仓方向
+    // 实际应用中应该等待后端返回确认
+  }).catch(() => {
+    ElMessage.info('已取消反手操作')
+  })
 }
 
 // ===== 所有业务逻辑已提取到 Composables =====
