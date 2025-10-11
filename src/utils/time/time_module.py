@@ -20,7 +20,7 @@ class TimeModule(object):
     def now(self, tz=None):
         return self.time_module.datetime.now(tz)
 
-    def strf_time(self, fmt):
+    def strf_now_time(self, fmt):
         return self.time_module.datetime.now().strftime(fmt)
 
 
