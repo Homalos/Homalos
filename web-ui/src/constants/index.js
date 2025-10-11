@@ -41,3 +41,11 @@ export const orderTypeMap = {
   conditional: { name: '条件单', color: 'warning' }
 }
 
+// 成交类型映射
+export const tradeTypeMap = {
+  normal: { name: '普通', color: '' },
+  cancelFilled: { name: '撤单成交', color: 'warning' },
+  autoClose: { name: '自动平仓', color: 'info' },
+  forcedClose: { name: '强制平仓', color: 'danger' }
+}
+
