@@ -1078,7 +1078,51 @@
               </el-table>
             </el-card>
 
-            <!-- 4. 风险控制 -->
+            <!-- 4. 成交明细 -->
+            <el-card shadow="never" class="detail-section">
+              <template #header>
+                <span class="section-title">成交明细</span>
+              </template>
+              <el-table :data="currentStrategy.trades" border stripe>
+                <el-table-column prop="tradeTime" label="成交时间" width="160" />
+                <el-table-column prop="contract" label="合约代码" width="100" />
+                <el-table-column prop="direction" label="买卖方向" width="80">
+                  <template #default="scope">
+                    <el-tag :type="scope.row.direction === '买' ? 'danger' : 'success'">
+                      {{ scope.row.direction }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="offset" label="开平仓" width="80">
+                  <template #default="scope">
+                    <el-tag :type="scope.row.offset === '开仓' ? 'warning' : 'info'">
+                      {{ scope.row.offset }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="tradePrice" label="成交价格" width="100">
+                  <template #default="scope">
+                    {{ scope.row.tradePrice.toFixed(2) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="tradeVolume" label="成交数量" width="80" />
+                <el-table-column prop="tradeId" label="成交编号" width="180" />
+                <el-table-column prop="commission" label="手续费" width="100">
+                  <template #default="scope">
+                    {{ scope.row.commission.toFixed(2) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="tradeType" label="成交类型" width="120">
+                  <template #default="scope">
+                    <el-tag :type="tradeTypeMap[scope.row.tradeType].color">
+                      {{ tradeTypeMap[scope.row.tradeType].name }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-card>
+
+            <!-- 5. 风险控制 -->
             <el-card shadow="never" class="detail-section">
               <template #header>
                 <span class="section-title">风险控制</span>
@@ -1091,7 +1135,7 @@
               </el-descriptions>
             </el-card>
 
-            <!-- 4. 风险控制参数配置 -->
+            <!-- 6. 风险控制参数配置 -->
             <el-card shadow="never" class="detail-section">
               <template #header>
                 <div class="section-header">
@@ -1450,7 +1494,7 @@ import {
   dashboardData as dashboardDataImport
 } from '@/mock'
 // 常量导入
-import { logLevelMap, taskTypeMap, weekDayMap, orderStatusMap, orderTypeMap } from '@/constants'
+import { logLevelMap, taskTypeMap, weekDayMap, orderStatusMap, orderTypeMap, tradeTypeMap } from '@/constants'
 // 工具函数导入
 import {
   getCurrentTime,
