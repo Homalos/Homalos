@@ -37,7 +37,7 @@ class Config(object):
     system_version = system_config.get("base").get("version")
     timezone = system_config.get("base").get("timezone")
     dev_mode = system_config.get("base").get("dev_mode")
-    dev_trading_hours = system_config.get("base.dev_trading_hours")
+    dev_trading_hours = system_config.get("base.dev_trading_hours_check")
 
     # 如果是开发模式，则使用开发配置文件
     if dev_mode:
