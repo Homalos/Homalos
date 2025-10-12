@@ -9,4 +9,4 @@ base:
   timezone: "Asia/Shanghai"                        # 系统时区
   # 开发模式配置
   dev_mode: true                                  # 是否启用开发模式
-  dev_trading_hours: true                         # 开发下是否绕过交易时间检查
+  dev_trading_hours_check: false                  # 开发下是否交易时间检查，false绕过检查，true进行检查
