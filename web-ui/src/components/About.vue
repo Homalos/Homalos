@@ -10,7 +10,7 @@
         <span style="font-weight: 600; font-size: 16px;">Homalos 量化交易系统</span>
       </el-descriptions-item>
       <el-descriptions-item label="版本">
-        <el-tag type="success">v1.0.0</el-tag>
+        <el-tag type="success">v0.0.1</el-tag>
       </el-descriptions-item>
       <el-descriptions-item label="作者">
         Homalos Team
