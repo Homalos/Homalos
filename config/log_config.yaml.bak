@@ -1,7 +1,7 @@
 logging:
   level: "INFO"                   # 日志级别
   rotation: "50 MB"               # 单个日志文件大小上限
-  retention: "14 days"            # 日志保留时间
+  retention: "7 days"             # 日志保留时间
   compression: "zip"              # 日志文件压缩格式
   log_dir_name: "logs"            # 日志目录
   log_filename: "homalos"         # 日志文件名

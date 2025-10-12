@@ -41,21 +41,25 @@
       </el-form-item>
       <el-form-item label="文件大小上限">
         <el-input 
-          v-model="settings.logging.rotation" 
-          placeholder="例如: 50 MB"
-          style="width: 200px;"
+          v-model="settings.logging.rotationValue" 
+          type="number"
+          placeholder="50"
+          style="width: 150px;"
         />
-        <span style="margin-left: 10px; color: #909399; font-size: 13px;">
+        <span style="margin-left: 10px; font-weight: 500;">MB</span>
+        <span style="margin-left: 20px; color: #909399; font-size: 13px;">
           单个日志文件达到此大小后自动轮转
         </span>
       </el-form-item>
       <el-form-item label="日志保留时间">
         <el-input 
-          v-model="settings.logging.retention" 
-          placeholder="例如: 14 days"
-          style="width: 200px;"
+          v-model="settings.logging.retentionValue" 
+          type="number"
+          placeholder="14"
+          style="width: 150px;"
         />
-        <span style="margin-left: 10px; color: #909399; font-size: 13px;">
+        <span style="margin-left: 10px; font-weight: 500;">days</span>
+        <span style="margin-left: 20px; color: #909399; font-size: 13px;">
           超过保留时间的日志将被自动删除
         </span>
       </el-form-item>
@@ -202,8 +206,8 @@ const settings = reactive({
   tradingTimeCheck: false,    // 交易时间检查，默认关闭
   logging: {
     level: 'INFO',            // 日志级别
-    rotation: '50 MB',        // 单个日志文件大小上限
-    retention: '14 days',     // 日志保留时间
+    rotationValue: 50,        // 文件大小上限数值
+    retentionValue: 14,       // 日志保留时间数值
     compression: 'zip'        // 日志文件压缩格式
   },
   notificationConfig: {
@@ -293,8 +297,19 @@ const loadSystemConfig = async () => {
     
     if (loggingResponse) {
       settings.logging.level = loggingResponse.level
-      settings.logging.rotation = loggingResponse.rotation
-      settings.logging.retention = loggingResponse.retention
+      
+      // 拆分 rotation (例如 "50 MB" -> 50)
+      if (loggingResponse.rotation) {
+        const rotationMatch = loggingResponse.rotation.match(/^(\d+)/)
+        settings.logging.rotationValue = rotationMatch ? parseInt(rotationMatch[1]) : 50
+      }
+      
+      // 拆分 retention (例如 "14 days" -> 14)
+      if (loggingResponse.retention) {
+        const retentionMatch = loggingResponse.retention.match(/^(\d+)/)
+        settings.logging.retentionValue = retentionMatch ? parseInt(retentionMatch[1]) : 14
+      }
+      
       settings.logging.compression = loggingResponse.compression
     }
     
@@ -336,8 +351,8 @@ const saveSettings = async () => {
   try {
     const loggingConfig = {
       level: settings.logging.level,
-      rotation: settings.logging.rotation,
-      retention: settings.logging.retention,
+      rotation: `${settings.logging.rotationValue} MB`,  // 数值 + 空格 + 单位
+      retention: `${settings.logging.retentionValue} days`,  // 数值 + 空格 + 单位
       compression: settings.logging.compression
     }
     
