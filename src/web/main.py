@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from src.web.api import auth, monitor, datacenter
+from src.web.api import auth, monitor, datacenter, system_config
 from src.web.core.database import init_db, close_db
 from src.utils.log import get_logger
 
@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Homalos量化交易系统",
     description="基于Python的期货量化交易系统Web管理平台",
-    version="1.0.0",
+    version="0.0.1",
     lifespan=lifespan
 )
 
@@ -70,6 +70,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api")
 app.include_router(monitor.router, prefix="/api")
 app.include_router(datacenter.router, prefix="/api")
+app.include_router(system_config.router, prefix="/api")
 
 
 @app.get("/", tags=["根路径"])
@@ -79,7 +80,7 @@ async def root():
     """
     return {
         "message": "Welcome to Homalos量化交易系统",
-        "version": "1.0.0",
+        "version": "0.0.1",
         "docs": "/docs",
         "redoc": "/redoc"
     }
