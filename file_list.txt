@@ -20,15 +20,14 @@ web-ui
 CODE_OF_CONDUCT.md 
 init_admin.bat 
 LICENSE 
-main.py 
 pyproject.toml 
 README.md 
 SECURITY.md 
-start_all.bat 
+start_all_web.bat 
 start_data_center.bat 
 start_data_center.py 
+start_homalos.py 
 start_web.bat 
 start_web.py 
 start_web_ui.bat 
-test_web_api.py 
 uv.lock 
