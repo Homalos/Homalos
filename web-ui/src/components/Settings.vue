@@ -6,6 +6,10 @@
       </div>
     </template>
     <el-form label-width="140px">
+      <!-- 基础设置 -->
+      <el-divider content-position="left">
+        <span style="font-weight: 600;">基础设置</span>
+      </el-divider>
       <el-form-item label="开发模式">
         <el-switch v-model="settings.devMode" />
       </el-form-item>
@@ -15,6 +19,18 @@
           开启后将检查是否在交易时间内
         </span>
       </el-form-item>
+      <el-form-item v-if="!settings.devMode" label="交易时间检查" style="margin-left: 20px;">
+        <el-switch v-model="settings.tradingTimeCheck" disabled />
+        <span style="margin-left: 10px; color: #E6A23C; font-size: 13px;">
+          <el-icon style="vertical-align: middle;"><Warning /></el-icon>
+          生产模式下交易时间检查永远启用，不可修改
+        </span>
+      </el-form-item>
+      
+      <!-- 日志设置 -->
+      <el-divider content-position="left">
+        <span style="font-weight: 600;">日志设置</span>
+      </el-divider>
       <el-form-item label="日志级别">
         <el-select v-model="settings.logLevel">
           <el-option label="DEBUG" value="debug" />
@@ -80,6 +96,13 @@
               style="width: 400px;"
             />
           </el-form-item>
+          <el-form-item label="应用ID">
+            <el-input 
+              v-model="settings.notificationConfig.wecom.agentId" 
+              placeholder="请输入应用ID"
+              style="width: 400px;"
+            />
+          </el-form-item>
           <el-form-item label="应用密钥">
             <el-input 
               v-model="settings.notificationConfig.wecom.appSecret" 
@@ -133,7 +156,8 @@
 <script setup>
 import { reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getSystemConfig, updateSystemConfig } from '@/api/system'
+import { Warning } from '@element-plus/icons-vue'
+import { getSystemConfig, updateSystemConfig, getNotificationConfig, updateNotificationConfig } from '@/api/system'
 
 const settings = reactive({
   systemName: 'Homalos',
@@ -151,6 +175,7 @@ const settings = reactive({
       enabled: false,        // 独立启用开关
       name: '',              // 企业微信机器人名称
       corpId: '',            // 企业微信ID
+      agentId: '',           // 应用ID
       appSecret: '',         // 应用密钥
       showSecret: false      // 是否显示密钥明文
     },
@@ -182,6 +207,41 @@ const loadSystemConfig = async () => {
   } catch (error) {
     console.error('加载系统配置失败:', error)
     ElMessage.error('加载系统配置失败')
+  }
+  
+  // 加载通知配置
+  try {
+    const notificationResponse = await getNotificationConfig()
+    console.log('获取通知配置:', notificationResponse)
+    
+    // 更新钉钉配置
+    if (notificationResponse.dingtalk) {
+      settings.notificationConfig.dingtalk.enabled = notificationResponse.dingtalk.enabled
+      settings.notificationConfig.dingtalk.name = notificationResponse.dingtalk.name
+      settings.notificationConfig.dingtalk.id = notificationResponse.dingtalk.id
+      settings.notificationConfig.dingtalk.webhookUrl = notificationResponse.dingtalk.webhookUrl
+    }
+    
+    // 更新企业微信配置
+    if (notificationResponse.wecom) {
+      settings.notificationConfig.wecom.enabled = notificationResponse.wecom.enabled
+      settings.notificationConfig.wecom.name = notificationResponse.wecom.name
+      settings.notificationConfig.wecom.corpId = notificationResponse.wecom.corpId
+      settings.notificationConfig.wecom.agentId = notificationResponse.wecom.agentId
+      settings.notificationConfig.wecom.appSecret = notificationResponse.wecom.appSecret
+    }
+    
+    // 更新邮件配置
+    if (notificationResponse.email) {
+      settings.notificationConfig.email.enabled = notificationResponse.email.enabled
+      settings.notificationConfig.email.address = notificationResponse.email.address
+      settings.notificationConfig.email.smtpServer = notificationResponse.email.smtpServer
+    }
+    
+    console.log('通知配置已加载')
+  } catch (error) {
+    console.error('加载通知配置失败:', error)
+    ElMessage.warning('加载通知配置失败，使用默认配置')
   }
 }
 
@@ -235,6 +295,9 @@ const saveSettings = async () => {
     if (!settings.notificationConfig.wecom.corpId) {
       errors.push('企业微信ID')
     }
+    if (!settings.notificationConfig.wecom.agentId) {
+      errors.push('应用ID')
+    }
     if (!settings.notificationConfig.wecom.appSecret) {
       errors.push('企业微信应用密钥')
     }
@@ -252,16 +315,47 @@ const saveSettings = async () => {
   
   // 如果有未填写的配置，显示警告（但不影响系统配置的保存）
   if (errors.length > 0) {
-    ElMessage.warning(`通知配置未完整填写：${errors.join('、')}`)
+    ElMessage.warning(`通知配置未完整填写：${errors.join('、')}，已跳过保存通知配置`)
     console.log('通知配置验证失败，跳过保存')
   } else {
-    // TODO: 保存通知配置到后端
-    console.log('通知配置:', settings.notificationConfig)
-    notificationConfigSaved = true
-    
-    // 如果通知配置也保存成功，显示完整成功消息
-    if (systemConfigSaved && notificationConfigSaved) {
-      ElMessage.success('所有设置保存成功')
+    // 保存通知配置到后端
+    try {
+      const notificationConfig = {
+        dingtalk: {
+          enabled: settings.notificationConfig.dingtalk.enabled,
+          name: settings.notificationConfig.dingtalk.name,
+          id: settings.notificationConfig.dingtalk.id,
+          webhookUrl: settings.notificationConfig.dingtalk.webhookUrl
+        },
+        wecom: {
+          enabled: settings.notificationConfig.wecom.enabled,
+          name: settings.notificationConfig.wecom.name,
+          corpId: settings.notificationConfig.wecom.corpId,
+          agentId: settings.notificationConfig.wecom.agentId,
+          appSecret: settings.notificationConfig.wecom.appSecret
+        },
+        email: {
+          enabled: settings.notificationConfig.email.enabled,
+          address: settings.notificationConfig.email.address,
+          smtpServer: settings.notificationConfig.email.smtpServer
+        }
+      }
+      
+      console.log('保存通知配置:', notificationConfig)
+      
+      const notificationResponse = await updateNotificationConfig(notificationConfig)
+      console.log('通知配置保存响应:', notificationResponse)
+      
+      notificationConfigSaved = true
+      ElMessage.success('通知配置保存成功')
+      
+      // 如果系统配置和通知配置都保存成功，显示完整成功消息
+      if (systemConfigSaved && notificationConfigSaved) {
+        ElMessage.success('所有设置保存成功')
+      }
+    } catch (error) {
+      console.error('保存通知配置失败:', error)
+      ElMessage.error('通知配置保存失败')
     }
   }
 }

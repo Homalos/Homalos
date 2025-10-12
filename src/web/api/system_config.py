@@ -14,7 +14,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.web.core.security import get_current_user
 from src.web.core.database import get_db
-from src.web.schemas.system_config import SystemConfigResponse, SystemConfigUpdate, SystemInfoResponse
+from src.web.schemas.system_config import (
+    SystemConfigResponse, 
+    SystemConfigUpdate, 
+    SystemInfoResponse,
+    NotificationConfigResponse,
+    NotificationConfigUpdate
+)
 from src.web.services.system_config_service import SystemConfigService
 from src.web.models.user import User
 from src.utils.log import get_logger
@@ -107,6 +113,79 @@ async def update_system_config(
     
     if not result.get('success'):
         raise HTTPException(status_code=500, detail=result.get('message', '更新配置失败'))
+    
+    return {
+        "success": True,
+        "message": result.get('message'),
+        "backup": result.get('backup')
+    }
+
+
+@router.get("/notification", response_model=NotificationConfigResponse, summary="获取通知配置")
+async def get_notification_config(
+    current_user: User = Depends(get_current_user)
+) -> NotificationConfigResponse:
+    """
+    获取通知配置
+    
+    需要登录认证
+    
+    根据 system.yaml 中的 dev_mode 自动选择:
+    - dev_mode=true: 从 extra.dev.yaml 读取
+    - dev_mode=false: 从 extra.prod.yaml 读取
+    
+    Returns:
+        NotificationConfigResponse: 通知配置数据
+            - dingtalk: 钉钉配置
+            - wecom: 企业微信配置
+            - email: 邮件配置
+    """
+    result = SystemConfigService.get_notification_config()
+    
+    if not result.get('success'):
+        raise HTTPException(status_code=500, detail=result.get('message', '获取通知配置失败'))
+    
+    config = result.get('config', {})
+    return NotificationConfigResponse(**config)
+
+
+@router.put("/notification", summary="更新通知配置")
+async def update_notification_config(
+    config_update: NotificationConfigUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> dict:
+    """
+    更新通知配置
+    
+    需要登录认证
+    
+    根据 system.yaml 中的 dev_mode 自动选择:
+    - dev_mode=true: 更新到 extra.dev.yaml
+    - dev_mode=false: 更新到 extra.prod.yaml
+    
+    Args:
+        config_update: 要更新的通知配置项
+        
+    Returns:
+        更新结果
+    """
+    # 只更新提供的字段
+    updates = config_update.model_dump(exclude_unset=True)
+    
+    if not updates:
+        raise HTTPException(status_code=400, detail="没有提供要更新的配置")
+    
+    logger.info(f"用户 {current_user.username} 请求更新通知配置: {list(updates.keys())}")
+    
+    result = await SystemConfigService.update_notification_config(
+        user_id=current_user.id,
+        updates=updates,
+        db=db
+    )
+    
+    if not result.get('success'):
+        raise HTTPException(status_code=500, detail=result.get('message', '更新通知配置失败'))
     
     return {
         "success": True,

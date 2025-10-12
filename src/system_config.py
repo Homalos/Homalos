@@ -67,6 +67,6 @@ class Config(object):
     ding_address: str = extra_config.get("ding_address", "")
 
 
-if __name__ == '__main__':
-    print(Config.notify_type)
-    print(Config.notify_type.get("weixin"))
+# if __name__ == '__main__':
+#     print(Config.notify_type)
+#     print(Config.notify_type.get("weixin"))

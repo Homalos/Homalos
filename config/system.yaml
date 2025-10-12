@@ -1,14 +1,13 @@
 base:
-  name: "Homalos 量化交易系统"
-  describe: "Homalos 是一个专业的期货量化交易系统，提供策略开发、回测、实盘交易等功能，助力投资者实现量化交易目标。"
-  version: "0.0.1"
-  author: "Homalos Team"
-  copyright: "Copyright © 2025 Homalos Team. All rights reserved."
-  contact: "https://github.com/homalos"
+  name: Homalos 量化交易系统
+  describe: Homalos 是一个专业的期货量化交易系统，提供策略开发、回测、实盘交易等功能，助力投资者实现量化交易目标。
+  version: 0.0.1
+  author: Homalos Team
+  copyright: Copyright © 2025 Homalos Team. All rights reserved.
+  contact: https://github.com/homalos
   technology_stack:
-    - "后端：Python 3.13 + FastAPI"
-    - "前端：Vue 3 + Element Plus + Vite"
-    - "数据库：SQLite"
-  timezone: "Asia/Shanghai"
+  - 后端：Python 3.13 + FastAPI
+  - 前端：Vue 3 + Element Plus + Vite
+  - 数据库：SQLite
+  timezone: Asia/Shanghai
   dev_mode: true
-  dev_trading_hours_check: false

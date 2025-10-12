@@ -37,3 +37,30 @@ export function updateSystemConfig(config) {
   })
 }
 
+/**
+ * 获取通知配置
+ * @returns {Promise} 通知配置数据
+ */
+export function getNotificationConfig() {
+  return request({
+    url: '/api/system-config/notification',
+    method: 'get'
+  })
+}
+
+/**
+ * 更新通知配置
+ * @param {Object} config - 通知配置对象
+ * @param {Object} config.dingtalk - 钉钉配置
+ * @param {Object} config.wecom - 企业微信配置
+ * @param {Object} config.email - 邮件配置
+ * @returns {Promise} 更新结果
+ */
+export function updateNotificationConfig(config) {
+  return request({
+    url: '/api/system-config/notification',
+    method: 'put',
+    data: config
+  })
+}
+

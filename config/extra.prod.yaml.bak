@@ -1,0 +1,46 @@
+# Homalos期货量化交易系统配置文件
+# 配置文件格式参考：https://yaml.org/spec/1.2/spec.html
+
+# 系统基础配置
+base:
+  data_dir: "data"          # 数据存储目录
+  log_dir: "logs"           # 日志存储目录
+  flow_dir: "con"           # 数据流存储目录
+# 交易时段配置
+trading_hours:
+  enable_check: true          # 启用交易时段检查
+  futures:                    # 期货交易时段配置，格式为[["开始时间", "结束时间"], ...]
+  - ["09:00", "10:15"]        # 早盘
+  - ["10:30", "11:30"]        # 早盘
+  - ["13:30", "15:00"]        # 午盘
+  - ["21:00", "23:00"]        # 夜盘(大部分品种)
+  - ["21:00", "02:30"]        # 夜盘(某些品种)
+
+notify_type:
+  weixin: true
+  dingding: true
+  email: false
+
+# 企业微信机器人名称
+wx_app_name: "Homalos量化助手2"
+# 企业微信ID
+wx_corp_id: "ww24d2eea685faf0cc"
+# 企业微信应用的ID
+wx_agent_id: 1000002
+# 企业微信应用的秘钥
+wx_secret: "5vF10PfLULzcrw2LlWEbS6iE3Hxujeu4fSCxKoqN-RY"
+# 企业微信接口
+url_wx_gettoken: "https://qyapi.weixin.qq.com/cgi-bin/gettoken"
+url_wx_media_upload: "https://qyapi.weixin.qq.com/cgi-bin/media/upload"
+url_wx_send: "https://qyapi.weixin.qq.com/cgi-bin/message/send"
+
+# 钉钉机器人名称
+ding_app_name: "Homalos量化助手"
+# 钉钉机器人ID
+ding_app_id: "dingding"
+# 钉钉Webhook地址
+ding_address: "https://dingding.com"
+
+# 邮件配置
+email_address: ""
+smtp_server: ""

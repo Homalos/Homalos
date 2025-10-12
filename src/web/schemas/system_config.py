@@ -10,7 +10,7 @@
 @Description: 系统配置相关Schema
 """
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Any
 
 
 class SystemConfigResponse(BaseModel):
@@ -69,4 +69,68 @@ class SystemInfoResponse(BaseModel):
                 "timezone": "Asia/Shanghai"
             }
         }
+
+
+# ==================== 通知配置相关模型 ====================
+
+class DingtalkConfig(BaseModel):
+    """钉钉配置模型"""
+    enabled: bool = Field(False, description="是否启用钉钉通知")
+    name: str = Field("", description="钉钉机器人名称")
+    id: str = Field("", description="钉钉机器人ID")
+    webhookUrl: str = Field("", description="钉钉Webhook地址")
+
+
+class WecomConfig(BaseModel):
+    """企业微信配置模型"""
+    enabled: bool = Field(False, description="是否启用企业微信通知")
+    name: str = Field("", description="企业微信机器人名称")
+    corpId: str = Field("", description="企业微信ID")
+    agentId: Any = Field("", description="应用ID")
+    appSecret: str = Field("", description="应用密钥")
+
+
+class EmailConfig(BaseModel):
+    """邮件配置模型"""
+    enabled: bool = Field(False, description="是否启用邮件通知")
+    address: str = Field("", description="邮箱地址")
+    smtpServer: str = Field("", description="SMTP服务器")
+
+
+class NotificationConfigResponse(BaseModel):
+    """通知配置响应模型"""
+    dingtalk: DingtalkConfig = Field(..., description="钉钉配置")
+    wecom: WecomConfig = Field(..., description="企业微信配置")
+    email: EmailConfig = Field(..., description="邮件配置")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "dingtalk": {
+                    "enabled": True,
+                    "name": "Homalos量化助手",
+                    "id": "dingding",
+                    "webhookUrl": "https://dingding.com"
+                },
+                "wecom": {
+                    "enabled": True,
+                    "name": "Homalos量化助手",
+                    "corpId": "ww24d2eea685faf0cc",
+                    "agentId": 1000002,
+                    "appSecret": "5vF10PfLULzcrw2LlWEbS6iE3Hxujeu4fSCxKoqN-RY"
+                },
+                "email": {
+                    "enabled": False,
+                    "address": "",
+                    "smtpServer": ""
+                }
+            }
+        }
+
+
+class NotificationConfigUpdate(BaseModel):
+    """通知配置更新模型"""
+    dingtalk: Optional[DingtalkConfig] = Field(None, description="钉钉配置")
+    wecom: Optional[WecomConfig] = Field(None, description="企业微信配置")
+    email: Optional[EmailConfig] = Field(None, description="邮件配置")
 
