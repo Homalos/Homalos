@@ -6,8 +6,14 @@
       </div>
     </template>
     <el-form label-width="140px">
-      <el-form-item label="自动启动">
-        <el-switch v-model="settings.autoStart" />
+      <el-form-item label="开发模式">
+        <el-switch v-model="settings.devMode" />
+      </el-form-item>
+      <el-form-item v-if="settings.devMode" label="交易时间检查" style="margin-left: 20px;">
+        <el-switch v-model="settings.tradingTimeCheck" />
+        <span style="margin-left: 10px; color: #909399; font-size: 13px;">
+          开启后将检查是否在交易时间内
+        </span>
       </el-form-item>
       <el-form-item label="日志级别">
         <el-select v-model="settings.logLevel">
@@ -130,7 +136,8 @@ import { ElMessage } from 'element-plus'
 
 const settings = reactive({
   systemName: 'Homalos',
-  autoStart: true,
+  devMode: true,              // 开发模式，默认开启
+  tradingTimeCheck: false,    // 交易时间检查，默认关闭
   logLevel: 'info',
   notificationConfig: {
     dingtalk: {
