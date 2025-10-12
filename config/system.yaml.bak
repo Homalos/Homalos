@@ -1,0 +1,7 @@
+base:
+  name: Homalos
+  describe: Homalos Quantitative Trading System
+  version: 0.0.1
+  timezone: Asia/Shanghai
+  dev_mode: true
+  dev_trading_hours_check: true
