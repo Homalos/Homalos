@@ -28,23 +28,23 @@ class Notify(object):
     微信教程地址：https://www.bilibili.com/video/BV1P94y1Z7DE
     """
     def __init__(self):
-        self.wx_agent_id = Config.wx_agent_id
-        self.wx_secret = Config.wx_secret
-        self.wx_corp_id = Config.wx_corp_id
-        self.send_type = Config.send_type
-        self.url_wx_gettoken = Config.url_wx_gettoken
-        self.url_wx_media_upload = Config.url_wx_media_upload
-        self.url_wx_send = Config.url_wx_send
-        self.access_token = self.get_token()
+        self.wx_agent_id: int = Config.wx_agent_id
+        self.wx_secret: str = Config.wx_secret
+        self.wx_corp_id: str = Config.wx_corp_id
+        self.notify_type: dict[str, bool] = Config.notify_type
+        self.url_wx_gettoken: str = Config.url_wx_gettoken
+        self.url_wx_media_upload: str = Config.url_wx_media_upload
+        self.url_wx_send: str = Config.url_wx_send
+        self.access_token: str = self.get_token()
         self.filepath = ""
         self.filename = ""
         self.media_id = ""
         # 钉钉相关
-        self.ding_app_name = Config.ding_app_name
-        self.ding_address = Config.ding_address
+        self.ding_app_name: str = Config.ding_app_name
+        self.ding_address: str = Config.ding_address
         self.logger = get_logger(__name__)
 
-        if self.send_type == 1:
+        if self.notify_type.get("weixin"):
             t = Thread(target=self.update_token)
             # 将此线程设置成后台线程
             t.daemon = True
@@ -128,7 +128,7 @@ class Notify(object):
         Returns:
 
         """
-        if self.send_type == 1:
+        if self.notify_type.get("weixin"):
             self.filepath = filepath
             self.filename = filename
             ret = self.get_media_id()
@@ -166,7 +166,7 @@ class Notify(object):
 
         """
         ret = None
-        if self.send_type == 1:
+        if self.notify_type.get("weixin"):
             try:
                 media_id = self._upload_file(file)  # 先将文件上传至临时媒体库
                 url = f"{self.url_wx_send}?access_token={self.access_token}"
@@ -186,7 +186,7 @@ class Notify(object):
                 self.logger.exception(traceback.format_exc())
                 self.logger.exception(e)
             return ret
-        elif self.send_type ==2:
+        elif self.notify_type.get("dingding"):
             self.logger.error('无法通过python发送文件到钉钉: {} '.format(file))
 
 
@@ -200,7 +200,7 @@ class Notify(object):
         Returns:
 
         """
-        if self.send_type == 1:
+        if self.notify_type.get("weixin"):
             data = {
                 "touser": "@all",
                 "toparty": "@all",
@@ -219,7 +219,7 @@ class Notify(object):
             if ret.headers['Error-Code'] != '0':
                 self.logger.error('发送消息到微信失败：{}'.format(ret.headers['Error-Msg']))
             return ret
-        elif self.send_type == 2:
+        elif self.notify_type.get("dingding"):
             # 请求的URL，WebHook地址
             webhook = self.ding_address  # 机器人的WebHook
             # 构建请求头部
@@ -248,7 +248,7 @@ class Notify(object):
             if info.status_code != 200:
                 self.logger.error('发送消息到钉钉失败：{}'.format(info.content))
 
-        elif self.send_type == 3:
+        elif self.notify_type.get("email"):
             self.logger.info(content)
 
     def send_time_txt(self, content):

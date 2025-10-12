@@ -58,10 +58,15 @@ class Config(object):
     wx_agent_id: int = extra_config.get("wx_agent_id", 0)
     wx_secret: str = extra_config.get("wx_secret", "")
     wx_corp_id: str = extra_config.get("wx_corp_id", "")
-    send_type: int = extra_config.get("send_type", 1)
+    notify_type: dict[str, bool] = extra_config.get("notify_type", {})
     url_wx_gettoken: str = extra_config.get("url_wx_gettoken", "")
     url_wx_media_upload: str = extra_config.get("url_wx_media_upload", "")
     url_wx_send: str = extra_config.get("url_wx_send", "")
     # 钉钉相关
     ding_app_name: str = extra_config.get("ding_app_name", "")
     ding_address: str = extra_config.get("ding_address", "")
+
+
+if __name__ == '__main__':
+    print(Config.notify_type)
+    print(Config.notify_type.get("weixin"))
