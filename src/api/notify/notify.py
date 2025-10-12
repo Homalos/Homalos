@@ -118,6 +118,16 @@ class Notify(object):
         return ret.json()['media_id']
 
     def send_img(self, filepath, filename):
+        """
+        发送图片
+
+        Args:
+            filepath:
+            filename:
+
+        Returns:
+
+        """
         if self.send_type == 1:
             self.filepath = filepath
             self.filename = filename
@@ -146,6 +156,15 @@ class Notify(object):
             return response
 
     def send_file(self, file):
+        """
+        发送文件
+
+        Args:
+            file:
+
+        Returns:
+
+        """
         ret = None
         if self.send_type == 1:
             try:
@@ -172,6 +191,15 @@ class Notify(object):
 
 
     def send_txt(self, content):
+        """
+        发送文本内容
+
+        Args:
+            content: 文本内容
+
+        Returns:
+
+        """
         if self.send_type == 1:
             data = {
                 "touser": "@all",
@@ -224,6 +252,15 @@ class Notify(object):
             self.logger.info(content)
 
     def send_time_txt(self, content):
+        """
+        发送文本内容
+
+        Args:
+            content: 文本内容
+
+        Returns:
+
+        """
         ret = 0
         try:
             ret = self.send_txt('{}: {}'.format(time_module_ins.strf_now_time('%Y-%m-%d %H:%M:%S.%f'), content))
@@ -233,6 +270,15 @@ class Notify(object):
         return ret
 
     def send_markdown(self, content):
+        """
+        发送markdown
+
+        Args:
+            content: markdown
+
+        Returns:
+
+        """
         send_data = {
             "touser": "@all",
             "toparty": "@all",
