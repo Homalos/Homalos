@@ -43,16 +43,22 @@ This project is a new development fork of Homalos, a Python-based event-driven f
   - Data center control via Web API
   - Real-time data visualization
 
-### ✨ Recent Updates (v0.0.1.20251010)
+### ✨ Recent Updates (v0.0.3.20251012)
 
-- 🎨 **Enhanced Strategy Management**: Detailed drawer panel with positions, risk control parameters, and operation logs
-- 📊 **Extended Dashboard**: Account overview, daily performance, position distribution, and key metrics
-- ⏰ **Task Scheduler**: Manage scheduled tasks (daily/once/minute/weekly/monthly)
-- 🎮 **Console Panel**: Control trading system and data center with real-time status monitoring
-- 🔔 **Notification Center**: Unified message management with unread badges
-- 🏗️ **Frontend Optimization**: Modularized code structure, reduced Home.vue from 3060 to 1663 lines
-- 🚀 **Data Center API**: Full process management (start/stop/restart) with monitoring and audit logs
-- 🐛 **Bug Fixes**: Chinese log encoding, async operations, and multiple UI improvements
+- 🎨 **Component Refactoring**: Split `Home.vue` (945 lines) into 7 independent components
+  - Dashboard, Console, Strategy Management, Task Scheduler, Notifications, Settings, About
+  - Reduced Home.vue by 92% (945 → 280 lines)
+  - Improved maintainability with single responsibility principle
+- 🔧 **System Configuration**:
+  - Dev mode & trading hours check settings
+  - Two-way sync with `config/system.yaml`
+  - Automatic backup on every change
+  - Audit logging for all modifications
+- 📄 **Dynamic About Page**: Load system info from config file
+  - No hardcoded values, easy to update
+  - Public API access (no authentication required)
+- 🐛 **Bug Fixes**: Fixed config save issues, validation logic improvements
+- 📚 **Documentation**: 5 new guides and automated API tests
 
 ## Web Interface
 
