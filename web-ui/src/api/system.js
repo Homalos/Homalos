@@ -1,6 +1,17 @@
 import request from './request'
 
 /**
+ * 获取系统基础信息
+ * @returns {Promise} 系统基础信息
+ */
+export function getSystemInfo() {
+  return request({
+    url: '/api/system-config/info',
+    method: 'get'
+  })
+}
+
+/**
  * 获取系统配置
  * @returns {Promise} 系统配置数据
  */

@@ -26,6 +26,50 @@ class SystemConfigService:
     _CONFIG_FILE = Path("config") / "system.yaml"
     
     @classmethod
+    def get_system_info(cls) -> Dict[str, Any]:
+        """
+        获取系统基础信息
+        
+        Returns:
+            系统信息字典
+        """
+        try:
+            if not cls._CONFIG_FILE.exists():
+                logger.error(f"配置文件不存在: {cls._CONFIG_FILE}")
+                return {
+                    "success": False,
+                    "message": "配置文件不存在"
+                }
+            
+            with open(cls._CONFIG_FILE, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f) or {}
+            
+            # 提取 base 配置
+            base_config = config.get('base', {})
+            
+            return {
+                "success": True,
+                "info": {
+                    "name": base_config.get('name', 'Homalos'),
+                    "describe": base_config.get('describe', ''),
+                    "version": base_config.get('version', '0.0.1'),
+                    "author": base_config.get('author', 'Homalos Team'),
+                    "copyright": base_config.get('copyright', ''),
+                    "contact": base_config.get('contact', ''),
+                    "technology_stack": base_config.get('technology_stack', []),
+                    "timezone": base_config.get('timezone', 'Asia/Shanghai')
+                }
+            }
+            
+        except Exception as e:
+            error_msg = f"读取系统信息失败: {e}"
+            logger.error(error_msg, exc_info=True)
+            return {
+                "success": False,
+                "message": error_msg
+            }
+    
+    @classmethod
     def get_config(cls) -> Dict[str, Any]:
         """
         获取系统配置
