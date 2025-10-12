@@ -27,6 +27,7 @@ class SystemConfigService:
     _CONFIG_FILE = Path("config") / "system.yaml"
     _EXTRA_DEV_FILE = Path("config") / "extra.dev.yaml"
     _EXTRA_PROD_FILE = Path("config") / "extra.prod.yaml"
+    _LOG_CONFIG_FILE = Path("config") / "log_config.yaml"
     
     @classmethod
     def _get_yaml_handler(cls):
@@ -433,6 +434,152 @@ class SystemConfigService:
                     user_id=user_id,
                     operation="notification_config_update",
                     target="notification",
+                    details=json.dumps({"error": str(e)}, ensure_ascii=False),
+                    success=False,
+                    error_message=error_msg
+                )
+            except Exception as log_error:
+                logger.warning(f"审计日志记录失败: {log_error}")
+            
+            return {
+                "success": False,
+                "message": error_msg
+            }
+    
+    @classmethod
+    def get_logging_config(cls) -> Dict[str, Any]:
+        """
+        获取日志配置
+        
+        Returns:
+            日志配置字典
+        """
+        try:
+            if not cls._LOG_CONFIG_FILE.exists():
+                logger.error(f"日志配置文件不存在: {cls._LOG_CONFIG_FILE}")
+                return {
+                    "success": False,
+                    "message": f"日志配置文件不存在: {cls._LOG_CONFIG_FILE}"
+                }
+            
+            yaml = cls._get_yaml_handler()
+            with open(cls._LOG_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                config = yaml.load(f) or {}
+            
+            # 提取 logging 配置
+            logging_config = config.get('logging', {})
+            
+            # 构建返回数据
+            result = {
+                "is_debug": logging_config.get('is_debug', False),
+                "level": logging_config.get('level', 'INFO'),
+                "rotation": logging_config.get('rotation', '50 MB'),
+                "retention": logging_config.get('retention', '14 days'),
+                "compression": logging_config.get('compression', 'zip')
+            }
+            
+            logger.info(f"从 {cls._LOG_CONFIG_FILE} 读取日志配置成功")
+            
+            return {
+                "success": True,
+                "config": result
+            }
+            
+        except Exception as e:
+            error_msg = f"读取日志配置失败: {e}"
+            logger.error(error_msg, exc_info=True)
+            return {
+                "success": False,
+                "message": error_msg
+            }
+    
+    @classmethod
+    async def update_logging_config(cls, user_id: int, updates: Dict[str, Any], db) -> Dict[str, Any]:
+        """
+        更新日志配置
+        
+        Args:
+            user_id: 操作用户ID
+            updates: 要更新的日志配置
+            db: 数据库会话（AsyncSession）
+            
+        Returns:
+            {"success": True/False, "message": str, "backup": str}
+        """
+        try:
+            yaml = cls._get_yaml_handler()
+            
+            # 1. 备份日志配置文件
+            backup_file = cls._LOG_CONFIG_FILE.with_suffix('.yaml.bak')
+            shutil.copy(cls._LOG_CONFIG_FILE, backup_file)
+            logger.info(f"日志配置已备份到: {backup_file}")
+            
+            # 2. 读取现有配置
+            with open(cls._LOG_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                current_config = yaml.load(f) or {}
+            
+            # 3. 更新配置项
+            if 'logging' not in current_config:
+                current_config['logging'] = {}
+            
+            if 'is_debug' in updates:
+                current_config['logging']['is_debug'] = updates['is_debug']
+                logger.info(f"更新 is_debug: {updates['is_debug']}")
+            
+            if 'level' in updates:
+                current_config['logging']['level'] = updates['level']
+                logger.info(f"更新 level: {updates['level']}")
+            
+            if 'rotation' in updates:
+                current_config['logging']['rotation'] = updates['rotation']
+                logger.info(f"更新 rotation: {updates['rotation']}")
+            
+            if 'retention' in updates:
+                current_config['logging']['retention'] = updates['retention']
+                logger.info(f"更新 retention: {updates['retention']}")
+            
+            if 'compression' in updates:
+                current_config['logging']['compression'] = updates['compression']
+                logger.info(f"更新 compression: {updates['compression']}")
+            
+            # 4. 写入配置文件（保持格式）
+            with open(cls._LOG_CONFIG_FILE, 'w', encoding='utf-8') as f:
+                yaml.dump(current_config, f)
+            
+            # 5. 记录审计日志
+            try:
+                from src.web.services.datacenter_service import DataCenterService
+                await DataCenterService._log_operation(
+                    db=db,
+                    user_id=user_id,
+                    operation="logging_config_update",
+                    target=str(cls._LOG_CONFIG_FILE.name),
+                    details=json.dumps(updates, ensure_ascii=False),
+                    success=True
+                )
+            except Exception as log_error:
+                logger.warning(f"审计日志记录失败: {log_error}")
+            
+            logger.info(f"日志配置已更新到: {cls._LOG_CONFIG_FILE}")
+            
+            return {
+                "success": True,
+                "message": "日志配置已更新",
+                "backup": str(backup_file)
+            }
+            
+        except Exception as e:
+            error_msg = f"更新日志配置失败: {e}"
+            logger.error(error_msg, exc_info=True)
+            
+            # 记录失败的审计日志
+            try:
+                from src.web.services.datacenter_service import DataCenterService
+                await DataCenterService._log_operation(
+                    db=db,
+                    user_id=user_id,
+                    operation="logging_config_update",
+                    target="logging",
                     details=json.dumps({"error": str(e)}, ensure_ascii=False),
                     success=False,
                     error_message=error_msg

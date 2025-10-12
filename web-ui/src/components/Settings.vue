@@ -32,12 +32,42 @@
         <span style="font-weight: 600;">日志设置</span>
       </el-divider>
       <el-form-item label="日志级别">
-        <el-select v-model="settings.logLevel">
-          <el-option label="DEBUG" value="debug" />
-          <el-option label="INFO" value="info" />
-          <el-option label="WARNING" value="warning" />
-          <el-option label="ERROR" value="error" />
+        <el-select v-model="settings.logging.level" style="width: 200px;">
+          <el-option label="DEBUG" value="DEBUG" />
+          <el-option label="INFO" value="INFO" />
+          <el-option label="WARNING" value="WARNING" />
+          <el-option label="ERROR" value="ERROR" />
         </el-select>
+      </el-form-item>
+      <el-form-item label="文件大小上限">
+        <el-input 
+          v-model="settings.logging.rotation" 
+          placeholder="例如: 50 MB"
+          style="width: 200px;"
+        />
+        <span style="margin-left: 10px; color: #909399; font-size: 13px;">
+          单个日志文件达到此大小后自动轮转
+        </span>
+      </el-form-item>
+      <el-form-item label="日志保留时间">
+        <el-input 
+          v-model="settings.logging.retention" 
+          placeholder="例如: 14 days"
+          style="width: 200px;"
+        />
+        <span style="margin-left: 10px; color: #909399; font-size: 13px;">
+          超过保留时间的日志将被自动删除
+        </span>
+      </el-form-item>
+      <el-form-item label="压缩格式">
+        <el-select v-model="settings.logging.compression" style="width: 200px;">
+          <el-option label="ZIP" value="zip" />
+          <el-option label="TAR.GZ" value="tar.gz" />
+          <el-option label="TAR.BZ2" value="tar.bz2" />
+        </el-select>
+        <span style="margin-left: 10px; color: #909399; font-size: 13px;">
+          归档日志文件的压缩格式
+        </span>
       </el-form-item>
       
       <!-- 钉钉通知配置 -->
@@ -157,13 +187,25 @@
 import { reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Warning } from '@element-plus/icons-vue'
-import { getSystemConfig, updateSystemConfig, getNotificationConfig, updateNotificationConfig } from '@/api/system'
+import { 
+  getSystemConfig, 
+  updateSystemConfig, 
+  getNotificationConfig, 
+  updateNotificationConfig,
+  getLoggingConfig,
+  updateLoggingConfig
+} from '@/api/system'
 
 const settings = reactive({
   systemName: 'Homalos',
   devMode: true,              // 开发模式，默认开启
   tradingTimeCheck: false,    // 交易时间检查，默认关闭
-  logLevel: 'info',
+  logging: {
+    level: 'INFO',            // 日志级别
+    rotation: '50 MB',        // 单个日志文件大小上限
+    retention: '14 days',     // 日志保留时间
+    compression: 'zip'        // 日志文件压缩格式
+  },
   notificationConfig: {
     dingtalk: {
       enabled: false,        // 独立启用开关
@@ -243,6 +285,24 @@ const loadSystemConfig = async () => {
     console.error('加载通知配置失败:', error)
     ElMessage.warning('加载通知配置失败，使用默认配置')
   }
+  
+  // 加载日志配置
+  try {
+    const loggingResponse = await getLoggingConfig()
+    console.log('获取日志配置:', loggingResponse)
+    
+    if (loggingResponse) {
+      settings.logging.level = loggingResponse.level
+      settings.logging.rotation = loggingResponse.rotation
+      settings.logging.retention = loggingResponse.retention
+      settings.logging.compression = loggingResponse.compression
+    }
+    
+    console.log('日志配置已加载')
+  } catch (error) {
+    console.error('加载日志配置失败:', error)
+    ElMessage.warning('加载日志配置失败，使用默认配置')
+  }
 }
 
 /**
@@ -250,6 +310,7 @@ const loadSystemConfig = async () => {
  */
 const saveSettings = async () => {
   let systemConfigSaved = false
+  let loggingConfigSaved = false
   let notificationConfigSaved = false
   
   // ========== 第一步：保存系统配置 ==========
@@ -271,7 +332,28 @@ const saveSettings = async () => {
     ElMessage.error('系统配置保存失败')
   }
   
-  // ========== 第二步：验证并保存通知配置 ==========
+  // ========== 第二步：保存日志配置 ==========
+  try {
+    const loggingConfig = {
+      level: settings.logging.level,
+      rotation: settings.logging.rotation,
+      retention: settings.logging.retention,
+      compression: settings.logging.compression
+    }
+    
+    console.log('保存日志配置:', loggingConfig)
+    
+    const loggingResponse = await updateLoggingConfig(loggingConfig)
+    console.log('日志配置保存响应:', loggingResponse)
+    
+    loggingConfigSaved = true
+    ElMessage.success('日志配置保存成功')
+  } catch (error) {
+    console.error('保存日志配置失败:', error)
+    ElMessage.error('日志配置保存失败')
+  }
+  
+  // ========== 第三步：验证并保存通知配置 ==========
   const errors = []
   
   // 钉钉配置验证
@@ -349,8 +431,8 @@ const saveSettings = async () => {
       notificationConfigSaved = true
       ElMessage.success('通知配置保存成功')
       
-      // 如果系统配置和通知配置都保存成功，显示完整成功消息
-      if (systemConfigSaved && notificationConfigSaved) {
+      // 如果所有配置都保存成功，显示完整成功消息
+      if (systemConfigSaved && loggingConfigSaved && notificationConfigSaved) {
         ElMessage.success('所有设置保存成功')
       }
     } catch (error) {

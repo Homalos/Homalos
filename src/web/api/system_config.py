@@ -19,7 +19,9 @@ from src.web.schemas.system_config import (
     SystemConfigUpdate, 
     SystemInfoResponse,
     NotificationConfigResponse,
-    NotificationConfigUpdate
+    NotificationConfigUpdate,
+    LoggingConfigResponse,
+    LoggingConfigUpdate
 )
 from src.web.services.system_config_service import SystemConfigService
 from src.web.models.user import User
@@ -186,6 +188,77 @@ async def update_notification_config(
     
     if not result.get('success'):
         raise HTTPException(status_code=500, detail=result.get('message', '更新通知配置失败'))
+    
+    return {
+        "success": True,
+        "message": result.get('message'),
+        "backup": result.get('backup')
+    }
+
+
+@router.get("/logging", response_model=LoggingConfigResponse, summary="获取日志配置")
+async def get_logging_config(
+    current_user: User = Depends(get_current_user)
+) -> LoggingConfigResponse:
+    """
+    获取日志配置
+    
+    需要登录认证
+    
+    从 log_config.yaml 读取配置
+    
+    Returns:
+        LoggingConfigResponse: 日志配置数据
+            - is_debug: 是否开启debug模式
+            - level: 日志级别
+            - rotation: 单个日志文件大小上限
+            - retention: 日志保留时间
+            - compression: 日志文件压缩格式
+    """
+    result = SystemConfigService.get_logging_config()
+    
+    if not result.get('success'):
+        raise HTTPException(status_code=500, detail=result.get('message', '获取日志配置失败'))
+    
+    config = result.get('config', {})
+    return LoggingConfigResponse(**config)
+
+
+@router.put("/logging", summary="更新日志配置")
+async def update_logging_config(
+    config_update: LoggingConfigUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> dict:
+    """
+    更新日志配置
+    
+    需要登录认证
+    
+    更新到 log_config.yaml
+    
+    Args:
+        config_update: 要更新的日志配置项
+        
+    Returns:
+        更新结果
+    """
+    # 只更新提供的字段
+    updates = config_update.model_dump(exclude_unset=True)
+    
+    if not updates:
+        raise HTTPException(status_code=400, detail="没有提供要更新的配置")
+    
+    logger.info(f"用户 {current_user.username} 请求更新日志配置: {list(updates.keys())}")
+    
+    result = await SystemConfigService.update_logging_config(
+        user_id=current_user.id,
+        updates=updates,
+        db=db
+    )
+    
+    if not result.get('success'):
+        raise HTTPException(status_code=500, detail=result.get('message', '更新日志配置失败'))
     
     return {
         "success": True,

@@ -134,3 +134,31 @@ class NotificationConfigUpdate(BaseModel):
     wecom: Optional[WecomConfig] = Field(None, description="企业微信配置")
     email: Optional[EmailConfig] = Field(None, description="邮件配置")
 
+
+# ==================== 日志配置相关模型 ====================
+
+class LoggingConfigResponse(BaseModel):
+    """日志配置响应模型"""
+    level: str = Field(..., description="日志级别")
+    rotation: str = Field(..., description="单个日志文件大小上限")
+    retention: str = Field(..., description="日志保留时间")
+    compression: str = Field(..., description="日志文件压缩格式")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "level": "INFO",
+                "rotation": "50 MB",
+                "retention": "14 days",
+                "compression": "zip"
+            }
+        }
+
+
+class LoggingConfigUpdate(BaseModel):
+    """日志配置更新模型"""
+    level: Optional[str] = Field(None, description="日志级别")
+    rotation: Optional[str] = Field(None, description="单个日志文件大小上限")
+    retention: Optional[str] = Field(None, description="日志保留时间")
+    compression: Optional[str] = Field(None, description="日志文件压缩格式")
+

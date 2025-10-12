@@ -64,3 +64,32 @@ export function updateNotificationConfig(config) {
   })
 }
 
+/**
+ * 获取日志配置
+ * @returns {Promise} 日志配置数据
+ */
+export function getLoggingConfig() {
+  return request({
+    url: '/api/system-config/logging',
+    method: 'get'
+  })
+}
+
+/**
+ * 更新日志配置
+ * @param {Object} config - 日志配置对象
+ * @param {boolean} config.is_debug - 是否开启debug模式
+ * @param {string} config.level - 日志级别
+ * @param {string} config.rotation - 单个日志文件大小上限
+ * @param {string} config.retention - 日志保留时间
+ * @param {string} config.compression - 日志文件压缩格式
+ * @returns {Promise} 更新结果
+ */
+export function updateLoggingConfig(config) {
+  return request({
+    url: '/api/system-config/logging',
+    method: 'put',
+    data: config
+  })
+}
+

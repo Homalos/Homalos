@@ -1,14 +1,13 @@
 logging:
-  is_debug: true              # 是否开启debug模式
-  log_filename: "homalos"     # 日志文件名
-  error_filename: "homalos_error"
-  filename_format: "%Y%m%d"   # 日志文件名格式
-  level: "INFO"               # 日志级别
-  log_dir_name: "logs"        # 日志目录
-  rotation: "50 MB"           # 单个日志文件大小上限
-  retention: "14 days"        # 日志保留时间
-  compression: "zip"          # 日志文件压缩格式
-  colorize: true              # 是否使用颜色
-  enqueue: true               # 异步写入
-  backtrace: true             # 捕捉完整错误堆栈
-  diagnose: true              # 提供变量调试信息
+  level: "INFO"                   # 日志级别
+  rotation: "50 MB"               # 单个日志文件大小上限
+  retention: "7 days"             # 日志保留时间
+  compression: "zip"              # 日志文件压缩格式
+  log_dir_name: "logs"            # 日志目录
+  log_filename: "homalos"         # 日志文件名
+  error_filename: "homalos_error" # 错误日志文件名
+  filename_format: "%Y%m%d"       # 日志文件名格式
+  colorize: true                  # 是否使用颜色
+  enqueue: true                   # 异步写入
+  backtrace: true                 # 捕捉完整错误堆栈
+  diagnose: true                  # 提供变量调试信息
