@@ -74,7 +74,7 @@ Homalos 现已包含基于 FastAPI 和 Vue 3 构建的现代化 Web 管理界面
 
 2. **启动所有服务**
    ```bash
-   start_all.bat
+   start_all_web.bat
    ```
    这将启动后端（端口 8000）和前端（端口 5173）
 

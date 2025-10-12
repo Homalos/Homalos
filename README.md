@@ -74,7 +74,7 @@ Homalos now includes a modern web management interface built with FastAPI and Vu
 
 2. **Start All Services**
    ```bash
-   start_all.bat
+   start_all_web.bat
    ```
    This will start both backend (port 8000) and frontend (port 5173)
 
