@@ -17,6 +17,8 @@ log/
 config/brokers.yaml
 config/extra.prod.yaml
 config/extra.dev.yaml
+config/extra.dev.yaml.bak
+config/extra.prod.yaml.bak
 config/instrument_exchange.json
 .vercel/
 CLAUDE.md
