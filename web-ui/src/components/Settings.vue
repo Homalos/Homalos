@@ -131,8 +131,9 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { getSystemConfig, updateSystemConfig } from '@/api/system'
 
 const settings = reactive({
   systemName: 'Homalos',
@@ -162,10 +163,55 @@ const settings = reactive({
 })
 
 /**
+ * 加载系统配置
+ */
+const loadSystemConfig = async () => {
+  try {
+    const response = await getSystemConfig()
+    console.log('获取系统配置:', response)
+    
+    // 更新 settings 中的系统配置项
+    if (response.dev_mode !== undefined) {
+      settings.devMode = response.dev_mode
+    }
+    if (response.dev_trading_hours_check !== undefined) {
+      settings.tradingTimeCheck = response.dev_trading_hours_check
+    }
+    
+    console.log('系统配置已加载:', { devMode: settings.devMode, tradingTimeCheck: settings.tradingTimeCheck })
+  } catch (error) {
+    console.error('加载系统配置失败:', error)
+    ElMessage.error('加载系统配置失败')
+  }
+}
+
+/**
  * 保存系统设置
  */
-const saveSettings = () => {
-  // 验证已启用的通知方式是否都已配置
+const saveSettings = async () => {
+  let systemConfigSaved = false
+  let notificationConfigSaved = false
+  
+  // ========== 第一步：保存系统配置 ==========
+  try {
+    const systemConfig = {
+      dev_mode: settings.devMode,
+      dev_trading_hours_check: settings.tradingTimeCheck
+    }
+    
+    console.log('保存系统配置:', systemConfig)
+    
+    const response = await updateSystemConfig(systemConfig)
+    console.log('系统配置保存响应:', response)
+    
+    systemConfigSaved = true
+    ElMessage.success('系统配置保存成功')
+  } catch (error) {
+    console.error('保存系统配置失败:', error)
+    ElMessage.error('系统配置保存失败')
+  }
+  
+  // ========== 第二步：验证并保存通知配置 ==========
   const errors = []
   
   // 钉钉配置验证
@@ -204,17 +250,26 @@ const saveSettings = () => {
     }
   }
   
-  // 如果有未填写的配置，显示警告
+  // 如果有未填写的配置，显示警告（但不影响系统配置的保存）
   if (errors.length > 0) {
-    ElMessage.warning(`请填写以下配置项：${errors.join('、')}`)
-    return
+    ElMessage.warning(`通知配置未完整填写：${errors.join('、')}`)
+    console.log('通知配置验证失败，跳过保存')
+  } else {
+    // TODO: 保存通知配置到后端
+    console.log('通知配置:', settings.notificationConfig)
+    notificationConfigSaved = true
+    
+    // 如果通知配置也保存成功，显示完整成功消息
+    if (systemConfigSaved && notificationConfigSaved) {
+      ElMessage.success('所有设置保存成功')
+    }
   }
-  
-  // TODO: 这里应该调用API保存配置到后端
-  console.log('保存系统设置:', settings)
-  
-  ElMessage.success('系统设置保存成功')
 }
+
+// 组件挂载时加载系统配置
+onMounted(() => {
+  loadSystemConfig()
+})
 </script>
 
 <style scoped>
