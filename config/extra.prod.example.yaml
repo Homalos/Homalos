@@ -6,7 +6,6 @@ base:
   data_dir: "data"          # 数据存储目录
   log_dir: "logs"           # 日志存储目录
   flow_dir: "con"           # 数据流存储目录
-  timezone: "Asia/Shanghai"   # 系统时区
 # 交易时段配置
 trading_hours:
   enable_check: true          # 启用交易时段检查
@@ -17,7 +16,10 @@ trading_hours:
     - ["21:00", "23:00"]      # 夜盘(大部分品种)
     - ["21:00", "02:30"]      # 夜盘(某些品种)
 
-send_type: 1  # 1: 微信，2: 钉钉
+notify_type:
+  weixin: true  # 微信
+  dingding: true  # 钉钉
+  email: true # 邮件
 wx_app_name: "Homalos量化助手"
 # 应用的ID
 wx_agent_id: 0000000
