@@ -1,12 +1,7 @@
-# Homalos期货量化交易系统配置文件
-# 配置文件格式参考：https://yaml.org/spec/1.2/spec.html
-
-# 系统基础配置
 base:
-  name: "Homalos"                                  # 系统名称
-  describe: "Homalos Quantitative Trading System"  # 系统描述信息
-  version: "0.0.1"                                 # 系统版本号
-  timezone: "Asia/Shanghai"                        # 系统时区
-  # 开发模式配置
-  dev_mode: true                                  # 是否启用开发模式
-  dev_trading_hours_check: false                  # 开发下是否交易时间检查，false绕过检查，true进行检查
+  name: Homalos
+  describe: Homalos Quantitative Trading System
+  version: 0.0.1
+  timezone: Asia/Shanghai
+  dev_mode: true
+  dev_trading_hours_check: false
