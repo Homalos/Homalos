@@ -1,0 +1,87 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@ProjectName: Homalos
+@FileName   : broker_service.py
+@Date       : 2025/10/13
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
+@Software   : PyCharm
+@Description: 券商配置服务
+"""
+from pathlib import Path
+from typing import List, Dict, Any
+from ruamel.yaml import YAML
+
+from src.utils.log import get_logger
+
+logger = get_logger(__name__)
+
+
+class BrokerService:
+    """券商配置服务"""
+    
+    _CONFIG_FILE = Path("config") / "brokers.yaml"
+    
+    @classmethod
+    def get_broker_list(cls) -> List[Dict[str, str]]:
+        """
+        获取可用的券商列表
+        
+        Returns:
+            [{"broker_key": "simnow", "broker_id": "9999", "name": "SimNow模拟", "description": "..."}]
+        """
+        try:
+            yaml = YAML()
+            with open(cls._CONFIG_FILE, 'r', encoding='utf-8') as f:
+                config = yaml.load(f) or {}
+            
+            brokers_config = config.get('base', {}).get('brokers', {})
+            
+            broker_list = []
+            broker_names = {
+                'simnow': 'SimNow模拟（日盘）',
+                'simnow7x24': 'SimNow模拟（7x24）',
+                'tts': 'TTS模拟（日盘）',
+                'tts7x24': 'TTS模拟（7x24）',
+                'real': '实盘账户'
+            }
+            
+            for key, broker_config in brokers_config.items():
+                broker_list.append({
+                    'broker_key': key,  # 使用配置key作为唯一标识符
+                    'broker_id': broker_config.get('broker_id', '9999'),
+                    'name': broker_names.get(key, key),
+                    'description': f"{key} - {broker_config.get('md_address', '')}"
+                })
+            
+            logger.info(f"加载券商列表成功: {len(broker_list)} 个券商")
+            return broker_list
+            
+        except Exception as e:
+            logger.error(f"读取券商配置失败: {e}")
+            return []
+    
+    @classmethod
+    def get_broker_config(cls, broker_key: str) -> Dict[str, Any]:
+        """
+        获取指定券商的完整配置
+        
+        Args:
+            broker_key: 券商配置key（如 simnow, tts等）
+            
+        Returns:
+            券商配置字典
+        """
+        try:
+            yaml = YAML()
+            with open(cls._CONFIG_FILE, 'r', encoding='utf-8') as f:
+                config = yaml.load(f) or {}
+            
+            brokers_config = config.get('base', {}).get('brokers', {})
+            return brokers_config.get(broker_key, {})
+            
+        except Exception as e:
+            logger.error(f"读取券商配置失败: {e}")
+            return {}
+
