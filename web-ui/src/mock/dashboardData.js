@@ -18,9 +18,9 @@ export const dashboardData = {
   },
   // 策略运行状态
   strategyStatus: {
+    active: 3,    // 活跃策略
     running: 2,   // 运行中
-    stopped: 1,   // 已停止
-    error: 0      // 异常
+    stopped: 1    // 已停止
   },
   // 持仓概览
   positions: [

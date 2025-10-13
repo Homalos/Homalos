@@ -29,7 +29,7 @@ const chartOption = computed(() => {
       trigger: 'axis',
       formatter: function(params) {
         const value = params[0].value
-        const color = value >= 0 ? '#67C23A' : '#F56C6C'
+        const color = value >= 0 ? '#F56C6C' : '#67C23A'  // 红涨绿跌
         const symbol = value >= 0 ? '+' : ''
         return `${params[0].axisValue}<br/>盈亏: <span style="color: ${color}">${symbol}¥${value.toLocaleString()}</span>`
       }
@@ -70,7 +70,7 @@ const chartOption = computed(() => {
         barWidth: '60%',
         itemStyle: {
           color: function(params) {
-            return params.value >= 0 ? '#67C23A' : '#F56C6C'
+            return params.value >= 0 ? '#F56C6C' : '#67C23A'  // 红涨绿跌
           }
         },
         data: profits

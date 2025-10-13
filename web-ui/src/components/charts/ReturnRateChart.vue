@@ -29,7 +29,7 @@ const chartOption = computed(() => {
       trigger: 'axis',
       formatter: function(params) {
         const value = params[0].value
-        const color = value >= 0 ? '#67C23A' : '#F56C6C'
+        const color = value >= 0 ? '#F56C6C' : '#67C23A'  // 红涨绿跌
         const symbol = value >= 0 ? '+' : ''
         return `${params[0].axisValue}<br/>收益率: <span style="color: ${color}">${symbol}${value}%</span>`
       }
@@ -72,31 +72,40 @@ const chartOption = computed(() => {
         symbol: 'circle',
         symbolSize: 4,
         lineStyle: {
-          color: '#E6A23C',
+          color: function(params) {
+            // 根据整体趋势决定线条颜色
+            const lastValue = rates[rates.length - 1]
+            return lastValue >= 0 ? '#F56C6C' : '#67C23A'  // 红涨绿跌
+          },
           width: 2
         },
         itemStyle: {
           color: function(params) {
-            return params.value >= 0 ? '#67C23A' : '#F56C6C'
+            return params.value >= 0 ? '#F56C6C' : '#67C23A'  // 红涨绿跌
           }
         },
         areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              {
-                offset: 0,
-                color: 'rgba(230, 162, 60, 0.3)'
-              },
-              {
-                offset: 1,
-                color: 'rgba(230, 162, 60, 0.1)'
-              }
-            ]
+          color: function(params) {
+            // 根据整体趋势决定区域颜色
+            const lastValue = rates[rates.length - 1]
+            const baseColor = lastValue >= 0 ? '245, 108, 108' : '103, 194, 58'  // RGB for red/green
+            return {
+              type: 'linear',
+              x: 0,
+              y: 0,
+              x2: 0,
+              y2: 1,
+              colorStops: [
+                {
+                  offset: 0,
+                  color: `rgba(${baseColor}, 0.3)`
+                },
+                {
+                  offset: 1,
+                  color: `rgba(${baseColor}, 0.1)`
+                }
+              ]
+            }
           }
         },
         data: rates

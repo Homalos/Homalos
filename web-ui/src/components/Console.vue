@@ -2,12 +2,12 @@
   <div>
     <!-- 1. 系统控制 -->
     <el-row :gutter="20" style="margin-bottom: 20px;">
-      <!-- 量化交易系统 -->
+      <!-- 交易系统 -->
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header>
             <div class="card-header">
-              <span>量化交易系统</span>
+              <span>交易系统</span>
               <el-tag :type="consoleData.tradingSystem.status === 'running' ? 'success' : 'info'">
                 {{ consoleData.tradingSystem.status === 'running' ? '运行中' : '已停止' }}
               </el-tag>
@@ -45,7 +45,7 @@
                   @click="handleStartTradingSystem"
                 >
                   <el-icon><VideoPlay /></el-icon>
-                  启动系统
+                  启动交易系统
                 </el-button>
               </el-col>
               <el-col :span="12">
@@ -56,7 +56,7 @@
                   @click="handleStopTradingSystem"
                 >
                   <el-icon><VideoPause /></el-icon>
-                  停止系统
+                  停止交易系统
                 </el-button>
               </el-col>
             </el-row>
@@ -154,12 +154,12 @@
 
     <!-- 2. 控制台日志 -->
     <el-row :gutter="20">
-      <!-- 量化交易系统日志 -->
+      <!-- 交易系统日志 -->
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header>
             <div class="card-header">
-              <span>量化交易系统日志</span>
+              <span>交易系统日志</span>
               <el-select 
                 v-model="selectedTradingLogLevel" 
                 placeholder="选择日志级别" 

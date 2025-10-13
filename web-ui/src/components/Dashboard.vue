@@ -158,10 +158,17 @@
         <el-card shadow="hover">
           <template #header>
             <div class="card-header">
-              <span>策略运行状态</span>
+              <span>策略状态</span>
             </div>
           </template>
           <el-row :gutter="20">
+            <el-col :span="8">
+              <el-statistic title="活跃策略" :value="dashboardData.strategyStatus.active">
+                <template #prefix>
+                  <el-icon color="#409EFF"><TrendCharts /></el-icon>
+                </template>
+              </el-statistic>
+            </el-col>
             <el-col :span="8">
               <el-statistic title="运行中" :value="dashboardData.strategyStatus.running">
                 <template #prefix>
@@ -173,13 +180,6 @@
               <el-statistic title="已停止" :value="dashboardData.strategyStatus.stopped">
                 <template #prefix>
                   <el-icon color="#909399"><VideoPause /></el-icon>
-                </template>
-              </el-statistic>
-            </el-col>
-            <el-col :span="8">
-              <el-statistic title="异常" :value="dashboardData.strategyStatus.error">
-                <template #prefix>
-                  <el-icon color="#F56C6C"><Warning /></el-icon>
                 </template>
               </el-statistic>
             </el-col>
