@@ -5,6 +5,7 @@ base:
   author: Homalos Team
   copyright: Copyright © 2025 Homalos Team. All rights reserved.
   contact: https://github.com/homalos
+  user_guide: https://homalos.github.io/guide/quick_start
   technology_stack:
   - 后端：Python 3.13 + FastAPI
   - 前端：Vue 3 + Element Plus + Vite

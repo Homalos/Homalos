@@ -31,6 +31,12 @@
       <el-descriptions-item label="时区">
         {{ systemInfo.timezone }}
       </el-descriptions-item>
+      <el-descriptions-item label="用户手册">
+        <el-link type="primary" :href="systemInfo.user_guide" target="_blank">
+          <el-icon><Document /></el-icon>
+          快速开始
+        </el-link>
+      </el-descriptions-item>
       <el-descriptions-item label="联系方式">
         <div>
           <el-link type="primary" :href="systemInfo.contact" target="_blank">{{ systemInfo.contact }}</el-link>
@@ -43,6 +49,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Document } from '@element-plus/icons-vue'
 import { getSystemInfo } from '@/api/system'
 
 // 加载状态
@@ -61,6 +68,7 @@ const systemInfo = ref({
     '数据库：SQLite'
   ],
   timezone: 'Asia/Shanghai',
+  user_guide: 'https://homalos.github.io/guide/quick_start',
   contact: 'https://github.com/homalos'
 })
 

@@ -51,6 +51,7 @@ class SystemInfoResponse(BaseModel):
     contact: str = Field(..., description="联系方式")
     technology_stack: List[str] = Field(..., description="技术栈")
     timezone: str = Field(..., description="时区")
+    user_guide: str = Field(..., description="用户手册")
     
     class Config:
         json_schema_extra = {
@@ -66,7 +67,8 @@ class SystemInfoResponse(BaseModel):
                     "前端：Vue 3 + Element Plus + Vite",
                     "数据库：SQLite"
                 ],
-                "timezone": "Asia/Shanghai"
+                "timezone": "Asia/Shanghai",
+                "user_guide": "https://homalos.github.io/guide/quick_start"
             }
         }
 

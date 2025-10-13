@@ -73,7 +73,8 @@ class SystemConfigService:
                     "copyright": base_config.get('copyright', ''),
                     "contact": base_config.get('contact', ''),
                     "technology_stack": base_config.get('technology_stack', []),
-                    "timezone": base_config.get('timezone', 'Asia/Shanghai')
+                    "timezone": base_config.get('timezone', 'Asia/Shanghai'),
+                    "user_guide": base_config.get('user_guide', '')
                 }
             }
             

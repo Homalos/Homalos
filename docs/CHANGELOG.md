@@ -1,5 +1,26 @@
 # Update History
 
+## v0.0.4.20251013-patch7
+
+### ✨ 功能增强
+
+#### 关于面板新增用户手册信息
+- **新增**：在关于面板的"时区"下方新增"用户手册"字段
+- **来源**：从 `config/system.yaml` 的 `user_guide` 配置读取
+- **显示**：使用带图标的链接，点击跳转到快速开始文档
+- **链接**：https://homalos.github.io/guide/quick_start
+- **位置**：关于面板 → 时区下方
+
+#### 修改文件
+- ✅ `src/web/schemas/system_config.py` - 添加user_guide字段到SystemInfoResponse
+- ✅ `src/web/services/system_config_service.py` - 读取user_guide配置
+- ✅ `web-ui/src/components/About.vue` - 显示用户手册链接
+
+#### 配置文件
+- ✅ `config/system.yaml` - 已包含user_guide配置
+
+---
+
 ## v0.0.4.20251013-patch6
 
 ### ✨ 优化
