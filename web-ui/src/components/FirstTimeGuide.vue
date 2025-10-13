@@ -201,7 +201,7 @@ function handleFinish() {
  * 查看文档
  */
 function handleViewDocs() {
-  window.open('https://github.com/homalos', '_blank')
+  window.open('https://homalos.github.io/guide/quick_start', '_blank')
 }
 
 /**
