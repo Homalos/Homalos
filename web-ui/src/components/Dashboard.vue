@@ -7,29 +7,29 @@
           <span>{{ accountOverviewTitle }}</span>
         </div>
       </template>
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <el-statistic title="总资产" :value="dashboardData.account.totalAssets" precision="2" prefix="¥">
+      <div class="account-overview-container">
+        <div class="account-item">
+          <el-statistic title="总权益" :value="dashboardData.account.totalEquity" precision="2" prefix="¥">
             <template #prefix>
               <el-icon color="#409EFF"><Wallet /></el-icon>
             </template>
           </el-statistic>
-        </el-col>
-        <el-col :span="6">
+        </div>
+        <div class="account-item">
           <el-statistic title="可用资金" :value="dashboardData.account.availableFunds" precision="2" prefix="¥">
             <template #prefix>
               <el-icon color="#67C23A"><Money /></el-icon>
             </template>
           </el-statistic>
-        </el-col>
-        <el-col :span="6">
+        </div>
+        <div class="account-item">
           <el-statistic title="保证金占用" :value="dashboardData.account.marginUsed" precision="2" prefix="¥">
             <template #prefix>
               <el-icon color="#E6A23C"><Lock /></el-icon>
             </template>
           </el-statistic>
-        </el-col>
-        <el-col :span="6">
+        </div>
+        <div class="account-item">
           <el-statistic 
             title="浮动盈亏" 
             :value="dashboardData.account.floatingProfitLoss" 
@@ -43,8 +43,22 @@
               </el-icon>
             </template>
           </el-statistic>
-        </el-col>
-      </el-row>
+        </div>
+        <div class="account-item">
+          <el-statistic 
+            title="资金使用率" 
+            :value="dashboardData.account.fundUtilizationRate" 
+            precision="2" 
+            suffix="%"
+          >
+            <template #prefix>
+              <el-icon color="#909399">
+                <DataAnalysis />
+              </el-icon>
+            </template>
+          </el-statistic>
+        </div>
+      </div>
     </el-card>
 
     <!-- 2. 今日表现 & 策略运行状态 -->
@@ -194,21 +208,21 @@
       </template>
       <el-row :gutter="20">
         <el-col :span="8">
-          <div class="chart-placeholder">
-            <el-icon size="60" color="#909399"><DataLine /></el-icon>
-            <div style="margin-top: 10px; color: #909399;">资产曲线图表（待开发）</div>
+          <div class="chart-container">
+            <div class="chart-title">权益曲线</div>
+            <EquityCurveChart :data="dashboardData.chartData.equityCurve" />
           </div>
         </el-col>
         <el-col :span="8">
-          <div class="chart-placeholder">
-            <el-icon size="60" color="#909399"><DataAnalysis /></el-icon>
-            <div style="margin-top: 10px; color: #909399;">每日盈亏图表（待开发）</div>
+          <div class="chart-container">
+            <div class="chart-title">盈亏图表</div>
+            <ProfitLossChart :data="dashboardData.chartData.profitLoss" />
           </div>
         </el-col>
         <el-col :span="8">
-          <div class="chart-placeholder">
-            <el-icon size="60" color="#909399"><TrendCharts /></el-icon>
-            <div style="margin-top: 10px; color: #909399;">夏普比率图表（待开发）</div>
+          <div class="chart-container">
+            <div class="chart-title">收益率曲线</div>
+            <ReturnRateChart :data="dashboardData.chartData.returnRate" />
           </div>
         </el-col>
       </el-row>
@@ -237,6 +251,9 @@ import {
 import { dashboardData as dashboardDataImport } from '@/mock'
 import { useSystemMonitor } from '@/composables'
 import { useTradingAccountStore } from '@/stores/tradingAccount'
+import EquityCurveChart from './charts/EquityCurveChart.vue'
+import ProfitLossChart from './charts/ProfitLossChart.vue'
+import ReturnRateChart from './charts/ReturnRateChart.vue'
 
 // 使用导入的仪表盘数据初始化
 const dashboardData = reactive(dashboardDataImport)
@@ -319,15 +336,102 @@ onUnmounted(() => {
   align-items: center;
 }
 
-.chart-placeholder {
+/* 账户总览容器 - flexbox布局 */
+.account-overview-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* 账户统计项 */
+.account-item {
+  flex: 1;
+  min-width: 180px;
+  max-width: 240px;
+  text-align: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .account-item {
+    min-width: 160px;
+    max-width: 200px;
+  }
+}
+
+@media (max-width: 992px) {
+  .account-overview-container {
+    gap: 12px;
+  }
+  
+  .account-item {
+    min-width: 140px;
+    max-width: 180px;
+  }
+}
+
+@media (max-width: 768px) {
+  .account-overview-container {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .account-item {
+    max-width: none;
+    min-width: auto;
+  }
+}
+
+@media (max-width: 576px) {
+  .account-overview-container {
+    gap: 12px;
+  }
+}
+
+/* 图表容器样式 */
+.chart-container {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 16px;
+  height: 240px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
+}
+
+.chart-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 12px;
   text-align: center;
+}
+
+/* 响应式图表设计 */
+@media (max-width: 1200px) {
+  .chart-container {
+    height: 220px;
+    padding: 12px;
+  }
+  
+  .chart-title {
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .chart-container {
+    height: 200px;
+    padding: 10px;
+    margin-bottom: 16px;
+  }
+  
+  .chart-title {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
 }
 </style>
 
