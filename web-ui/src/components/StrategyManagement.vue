@@ -4,7 +4,7 @@
     <template #header>
       <div class="card-header">
         <span>策略管理</span>
-        <el-button type="primary" size="small" @click="addStrategyDialogVisible = true">添加策略</el-button>
+        <el-button type="primary" size="small" @click="addStrategyDialogVisible = true">加载策略</el-button>
       </div>
     </template>
     <!-- 策略统计 -->
@@ -374,10 +374,10 @@
     </div>
   </el-drawer>
 
-  <!-- 添加策略对话框 -->
+  <!-- 加载策略对话框 -->
   <el-dialog
     v-model="addStrategyDialogVisible"
-    title="选择要添加的策略"
+    title="选择要加载的策略"
     width="80%"
     :close-on-click-modal="false"
   >
@@ -404,10 +404,10 @@
             <el-tag size="small" type="info">回撤: {{ template.defaultRiskControl.maxDrawdown }}%</el-tag>
           </div>
           
-          <!-- 添加按钮 -->
+          <!-- 加载按钮 -->
           <el-button type="primary" style="width: 100%; margin-top: 15px;" @click="handleAddStrategy(template)">
             <el-icon style="margin-right: 5px;"><Plus /></el-icon>
-            添加此策略
+            加载此策略
           </el-button>
         </el-card>
       </el-col>

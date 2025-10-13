@@ -52,7 +52,7 @@ export function useStrategyManagement() {
   }
 
   /**
-   * 添加策略到列表
+   * 加载策略到列表
    */
   const handleAddStrategy = (template) => {
     const newStrategyId = generateStrategyId(strategies.value)
@@ -86,13 +86,13 @@ export function useStrategyManagement() {
     
     addStrategyLog(
       'success',
-      '添加策略',
-      `成功添加策略 "${template.name}"`,
+      '加载策略',
+      `成功加载策略 "${template.name}"`,
       { strategyId: newStrategyId, strategyName: template.name }
     )
     
     addStrategyDialogVisible.value = false
-    ElMessage.success(`策略 "${template.name}" 已成功添加到列表`)
+    ElMessage.success(`策略 "${template.name}" 已成功加载到列表`)
   }
 
   /**
