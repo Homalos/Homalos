@@ -61,9 +61,9 @@
       </div>
     </el-card>
 
-    <!-- 2. 今日表现 & 策略运行状态 -->
-    <el-row :gutter="20" style="margin-bottom: 20px;">
-      <el-col :span="12">
+    <!-- 2. 今日表现（独占一行） -->
+    <el-row style="margin-bottom: 20px;">
+      <el-col :span="24">
         <el-card shadow="hover">
           <template #header>
             <div class="card-header">
@@ -111,6 +111,49 @@
           </el-row>
         </el-card>
       </el-col>
+    </el-row>
+
+    <!-- 3. 系统监控 & 策略运行状态 -->
+    <el-row :gutter="20" style="margin-bottom: 20px;">
+      <el-col :span="12">
+        <el-card shadow="hover">
+          <template #header>
+            <div class="card-header">
+              <span>系统监控</span>
+            </div>
+          </template>
+          <el-row :gutter="16">
+            <el-col :span="6">
+              <el-statistic title="交易系统状态" value="运行中">
+                <template #prefix>
+                  <el-icon color="#67C23A"><SuccessFilled /></el-icon>
+                </template>
+              </el-statistic>
+            </el-col>
+            <el-col :span="6">
+              <el-statistic title="数据中心状态" value="连接中">
+                <template #prefix>
+                  <el-icon color="#409EFF"><Connection /></el-icon>
+                </template>
+              </el-statistic>
+            </el-col>
+            <el-col :span="6">
+              <el-statistic title="CPU使用率" :value="systemInfo.cpu" suffix="%">
+                <template #prefix>
+                  <el-icon><Cpu /></el-icon>
+                </template>
+              </el-statistic>
+            </el-col>
+            <el-col :span="6">
+              <el-statistic title="内存使用率" :value="systemInfo.memory" suffix="%">
+                <template #prefix>
+                  <el-icon><Memo /></el-icon>
+                </template>
+              </el-statistic>
+            </el-col>
+          </el-row>
+        </el-card>
+      </el-col>
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header>
@@ -145,41 +188,9 @@
       </el-col>
     </el-row>
 
-    <!-- 3. 系统监控 & 持仓概览 -->
-    <el-row :gutter="20" style="margin-bottom: 20px;">
-      <el-col :span="12">
-        <el-card shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <span>系统监控</span>
-            </div>
-          </template>
-          <el-row :gutter="20">
-            <el-col :span="8">
-              <el-statistic title="系统状态" value="运行中">
-                <template #prefix>
-                  <el-icon color="#67C23A"><SuccessFilled /></el-icon>
-                </template>
-              </el-statistic>
-            </el-col>
-            <el-col :span="8">
-              <el-statistic title="CPU使用率" :value="systemInfo.cpu" suffix="%">
-                <template #prefix>
-                  <el-icon><Cpu /></el-icon>
-                </template>
-              </el-statistic>
-            </el-col>
-            <el-col :span="8">
-              <el-statistic title="内存使用率" :value="systemInfo.memory" suffix="%">
-                <template #prefix>
-                  <el-icon><Memo /></el-icon>
-                </template>
-              </el-statistic>
-            </el-col>
-          </el-row>
-        </el-card>
-      </el-col>
-      <el-col :span="12">
+    <!-- 4. 持仓概览（独占一行） -->
+    <el-row style="margin-bottom: 20px;">
+      <el-col :span="24">
         <el-card shadow="hover">
           <template #header>
             <div class="card-header">
@@ -199,7 +210,7 @@
       </el-col>
     </el-row>
 
-    <!-- 4. 关键指标图表 -->
+    <!-- 5. 关键指标图表 -->
     <el-card shadow="hover">
       <template #header>
         <div class="card-header">
@@ -246,7 +257,8 @@ import {
   SuccessFilled,
   Cpu,
   Memo,
-  DataAnalysis
+  DataAnalysis,
+  Connection
 } from '@element-plus/icons-vue'
 import { dashboardData as dashboardDataImport } from '@/mock'
 import { useSystemMonitor } from '@/composables'
