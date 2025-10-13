@@ -6,6 +6,17 @@
         <h2>Homalos 量化交易系统</h2>
       </div>
       <div class="header-right">
+        <!-- 资金账户登录按钮（未登录时显示） -->
+        <el-button
+          v-if="!tradingAccountStore.isLoggedIn"
+          type="success"
+          size="small"
+          @click="showTradingLogin = true"
+        >
+          <el-icon><Unlock /></el-icon>
+          登录资金账户
+        </el-button>
+        
         <!-- 通知图标 -->
         <el-badge :value="unreadCount" :hidden="unreadCount === 0" class="header-icon">
           <el-icon :size="20" @click="handleNotificationClick">
@@ -24,7 +35,7 @@
         </el-icon>
         
         <!-- 用户信息 -->
-        <el-dropdown @command="handleCommand">
+        <el-dropdown @command="handleUserCommand">
           <span class="user-info">
             <el-icon><User /></el-icon>
             <span>{{ userStore.userInfo?.username || '用户' }}</span>
@@ -32,7 +43,45 @@
           </span>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+              <!-- 资金账户状态 -->
+              <el-dropdown-item disabled divided>
+                <div class="account-status">
+                  <el-icon v-if="tradingAccountStore.isLoggedIn" color="#67C23A">
+                    <CircleCheckFilled />
+                  </el-icon>
+                  <el-icon v-else color="#909399">
+                    <Lock />
+                  </el-icon>
+                  <span>
+                    {{ tradingAccountStore.isLoggedIn ? 
+                      tradingAccountStore.accountInfo?.display_name || '资金账户已登录' : 
+                      '未登录资金账户' 
+                    }}
+                  </span>
+                </div>
+              </el-dropdown-item>
+              
+              <!-- 管理资金账户 -->
+              <el-dropdown-item command="manage-accounts">
+                <el-icon><SwitchButton /></el-icon>
+                管理资金账户
+              </el-dropdown-item>
+              
+              <!-- 退出资金账户（仅在已登录时显示） -->
+              <el-dropdown-item 
+                v-if="tradingAccountStore.isLoggedIn" 
+                command="logout-trading"
+                divided
+              >
+                <el-icon><Close /></el-icon>
+                退出资金账户
+              </el-dropdown-item>
+              
+              <!-- 退出系统登录 -->
+              <el-dropdown-item command="logout" divided>
+                <el-icon><SwitchButton /></el-icon>
+                退出系统登录
+              </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -81,28 +130,76 @@
       <!-- 主内容区 -->
       <el-main class="main-content">
         <!-- 仪表盘 -->
-        <Dashboard v-if="activeMenu === 'dashboard'" />
+        <div v-if="activeMenu === 'dashboard'" style="position: relative;">
+          <Dashboard />
+          <PageMask 
+            :show="!tradingAccountStore.isLoggedIn" 
+            @login="showTradingLogin = true"
+          />
+        </div>
 
         <!-- 控制台 -->
-        <Console v-if="activeMenu === 'console'" />
+        <div v-if="activeMenu === 'console'" style="position: relative;">
+          <Console />
+          <PageMask 
+            :show="!tradingAccountStore.isLoggedIn" 
+            @login="showTradingLogin = true"
+          />
+                  </div>
 
         <!-- 策略管理 -->
-        <StrategyManagement v-if="activeMenu === 'strategy'" />
+        <div v-if="activeMenu === 'strategy'" style="position: relative;">
+          <StrategyManagement />
+          <PageMask 
+            :show="!tradingAccountStore.isLoggedIn" 
+            @login="showTradingLogin = true"
+          />
+                  </div>
 
         <!-- 通知中心 -->
-        <Notifications v-if="activeMenu === 'notifications'" />
+        <div v-if="activeMenu === 'notifications'" style="position: relative;">
+          <Notifications />
+          <PageMask 
+            :show="!tradingAccountStore.isLoggedIn" 
+            @login="showTradingLogin = true"
+          />
+            </div>
 
         <!-- 任务调度器 -->
-        <TaskScheduler v-if="activeMenu === 'task-scheduler'" />
+        <div v-if="activeMenu === 'task-scheduler'" style="position: relative;">
+          <TaskScheduler />
+          <PageMask 
+            :show="!tradingAccountStore.isLoggedIn" 
+            @login="showTradingLogin = true"
+          />
+            </div>
 
-        <!-- 系统设置 -->
+        <!-- 系统设置（完全可访问） -->
         <Settings v-if="activeMenu === 'settings'" />
 
-        <!-- 关于 -->
+        <!-- 关于（完全可访问） -->
         <About v-if="activeMenu === 'about'" />
 
       </el-main>
     </el-container>
+    
+    <!-- 资金账户登录对话框 -->
+    <TradingAccountLogin 
+      v-model="showTradingLogin" 
+      @success="handleTradingLoginSuccess"
+    />
+    
+    <!-- 账户管理对话框 -->
+    <AccountManager 
+      v-model="showAccountManager" 
+      @add="showTradingLogin = true"
+    />
+    
+    <!-- 首次引导对话框 -->
+    <FirstTimeGuide 
+      v-model="showFirstTimeGuide" 
+      @finish="handleGuideFinish"
+    />
   </el-container>
 </template>
 
@@ -118,10 +215,16 @@ import {
   InfoFilled,
   Bell,
   Timer,
-  Operation
+  Operation,
+  Unlock,
+  Lock,
+  CircleCheckFilled,
+  SwitchButton,
+  Close
 } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { useTradingAccountStore } from '@/stores/tradingAccount'
 import { getSystemStats } from '@/api/monitor'
 // Mock 数据导入
 // （控制台、任务调度器、通知中心、仪表盘的数据已在各自组件中导入）
@@ -141,11 +244,22 @@ import Settings from '@/components/Settings.vue'
 import About from '@/components/About.vue'
 import Dashboard from '@/components/Dashboard.vue'
 import StrategyManagement from '@/components/StrategyManagement.vue'
+import TradingAccountLogin from '@/components/TradingAccountLogin.vue'
+import AccountManager from '@/components/AccountManager.vue'
+import FirstTimeGuide from '@/components/FirstTimeGuide.vue'
+import PageMask from '@/components/PageMask.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+const tradingAccountStore = useTradingAccountStore()
 
-const activeMenu = ref('dashboard')
+// 默认显示"关于"页面，登录资金账户后切换到仪表盘
+const activeMenu = ref('about')
+
+// 对话框状态
+const showTradingLogin = ref(false)
+const showAccountManager = ref(false)
+const showFirstTimeGuide = ref(false)
 
 // ===== 使用 Composables =====
 const {
@@ -159,11 +273,72 @@ const handleMenuSelect = (index) => {
   activeMenu.value = index
 }
 
-const handleCommand = (command) => {
-  if (command === 'logout') {
+/**
+ * 处理用户下拉菜单命令
+ */
+const handleUserCommand = async (command) => {
+  switch (command) {
+    case 'manage-accounts':
+      showAccountManager.value = true
+      break
+    case 'logout-trading':
+      await handleLogoutTrading()
+      break
+    case 'logout':
+      await handleLogout()
+      break
+  }
+}
+
+/**
+ * 退出资金账户
+ */
+async function handleLogoutTrading() {
+  try {
+    await ElMessageBox.confirm(
+      '确定要退出资金账户吗？',
+      '确认退出',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    await tradingAccountStore.logout()
+    ElMessage.success('已退出资金账户')
+    activeMenu.value = 'about'
+  } catch (error) {
+    // 取消操作
+  }
+}
+
+/**
+ * 退出系统登录（同时退出资金账户）
+ */
+async function handleLogout() {
+  try {
+    await ElMessageBox.confirm(
+      '确定要退出系统登录吗？',
+      '确认退出',
+      {
+        confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+    )
+    
+    // 先退出资金账户
+    if (tradingAccountStore.isLoggedIn) {
+      await tradingAccountStore.logout()
+    }
+    
+    // 再退出系统
     userStore.logout()
     ElMessage.success('已退出登录')
     router.push('/login')
+  } catch (error) {
+    // 取消操作
   }
 }
 
@@ -188,6 +363,37 @@ const handleConsoleClick = () => {
   activeMenu.value = 'console'
 }
 
+/**
+ * 资金账户登录成功
+ */
+function handleTradingLoginSuccess(account) {
+  ElMessage.success('资金账户登录成功')
+  activeMenu.value = 'dashboard'
+}
+
+/**
+ * 首次引导完成
+ */
+function handleGuideFinish(completed) {
+  if (completed) {
+    ElMessage.success('欢迎使用 Homalos 量化交易系统！')
+    activeMenu.value = 'dashboard'
+  }
+}
+
+/**
+ * 检查是否首次使用
+ */
+function checkFirstTime() {
+  const guideCompleted = localStorage.getItem('homalos_guide_completed')
+  const hasAccounts = tradingAccountStore.accountList.length > 0
+  
+  // 如果没有完成引导且没有账户，显示引导
+  if (!guideCompleted && !hasAccounts) {
+    showFirstTimeGuide.value = true
+  }
+}
+
 // ===== 所有业务逻辑已提取到 Composables =====
 // 策略管理逻辑 -> useStrategyManagement.js
 // 任务调度逻辑 -> useTaskScheduler.js
@@ -205,6 +411,17 @@ onMounted(async () => {
       router.push('/login')
       return
     }
+  }
+  
+  // 初始化资金账户Store
+  await tradingAccountStore.initialize()
+  
+  // 检查是否首次使用
+  checkFirstTime()
+  
+  // 如果已登录资金账户，切换到仪表盘
+  if (tradingAccountStore.isLoggedIn) {
+    activeMenu.value = 'dashboard'
   }
 })
 </script>
@@ -274,6 +491,13 @@ onMounted(async () => {
 
 :deep(.el-statistic) {
   text-align: center;
+}
+
+.account-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
 }
 </style>
 
