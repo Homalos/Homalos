@@ -4,7 +4,7 @@
     <el-card shadow="hover" style="margin-bottom: 20px;">
       <template #header>
         <div class="card-header">
-          <span>账户总览</span>
+          <span>{{ accountOverviewTitle }}</span>
         </div>
       </template>
       <el-row :gutter="20">
@@ -236,6 +236,7 @@ import {
 } from '@element-plus/icons-vue'
 import { dashboardData as dashboardDataImport } from '@/mock'
 import { useSystemMonitor } from '@/composables'
+import { useTradingAccountStore } from '@/stores/tradingAccount'
 
 // 使用导入的仪表盘数据初始化
 const dashboardData = reactive(dashboardDataImport)
@@ -247,6 +248,9 @@ const {
   stopMonitoring
 } = useSystemMonitor()
 
+// 资金账户Store
+const tradingAccountStore = useTradingAccountStore()
+
 // 今日日期显示
 const todayDate = computed(() => {
   const date = new Date()
@@ -255,6 +259,42 @@ const todayDate = computed(() => {
     month: 'long',
     day: 'numeric'
   })
+})
+
+/**
+ * 加密账号 - 只显示后4位，前面用*替代
+ * @param {string} accountId - 原始账号
+ * @returns {string} 加密后的账号
+ * @example
+ * maskAccountId('123456789') // '*****6789'
+ * maskAccountId('1234')      // '1234'
+ */
+function maskAccountId(accountId) {
+  if (!accountId || accountId.length <= 4) {
+    return accountId
+  }
+  const visiblePart = accountId.slice(-4)  // 后4位
+  const maskedPart = '*'.repeat(accountId.length - 4)  // 前面用*替代
+  return maskedPart + visiblePart
+}
+
+// 账户总览标题
+const accountOverviewTitle = computed(() => {
+  // 如果未登录资金账户，只显示"账户总览"
+  if (!tradingAccountStore.isLoggedIn) {
+    return '账户总览'
+  }
+  
+  // 获取账户信息
+  const accountName = tradingAccountStore.accountInfo?.display_name || '未命名账户'
+  const brokerId = tradingAccountStore.accountInfo?.broker_id || ''
+  const accountId = tradingAccountStore.accountInfo?.account_id || ''
+  
+  // 加密账号
+  const maskedAccount = maskAccountId(accountId)
+  
+  // 显示格式：账户总览 - 账户名称 (券商ID - 加密账号)
+  return `账户总览 - ${accountName} (${brokerId} - ${maskedAccount})`
 })
 
 // 组件挂载时启动监控
