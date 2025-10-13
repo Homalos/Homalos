@@ -390,7 +390,18 @@ function checkFirstTime() {
   
   // 如果没有完成引导且没有账户，显示引导
   if (!guideCompleted && !hasAccounts) {
+    console.log('🎯 首次使用检测：显示引导界面', {
+      guideCompleted,
+      hasAccounts,
+      accountListLength: tradingAccountStore.accountList.length
+    })
     showFirstTimeGuide.value = true
+  } else {
+    console.log('🎯 首次使用检测：不显示引导', {
+      guideCompleted,
+      hasAccounts,
+      accountListLength: tradingAccountStore.accountList.length
+    })
   }
 }
 
