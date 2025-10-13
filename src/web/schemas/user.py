@@ -24,6 +24,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """用户创建模式"""
     password: str = Field(..., min_length=6, max_length=50, description="密码")
+    role: str = Field(default="admin", description="角色：admin/user")
 
 
 class UserUpdate(BaseModel):
