@@ -31,8 +31,17 @@
           {{ formatDateTime(row.last_login) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="280" fixed="right">
+      <el-table-column label="操作" width="320" fixed="right">
         <template #default="{ row }">
+          <el-button
+            v-if="!isCurrentAccount(row) && row.is_active"
+            link
+            type="success"
+            size="small"
+            @click="handleSwitch(row)"
+          >
+            切换
+          </el-button>
           <el-button
             v-if="!row.is_default"
             link
@@ -161,6 +170,45 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 切换账户对话框 -->
+    <el-dialog
+      v-model="switchDialogVisible"
+      title="切换资金账户"
+      width="450px"
+      append-to-body
+    >
+      <el-form
+        ref="switchFormRef"
+        :model="switchFormData"
+        :rules="switchRules"
+        label-width="100px"
+      >
+        <el-form-item label="账户信息">
+          <div class="account-info">
+            <div>{{ switchAccount?.display_name }}</div>
+            <div class="account-detail">
+              {{ switchAccount?.broker_id }} - {{ maskAccountId(switchAccount?.account_id) }}
+            </div>
+          </div>
+        </el-form-item>
+        <el-form-item label="账户密码" prop="password">
+          <el-input
+            v-model="switchFormData.password"
+            type="password"
+            placeholder="请输入账户密码"
+            show-password
+            @keyup.enter="handleConfirmSwitch"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="switchDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="switchLoading" @click="handleConfirmSwitch">
+          确认切换
+        </el-button>
+      </template>
+    </el-dialog>
   </el-dialog>
 </template>
 
@@ -246,12 +294,48 @@ const passwordRules = {
   ]
 }
 
+// 切换账户相关
+const switchDialogVisible = ref(false)
+const switchFormRef = ref(null)
+const switchLoading = ref(false)
+const switchAccount = ref(null)
+
+const switchFormData = reactive({
+  password: ''
+})
+
+const switchRules = {
+  password: [
+    { required: true, message: '请输入账户密码', trigger: 'blur' },
+    { min: 6, message: '密码长度至少6位', trigger: 'blur' }
+  ]
+}
+
 /**
  * 格式化日期时间
  */
 function formatDateTime(dateTime) {
   if (!dateTime) return '-'
   return new Date(dateTime).toLocaleString('zh-CN')
+}
+
+/**
+ * 加密账号 - 只显示后4位
+ */
+function maskAccountId(accountId) {
+  if (!accountId || accountId.length <= 4) {
+    return accountId
+  }
+  const visiblePart = accountId.slice(-4)
+  const maskedPart = '*'.repeat(accountId.length - 4)
+  return maskedPart + visiblePart
+}
+
+/**
+ * 判断是否为当前登录账户
+ */
+function isCurrentAccount(row) {
+  return tradingAccountStore.accountId === row.id.toString()
 }
 
 /**
@@ -362,6 +446,54 @@ async function handleSavePassword() {
       ElMessage.error(error.response?.data?.detail || '密码修改失败')
     } finally {
       passwordLoading.value = false
+    }
+  })
+}
+
+/**
+ * 切换账户
+ */
+function handleSwitch(row) {
+  switchAccount.value = row
+  switchFormData.password = ''
+  switchDialogVisible.value = true
+  
+  // 清除表单验证状态
+  if (switchFormRef.value) {
+    switchFormRef.value.clearValidate()
+  }
+}
+
+/**
+ * 确认切换
+ */
+async function handleConfirmSwitch() {
+  if (!switchFormRef.value) return
+  
+  await switchFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    
+    switchLoading.value = true
+    try {
+      // 调用登录方法切换账户
+      const result = await tradingAccountStore.login({
+        account_id: switchAccount.value.id,
+        password: switchFormData.password
+      })
+      
+      if (result.success) {
+        ElMessage.success(`已切换到账户：${switchAccount.value.display_name}`)
+        switchDialogVisible.value = false
+        
+        // 清空表单
+        switchFormRef.value?.resetFields()
+      } else {
+        ElMessage.error(result.message || '切换失败')
+      }
+    } catch (error) {
+      ElMessage.error(error.response?.data?.detail || '切换失败，请检查密码')
+    } finally {
+      switchLoading.value = false
     }
   })
 }
