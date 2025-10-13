@@ -220,6 +220,10 @@ const handleRegister = async () => {
       const result = await userStore.register(registerForm)
       if (result.success) {
         ElMessage.success('注册成功，请登录')
+        
+        // 清除引导完成标记，确保新用户能看到引导
+        localStorage.removeItem('homalos_guide_completed')
+        
         // 清空注册表单
         registerFormRef.value.resetFields()
         // 切换到登录Tab
