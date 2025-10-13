@@ -31,7 +31,7 @@
           {{ formatDateTime(row.last_login) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="280" fixed="right">
         <template #default="{ row }">
           <el-button
             v-if="!row.is_default"
@@ -49,6 +49,14 @@
             @click="handleEdit(row)"
           >
             编辑
+          </el-button>
+          <el-button
+            link
+            type="warning"
+            size="small"
+            @click="handleChangePassword(row)"
+          >
+            修改密码
           </el-button>
           <el-button
             link
@@ -98,6 +106,61 @@
         <el-button type="primary" @click="handleSaveEdit">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 修改密码对话框 -->
+    <el-dialog
+      v-model="passwordDialogVisible"
+      title="修改密码"
+      width="450px"
+      append-to-body
+    >
+      <el-form
+        ref="passwordFormRef"
+        :model="passwordFormData"
+        :rules="passwordRules"
+        label-width="100px"
+      >
+        <el-form-item label="账户信息">
+          <div class="account-info">
+            <div>{{ currentAccount?.display_name }}</div>
+            <div class="account-detail">
+              {{ currentAccount?.broker_id }} - {{ currentAccount?.account_id }}
+            </div>
+          </div>
+        </el-form-item>
+        <el-form-item label="旧密码" prop="old_password">
+          <el-input
+            v-model="passwordFormData.old_password"
+            type="password"
+            placeholder="请输入旧密码"
+            show-password
+          />
+        </el-form-item>
+        <el-form-item label="新密码" prop="new_password">
+          <el-input
+            v-model="passwordFormData.new_password"
+            type="password"
+            placeholder="请输入新密码（至少6位）"
+            show-password
+          />
+        </el-form-item>
+        <el-form-item label="确认密码" prop="confirm_password">
+          <el-input
+            v-model="passwordFormData.confirm_password"
+            type="password"
+            placeholder="请再次输入新密码"
+            show-password
+            @keyup.enter="handleSavePassword"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="passwordDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="passwordLoading" @click="handleSavePassword">
+          确认修改
+        </el-button>
+      </template>
+    </el-dialog>
   </el-dialog>
 </template>
 
@@ -109,7 +172,8 @@ import { useTradingAccountStore } from '@/stores/tradingAccount'
 import {
   updateTradingAccount,
   deleteTradingAccount,
-  switchTradingAccount
+  switchTradingAccount,
+  changeTradingAccountPassword
 } from '@/api/tradingAccount'
 
 const props = defineProps({
@@ -137,6 +201,50 @@ const editFormData = reactive({
   display_name: '',
   is_active: true
 })
+
+const passwordDialogVisible = ref(false)
+const passwordFormRef = ref(null)
+const passwordLoading = ref(false)
+const currentAccount = ref(null)
+
+const passwordFormData = reactive({
+  old_password: '',
+  new_password: '',
+  confirm_password: ''
+})
+
+const passwordRules = {
+  old_password: [
+    { required: true, message: '请输入旧密码', trigger: 'blur' }
+  ],
+  new_password: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, message: '密码长度至少6位', trigger: 'blur' },
+    { 
+      validator: (rule, value, callback) => {
+        if (value === passwordFormData.old_password) {
+          callback(new Error('新密码不能与旧密码相同'))
+        } else {
+          callback()
+        }
+      }, 
+      trigger: 'blur' 
+    }
+  ],
+  confirm_password: [
+    { required: true, message: '请确认新密码', trigger: 'blur' },
+    { 
+      validator: (rule, value, callback) => {
+        if (value !== passwordFormData.new_password) {
+          callback(new Error('两次输入的密码不一致'))
+        } else {
+          callback()
+        }
+      }, 
+      trigger: 'blur' 
+    }
+  ]
+}
 
 /**
  * 格式化日期时间
@@ -218,5 +326,57 @@ function handleAdd() {
   visible.value = false
   emit('add')
 }
+
+/**
+ * 修改密码
+ */
+function handleChangePassword(row) {
+  currentAccount.value = row
+  passwordFormData.old_password = ''
+  passwordFormData.new_password = ''
+  passwordFormData.confirm_password = ''
+  passwordDialogVisible.value = true
+}
+
+/**
+ * 保存密码
+ */
+async function handleSavePassword() {
+  if (!passwordFormRef.value) return
+  
+  await passwordFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    
+    passwordLoading.value = true
+    try {
+      await changeTradingAccountPassword(currentAccount.value.id, {
+        old_password: passwordFormData.old_password,
+        new_password: passwordFormData.new_password
+      })
+      ElMessage.success('密码修改成功')
+      passwordDialogVisible.value = false
+      
+      // 清空表单
+      passwordFormRef.value?.resetFields()
+    } catch (error) {
+      ElMessage.error(error.response?.data?.detail || '密码修改失败')
+    } finally {
+      passwordLoading.value = false
+    }
+  })
+}
 </script>
 
+<style scoped>
+.account-info {
+  padding: 8px 12px;
+  background: #f5f7fa;
+  border-radius: 4px;
+}
+
+.account-detail {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #909399;
+}
+</style>
