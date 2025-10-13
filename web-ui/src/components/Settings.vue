@@ -10,20 +10,13 @@
       <el-divider content-position="left">
         <span style="font-weight: 600;">基础设置</span>
       </el-divider>
-      <el-form-item label="开发模式">
+      <el-form-item :label="settings.devMode ? '开发模式' : '生产模式'">
         <el-switch v-model="settings.devMode" />
       </el-form-item>
       <el-form-item v-if="settings.devMode" label="交易时间检查" style="margin-left: 20px;">
         <el-switch v-model="settings.tradingTimeCheck" />
         <span style="margin-left: 10px; color: #909399; font-size: 13px;">
           开启后将检查是否在交易时间内
-        </span>
-      </el-form-item>
-      <el-form-item v-if="!settings.devMode" label="交易时间检查" style="margin-left: 20px;">
-        <el-switch v-model="settings.tradingTimeCheck" disabled />
-        <span style="margin-left: 10px; color: #E6A23C; font-size: 13px;">
-          <el-icon style="vertical-align: middle;"><Warning /></el-icon>
-          生产模式下交易时间检查永远启用，不可修改
         </span>
       </el-form-item>
       
@@ -58,7 +51,7 @@
           placeholder="14"
           style="width: 150px;"
         />
-        <span style="margin-left: 10px; font-weight: 500;">days</span>
+        <span style="margin-left: 10px; font-weight: 500;">天</span>
         <span style="margin-left: 20px; color: #909399; font-size: 13px;">
           超过保留时间的日志将被自动删除
         </span>
@@ -190,7 +183,6 @@
 <script setup>
 import { reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Warning } from '@element-plus/icons-vue'
 import { 
   getSystemConfig, 
   updateSystemConfig, 
