@@ -29,6 +29,9 @@ class User(BaseModel):
     # 关联审计日志
     audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan")
     
+    # 关联资金账户
+    trading_accounts = relationship("TradingAccount", back_populates="user", cascade="all, delete-orphan")
+    
     @property
     def is_admin(self) -> bool:
         """判断是否为管理员"""
