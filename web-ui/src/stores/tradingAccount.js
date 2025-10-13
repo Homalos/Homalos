@@ -92,12 +92,27 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
           account_id: String(response.account_number),
           display_name: response.display_name
         }
+        
+        // 更新localStorage
+        localStorage.setItem('trading_account_id', String(response.account_id))
+        localStorage.setItem('trading_account_logged_in', 'true')
+      } else {
+        // 清理状态
+        clearLoginState()
       }
       
       return response.is_logged_in
     } catch (error) {
       console.error('获取资金账户状态失败:', error)
-      return false
+      
+      // 如果是认证错误（401），清理状态
+      if (error.response?.status === 401) {
+        clearLoginState()
+        return false
+      }
+      
+      // 其他错误保持现有状态，避免网络问题导致误清理
+      return isLoggedIn.value
     }
   }
 
@@ -124,12 +139,35 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
   }
 
   /**
+   * 清理登录状态
+   */
+  function clearLoginState() {
+    accountId.value = null
+    accountInfo.value = null
+    isLoggedIn.value = false
+    localStorage.removeItem('trading_account_id')
+    localStorage.removeItem('trading_account_logged_in')
+  }
+
+  /**
    * 初始化（页面加载时调用）
    */
   async function initialize() {
+    // 检查localStorage中的登录状态
     if (isLoggedIn.value && accountId.value) {
-      await fetchStatus()
+      try {
+        // 调用后端验证状态
+        const isValid = await fetchStatus()
+        if (!isValid) {
+          console.log('资金账户状态验证失败，已清理本地状态')
+        }
+      } catch (error) {
+        console.error('初始化资金账户状态失败:', error)
+        // fetchStatus内部已处理错误情况
+      }
     }
+    
+    // 获取账户列表
     await fetchAccountList()
   }
 
@@ -150,6 +188,7 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
     fetchStatus,
     fetchAccountList,
     switchAccount,
+    clearLoginState,
     initialize
   }
 })

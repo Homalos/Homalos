@@ -136,6 +136,61 @@ async def get_current_user(
     return user
 
 
+async def get_current_user_with_trading_account(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db)
+) -> tuple[User, Optional[dict]]:
+    """
+    获取当前用户和资金账户信息（依赖注入）
+    
+    Args:
+        token: JWT令牌
+        db: 数据库会话
+        
+    Returns:
+        tuple: (用户对象, 资金账户信息字典或None)
+        
+    Raises:
+        HTTPException: 认证失败
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="无法验证凭据",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        # 解码JWT令牌
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        
+        if username is None:
+            raise credentials_exception
+            
+        # 获取资金账户信息（如果存在）
+        trading_account_data = payload.get("trading_account")
+            
+    except JWTError:
+        raise credentials_exception
+    
+    # 从数据库查询用户
+    result = await db.execute(
+        select(User).where(User.username == username)
+    )
+    user = result.scalar_one_or_none()
+    
+    if user is None:
+        raise credentials_exception
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="用户已被禁用"
+        )
+    
+    return user, trading_account_data
+
+
 async def get_current_active_admin(
     current_user: User = Depends(get_current_user)
 ) -> User:

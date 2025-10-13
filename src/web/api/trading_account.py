@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.web.core.database import get_db
-from src.web.core.security import get_current_user, create_access_token
+from src.web.core.security import get_current_user, get_current_user_with_trading_account, create_access_token
 from src.web.models.user import User
 from src.web.schemas.trading_account import (
     TradingAccountCreate,
@@ -133,16 +133,44 @@ async def logout_trading_account(
 
 @router.get("/status", response_model=TradingAccountStatus, summary="获取登录状态")
 async def get_trading_account_status(
-    current_user: User = Depends(get_current_user)
+    user_data: tuple = Depends(get_current_user_with_trading_account),
+    db: AsyncSession = Depends(get_db)
 ) -> TradingAccountStatus:
     """
     获取资金账户登录状态
     
-    从Token中解析资金账户信息
+    从Token中解析资金账户信息并验证有效性
     """
-    # 这里需要从request中获取Token并解析
-    # 简化处理：返回未登录状态
-    return TradingAccountStatus(is_logged_in=False)
+    current_user, trading_account_data = user_data
+    
+    # 如果JWT中没有资金账户信息，返回未登录状态
+    if not trading_account_data:
+        return TradingAccountStatus(is_logged_in=False)
+    
+    try:
+        # 验证资金账户是否仍然有效
+        service = TradingAuthService(db)
+        account = await service._get_account_by_id(
+            current_user.id, 
+            trading_account_data.get("id")
+        )
+        
+        # 检查账户是否存在且激活
+        if account and account.is_active:
+            return TradingAccountStatus(
+                is_logged_in=True,
+                account_id=account.id,
+                broker_id=account.broker_id,
+                account_number=account.account_id,
+                display_name=account.display_name
+            )
+        else:
+            # 账户不存在或已被禁用
+            return TradingAccountStatus(is_logged_in=False)
+            
+    except Exception as e:
+        # 发生错误时返回未登录状态
+        return TradingAccountStatus(is_logged_in=False)
 
 
 @router.get("/list", response_model=TradingAccountListResponse, summary="获取账户列表")
