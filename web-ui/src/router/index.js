@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useTradingAccountStore } from '@/stores/tradingAccount'
 
 const routes = [
   {
@@ -26,8 +27,9 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
+  const tradingAccountStore = useTradingAccountStore()
   const requiresAuth = to.meta.requiresAuth
 
   if (requiresAuth && !userStore.isLoggedIn) {
@@ -37,6 +39,10 @@ router.beforeEach((to, from, next) => {
     // 已登录但访问登录页，跳转到首页
     next('/')
   } else {
+    // 已通过系统登录，初始化资金账户Store
+    if (userStore.isLoggedIn && to.path !== '/login') {
+      await tradingAccountStore.initialize()
+    }
     next()
   }
 })
