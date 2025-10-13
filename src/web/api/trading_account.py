@@ -178,6 +178,8 @@ async def add_account(
         broker_id=account_data.broker_id,
         account_id=account_data.account_id,
         password=account_data.password,
+        app_id=account_data.app_id,
+        auth_code=account_data.auth_code,
         display_name=account_data.display_name,
         is_default=account_data.is_default
     )

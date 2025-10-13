@@ -1,5 +1,60 @@
 # Update History
 
+## v0.0.4.20251013-patch13
+
+### ✨ 添加资金账户界面优化
+
+#### 功能改进
+1. **券商选择优化**
+   - 移除下拉选项中的`9999`等broker_id显示
+   - 更新券商配置：`real` → `guofu`（国富期货-主席），新增`everbright`（光大期货-主席）
+   - 修改TTS券商的broker_id：`tts`使用`0001`，`tts7x24`使用`0002`
+
+2. **字段标签优化**
+   - "资金账号" → "资金账户"
+   - "账户密码" → "交易密码"
+   - 占位符文本相应更新
+
+3. **新增可选字段**
+   - 添加"应用ID"输入框（可选）
+   - 添加"授权码"输入框（可选）
+   - 支持留空使用默认值
+
+#### 技术实现
+1. **后端数据模型**
+   - `TradingAccount`模型添加`app_id`、`auth_code`字段
+   - 更新相关Schema支持新字段
+   - 数据库迁移添加新字段
+
+2. **业务逻辑优化**
+   - `TradingAuthService`支持`app_id`、`auth_code`参数
+   - 未提供时自动从`BrokerService`获取默认值
+   - API接口支持新字段传递
+
+3. **前端界面更新**
+   - `TradingAccountLogin.vue`添加新字段输入
+   - `FirstTimeGuide.vue`同步更新
+   - 表单数据和提交逻辑完整支持
+
+#### 修改文件
+- `config/brokers.yaml`
+- `src/web/models/trading_account.py`
+- `src/web/schemas/trading_account.py`
+- `src/web/services/trading_auth_service.py`
+- `src/web/services/broker_service.py`
+- `src/web/api/trading_account.py`
+- `src/web/migrations/add_app_id_auth_code_to_trading_accounts.py`
+- `web-ui/src/components/TradingAccountLogin.vue`
+- `web-ui/src/components/FirstTimeGuide.vue`
+
+#### 用户体验提升
+- 🎯 界面更加清晰直观
+- 🔧 支持更灵活的账户配置
+- 📝 字段标签更加准确
+- ✨ 可选字段提供更多自定义选项
+
+---
+
 ## v0.0.4.20251013-patch12
 
 ### 🐛 Bug修复 & ✨ 功能增强

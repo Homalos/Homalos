@@ -23,6 +23,8 @@ class TradingAccount(BaseModel):
     broker_id = Column(String(50), nullable=False, comment="券商ID")
     account_id = Column(String(100), nullable=False, comment="资金账号")
     encrypted_password = Column(String(255), nullable=False, comment="加密密码")
+    app_id = Column(String(100), nullable=True, comment="应用ID")
+    auth_code = Column(String(100), nullable=True, comment="授权码")
     display_name = Column(String(100), comment="显示名称")
     is_active = Column(Boolean, default=True, nullable=False, comment="是否激活")
     is_default = Column(Boolean, default=False, nullable=False, comment="是否默认账户")

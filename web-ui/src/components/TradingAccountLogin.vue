@@ -64,27 +64,38 @@
               :value="broker.broker_key"
             >
               <span>{{ broker.name }}</span>
-              <span style="float: right; color: #8492a6; font-size: 13px;">
-                {{ broker.broker_id }}
-              </span>
             </el-option>
           </el-select>
         </el-form-item>
 
-        <el-form-item label="资金账号" prop="account_number">
+        <el-form-item label="资金账户" prop="account_number">
           <el-input
             v-model="formData.account_number"
-            placeholder="请输入资金账号"
+            placeholder="请输入资金账户"
+          />
+        </el-form-item>
+
+        <el-form-item label="应用ID">
+          <el-input
+            v-model="formData.app_id"
+            placeholder="可选，留空使用默认值"
+          />
+        </el-form-item>
+
+        <el-form-item label="授权码">
+          <el-input
+            v-model="formData.auth_code"
+            placeholder="可选，留空使用默认值"
           />
         </el-form-item>
       </template>
 
       <!-- 密码（两种模式都需要） -->
-      <el-form-item label="账户密码" prop="password">
+      <el-form-item label="交易密码" prop="password">
         <el-input
           v-model="formData.password"
           type="password"
-          placeholder="请输入账户密码"
+          placeholder="请输入交易密码"
           show-password
           @keyup.enter="handleLogin"
         />
@@ -144,6 +155,8 @@ const formData = reactive({
   account_id: null,
   broker_key: '',
   account_number: '',
+  app_id: '',
+  auth_code: '',
   password: '',
   remember: false
 })
@@ -186,6 +199,8 @@ async function handleLogin() {
       } else {
         loginData.broker_key = formData.broker_key
         loginData.account_number = formData.account_number
+        if (formData.app_id) loginData.app_id = formData.app_id
+        if (formData.auth_code) loginData.auth_code = formData.auth_code
       }
       
       const result = await tradingAccountStore.login(loginData)
@@ -211,6 +226,9 @@ async function handleLogin() {
  */
 function handleClose() {
   formRef.value?.resetFields()
+  // 清空新增的字段
+  formData.app_id = ''
+  formData.auth_code = ''
   visible.value = false
 }
 

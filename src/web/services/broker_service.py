@@ -44,7 +44,8 @@ class BrokerService:
                 'simnow7x24': 'SimNow模拟（7x24）',
                 'tts': 'TTS模拟（日盘）',
                 'tts7x24': 'TTS模拟（7x24）',
-                'real': '实盘账户'
+                'guofu': '国富期货-主席',
+                'everbright': '光大期货-主席'
             }
             
             for key, broker_config in brokers_config.items():
@@ -52,7 +53,7 @@ class BrokerService:
                     'broker_key': key,  # 使用配置key作为唯一标识符
                     'broker_id': broker_config.get('broker_id', '9999'),
                     'name': broker_names.get(key, key),
-                    'description': f"{key} - {broker_config.get('md_address', '')}"
+                    'description': broker_config.get('md_address', '')  # 只显示地址，去掉broker_id
                 })
             
             logger.info(f"加载券商列表成功: {len(broker_list)} 个券商")

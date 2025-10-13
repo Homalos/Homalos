@@ -109,6 +109,8 @@ class TradingAuthService:
                         broker_id=broker_id,
                         account_id=account_number,
                         password=password,
+                        app_id=None,  # 使用默认值
+                        auth_code=None,  # 使用默认值
                         display_name=f"{broker_key}_{broker_id}",
                         is_default=False
                     )
@@ -181,6 +183,8 @@ class TradingAuthService:
         broker_id: str,
         account_id: str,
         password: str,
+        app_id: Optional[str] = None,
+        auth_code: Optional[str] = None,
         display_name: Optional[str] = None,
         is_default: bool = False
     ) -> TradingAccount:
@@ -193,6 +197,14 @@ class TradingAuthService:
                 detail="该账户已存在"
             )
         
+        # 如果未提供app_id/auth_code，从BrokerService获取默认值
+        if not app_id or not auth_code:
+            broker_config = BrokerService.get_broker_config(broker_key)
+            if not app_id:
+                app_id = broker_config.get('app_id', '')
+            if not auth_code:
+                auth_code = broker_config.get('auth_code', '')
+        
         # 如果设为默认，取消其他默认账户
         if is_default:
             await self._clear_default_accounts(user_id)
@@ -204,6 +216,8 @@ class TradingAuthService:
             broker_id=broker_id,
             account_id=account_id,
             encrypted_password=get_password_hash(password),
+            app_id=app_id,
+            auth_code=auth_code,
             display_name=display_name or f"{broker_key}_{broker_id}",
             is_default=is_default
         )

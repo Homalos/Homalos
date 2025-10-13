@@ -18,7 +18,9 @@ class TradingAccountBase(BaseModel):
     """资金账户基础模型"""
     broker_key: str = Field(..., description="券商配置key（如simnow、tts等）")
     broker_id: str = Field(..., description="券商ID")
-    account_id: str = Field(..., description="资金账号")
+    account_id: str = Field(..., description="资金账户")
+    app_id: Optional[str] = Field(None, description="应用ID")
+    auth_code: Optional[str] = Field(None, description="授权码")
     display_name: Optional[str] = Field(None, description="显示名称")
 
 

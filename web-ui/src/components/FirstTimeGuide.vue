@@ -38,27 +38,30 @@
         <el-form :model="accountData" label-width="100px">
           <el-form-item label="开户机构">
             <el-select v-model="accountData.broker_key" placeholder="请选择">
-              <el-option
-                v-for="broker in brokerList"
-                :key="broker.broker_key"
-                :label="broker.name"
-                :value="broker.broker_key"
-              >
-                <span>{{ broker.name }}</span>
-                <span style="float: right; color: #8492a6; font-size: 13px;">
-                  {{ broker.broker_id }}
-                </span>
-              </el-option>
+            <el-option
+              v-for="broker in brokerList"
+              :key="broker.broker_key"
+              :label="broker.name"
+              :value="broker.broker_key"
+            >
+              <span>{{ broker.name }}</span>
+            </el-option>
             </el-select>
           </el-form-item>
-          <el-form-item label="资金账号">
-            <el-input v-model="accountData.account_id" placeholder="请输入资金账号" />
+          <el-form-item label="资金账户">
+            <el-input v-model="accountData.account_id" placeholder="请输入资金账户" />
           </el-form-item>
-          <el-form-item label="账户密码">
+          <el-form-item label="应用ID">
+            <el-input v-model="accountData.app_id" placeholder="可选，留空使用默认值" />
+          </el-form-item>
+          <el-form-item label="授权码">
+            <el-input v-model="accountData.auth_code" placeholder="可选，留空使用默认值" />
+          </el-form-item>
+          <el-form-item label="交易密码">
             <el-input
               v-model="accountData.password"
               type="password"
-              placeholder="请输入账户密码"
+              placeholder="请输入交易密码"
               show-password
             />
           </el-form-item>
@@ -127,6 +130,8 @@ const brokerList = ref([])
 const accountData = reactive({
   broker_key: '',
   account_id: '',
+  app_id: '',
+  auth_code: '',
   password: '',
   display_name: '',
   is_default: true
@@ -156,7 +161,20 @@ async function handleNext() {
     // 添加账户
     loading.value = true
     try {
-      await addTradingAccount(accountData)
+      const submitData = {
+        broker_key: accountData.broker_key,
+        broker_id: '', // 由后端自动获取
+        account_id: accountData.account_id,
+        password: accountData.password,
+        display_name: accountData.display_name,
+        is_default: accountData.is_default
+      }
+      
+      // 添加可选字段
+      if (accountData.app_id) submitData.app_id = accountData.app_id
+      if (accountData.auth_code) submitData.auth_code = accountData.auth_code
+      
+      await addTradingAccount(submitData)
       await tradingAccountStore.fetchAccountList()
       ElMessage.success('账户添加成功')
       currentStep.value = 2
