@@ -335,7 +335,8 @@ function maskAccountId(accountId) {
  * 判断是否为当前登录账户
  */
 function isCurrentAccount(row) {
-  return tradingAccountStore.accountId === row.id.toString()
+  // 统一转换为字符串进行比较
+  return String(tradingAccountStore.accountId) === String(row.id)
 }
 
 /**

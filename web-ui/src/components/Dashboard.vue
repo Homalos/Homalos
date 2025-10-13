@@ -263,18 +263,23 @@ const todayDate = computed(() => {
 
 /**
  * 加密账号 - 只显示后4位，前面用*替代
- * @param {string} accountId - 原始账号
+ * @param {string|number} accountId - 原始账号（支持字符串和数字）
  * @returns {string} 加密后的账号
  * @example
  * maskAccountId('123456789') // '*****6789'
+ * maskAccountId(160219)      // '**0219'
  * maskAccountId('1234')      // '1234'
  */
 function maskAccountId(accountId) {
-  if (!accountId || accountId.length <= 4) {
-    return accountId
+  // 防御性编程：确保是字符串
+  const accountStr = String(accountId || '')
+  
+  if (!accountStr || accountStr.length <= 4) {
+    return accountStr
   }
-  const visiblePart = accountId.slice(-4)  // 后4位
-  const maskedPart = '*'.repeat(accountId.length - 4)  // 前面用*替代
+  
+  const visiblePart = accountStr.slice(-4)  // 后4位
+  const maskedPart = '*'.repeat(accountStr.length - 4)  // 前面用*替代
   return maskedPart + visiblePart
 }
 

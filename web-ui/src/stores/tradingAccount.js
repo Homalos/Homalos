@@ -26,7 +26,7 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
       const response = await loginTradingAccount(loginData)
       
       if (response.success) {
-        accountId.value = response.account.id
+        accountId.value = String(response.account.id)
         accountInfo.value = response.account
         isLoggedIn.value = true
         
@@ -36,7 +36,7 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
         }
         
         // 持久化
-        localStorage.setItem('trading_account_id', response.account.id)
+        localStorage.setItem('trading_account_id', String(response.account.id))
         localStorage.setItem('trading_account_logged_in', 'true')
         
         // 刷新账户列表（确保新创建的账户显示在列表中）
@@ -85,11 +85,11 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
       isLoggedIn.value = response.is_logged_in
       
       if (response.is_logged_in) {
-        accountId.value = response.account_id
+        accountId.value = String(response.account_id)
         accountInfo.value = {
           id: response.account_id,
           broker_id: response.broker_id,
-          account_id: response.account_number,
+          account_id: String(response.account_number),
           display_name: response.display_name
         }
       }
