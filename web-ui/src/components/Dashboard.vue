@@ -292,14 +292,13 @@ const accountOverviewTitle = computed(() => {
   
   // 获取账户信息
   const accountName = tradingAccountStore.accountInfo?.display_name || '未命名账户'
-  const brokerId = tradingAccountStore.accountInfo?.broker_id || ''
   const accountId = tradingAccountStore.accountInfo?.account_id || ''
   
   // 加密账号
   const maskedAccount = maskAccountId(accountId)
   
-  // 显示格式：账户总览 - 账户名称 (券商ID - 加密账号)
-  return `账户总览 - ${accountName} (${brokerId} - ${maskedAccount})`
+  // 显示格式：账户总览 - 账户名称 (加密账号)
+  return `账户总览 - ${accountName} (${maskedAccount})`
 })
 
 // 组件挂载时启动监控

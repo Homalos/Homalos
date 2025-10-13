@@ -19,6 +19,7 @@ class TradingAccount(BaseModel):
     __tablename__ = "trading_accounts"
 
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True, comment="用户ID")
+    broker_key = Column(String(50), nullable=False, comment="券商配置key（如simnow、tts等）")
     broker_id = Column(String(50), nullable=False, comment="券商ID")
     account_id = Column(String(100), nullable=False, comment="资金账号")
     encrypted_password = Column(String(255), nullable=False, comment="加密密码")

@@ -1,5 +1,51 @@
 # Update History
 
+## v0.0.4.20251013-patch12
+
+### 🐛 Bug修复 & ✨ 功能增强
+
+#### 修复账户总览显示格式和数据结构优化
+- **问题**：账户总览显示格式错误
+  - **修复前**：`账户总览 - simnow7x24_789456 (simnow7x24 - **9456)`
+  - **修复后**：`账户总览 - simnow7x24_9999 (**9456)`
+- **根源**：
+  - broker_key 和 broker_id 混淆，前端存储错误
+  - display_name 生成格式错误（使用了broker_key_account_id，应为broker_key_broker_id）
+  - Dashboard 显示格式冗余（重复显示了broker信息）
+- **解决方案**：
+  - 数据模型新增 `broker_key` 字段（账户类型标识）
+  - 明确区分 `broker_key`（如 simnow7x24）和 `broker_id`（如 9999）
+  - `display_name` 格式改为 `${broker_key}_${broker_id}`
+  - Dashboard 显示格式简化为 `账户总览 - ${accountName} (${maskedAccount})`
+  - 后端登录时自动从 BrokerService 查询 broker_id
+- **字段说明**：
+  - `broker_key`：券商配置标识（如 simnow7x24），用于识别账户类型和连接配置
+  - `broker_id`：实际券商ID（如 9999），CTP标准券商代码
+  - `account_id`：资金账号（如 789456）
+  - `display_name`：UI显示名称，格式为 `${broker_key}_${broker_id}`（如 simnow7x24_9999）
+- **改进**：
+  - 数据结构更清晰，字段语义明确
+  - 显示格式更简洁，信息更准确
+  - 账户管理界面新增"账户类型"列
+  - 切换对话框显示简化（只显示账户名和加密账号）
+
+#### 修改文件
+
+**后端**：
+- ✅ `src/web/models/trading_account.py` - 添加 broker_key 字段
+- ✅ `src/web/schemas/trading_account.py` - 更新 Schema 定义
+- ✅ `src/web/services/trading_auth_service.py` - 更新服务逻辑，支持从BrokerService查询broker_id
+- ✅ `src/web/api/trading_account.py` - 更新 API 路由
+- ✅ `src/web/migrations/add_broker_key_to_trading_accounts.py` - 数据库迁移
+
+**前端**：
+- ✅ `web-ui/src/components/TradingAccountLogin.vue` - 修改提交逻辑（broker_id → broker_key）
+- ✅ `web-ui/src/components/FirstTimeGuide.vue` - 修改提交逻辑（broker_id → broker_key）
+- ✅ `web-ui/src/components/AccountManager.vue` - 添加账户类型列，简化切换对话框
+- ✅ `web-ui/src/components/Dashboard.vue` - 简化显示格式
+
+---
+
 ## v0.0.4.20251013-patch11
 
 ### 🐛 Bug修复

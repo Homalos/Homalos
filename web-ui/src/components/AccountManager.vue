@@ -7,6 +7,7 @@
   >
     <el-table :data="accountList" stripe>
       <el-table-column prop="display_name" label="账户名称" />
+      <el-table-column prop="broker_key" label="账户类型" width="120" />
       <el-table-column prop="broker_id" label="券商ID" width="100" />
       <el-table-column prop="account_id" label="资金账号" width="120" />
       <el-table-column label="状态" width="100">
@@ -188,7 +189,7 @@
           <div class="account-info">
             <div>{{ switchAccount?.display_name }}</div>
             <div class="account-detail">
-              {{ switchAccount?.broker_id }} - {{ maskAccountId(switchAccount?.account_id) }}
+              {{ maskAccountId(switchAccount?.account_id) }}
             </div>
           </div>
         </el-form-item>

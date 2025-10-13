@@ -51,9 +51,9 @@
 
       <!-- 新账户输入 -->
       <template v-if="loginMode === 'new'">
-        <el-form-item label="开户机构" prop="broker_id">
+        <el-form-item label="开户机构" prop="broker_key">
           <el-select
-            v-model="formData.broker_id"
+            v-model="formData.broker_key"
             placeholder="请选择开户机构"
             style="width: 100%;"
           >
@@ -142,7 +142,7 @@ const accountList = computed(() => tradingAccountStore.accountList)
 
 const formData = reactive({
   account_id: null,
-  broker_id: '',
+  broker_key: '',
   account_number: '',
   password: '',
   remember: false
@@ -152,7 +152,7 @@ const rules = {
   account_id: [
     { required: true, message: '请选择账户', trigger: 'change' }
   ],
-  broker_id: [
+  broker_key: [
     { required: true, message: '请选择开户机构', trigger: 'change' }
   ],
   account_number: [
@@ -184,7 +184,7 @@ async function handleLogin() {
       if (loginMode.value === 'existing') {
         loginData.account_id = formData.account_id
       } else {
-        loginData.broker_id = formData.broker_id
+        loginData.broker_key = formData.broker_key
         loginData.account_number = formData.account_number
       }
       

@@ -17,6 +17,7 @@ from fastapi import HTTPException, status
 
 from src.web.models.trading_account import TradingAccount
 from src.web.core.security import verify_password, get_password_hash
+from src.web.services.broker_service import BrokerService
 from src.utils.log import get_logger
 
 logger = get_logger(__name__)
@@ -36,6 +37,7 @@ class TradingAuthService:
         self, 
         user_id: int, 
         account_id: Optional[int], 
+        broker_key: Optional[str],
         broker_id: Optional[str],
         account_number: Optional[str],
         password: str
@@ -45,13 +47,14 @@ class TradingAuthService:
         
         支持两种登录方式：
         1. 使用已有账户ID登录（account_id）
-        2. 使用券商ID+资金账号登录（broker_id + account_number）
+        2. 使用券商配置key+资金账号登录（broker_key + account_number）
            - 如果账户不存在，自动创建账户后登录
         
         Args:
             user_id: Web用户ID
             account_id: 已有账户ID（可选）
-            broker_id: 券商ID（新账户必填）
+            broker_key: 券商配置key（新账户必填）
+            broker_id: 券商ID（新账户可选，如果未提供则从broker_key查询）
             account_number: 资金账号（新账户必填）
             password: 密码
             
@@ -72,24 +75,41 @@ class TradingAuthService:
                     detail="账户不存在"
                 )
         else:
-            # 使用券商ID和账号登录
-            if not broker_id or not account_number:
+            # 使用券商key和账号登录
+            if not broker_key or not account_number:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="请提供券商ID和资金账号"
+                    detail="请提供券商配置和资金账号"
                 )
+            
+            # 如果未提供broker_id，从BrokerService查询
+            if not broker_id:
+                broker_config = BrokerService.get_broker_config(broker_key)
+                if not broker_config:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"未找到券商配置: {broker_key}"
+                    )
+                broker_id = broker_config.get('broker_id', '')
+                if not broker_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"券商配置缺少broker_id: {broker_key}"
+                    )
+            
             account = await self._get_account_by_credentials(user_id, broker_id, account_number)
             
             # 如果账户不存在，自动创建
             if not account:
-                logger.info(f"账户不存在，自动创建: user_id={user_id}, broker_id={broker_id}, account_id={account_number}")
+                logger.info(f"账户不存在，自动创建: user_id={user_id}, broker_key={broker_key}, account_id={account_number}")
                 try:
                     account = await self.add_account(
                         user_id=user_id,
+                        broker_key=broker_key,
                         broker_id=broker_id,
                         account_id=account_number,
                         password=password,
-                        display_name=f"{broker_id}_{account_number}",
+                        display_name=f"{broker_key}_{broker_id}",
                         is_default=False
                     )
                     logger.info(f"账户创建成功，继续登录: account_id={account.id}")
@@ -157,6 +177,7 @@ class TradingAuthService:
     async def add_account(
         self,
         user_id: int,
+        broker_key: str,
         broker_id: str,
         account_id: str,
         password: str,
@@ -179,10 +200,11 @@ class TradingAuthService:
         # 创建账户
         account = TradingAccount(
             user_id=user_id,
+            broker_key=broker_key,
             broker_id=broker_id,
             account_id=account_id,
             encrypted_password=get_password_hash(password),
-            display_name=display_name or f"{broker_id}_{account_id}",
+            display_name=display_name or f"{broker_key}_{broker_id}",
             is_default=is_default
         )
         
@@ -190,7 +212,7 @@ class TradingAuthService:
         await self.db.commit()
         await self.db.refresh(account)
         
-        logger.info(f"添加资金账户: user_id={user_id}, account_id={account.id}")
+        logger.info(f"添加资金账户: user_id={user_id}, broker_key={broker_key}, account_id={account.id}")
         return account
     
     async def get_account_list(self, user_id: int) -> list[TradingAccount]:

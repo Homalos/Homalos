@@ -16,6 +16,7 @@ from datetime import datetime
 
 class TradingAccountBase(BaseModel):
     """资金账户基础模型"""
+    broker_key: str = Field(..., description="券商配置key（如simnow、tts等）")
     broker_id: str = Field(..., description="券商ID")
     account_id: str = Field(..., description="资金账号")
     display_name: Optional[str] = Field(None, description="显示名称")
@@ -42,7 +43,8 @@ class TradingAccountPasswordUpdate(BaseModel):
 class TradingAccountLogin(BaseModel):
     """资金账户登录"""
     account_id: Optional[int] = Field(None, description="账户ID（已有账户）")
-    broker_id: Optional[str] = Field(None, description="券商ID（新账户）")
+    broker_key: Optional[str] = Field(None, description="券商配置key（新账户）")
+    broker_id: Optional[str] = Field(None, description="券商ID（新账户，可选）")
     account_number: Optional[str] = Field(None, description="资金账号（新账户）")
     password: str = Field(..., description="密码")
     remember: bool = Field(False, description="记住账户")

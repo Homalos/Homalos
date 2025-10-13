@@ -37,7 +37,7 @@
 
         <el-form :model="accountData" label-width="100px">
           <el-form-item label="开户机构">
-            <el-select v-model="accountData.broker_id" placeholder="请选择">
+            <el-select v-model="accountData.broker_key" placeholder="请选择">
               <el-option
                 v-for="broker in brokerList"
                 :key="broker.broker_key"
@@ -125,7 +125,7 @@ const loading = ref(false)
 const brokerList = ref([])
 
 const accountData = reactive({
-  broker_id: '',
+  broker_key: '',
   account_id: '',
   password: '',
   display_name: '',
@@ -148,7 +148,7 @@ async function handleNext() {
     currentStep.value = 1
   } else if (currentStep.value === 1) {
     // 验证表单
-    if (!accountData.broker_id || !accountData.account_id || !accountData.password) {
+    if (!accountData.broker_key || !accountData.account_id || !accountData.password) {
       ElMessage.warning('请填写完整的账户信息')
       return
     }

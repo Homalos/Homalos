@@ -63,6 +63,7 @@ async def login_trading_account(
         account = await service.login(
             user_id=current_user.id,
             account_id=login_data.account_id,
+            broker_key=login_data.broker_key,
             broker_id=login_data.broker_id,
             account_number=login_data.account_number,
             password=login_data.password
@@ -74,6 +75,7 @@ async def login_trading_account(
             "role": current_user.role,
             "trading_account": {
                 "id": account.id,
+                "broker_key": account.broker_key,
                 "broker_id": account.broker_id,
                 "account_id": account.account_id,
                 "display_name": account.display_name
@@ -172,6 +174,7 @@ async def add_account(
     service = TradingAuthService(db)
     account = await service.add_account(
         user_id=current_user.id,
+        broker_key=account_data.broker_key,
         broker_id=account_data.broker_id,
         account_id=account_data.account_id,
         password=account_data.password,
