@@ -220,20 +220,62 @@
       <el-row :gutter="20">
         <el-col :span="8">
           <div class="chart-container">
-            <div class="chart-title">权益曲线</div>
-            <EquityCurveChart :data="dashboardData.chartData.equityCurve" />
+            <div class="chart-header">
+              <div class="chart-title">权益曲线</div>
+              <el-select 
+                v-model="chartPeriods.equity" 
+                size="small" 
+                style="width: 100px;"
+                @change="handlePeriodChange('equity')"
+              >
+                <el-option label="近1周" value="1week" />
+                <el-option label="近1月" value="1month" />
+                <el-option label="近3月" value="3months" />
+                <el-option label="近6月" value="6months" />
+                <el-option label="全部" value="all" />
+              </el-select>
+            </div>
+            <EquityCurveChart :data="filteredChartData.equityCurve" />
           </div>
         </el-col>
         <el-col :span="8">
           <div class="chart-container">
-            <div class="chart-title">盈亏图表</div>
-            <ProfitLossChart :data="dashboardData.chartData.profitLoss" />
+            <div class="chart-header">
+              <div class="chart-title">盈亏图表</div>
+              <el-select 
+                v-model="chartPeriods.profitLoss" 
+                size="small" 
+                style="width: 100px;"
+                @change="handlePeriodChange('profitLoss')"
+              >
+                <el-option label="近1周" value="1week" />
+                <el-option label="近1月" value="1month" />
+                <el-option label="近3月" value="3months" />
+                <el-option label="近6月" value="6months" />
+                <el-option label="全部" value="all" />
+              </el-select>
+            </div>
+            <ProfitLossChart :data="filteredChartData.profitLoss" />
           </div>
         </el-col>
         <el-col :span="8">
           <div class="chart-container">
-            <div class="chart-title">收益率曲线</div>
-            <ReturnRateChart :data="dashboardData.chartData.returnRate" />
+            <div class="chart-header">
+              <div class="chart-title">收益率曲线</div>
+              <el-select 
+                v-model="chartPeriods.returnRate" 
+                size="small" 
+                style="width: 100px;"
+                @change="handlePeriodChange('returnRate')"
+              >
+                <el-option label="近1周" value="1week" />
+                <el-option label="近1月" value="1month" />
+                <el-option label="近3月" value="3months" />
+                <el-option label="近6月" value="6months" />
+                <el-option label="全部" value="all" />
+              </el-select>
+            </div>
+            <ReturnRateChart :data="filteredChartData.returnRate" />
           </div>
         </el-col>
       </el-row>
@@ -270,6 +312,13 @@ import ReturnRateChart from './charts/ReturnRateChart.vue'
 // 使用导入的仪表盘数据初始化
 const dashboardData = reactive(dashboardDataImport)
 
+// 图表周期选择状态
+const chartPeriods = reactive({
+  equity: 'all',      // 权益曲线周期
+  profitLoss: 'all',  // 盈亏图表周期
+  returnRate: 'all'   // 收益率曲线周期
+})
+
 // 系统监控数据
 const {
   systemInfo,
@@ -289,6 +338,64 @@ const todayDate = computed(() => {
     day: 'numeric'
   })
 })
+
+/**
+ * 数据过滤函数 - 根据选择的周期过滤图表数据
+ * @param {Array} data - 原始数据数组
+ * @param {string} period - 周期选项 ('1week'|'1month'|'3months'|'6months'|'all')
+ * @returns {Array} 过滤后的数据数组
+ * 
+ * 数据限制策略：
+ * - 近1周：最近7天
+ * - 近1月：最近1个月
+ * - 近3月：最近3个月
+ * - 近6月：最近6个月
+ * - 全部：最多3年数据（防止数据过大影响性能）
+ */
+function filterDataByPeriod(data, period) {
+  const now = new Date()
+  let startDate = new Date()
+  
+  switch (period) {
+    case '1week':
+      startDate.setDate(now.getDate() - 7)
+      break
+    case '1month':
+      startDate.setMonth(now.getMonth() - 1)
+      break
+    case '3months':
+      startDate.setMonth(now.getMonth() - 3)
+      break
+    case '6months':
+      startDate.setMonth(now.getMonth() - 6)
+      break
+    case 'all':
+      // 全部数据限制为最多3年
+      startDate.setFullYear(now.getFullYear() - 3)
+      break
+    default:
+      // 默认也限制为3年
+      startDate.setFullYear(now.getFullYear() - 3)
+      break
+  }
+  
+  return data.filter(item => {
+    const itemDate = new Date(item.date)
+    return itemDate >= startDate
+  })
+}
+
+// 过滤后的图表数据
+const filteredChartData = computed(() => ({
+  equityCurve: filterDataByPeriod(dashboardData.chartData.equityCurve, chartPeriods.equity),
+  profitLoss: filterDataByPeriod(dashboardData.chartData.profitLoss, chartPeriods.profitLoss),
+  returnRate: filterDataByPeriod(dashboardData.chartData.returnRate, chartPeriods.returnRate)
+}))
+
+// 周期变更处理函数
+function handlePeriodChange(chartType) {
+  console.log(`${chartType} 图表周期已更改为: ${chartPeriods[chartType]}`)
+}
 
 /**
  * 加密账号 - 只显示后4位，前面用*替代
@@ -412,12 +519,17 @@ onUnmounted(() => {
   flex-direction: column;
 }
 
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
 .chart-title {
   font-size: 14px;
   font-weight: 500;
   color: #303133;
-  margin-bottom: 12px;
-  text-align: center;
 }
 
 /* 响应式图表设计 */
