@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { login as loginApi, getCurrentUser } from '@/api/auth'
+import { login as loginApi, getCurrentUser, register as registerApi } from '@/api/auth'
 
 export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('token') || '')
@@ -19,6 +19,27 @@ export const useUserStore = defineStore('user', () => {
       return true
     } catch (error) {
       return false
+    }
+  }
+
+  /**
+   * 注册
+   */
+  async function register(registerForm) {
+    try {
+      const response = await registerApi({
+        username: registerForm.username,
+        password: registerForm.password,
+        email: registerForm.email || null,
+        full_name: registerForm.full_name || null,
+        role: 'admin'  // 默认注册管理员角色
+      })
+      return { success: true, user: response }
+    } catch (error) {
+      return { 
+        success: false, 
+        message: error.response?.data?.detail || '注册失败' 
+      }
     }
   }
 
@@ -50,6 +71,7 @@ export const useUserStore = defineStore('user', () => {
     userInfo,
     isLoggedIn,
     login,
+    register,
     logout,
     fetchUserInfo
   }
