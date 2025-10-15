@@ -316,56 +316,67 @@
         </el-table>
       </el-card>
 
-      <!-- 4. 成交明细 -->
+      <!-- 4. 成交 -->
       <el-card shadow="never" class="detail-section">
         <template #header>
-          <span class="section-title">成交明细</span>
+          <span class="section-title">成交</span>
         </template>
         <el-table :data="currentStrategy.trades" border stripe>
-          <el-table-column prop="tradeTime" label="成交时间" width="160" />
-          <el-table-column prop="contract" label="合约代码" width="100" />
-          <el-table-column prop="direction" label="买卖方向" width="80">
+          <!-- 1. 合约 -->
+          <el-table-column prop="contract" label="合约" width="80" />
+          <!-- 2. 多空 -->
+          <el-table-column prop="direction" label="多空" width="60">
             <template #default="scope">
-              <el-tag :type="scope.row.direction === '买' ? 'danger' : 'success'">
-                {{ scope.row.direction }}
+              <el-tag :type="scope.row.direction === '买' ? 'danger' : 'success'" size="small">
+                {{ scope.row.direction === '买' ? '多' : '空' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="offset" label="开平仓" width="80">
+          <!-- 3. 开平 -->
+          <el-table-column prop="offset" label="开平" width="60">
             <template #default="scope">
-              <el-tag :type="scope.row.offset === '开仓' ? 'warning' : 'info'">
-                {{ scope.row.offset }}
+              <el-tag :type="scope.row.offset === '开仓' ? 'primary' : 'warning'" size="small">
+                {{ scope.row.offset === '开仓' ? '开' : '平' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="tradePrice" label="成交价格" width="100">
+          <!-- 4. 成交价 -->
+          <el-table-column prop="tradePrice" label="成交价" width="100">
             <template #default="scope">
               {{ scope.row.tradePrice.toFixed(2) }}
             </template>
           </el-table-column>
-          <el-table-column prop="tradeVolume" label="成交数量" width="80" />
-          <el-table-column prop="tradeId" label="成交编号" width="180" />
+          <!-- 5. 成交量 -->
+          <el-table-column prop="tradeVolume" label="成交量" width="80" />
+          <!-- 6. 平仓盈亏 -->
+          <el-table-column prop="closeProfitLoss" label="平仓盈亏" width="100">
+            <template #default="scope">
+              <span v-if="scope.row.closeProfitLoss !== undefined && scope.row.closeProfitLoss !== null" 
+                    :style="{ color: scope.row.closeProfitLoss > 0 ? '#F56C6C' : scope.row.closeProfitLoss < 0 ? '#67C23A' : '#000000' }">
+                {{ scope.row.closeProfitLoss > 0 ? '+' : '' }}{{ scope.row.closeProfitLoss.toFixed(2) }}
+              </span>
+              <span v-else style="color: #909399;">-</span>
+            </template>
+          </el-table-column>
+          <!-- 7. 手续费 -->
           <el-table-column prop="commission" label="手续费" width="100">
             <template #default="scope">
               {{ scope.row.commission.toFixed(2) }}
             </template>
           </el-table-column>
-          <el-table-column prop="tradeType" label="成交类型" width="120">
-            <template #default="scope">
-              <el-tag :type="tradeTypeMap[scope.row.tradeType].color">
-                {{ tradeTypeMap[scope.row.tradeType].name }}
-              </el-tag>
-            </template>
-          </el-table-column>
+          <!-- 8. 编号 -->
+          <el-table-column prop="tradeId" label="编号" width="180" />
+          <!-- 9. 时间 -->
+          <el-table-column prop="tradeTime" label="时间" width="160" />
         </el-table>
       </el-card>
 
-      <!-- 5. 风险控制 -->
+      <!-- 5. 风控 -->
       <el-card shadow="never" class="detail-section">
         <template #header>
-          <span class="section-title">风险控制</span>
+          <span class="section-title">风控</span>
         </template>
-        <el-descriptions :column="2" border>
+        <el-descriptions :column="4" border>
           <el-descriptions-item label="最大仓位">{{ currentStrategy.riskControl.maxPosition }} 手</el-descriptions-item>
           <el-descriptions-item label="止损比例">{{ currentStrategy.riskControl.stopLossRatio }}%</el-descriptions-item>
           <el-descriptions-item label="止盈比例">{{ currentStrategy.riskControl.takeProfitRatio }}%</el-descriptions-item>
@@ -373,11 +384,11 @@
         </el-descriptions>
       </el-card>
 
-      <!-- 6. 风险控制参数配置 -->
+      <!-- 6. 风控参数 -->
       <el-card shadow="never" class="detail-section">
         <template #header>
           <div class="section-header">
-            <span class="section-title">风险控制参数配置</span>
+            <span class="section-title">风控参数</span>
             <div>
               <el-button size="small" @click="handleCancelEdit">取消</el-button>
               <el-button size="small" type="primary" @click="handleSaveParameters">保存</el-button>
@@ -386,20 +397,30 @@
         </template>
         
         <el-form :model="editableParameters" label-width="140px">
-          <!-- 风险参数 -->
-          <el-divider content-position="left">风险参数</el-divider>
-          <el-form-item label="最大仓位（手）">
-            <el-input-number v-model="editableParameters.riskControl.maxPosition" :min="1" :max="200" />
-          </el-form-item>
-          <el-form-item label="止损比例（%）">
-            <el-input-number v-model="editableParameters.riskControl.stopLossRatio" :min="0.1" :max="10" :step="0.1" :precision="1" />
-          </el-form-item>
-          <el-form-item label="止盈比例（%）">
-            <el-input-number v-model="editableParameters.riskControl.takeProfitRatio" :min="0.1" :max="20" :step="0.1" :precision="1" />
-          </el-form-item>
-          <el-form-item label="最大回撤（%）">
-            <el-input-number v-model="editableParameters.riskControl.maxDrawdown" :min="1" :max="50" :step="1" :precision="1" />
-          </el-form-item>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="最大仓位（手）">
+                <el-input-number v-model="editableParameters.riskControl.maxPosition" :min="1" :max="200" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="止损比例（%）">
+                <el-input-number v-model="editableParameters.riskControl.stopLossRatio" :min="0.1" :max="10" :step="0.1" :precision="1" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="止盈比例（%）">
+                <el-input-number v-model="editableParameters.riskControl.takeProfitRatio" :min="0.1" :max="20" :step="0.1" :precision="1" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="最大回撤（%）">
+                <el-input-number v-model="editableParameters.riskControl.maxDrawdown" :min="1" :max="50" :step="1" :precision="1" />
+              </el-form-item>
+            </el-col>
+          </el-row>
         </el-form>
       </el-card>
     </div>
