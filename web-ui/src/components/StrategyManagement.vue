@@ -160,8 +160,11 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="volume" label="总仓" width="60" />
-          <el-table-column prop="available" label="可用" width="60" />
+          <el-table-column label="可用/总仓" width="90">
+            <template #default="scope">
+              {{ scope.row.available }}/{{ scope.row.volume }}
+            </template>
+          </el-table-column>
           <el-table-column prop="holdPrice" label="开仓均价" width="100">
             <template #default="scope">
               {{ scope.row.holdPrice.toFixed(2) }}
@@ -172,7 +175,7 @@
               {{ scope.row.latestPrice.toFixed(2) }}
             </template>
           </el-table-column>
-          <el-table-column prop="profitLoss" label="逐笔浮盈" width="100">
+          <el-table-column prop="profitLoss" label="逐笔盈亏" width="100">
             <template #default="scope">
               <span :style="{ color: scope.row.profitLoss > 0 ? '#F56C6C' : scope.row.profitLoss < 0 ? '#67C23A' : '#000000' }">
                 {{ scope.row.profitLoss > 0 ? '+' : '' }}{{ scope.row.profitLoss.toFixed(2) }}
@@ -203,7 +206,7 @@
               {{ scope.row.marketValue.toLocaleString() }}
             </template>
           </el-table-column>
-          <el-table-column prop="markToMarketPL" label="盯市浮盈" width="100">
+          <el-table-column prop="markToMarketPL" label="盯市盈亏" width="100">
             <template #default="scope">
               <span :style="{ color: scope.row.markToMarketPL > 0 ? '#F56C6C' : scope.row.markToMarketPL < 0 ? '#67C23A' : '#000000' }">
                 {{ scope.row.markToMarketPL > 0 ? '+' : '' }}{{ scope.row.markToMarketPL.toFixed(2) }}
@@ -236,7 +239,41 @@
         </el-table>
       </el-card>
 
-      <!-- 3. 委托 -->
+      <!-- 3. 挂单 -->
+      <el-card shadow="never" class="detail-section">
+        <template #header>
+          <span class="section-title">挂单</span>
+        </template>
+        <el-table v-if="pendingOrders.length > 0" :data="pendingOrders" border stripe>
+          <!-- 1. 合约 -->
+          <el-table-column prop="contract" label="合约" width="100" />
+          <!-- 2. 多空 -->
+          <el-table-column prop="direction" label="多空" width="80">
+            <template #default="scope">
+              <el-tag :type="scope.row.direction === '买' ? 'danger' : 'success'" size="small">
+                {{ scope.row.direction === '买' ? '多' : '空' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <!-- 3. 委托价 -->
+          <el-table-column prop="orderPrice" label="委托价" width="100">
+            <template #default="scope">
+              {{ scope.row.orderPrice.toFixed(2) }}
+            </template>
+          </el-table-column>
+          <!-- 4. 委托量 -->
+          <el-table-column prop="orderVolume" label="委托量" width="100" />
+          <!-- 5. 挂单量 -->
+          <el-table-column label="挂单量" width="100">
+            <template #default="scope">
+              {{ scope.row.orderVolume - (scope.row.filledVolume || 0) }}
+            </template>
+          </el-table-column>
+        </el-table>
+        <el-empty v-else description="暂无挂单数据" />
+      </el-card>
+
+      <!-- 4. 委托 -->
       <el-card shadow="never" class="detail-section">
         <template #header>
           <span class="section-title">委托</span>
@@ -277,20 +314,30 @@
           <!-- 6. 委托量 -->
           <el-table-column prop="orderVolume" label="委托量" width="70" />
           <!-- 7. 已成交 -->
-          <el-table-column prop="filledVolume" label="已成交" width="70" />
-          <!-- 8. 可撤 -->
-          <el-table-column prop="cancelableVolume" label="可撤" width="60">
+          <el-table-column prop="filledVolume" label="已成交" width="70">
             <template #default="scope">
-              {{ scope.row.cancelableVolume || 0 }}
+              {{ (scope.row.status === 'submitted' || !scope.row.filledVolume || scope.row.filledVolume === 0) ? '-' : scope.row.filledVolume }}
             </template>
           </el-table-column>
-          <!-- 9. 成交价 -->
+          <!-- 8. 已撤单 -->
+          <el-table-column prop="cancelledVolume" label="已撤单" width="70">
+            <template #default="scope">
+              {{ (scope.row.cancelledVolume && scope.row.cancelledVolume > 0) ? scope.row.cancelledVolume : '-' }}
+            </template>
+          </el-table-column>
+          <!-- 9. 可撤 -->
+          <el-table-column prop="cancelableVolume" label="可撤" width="60">
+            <template #default="scope">
+              {{ (scope.row.status === 'filled' || !scope.row.cancelableVolume || scope.row.cancelableVolume === 0) ? '-' : scope.row.cancelableVolume }}
+            </template>
+          </el-table-column>
+          <!-- 10. 成交价 -->
           <el-table-column prop="avgPrice" label="成交价" width="80">
             <template #default="scope">
               {{ scope.row.avgPrice ? scope.row.avgPrice.toFixed(2) : '-' }}
             </template>
           </el-table-column>
-          <!-- 10. 时间 -->
+          <!-- 11. 时间 -->
           <el-table-column prop="orderTime" label="时间" width="160" />
           <!-- 操作 -->
           <el-table-column label="操作" width="160" fixed="right">
@@ -316,7 +363,7 @@
         </el-table>
       </el-card>
 
-      <!-- 4. 成交 -->
+      <!-- 5. 成交 -->
       <el-card shadow="never" class="detail-section">
         <template #header>
           <span class="section-title">成交</span>
@@ -371,7 +418,7 @@
         </el-table>
       </el-card>
 
-      <!-- 5. 风控 -->
+      <!-- 6. 风控 -->
       <el-card shadow="never" class="detail-section">
         <template #header>
           <span class="section-title">风控</span>
@@ -384,7 +431,7 @@
         </el-descriptions>
       </el-card>
 
-      <!-- 6. 风控参数 -->
+      <!-- 7. 风控参数 -->
       <el-card shadow="never" class="detail-section">
         <template #header>
           <div class="section-header">
@@ -472,6 +519,7 @@ import {
   DataAnalysis, SuccessFilled, Setting, Plus, Document
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { computed } from 'vue'
 import { logLevelMap, orderStatusMap, orderTypeMap, tradeTypeMap } from '@/constants'
 import { getTotalProfitLoss } from '@/utils'
 import { strategyTemplates } from '@/mock'
@@ -497,6 +545,18 @@ const {
   handleSaveParameters,
   handleCancelEdit
 } = useStrategyManagement()
+
+/**
+ * 挂单列表 - 筛选出未完全成交的委托
+ */
+const pendingOrders = computed(() => {
+  if (!currentStrategy.value || !currentStrategy.value.orders) {
+    return []
+  }
+  return currentStrategy.value.orders.filter(order => 
+    order.status === 'submitted' || order.status === 'partiallyFilled'
+  )
+})
 
 /**
  * 一键平仓处理
