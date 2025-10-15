@@ -1,6 +1,15 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
+/**
+ * 检查是否为资金账户相关API
+ * @param {string} url - 请求URL
+ * @returns {boolean} 是否为资金账户API
+ */
+function isTradingAccountAPI(url) {
+  return url && url.includes('/api/trading-account')
+}
+
 // 创建axios实例
 const request = axios.create({
   baseURL: 'http://localhost:8000',
@@ -48,9 +57,15 @@ request.interceptors.response.use(
       
       switch (status) {
         case 401:
-          ElMessage.error('未授权，请重新登录')
-          localStorage.removeItem('token')
-          window.location.href = '/login'
+          if (isTradingAccountAPI(error.config.url)) {
+            // 资金账户相关API的401错误：只显示提示，不跳转
+            ElMessage.error(data.detail || '密码错误或账户无权限')
+          } else {
+            // 系统认证相关API的401错误：跳转登录页面
+            ElMessage.error('登录已过期，请重新登录')
+            localStorage.removeItem('token')
+            window.location.href = '/login'
+          }
           break
         case 403:
           ElMessage.error('权限不足')

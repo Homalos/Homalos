@@ -149,18 +149,19 @@
       <!-- 2. 持仓信息 -->
       <el-card shadow="never" class="detail-section">
         <template #header>
-          <span class="section-title">持仓信息</span>
+          <span class="section-title">持仓</span>
         </template>
         <el-table :data="currentStrategy.positions" border stripe>
-          <el-table-column prop="contract" label="合约代码" width="100" />
-          <el-table-column prop="direction" label="买卖方向" width="90">
+          <el-table-column prop="contract" label="合约" width="80" />
+          <el-table-column prop="direction" label="多空" width="60">
             <template #default="scope">
               <el-tag :type="scope.row.direction === '多' ? 'danger' : 'success'">
                 {{ scope.row.direction }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="volume" label="持仓量" width="80" />
+          <el-table-column prop="volume" label="总仓" width="60" />
+          <el-table-column prop="available" label="可用" width="60" />
           <el-table-column prop="holdPrice" label="开仓均价" width="100">
             <template #default="scope">
               {{ scope.row.holdPrice.toFixed(2) }}
@@ -171,23 +172,42 @@
               {{ scope.row.latestPrice.toFixed(2) }}
             </template>
           </el-table-column>
-          <el-table-column prop="profitLoss" label="浮动盈亏" width="100">
+          <el-table-column prop="profitLoss" label="逐笔浮盈" width="100">
             <template #default="scope">
               <span :style="{ color: scope.row.profitLoss > 0 ? '#F56C6C' : scope.row.profitLoss < 0 ? '#67C23A' : '#000000' }">
                 {{ scope.row.profitLoss > 0 ? '+' : '' }}{{ scope.row.profitLoss.toFixed(2) }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column prop="returnRate" label="持仓盈亏比例" width="120">
+          <el-table-column prop="priceDiff" label="盈利价差" width="90">
+            <template #default="scope">
+              <span :style="{ color: scope.row.priceDiff > 0 ? '#F56C6C' : scope.row.priceDiff < 0 ? '#67C23A' : '#000000' }">
+                {{ scope.row.priceDiff > 0 ? '+' : '' }}{{ scope.row.priceDiff.toFixed(2) }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="returnRate" label="浮盈比例" width="90">
             <template #default="scope">
               <span :style="{ color: scope.row.returnRate > 0 ? '#F56C6C' : scope.row.returnRate < 0 ? '#67C23A' : '#000000' }">
                 {{ scope.row.returnRate > 0 ? '+' : '' }}{{ scope.row.returnRate.toFixed(2) }}%
               </span>
             </template>
           </el-table-column>
-          <el-table-column prop="margin" label="保证金占用" width="120">
+          <el-table-column prop="margin" label="保证金" width="90">
             <template #default="scope">
-              {{ scope.row.margin.toFixed(2) }}
+              {{ scope.row.margin.toLocaleString() }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="marketValue" label="市值" width="100">
+            <template #default="scope">
+              {{ scope.row.marketValue.toLocaleString() }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="markToMarketPL" label="盯市浮盈" width="100">
+            <template #default="scope">
+              <span :style="{ color: scope.row.markToMarketPL > 0 ? '#F56C6C' : scope.row.markToMarketPL < 0 ? '#67C23A' : '#000000' }">
+                {{ scope.row.markToMarketPL > 0 ? '+' : '' }}{{ scope.row.markToMarketPL.toFixed(2) }}
+              </span>
             </template>
           </el-table-column>
           <el-table-column prop="takeProfitPrice" label="止盈价" width="100">
@@ -216,50 +236,64 @@
         </el-table>
       </el-card>
 
-      <!-- 3. 委托列表 -->
+      <!-- 3. 委托 -->
       <el-card shadow="never" class="detail-section">
         <template #header>
-          <span class="section-title">委托列表</span>
+          <span class="section-title">委托</span>
         </template>
         <el-table :data="currentStrategy.orders" border stripe>
-          <el-table-column prop="orderTime" label="委托时间" width="160" />
-          <el-table-column prop="contract" label="合约代码" width="100" />
-          <el-table-column prop="direction" label="买卖方向" width="80">
+          <!-- 1. 合约 -->
+          <el-table-column prop="contract" label="合约" width="80" />
+          <!-- 2. 状态 -->
+          <el-table-column prop="status" label="状态" width="80">
             <template #default="scope">
-              <el-tag :type="scope.row.direction === '买' ? 'danger' : 'success'">
-                {{ scope.row.direction }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="offset" label="开平仓" width="80">
-            <template #default="scope">
-              <el-tag :type="scope.row.offset === '开仓' ? 'warning' : 'info'">
-                {{ scope.row.offset }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="orderPrice" label="委托价格" width="100">
-            <template #default="scope">
-              {{ scope.row.orderPrice.toFixed(2) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="orderVolume" label="委托数量" width="80" />
-          <el-table-column prop="filledVolume" label="已成交数量" width="100" />
-          <el-table-column prop="status" label="委托状态" width="100">
-            <template #default="scope">
-              <el-tag :type="orderStatusMap[scope.row.status].color">
+              <el-tag :type="orderStatusMap[scope.row.status].color" size="small">
                 {{ orderStatusMap[scope.row.status].name }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="orderType" label="委托类型" width="100">
+          <!-- 3. 多空 -->
+          <el-table-column prop="direction" label="多空" width="60">
             <template #default="scope">
-              <el-tag :type="orderTypeMap[scope.row.orderType].color">
-                {{ orderTypeMap[scope.row.orderType].name }}
+              <el-tag :type="scope.row.direction === '买' ? 'danger' : 'success'" size="small">
+                {{ scope.row.direction === '买' ? '多' : '空' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="180" fixed="right">
+          <!-- 4. 开平 -->
+          <el-table-column prop="offset" label="开平" width="60">
+            <template #default="scope">
+              <el-tag :type="scope.row.offset === '开仓' ? 'primary' : 'warning'" size="small">
+                {{ scope.row.offset === '开仓' ? '开' : '平' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <!-- 5. 委托价 -->
+          <el-table-column prop="orderPrice" label="委托价" width="80">
+            <template #default="scope">
+              {{ scope.row.orderPrice.toFixed(2) }}
+            </template>
+          </el-table-column>
+          <!-- 6. 委托量 -->
+          <el-table-column prop="orderVolume" label="委托量" width="70" />
+          <!-- 7. 已成交 -->
+          <el-table-column prop="filledVolume" label="已成交" width="70" />
+          <!-- 8. 可撤 -->
+          <el-table-column prop="cancelableVolume" label="可撤" width="60">
+            <template #default="scope">
+              {{ scope.row.cancelableVolume || 0 }}
+            </template>
+          </el-table-column>
+          <!-- 9. 成交价 -->
+          <el-table-column prop="avgPrice" label="成交价" width="80">
+            <template #default="scope">
+              {{ scope.row.avgPrice ? scope.row.avgPrice.toFixed(2) : '-' }}
+            </template>
+          </el-table-column>
+          <!-- 10. 时间 -->
+          <el-table-column prop="orderTime" label="时间" width="160" />
+          <!-- 操作 -->
+          <el-table-column label="操作" width="160" fixed="right">
             <template #default="scope">
               <el-button 
                 v-if="scope.row.status === 'submitted' || scope.row.status === 'partiallyFilled'"
@@ -277,9 +311,6 @@
               >
                 修改
               </el-button>
-              <span v-if="scope.row.status === 'filled' || scope.row.status === 'cancelled' || scope.row.status === 'rejected'">
-                -
-              </span>
             </template>
           </el-table-column>
         </el-table>
@@ -451,7 +482,7 @@ const {
  */
 const handleClosePosition = (position) => {
   ElMessageBox.confirm(
-    `确认平仓？\n合约：${position.contract}\n方向：${position.direction}\n持仓量：${position.volume} 手\n当前价格：${position.latestPrice.toFixed(2)}\n预计盈亏：${position.profitLoss > 0 ? '+' : ''}${position.profitLoss.toFixed(2)}`,
+    `确认平仓？\n合约：${position.contract}\n多空：${position.direction}\n总仓：${position.volume} 手\n当前价格：${position.latestPrice.toFixed(2)}\n预计盈亏：${position.profitLoss > 0 ? '+' : ''}${position.profitLoss.toFixed(2)}`,
     '一键平仓确认',
     {
       confirmButtonText: '确认平仓',
@@ -476,7 +507,7 @@ const handleClosePosition = (position) => {
  */
 const handlePartialClose = (position) => {
   ElMessageBox.prompt(
-    `当前持仓量：${position.volume} 手\n请输入平仓数量（1-${position.volume}）`,
+    `当前总仓：${position.volume} 手\n请输入平仓数量（1-${position.volume}）`,
     '部分平仓',
     {
       confirmButtonText: '确认平仓',

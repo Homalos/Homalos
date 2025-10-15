@@ -21,6 +21,7 @@ export const strategiesData = [
       {
         contract: 'AU2406',
         volume: 10,
+        available: 10,
         direction: '多',
         holdPrice: 450.5,
         latestPrice: 462.3,
@@ -28,13 +29,17 @@ export const strategiesData = [
         takeProfitPrice: 460.0,
         stopLossPrice: 445.0,
         margin: 45050.0,
+        marketValue: 462300.0,
         profitLoss: 1200.5,
+        priceDiff: 11.8,
+        markToMarketPL: 1180.0,
         profitLossRatio: 2.67,
         returnRate: 2.67
       },
       {
         contract: 'AG2406',
         volume: 20,
+        available: 20,
         direction: '空',
         holdPrice: 5200.0,
         latestPrice: 5175.0,
@@ -42,7 +47,10 @@ export const strategiesData = [
         takeProfitPrice: 5100.0,
         stopLossPrice: 5250.0,
         margin: 104000.0,
+        marketValue: 1035000.0,
         profitLoss: -500.0,
+        priceDiff: -25.0,
+        markToMarketPL: -500.0,
         profitLossRatio: -0.48,
         returnRate: -0.48
       }
@@ -58,6 +66,8 @@ export const strategiesData = [
         orderPrice: 450.5,
         orderVolume: 10,
         filledVolume: 10,
+        cancelableVolume: 0,
+        avgPrice: 450.5,
         status: 'filled',
         orderType: 'limit'
       },
@@ -69,6 +79,8 @@ export const strategiesData = [
         orderPrice: 5200.0,
         orderVolume: 25,
         filledVolume: 20,
+        cancelableVolume: 5,
+        avgPrice: 5200.0,
         status: 'partiallyFilled',
         orderType: 'limit'
       },
@@ -80,6 +92,8 @@ export const strategiesData = [
         orderPrice: 68500.0,
         orderVolume: 5,
         filledVolume: 0,
+        cancelableVolume: 5,
+        avgPrice: null,
         status: 'submitted',
         orderType: 'limit'
       }
@@ -173,6 +187,7 @@ export const strategiesData = [
       {
         contract: 'CU2406',
         volume: 15,
+        available: 15,
         direction: '多',
         holdPrice: 68500.0,
         latestPrice: 69065.0,
@@ -180,7 +195,10 @@ export const strategiesData = [
         takeProfitPrice: 70000.0,
         stopLossPrice: 67500.0,
         margin: 102750.0,
+        marketValue: 1035975.0,
         profitLoss: 850.0,
+        priceDiff: 565.0,
+        markToMarketPL: 8475.0,
         profitLossRatio: 0.83,
         returnRate: 0.83
       }
@@ -196,6 +214,8 @@ export const strategiesData = [
         orderPrice: 68500.0,
         orderVolume: 15,
         filledVolume: 15,
+        cancelableVolume: 0,
+        avgPrice: 68500.0,
         status: 'filled',
         orderType: 'market'
       },
@@ -207,6 +227,8 @@ export const strategiesData = [
         orderPrice: 19200.0,
         orderVolume: 10,
         filledVolume: 0,
+        cancelableVolume: 0,
+        avgPrice: null,
         status: 'cancelled',
         orderType: 'limit'
       }
@@ -289,6 +311,7 @@ export const strategiesData = [
       {
         contract: 'RB2406',
         volume: 25,
+        available: 25,
         direction: '多',
         holdPrice: 3850.0,
         latestPrice: 3875.0,
@@ -296,13 +319,17 @@ export const strategiesData = [
         takeProfitPrice: 3900.0,
         stopLossPrice: 3820.0,
         margin: 96250.0,
+        marketValue: 96875.0,
         profitLoss: 625.0,
+        priceDiff: 25.0,
+        markToMarketPL: 625.0,
         profitLossRatio: 0.65,
         returnRate: 0.65
       },
       {
         contract: 'RB2409',
         volume: 25,
+        available: 25,
         direction: '空',
         holdPrice: 3880.0,
         latestPrice: 3850.0,
@@ -310,7 +337,10 @@ export const strategiesData = [
         takeProfitPrice: 3830.0,
         stopLossPrice: 3910.0,
         margin: 97000.0,
+        marketValue: 96250.0,
         profitLoss: 750.0,
+        priceDiff: -30.0,
+        markToMarketPL: 750.0,
         profitLossRatio: 0.77,
         returnRate: 0.77
       }
@@ -326,6 +356,8 @@ export const strategiesData = [
         orderPrice: 3850.0,
         orderVolume: 25,
         filledVolume: 25,
+        cancelableVolume: 0,
+        avgPrice: 3850.0,
         status: 'filled',
         orderType: 'limit'
       },
@@ -337,6 +369,8 @@ export const strategiesData = [
         orderPrice: 3880.0,
         orderVolume: 25,
         filledVolume: 25,
+        cancelableVolume: 0,
+        avgPrice: 3880.0,
         status: 'filled',
         orderType: 'limit'
       },
@@ -348,6 +382,8 @@ export const strategiesData = [
         orderPrice: 3900.0,
         orderVolume: 10,
         filledVolume: 0,
+        cancelableVolume: 0,
+        avgPrice: null,
         status: 'rejected',
         orderType: 'conditional'
       },
@@ -359,6 +395,8 @@ export const strategiesData = [
         orderPrice: 950.0,
         orderVolume: 30,
         filledVolume: 15,
+        cancelableVolume: 15,
+        avgPrice: 950.0,
         status: 'partiallyFilled',
         orderType: 'limit'
       }
