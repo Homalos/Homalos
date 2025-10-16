@@ -4,118 +4,152 @@
     <template #header>
       <div class="card-header">
         <span>策略管理</span>
-        <el-button type="primary" size="small" @click="addStrategyDialogVisible = true">加载策略</el-button>
+        <el-button type="primary" size="small" @click="handleRefresh">
+          <el-icon><Refresh /></el-icon>
+          刷新
+        </el-button>
       </div>
     </template>
+    
     <!-- 策略统计 -->
     <el-row :gutter="20" style="margin-bottom: 20px;">
       <el-col :span="8">
-        <el-statistic title="活跃策略" :value="activeStrategiesCount">
+        <el-statistic title="已注册策略" :value="Object.keys(strategyStore.strategies).length">
           <template #prefix>
             <el-icon color="#409eff"><DataAnalysis /></el-icon>
           </template>
         </el-statistic>
       </el-col>
       <el-col :span="8">
-        <el-statistic title="运行中" :value="runningStrategiesCount">
+        <el-statistic title="运行中" :value="strategyStore.runningCount">
           <template #prefix>
             <el-icon color="#67C23A"><SuccessFilled /></el-icon>
           </template>
         </el-statistic>
       </el-col>
       <el-col :span="8">
-        <el-statistic title="已停止" :value="stoppedStrategiesCount">
+        <el-statistic title="已停止" :value="strategyStore.stoppedCount">
           <template #prefix>
             <el-icon color="#909399"><Setting /></el-icon>
           </template>
         </el-statistic>
       </el-col>
     </el-row>
-    <el-table :data="strategies" style="width: 100%">
-      <el-table-column prop="id" label="策略ID" width="100" />
-      <el-table-column prop="name" label="策略名称" />
-      <el-table-column label="浮动盈亏" width="120">
+    
+    <!-- 策略列表 -->
+    <el-table 
+      :data="strategyList" 
+      style="width: 100%"
+      v-loading="strategyStore.isLoading"
+    >
+      <el-table-column prop="sid" label="策略ID" width="180" />
+      <el-table-column prop="module" label="模块路径" min-width="200" />
+      <el-table-column label="状态" width="100">
         <template #default="scope">
-          <span :style="{ color: getTotalProfitLoss(scope.row) > 0 ? '#F56C6C' : getTotalProfitLoss(scope.row) < 0 ? '#67C23A' : '#000000' }">
-            {{ getTotalProfitLoss(scope.row) > 0 ? '+' : '' }}{{ getTotalProfitLoss(scope.row).toFixed(2) }}
-          </span>
-        </template>
-      </el-table-column>
-      <el-table-column label="交易次数" width="100">
-        <template #default="scope">
-          {{ scope.row.positions.length }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="status" label="状态" width="100">
-        <template #default="scope">
-          <el-tag :type="scope.row.status === '运行中' ? 'success' : 'info'">
-            {{ scope.row.status }}
+          <el-tag :type="getStrategyStatus(scope.row.sid) === '运行中' ? 'success' : 'info'">
+            {{ getStrategyStatus(scope.row.sid) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="startTime" label="启动时间" width="180" />
-      <el-table-column prop="runningTime" label="运行时长" width="120" />
-      <el-table-column label="操作" width="220">
+      <el-table-column label="启用" width="80">
+        <template #default="scope">
+          <el-switch
+            :model-value="scope.row.enabled"
+            @change="handleToggleEnabled(scope.row.sid, $event)"
+          />
+        </template>
+      </el-table-column>
+      <el-table-column label="PID" width="100">
+        <template #default="scope">
+          {{ getStrategyPID(scope.row.sid) || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="280" fixed="right">
         <template #default="scope">
           <el-button
-            v-if="scope.row.status === '已停止'"
+            v-if="getStrategyStatus(scope.row.sid) === '已停止'"
             size="small"
             type="success"
-            @click="handleStartStrategy(scope.row)"
+            @click="handleStartStrategy(scope.row.sid)"
           >
             启动
           </el-button>
           <el-button
-            v-if="scope.row.status === '运行中'"
+            v-if="getStrategyStatus(scope.row.sid) === '运行中'"
             size="small"
             type="warning"
-            @click="handleStopStrategy(scope.row)"
+            @click="handleStopStrategy(scope.row.sid)"
           >
             停止
           </el-button>
-          <el-button size="small" type="primary" @click="handleShowDetail(scope.row)">详情</el-button>
-          <el-button size="small" type="danger" @click="handleDeleteStrategy(scope.row.id)">删除</el-button>
+          <el-button
+            v-if="getStrategyStatus(scope.row.sid) === '运行中'"
+            size="small"
+            type="primary"
+            @click="handleReloadStrategy(scope.row.sid)"
+          >
+            重载
+          </el-button>
+          <el-button 
+            size="small" 
+            @click="handleShowDetail(scope.row)"
+          >
+            详情
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
   </el-card>
 
-  <!-- 操作日志 -->
+  <!-- 实时日志 -->
   <el-card shadow="hover" style="margin-top: 20px;">
     <template #header>
       <div class="card-header">
-        <span>操作日志</span>
-        <el-select 
-          v-model="selectedLogLevel" 
-          placeholder="选择日志级别" 
-          size="small" 
-          style="width: 150px;"
-        >
-          <el-option label="全部" value="all" />
-          <el-option label="信息" value="info" />
-          <el-option label="成功" value="success" />
-          <el-option label="警告" value="warning" />
-          <el-option label="错误" value="error" />
-        </el-select>
+        <span>实时日志</span>
+        <div>
+          <el-select 
+            v-model="selectedLogType" 
+            placeholder="筛选日志类型" 
+            size="small" 
+            style="width: 150px; margin-right: 10px;"
+            clearable
+          >
+            <el-option label="全部" value="" />
+            <el-option label="日志(log)" value="log" />
+            <el-option label="错误(error)" value="error" />
+            <el-option label="状态(status)" value="status" />
+          </el-select>
+          <el-button size="small" @click="strategyStore.clearMessages">清空</el-button>
+        </div>
       </div>
     </template>
     <div class="log-container">
-      <el-timeline v-if="filteredStrategyLogs.length > 0">
+      <el-timeline v-if="filteredMessages.length > 0">
         <el-timeline-item 
-          v-for="log in filteredStrategyLogs" 
-          :key="log.id"
-          :timestamp="log.timestamp"
+          v-for="(msg, index) in filteredMessages.slice(-50)" 
+          :key="index"
+          :timestamp="msg.displayTime || msg.timestamp"
           placement="top"
         >
           <div class="log-item">
             <el-tag 
-              :type="logLevelMap[log.level].color" 
+              :type="getLogTypeColor(msg.type)" 
               size="small" 
               style="margin-right: 8px;"
             >
-              {{ log.category }}
+              [{{ msg.sid }}]
             </el-tag>
-            <span class="log-message">{{ log.message }}</span>
+            <el-tag 
+              :type="getLogTypeColor(msg.type)" 
+              size="small" 
+              style="margin-right: 8px;"
+            >
+              {{ msg.type }}
+            </el-tag>
+            <span class="log-message">{{ msg.payload }}</span>
+            <div v-if="msg.trace" class="log-trace">
+              <pre>{{ msg.trace }}</pre>
+            </div>
           </div>
         </el-timeline-item>
       </el-timeline>
@@ -123,574 +157,205 @@
     </div>
   </el-card>
 
-  <!-- 策略详情面板 -->
+  <!-- 策略详情抽屉 -->
   <el-drawer
     v-model="detailDrawerVisible"
-    :title="`策略详情 - ${currentStrategy?.name || ''}`"
-    size="70%"
+    :title="`策略详情 - ${currentStrategy?.sid || ''}`"
+    size="60%"
     direction="rtl"
   >
     <div v-if="currentStrategy" class="strategy-detail">
-      <!-- 1. 基础信息 -->
+      <!-- 基础信息 -->
       <el-card shadow="never" class="detail-section">
         <template #header>
           <span class="section-title">基础信息</span>
         </template>
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="策略名称">{{ currentStrategy.name }}</el-descriptions-item>
-          <el-descriptions-item label="策略ID">{{ currentStrategy.id }}</el-descriptions-item>
-          <el-descriptions-item label="作者">{{ currentStrategy.author }}</el-descriptions-item>
-          <el-descriptions-item label="创建时间">{{ currentStrategy.createTime }}</el-descriptions-item>
-          <el-descriptions-item label="最后修改时间" :span="2">{{ currentStrategy.lastModifyTime }}</el-descriptions-item>
-          <el-descriptions-item label="策略描述" :span="2">{{ currentStrategy.description }}</el-descriptions-item>
+          <el-descriptions-item label="策略ID">{{ currentStrategy.sid }}</el-descriptions-item>
+          <el-descriptions-item label="模块路径">{{ currentStrategy.module }}</el-descriptions-item>
+          <el-descriptions-item label="类名">{{ currentStrategy.class }}</el-descriptions-item>
+          <el-descriptions-item label="文件路径">{{ currentStrategy.file }}</el-descriptions-item>
+          <el-descriptions-item label="是否启用" :span="2">
+            <el-tag :type="currentStrategy.enabled ? 'success' : 'info'">
+              {{ currentStrategy.enabled ? '已启用' : '已禁用' }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="参数配置" :span="2">
+            <pre>{{ JSON.stringify(currentStrategy.params, null, 2) }}</pre>
+          </el-descriptions-item>
         </el-descriptions>
       </el-card>
 
-      <!-- 2. 持仓信息 -->
-      <el-card shadow="never" class="detail-section">
+      <!-- 运行状态 -->
+      <el-card shadow="never" class="detail-section" v-if="currentStrategyStatus">
         <template #header>
-          <span class="section-title">持仓</span>
+          <span class="section-title">运行状态</span>
         </template>
-        <el-table :data="currentStrategy.positions" border stripe>
-          <el-table-column prop="contract" label="合约" width="80" />
-          <el-table-column prop="direction" label="多空" width="60">
-            <template #default="scope">
-              <el-tag :type="scope.row.direction === '多' ? 'danger' : 'success'">
-                {{ scope.row.direction }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="可用/总仓" width="90">
-            <template #default="scope">
-              {{ scope.row.available }}/{{ scope.row.volume }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="holdPrice" label="开仓均价" width="100">
-            <template #default="scope">
-              {{ scope.row.holdPrice.toFixed(2) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="latestPrice" label="当前价格" width="100">
-            <template #default="scope">
-              {{ scope.row.latestPrice.toFixed(2) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="profitLoss" label="逐笔盈亏" width="100">
-            <template #default="scope">
-              <span :style="{ color: scope.row.profitLoss > 0 ? '#F56C6C' : scope.row.profitLoss < 0 ? '#67C23A' : '#000000' }">
-                {{ scope.row.profitLoss > 0 ? '+' : '' }}{{ scope.row.profitLoss.toFixed(2) }}
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="priceDiff" label="盈利价差" width="90">
-            <template #default="scope">
-              <span :style="{ color: scope.row.priceDiff > 0 ? '#F56C6C' : scope.row.priceDiff < 0 ? '#67C23A' : '#000000' }">
-                {{ scope.row.priceDiff > 0 ? '+' : '' }}{{ scope.row.priceDiff.toFixed(2) }}
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="returnRate" label="浮盈比例" width="90">
-            <template #default="scope">
-              <span :style="{ color: scope.row.returnRate > 0 ? '#F56C6C' : scope.row.returnRate < 0 ? '#67C23A' : '#000000' }">
-                {{ scope.row.returnRate > 0 ? '+' : '' }}{{ scope.row.returnRate.toFixed(2) }}%
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="margin" label="保证金" width="90">
-            <template #default="scope">
-              {{ scope.row.margin.toLocaleString() }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="marketValue" label="市值" width="100">
-            <template #default="scope">
-              {{ scope.row.marketValue.toLocaleString() }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="markToMarketPL" label="盯市盈亏" width="100">
-            <template #default="scope">
-              <span :style="{ color: scope.row.markToMarketPL > 0 ? '#F56C6C' : scope.row.markToMarketPL < 0 ? '#67C23A' : '#000000' }">
-                {{ scope.row.markToMarketPL > 0 ? '+' : '' }}{{ scope.row.markToMarketPL.toFixed(2) }}
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="takeProfitPrice" label="止盈价" width="100">
-            <template #default="scope">
-              {{ scope.row.takeProfitPrice.toFixed(2) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="stopLossPrice" label="止损价" width="100">
-            <template #default="scope">
-              {{ scope.row.stopLossPrice.toFixed(2) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="280" fixed="right">
-            <template #default="scope">
-              <el-button size="small" type="danger" @click="handleClosePosition(scope.row)">
-                一键平仓
-              </el-button>
-              <el-button size="small" type="warning" @click="handlePartialClose(scope.row)">
-                部分平仓
-              </el-button>
-              <el-button size="small" type="primary" @click="handleReversePosition(scope.row)">
-                反手开仓
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-card>
-
-      <!-- 3. 挂单 -->
-      <el-card shadow="never" class="detail-section">
-        <template #header>
-          <span class="section-title">挂单</span>
-        </template>
-        <el-table v-if="pendingOrders.length > 0" :data="pendingOrders" border stripe>
-          <!-- 1. 合约 -->
-          <el-table-column prop="contract" label="合约" width="100" />
-          <!-- 2. 多空 -->
-          <el-table-column prop="direction" label="多空" width="80">
-            <template #default="scope">
-              <el-tag :type="scope.row.direction === '买' ? 'danger' : 'success'" size="small">
-                {{ scope.row.direction === '买' ? '多' : '空' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <!-- 3. 委托价 -->
-          <el-table-column prop="orderPrice" label="委托价" width="100">
-            <template #default="scope">
-              {{ scope.row.orderPrice.toFixed(2) }}
-            </template>
-          </el-table-column>
-          <!-- 4. 委托量 -->
-          <el-table-column prop="orderVolume" label="委托量" width="100" />
-          <!-- 5. 挂单量 -->
-          <el-table-column label="挂单量" width="100">
-            <template #default="scope">
-              {{ scope.row.orderVolume - (scope.row.filledVolume || 0) }}
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-else description="暂无挂单数据" />
-      </el-card>
-
-      <!-- 4. 委托 -->
-      <el-card shadow="never" class="detail-section">
-        <template #header>
-          <span class="section-title">委托</span>
-        </template>
-        <el-table :data="currentStrategy.orders" border stripe>
-          <!-- 1. 合约 -->
-          <el-table-column prop="contract" label="合约" width="80" />
-          <!-- 2. 状态 -->
-          <el-table-column prop="status" label="状态" width="80">
-            <template #default="scope">
-              <el-tag :type="orderStatusMap[scope.row.status].color" size="small">
-                {{ orderStatusMap[scope.row.status].name }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <!-- 3. 多空 -->
-          <el-table-column prop="direction" label="多空" width="60">
-            <template #default="scope">
-              <el-tag :type="scope.row.direction === '买' ? 'danger' : 'success'" size="small">
-                {{ scope.row.direction === '买' ? '多' : '空' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <!-- 4. 开平 -->
-          <el-table-column prop="offset" label="开平" width="60">
-            <template #default="scope">
-              <el-tag :type="scope.row.offset === '开仓' ? 'primary' : 'warning'" size="small">
-                {{ scope.row.offset === '开仓' ? '开' : '平' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <!-- 5. 委托价 -->
-          <el-table-column prop="orderPrice" label="委托价" width="80">
-            <template #default="scope">
-              {{ scope.row.orderPrice.toFixed(2) }}
-            </template>
-          </el-table-column>
-          <!-- 6. 委托量 -->
-          <el-table-column prop="orderVolume" label="委托量" width="70" />
-          <!-- 7. 已成交 -->
-          <el-table-column prop="filledVolume" label="已成交" width="70">
-            <template #default="scope">
-              {{ (scope.row.status === 'submitted' || !scope.row.filledVolume || scope.row.filledVolume === 0) ? '-' : scope.row.filledVolume }}
-            </template>
-          </el-table-column>
-          <!-- 8. 已撤单 -->
-          <el-table-column prop="cancelledVolume" label="已撤单" width="70">
-            <template #default="scope">
-              {{ (scope.row.cancelledVolume && scope.row.cancelledVolume > 0) ? scope.row.cancelledVolume : '-' }}
-            </template>
-          </el-table-column>
-          <!-- 9. 可撤 -->
-          <el-table-column prop="cancelableVolume" label="可撤" width="60">
-            <template #default="scope">
-              {{ (scope.row.status === 'filled' || !scope.row.cancelableVolume || scope.row.cancelableVolume === 0) ? '-' : scope.row.cancelableVolume }}
-            </template>
-          </el-table-column>
-          <!-- 10. 成交价 -->
-          <el-table-column prop="avgPrice" label="成交价" width="80">
-            <template #default="scope">
-              {{ scope.row.avgPrice ? scope.row.avgPrice.toFixed(2) : '-' }}
-            </template>
-          </el-table-column>
-          <!-- 11. 时间 -->
-          <el-table-column prop="orderTime" label="时间" width="160" />
-          <!-- 操作 -->
-          <el-table-column label="操作" width="160" fixed="right">
-            <template #default="scope">
-              <el-button 
-                v-if="scope.row.status === 'submitted' || scope.row.status === 'partiallyFilled'"
-                size="small" 
-                type="warning"
-                @click="handleCancelOrder(scope.row)"
-              >
-                撤单
-              </el-button>
-              <el-button 
-                v-if="scope.row.status === 'submitted' || scope.row.status === 'partiallyFilled'"
-                size="small" 
-                type="primary"
-                @click="handleModifyOrder(scope.row)"
-              >
-                修改
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-card>
-
-      <!-- 5. 成交 -->
-      <el-card shadow="never" class="detail-section">
-        <template #header>
-          <span class="section-title">成交</span>
-        </template>
-        <el-table :data="currentStrategy.trades" border stripe>
-          <!-- 1. 合约 -->
-          <el-table-column prop="contract" label="合约" width="80" />
-          <!-- 2. 多空 -->
-          <el-table-column prop="direction" label="多空" width="60">
-            <template #default="scope">
-              <el-tag :type="scope.row.direction === '买' ? 'danger' : 'success'" size="small">
-                {{ scope.row.direction === '买' ? '多' : '空' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <!-- 3. 开平 -->
-          <el-table-column prop="offset" label="开平" width="60">
-            <template #default="scope">
-              <el-tag :type="scope.row.offset === '开仓' ? 'primary' : 'warning'" size="small">
-                {{ scope.row.offset === '开仓' ? '开' : '平' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <!-- 4. 成交价 -->
-          <el-table-column prop="tradePrice" label="成交价" width="100">
-            <template #default="scope">
-              {{ scope.row.tradePrice.toFixed(2) }}
-            </template>
-          </el-table-column>
-          <!-- 5. 成交量 -->
-          <el-table-column prop="tradeVolume" label="成交量" width="80" />
-          <!-- 6. 平仓盈亏 -->
-          <el-table-column prop="closeProfitLoss" label="平仓盈亏" width="100">
-            <template #default="scope">
-              <span v-if="scope.row.closeProfitLoss !== undefined && scope.row.closeProfitLoss !== null" 
-                    :style="{ color: scope.row.closeProfitLoss > 0 ? '#F56C6C' : scope.row.closeProfitLoss < 0 ? '#67C23A' : '#000000' }">
-                {{ scope.row.closeProfitLoss > 0 ? '+' : '' }}{{ scope.row.closeProfitLoss.toFixed(2) }}
-              </span>
-              <span v-else style="color: #909399;">-</span>
-            </template>
-          </el-table-column>
-          <!-- 7. 手续费 -->
-          <el-table-column prop="commission" label="手续费" width="100">
-            <template #default="scope">
-              {{ scope.row.commission.toFixed(2) }}
-            </template>
-          </el-table-column>
-          <!-- 8. 编号 -->
-          <el-table-column prop="tradeId" label="编号" width="180" />
-          <!-- 9. 时间 -->
-          <el-table-column prop="tradeTime" label="时间" width="160" />
-        </el-table>
-      </el-card>
-
-      <!-- 6. 风控 -->
-      <el-card shadow="never" class="detail-section">
-        <template #header>
-          <span class="section-title">风控</span>
-        </template>
-        <el-descriptions :column="4" border>
-          <el-descriptions-item label="最大仓位">{{ currentStrategy.riskControl.maxPosition }} 手</el-descriptions-item>
-          <el-descriptions-item label="止损比例">{{ currentStrategy.riskControl.stopLossRatio }}%</el-descriptions-item>
-          <el-descriptions-item label="止盈比例">{{ currentStrategy.riskControl.takeProfitRatio }}%</el-descriptions-item>
-          <el-descriptions-item label="最大回撤">{{ currentStrategy.riskControl.maxDrawdown }}%</el-descriptions-item>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="进程ID">{{ currentStrategyStatus.pid || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="运行状态">
+            <el-tag :type="currentStrategyStatus.alive ? 'success' : 'info'">
+              {{ currentStrategyStatus.alive ? '运行中' : '已停止' }}
+            </el-tag>
+          </el-descriptions-item>
         </el-descriptions>
       </el-card>
 
-      <!-- 7. 风控参数 -->
+      <!-- 占位：持仓/委托/成交信息（待对接交易网关） -->
       <el-card shadow="never" class="detail-section">
         <template #header>
-          <div class="section-header">
-            <span class="section-title">风控参数</span>
-            <div>
-              <el-button size="small" @click="handleCancelEdit">取消</el-button>
-              <el-button size="small" type="primary" @click="handleSaveParameters">保存</el-button>
-            </div>
-          </div>
+          <span class="section-title">交易信息</span>
         </template>
-        
-        <el-form :model="editableParameters" label-width="140px">
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item label="最大仓位（手）">
-                <el-input-number v-model="editableParameters.riskControl.maxPosition" :min="1" :max="200" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="止损比例（%）">
-                <el-input-number v-model="editableParameters.riskControl.stopLossRatio" :min="0.1" :max="10" :step="0.1" :precision="1" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item label="止盈比例（%）">
-                <el-input-number v-model="editableParameters.riskControl.takeProfitRatio" :min="0.1" :max="20" :step="0.1" :precision="1" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="最大回撤（%）">
-                <el-input-number v-model="editableParameters.riskControl.maxDrawdown" :min="1" :max="50" :step="1" :precision="1" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-        </el-form>
+        <el-alert
+          title="提示"
+          type="info"
+          description="持仓、委托、成交数据需要对接交易网关后才能显示"
+          :closable="false"
+        />
       </el-card>
     </div>
   </el-drawer>
-
-  <!-- 加载策略对话框 -->
-  <el-dialog
-    v-model="addStrategyDialogVisible"
-    title="选择要加载的策略"
-    width="80%"
-    :close-on-click-modal="false"
-  >
-    <el-row :gutter="20">
-      <el-col :span="24" v-for="template in strategyTemplates" :key="template.fileName" style="margin-bottom: 20px;">
-        <el-card class="strategy-card" shadow="hover">
-          <!-- 文件名 -->
-          <div class="strategy-file-name">
-            <el-icon :size="18" color="#409eff"><Document /></el-icon>
-            <span style="margin-left: 8px; font-family: 'Courier New', monospace; color: #606266;">{{ template.fileName }}</span>
-          </div>
-          
-          <!-- 策略名称 -->
-          <h3 style="margin: 15px 0 10px 0; font-size: 18px; color: #303133;">{{ template.name }}</h3>
-          
-          <!-- 策略描述 -->
-          <p class="strategy-description">{{ template.description }}</p>
-          
-          <!-- 默认参数预览 -->
-          <div class="strategy-params">
-            <el-tag size="small" style="margin-right: 8px;">最大仓位: {{ template.defaultRiskControl.maxPosition }}</el-tag>
-            <el-tag size="small" type="warning" style="margin-right: 8px;">止损: {{ template.defaultRiskControl.stopLossRatio }}%</el-tag>
-            <el-tag size="small" type="success" style="margin-right: 8px;">止盈: {{ template.defaultRiskControl.takeProfitRatio }}%</el-tag>
-            <el-tag size="small" type="info">回撤: {{ template.defaultRiskControl.maxDrawdown }}%</el-tag>
-          </div>
-          
-          <!-- 加载按钮 -->
-          <el-button type="primary" style="width: 100%; margin-top: 15px;" @click="handleAddStrategy(template)">
-            <el-icon style="margin-right: 5px;"><Plus /></el-icon>
-            加载此策略
-          </el-button>
-        </el-card>
-      </el-col>
-    </el-row>
-  </el-dialog>
 </template>
 
 <script setup>
 import {
-  DataAnalysis, SuccessFilled, Setting, Plus, Document
+  DataAnalysis, SuccessFilled, Setting, Refresh
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed } from 'vue'
-import { logLevelMap, orderStatusMap, orderTypeMap, tradeTypeMap } from '@/constants'
-import { getTotalProfitLoss } from '@/utils'
-import { strategyTemplates } from '@/mock'
-import { useStrategyManagement } from '@/composables'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useStrategyStore } from '@/stores/strategy'
 
-const {
-  strategies,
-  strategyLogs,
-  selectedLogLevel,
-  detailDrawerVisible,
-  currentStrategy,
-  addStrategyDialogVisible,
-  editableParameters,
-  activeStrategiesCount,
-  runningStrategiesCount,
-  stoppedStrategiesCount,
-  filteredStrategyLogs,
-  handleAddStrategy,
-  handleStartStrategy,
-  handleStopStrategy,
-  handleDeleteStrategy,
-  handleShowDetail,
-  handleSaveParameters,
-  handleCancelEdit
-} = useStrategyManagement()
+// ========== 初始化 ==========
+const strategyStore = useStrategyStore()
 
-/**
- * 挂单列表 - 筛选出未完全成交的委托
- */
-const pendingOrders = computed(() => {
-  if (!currentStrategy.value || !currentStrategy.value.orders) {
-    return []
-  }
-  return currentStrategy.value.orders.filter(order => 
-    order.status === 'submitted' || order.status === 'partiallyFilled'
-  )
+// ========== 状态 ==========
+const detailDrawerVisible = ref(false)
+const currentStrategy = ref(null)
+const selectedLogType = ref('')
+
+// ========== 计算属性 ==========
+const strategyList = computed(() => {
+  return Object.entries(strategyStore.strategies).map(([sid, config]) => ({
+    sid,
+    ...config
+  }))
 })
 
-/**
- * 一键平仓处理
- */
-const handleClosePosition = (position) => {
-  ElMessageBox.confirm(
-    `确认平仓？\n合约：${position.contract}\n多空：${position.direction}\n总仓：${position.volume} 手\n当前价格：${position.latestPrice.toFixed(2)}\n预计盈亏：${position.profitLoss > 0 ? '+' : ''}${position.profitLoss.toFixed(2)}`,
-    '一键平仓确认',
-    {
-      confirmButtonText: '确认平仓',
-      cancelButtonText: '取消',
-      type: 'warning',
-      dangerouslyUseHTMLString: false
-    }
-  ).then(() => {
-    // TODO: 调用API执行平仓操作
-    console.log('一键平仓:', position)
-    ElMessage.success('平仓指令已提交')
-    
-    // 模拟平仓后移除持仓
-    // 实际应用中应该等待后端返回确认
-  }).catch(() => {
-    ElMessage.info('已取消平仓操作')
-  })
+const currentStrategyStatus = computed(() => {
+  if (!currentStrategy.value) return null
+  return strategyStore.strategyStatus[currentStrategy.value.sid]
+})
+
+const filteredMessages = computed(() => {
+  if (!selectedLogType.value) {
+    return strategyStore.messages
+  }
+  return strategyStore.messages.filter(msg => msg.type === selectedLogType.value)
+})
+
+// ========== 工具方法 ==========
+function getStrategyStatus(sid) {
+  const status = strategyStore.strategyStatus[sid]
+  return status && status.alive ? '运行中' : '已停止'
 }
 
-/**
- * 部分平仓处理
- */
-const handlePartialClose = (position) => {
-  ElMessageBox.prompt(
-    `当前总仓：${position.volume} 手\n请输入平仓数量（1-${position.volume}）`,
-    '部分平仓',
-    {
-      confirmButtonText: '确认平仓',
-      cancelButtonText: '取消',
-      inputPattern: /^\d+$/,
-      inputErrorMessage: '请输入有效的整数',
-      inputPlaceholder: '请输入平仓数量',
-      inputValidator: (value) => {
-        const num = parseInt(value)
-        if (num < 1 || num > position.volume) {
-          return `平仓数量必须在 1 到 ${position.volume} 之间`
-        }
-        return true
+function getStrategyPID(sid) {
+  const status = strategyStore.strategyStatus[sid]
+  return status ? status.pid : null
+}
+
+function getLogTypeColor(type) {
+  const colorMap = {
+    log: '',
+    error: 'danger',
+    status: 'warning',
+    stopped: 'info'
+  }
+  return colorMap[type] || ''
+}
+
+// ========== 事件处理 ==========
+async function handleRefresh() {
+  await Promise.all([
+    strategyStore.fetchStrategies(),
+    strategyStore.fetchStatus()
+  ])
+  ElMessage.success('刷新成功')
+}
+
+async function handleStartStrategy(sid) {
+  await strategyStore.start(sid)
+}
+
+async function handleStopStrategy(sid) {
+  try {
+    await ElMessageBox.confirm(
+      `确认停止策略 ${sid}？`,
+      '停止确认',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning'
       }
-    }
-  ).then(({ value }) => {
-    // TODO: 调用API执行部分平仓操作
-    console.log('部分平仓:', position, '数量:', value)
-    ElMessage.success(`已提交平仓 ${value} 手的指令`)
-    
-    // 模拟部分平仓后更新持仓量
-    // 实际应用中应该等待后端返回确认
-  }).catch(() => {
-    ElMessage.info('已取消平仓操作')
-  })
+    )
+    await strategyStore.stop(sid)
+  } catch {
+    ElMessage.info('已取消')
+  }
 }
 
-/**
- * 反手开仓处理
- */
-const handleReversePosition = (position) => {
-  const reverseDirection = position.direction === '多' ? '空' : '多'
-  ElMessageBox.confirm(
-    `确认反手开仓？\n当前持仓：${position.contract} ${position.direction} ${position.volume} 手\n操作说明：\n1. 平掉当前 ${position.direction} 仓 ${position.volume} 手\n2. 开立 ${reverseDirection} 仓 ${position.volume} 手`,
-    '反手开仓确认',
-    {
-      confirmButtonText: '确认反手',
-      cancelButtonText: '取消',
-      type: 'warning',
-      dangerouslyUseHTMLString: false
-    }
-  ).then(() => {
-    // TODO: 调用API执行反手操作
-    console.log('反手开仓:', position, '新方向:', reverseDirection)
-    ElMessage.success('反手操作指令已提交')
-    
-    // 模拟反手后更新持仓方向
-    // 实际应用中应该等待后端返回确认
-  }).catch(() => {
-    ElMessage.info('已取消反手操作')
-  })
+async function handleReloadStrategy(sid) {
+  try {
+    await ElMessageBox.confirm(
+      `确认重载策略 ${sid}？\n重载会保存状态、重启进程、恢复状态`,
+      '重载确认',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    await strategyStore.reload(sid)
+  } catch {
+    ElMessage.info('已取消')
+  }
 }
 
-/**
- * 撤单处理
- */
-const handleCancelOrder = (order) => {
-  ElMessageBox.confirm(
-    `确认撤销委托？合约：${order.contract}，方向：${order.direction}，数量：${order.orderVolume}`,
-    '撤单确认',
-    {
-      confirmButtonText: '确认撤单',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    // TODO: 调用API撤销委托
-    console.log('撤销委托:', order)
-    ElMessage.success('委托已撤销')
-    
-    // 更新委托状态为已撤单
-    order.status = 'cancelled'
-  }).catch(() => {
-    ElMessage.info('已取消操作')
-  })
+async function handleToggleEnabled(sid, enabled) {
+  if (enabled) {
+    await strategyStore.enable(sid)
+  } else {
+    await strategyStore.disable(sid)
+  }
 }
 
-/**
- * 修改委托处理
- */
-const handleModifyOrder = (order) => {
-  ElMessageBox.prompt(
-    `当前委托价格：${order.orderPrice}，委托数量：${order.orderVolume}`,
-    '修改委托',
-    {
-      confirmButtonText: '确认修改',
-      cancelButtonText: '取消',
-      inputPattern: /^\d+(\.\d+)?$/,
-      inputErrorMessage: '请输入有效的数字',
-      inputPlaceholder: '请输入新的委托价格'
-    }
-  ).then(({ value }) => {
-    // TODO: 调用API修改委托
-    console.log('修改委托:', order, '新价格:', value)
-    ElMessage.success(`委托价格已修改为 ${value}`)
-    
-    // 更新委托价格
-    order.orderPrice = parseFloat(value)
-  }).catch(() => {
-    ElMessage.info('已取消操作')
-  })
+function handleShowDetail(row) {
+  currentStrategy.value = row
+  detailDrawerVisible.value = true
 }
+
+// ========== 生命周期 ==========
+onMounted(async () => {
+  // 加载策略列表和状态
+  await Promise.all([
+    strategyStore.fetchStrategies(),
+    strategyStore.fetchStatus()
+  ])
+  
+  // 连接WebSocket
+  strategyStore.connectWebSocket()
+  
+  // 定时刷新状态（每5秒）
+  const intervalId = setInterval(() => {
+    strategyStore.fetchStatus()
+  }, 5000)
+  
+  // 保存定时器ID用于清理
+  onUnmounted(() => {
+    clearInterval(intervalId)
+    strategyStore.disconnectWebSocket()
+  })
+})
 </script>
 
 <style scoped>
@@ -701,21 +366,37 @@ const handleModifyOrder = (order) => {
 }
 
 .log-container {
-  max-height: 400px;
+  max-height: 500px;
   overflow-y: auto;
 }
 
 .log-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
 }
 
 .log-message {
   color: #606266;
   font-size: 14px;
+  flex: 1;
 }
 
-/* 策略详情面板样式 */
+.log-trace {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.log-trace pre {
+  margin: 0;
+  font-size: 12px;
+  color: #e74c3c;
+}
+
 .strategy-detail {
   padding: 0 20px 20px;
 }
@@ -729,60 +410,4 @@ const handleModifyOrder = (order) => {
   font-weight: 600;
   color: #303133;
 }
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-/* 持仓表格紧凑布局 */
-.detail-section :deep(.el-table) {
-  font-size: 13px;
-}
-
-/* 表单项间距 */
-.detail-section :deep(.el-form-item) {
-  margin-bottom: 18px;
-}
-
-/* 分割线样式 */
-.detail-section :deep(.el-divider__text) {
-  font-weight: 600;
-  color: #606266;
-}
-
-.strategy-card {
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.strategy-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.strategy-file-name {
-  display: flex;
-  align-items: center;
-  padding: 8px 12px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
-  margin-bottom: 10px;
-}
-
-.strategy-description {
-  color: #606266;
-  font-size: 14px;
-  line-height: 1.6;
-  margin: 10px 0;
-  min-height: 44px;
-}
-
-.strategy-params {
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid #ebeef5;
-}
 </style>
-
