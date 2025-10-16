@@ -99,38 +99,44 @@
         label-position="left"
       >
         <el-form-item label="邮件通知">
-          <el-switch
-            v-model="notificationForm.email_enabled"
-            active-text="启用"
-            inactive-text="禁用"
-          />
-          <el-text type="info" size="small">
-            启用后，error和critical级别的告警将发送邮件通知
-          </el-text>
+          <div class="switch-with-hint">
+            <el-switch
+              v-model="notificationForm.email_enabled"
+              active-text="启用"
+              inactive-text="禁用"
+            />
+            <el-text type="info" size="small" class="switch-hint">
+              启用后，error和critical级别的告警将发送邮件通知
+            </el-text>
+          </div>
         </el-form-item>
 
         <el-form-item label="WebSocket推送">
-          <el-switch
-            v-model="wsConnected"
-            disabled
-            active-text="已连接"
-            inactive-text="未连接"
-          />
-          <el-text type="info" size="small">
-            WebSocket连接状态，所有告警都会实时推送到前端
-          </el-text>
+          <div class="switch-with-hint">
+            <el-switch
+              v-model="wsConnected"
+              disabled
+              active-text="已连接"
+              inactive-text="未连接"
+            />
+            <el-text type="info" size="small" class="switch-hint">
+              WebSocket连接状态，所有告警都会实时推送到前端
+            </el-text>
+          </div>
         </el-form-item>
 
         <el-form-item label="浏览器通知">
-          <el-switch
-            v-model="browserNotificationEnabled"
-            @change="handleBrowserNotificationChange"
-            active-text="已授权"
-            inactive-text="未授权"
-          />
-          <el-text type="info" size="small">
-            启用后，新告警将显示浏览器桌面通知
-          </el-text>
+          <div class="switch-with-hint">
+            <el-switch
+              v-model="browserNotificationEnabled"
+              @change="handleBrowserNotificationChange"
+              active-text="已授权"
+              inactive-text="未授权"
+            />
+            <el-text type="info" size="small" class="switch-hint">
+              启用后，新告警将显示浏览器桌面通知
+            </el-text>
+          </div>
         </el-form-item>
 
         <el-form-item>
@@ -451,6 +457,20 @@ onMounted(() => {
   flex: 1;
 }
 
+/* 开关与提示文字容器 */
+.switch-with-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.switch-hint {
+  margin-left: 0;
+  max-width: 100%;
+}
+
 /* 表单项样式优化 */
 :deep(.el-form-item) {
   margin-bottom: 32px;
@@ -468,9 +488,20 @@ onMounted(() => {
   gap: 8px;
 }
 
+/* 开关表单项特殊处理 */
+:deep(.el-form-item__content .switch-with-hint) {
+  gap: 8px;
+}
+
 /* Slider样式优化 */
 :deep(.el-slider) {
   width: 100%;
+  margin-bottom: 16px; /* 为滑块tooltip预留空间 */
+}
+
+/* 滑块tooltip样式 */
+:deep(.el-slider__tooltip) {
+  margin-bottom: 8px;
 }
 
 /* 提示文字样式 */
