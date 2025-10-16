@@ -9,21 +9,23 @@
 @Software   : PyCharm
 @Description: 系统入口
 """
-from src.api.bar_generator import bar_generator_ins
-from src.api.task_scheduler import task_scheduler_ins
-from src.function import function_ins
-from src.strategy import strategy_pool_ins
-from src.strategy.strategy1 import strategy1
+import time
 
-
-def main():
-    print("Hello from homalos!")
-    strategy_pool_ins.add_strategy(1, strategy1)
-    strategy_pool_ins.get_strategy_pool_info()
-
-    task_scheduler_ins.add_minute_task(bar_generator_ins.check_min1, "检查1分钟K线")
-    task_scheduler_ins.add_minute_task(function_ins.check_alarm, "检查策略闹钟")
-
+from src.core.strategy_manager import StrategyManager
 
 if __name__ == "__main__":
-    main()
+    manager = StrategyManager("strategies", "strategies.json")
+    observer = manager.start_watchdog()
+    manager.start_all()
+
+    try:
+        while True:
+            tick_event = {"type": "tick", "data": {"last_price": 1234.5}}
+            manager.broadcast_event(tick_event)
+            manager.poll_feedback()
+            time.sleep(2)
+    except KeyboardInterrupt:
+        print("退出中...")
+    finally:
+        observer.stop()
+        observer.join()

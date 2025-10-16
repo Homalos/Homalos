@@ -20,7 +20,7 @@ if __name__ == "__main__":
         "src.web.main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True,
+        reload=False,  # 禁用Uvicorn自动重载，使用策略管理器的Watchdog
         log_level="info"
     )
 
