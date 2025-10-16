@@ -44,6 +44,8 @@ class EventType:
 
     TICK = "market.tick"  # Tick事件
 
+    BAR = "market.bar"  # K线事件
+
     ORDER = "order"  # 订单事件
 
     POSITION = "position"  # 持仓事件
