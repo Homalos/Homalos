@@ -1,0 +1,16 @@
+{
+  "example_ipc_class": {
+    "file": "src/strategy/strategies/example_strategy_ipc_class.py",
+    "module": "src.strategy.strategies.example_strategy_ipc_class",
+    "class": "Strategy",
+    "enabled": true,
+    "params": {}
+  },
+  "example_ipc_funcs": {
+    "file": "src/strategy/strategies/example_strategy_ipc_funcs.py",
+    "module": "src.strategy.strategies.example_strategy_ipc_funcs",
+    "class": "StrategyFuncsHolder",
+    "enabled": true,
+    "params": {}
+  }
+}
