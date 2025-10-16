@@ -34,6 +34,6 @@ async def get_system_stats(
             - memory_percent: 内存使用率（%）
             - timestamp: 数据采集时间（ISO格式）
     """
-    stats = MonitorService.get_system_stats()
+    stats = await MonitorService.get_system_stats()
     return SystemStatsResponse(**stats)
 

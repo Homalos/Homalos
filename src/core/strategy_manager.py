@@ -31,7 +31,7 @@ from threading import Thread, Lock
 from typing import Any, Dict, Optional, List
 
 from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
+from watchdog.observers import Observer  # type: ignore
 
 from src.core.strategy_worker import run_strategy_process  # child entry
 from src.strategy.strategy_registry import StrategyRegistry
@@ -74,6 +74,12 @@ class StrategyManagerIPC:
         
         # 自动保存定时任务
         self._auto_save_task: Optional[asyncio.Task] = None
+        
+        # 状态缓存字典（用于在启动时临时存储持久化状态）
+        self._cached_states: Dict[str, dict] = {}
+        
+        # 告警管理器（延迟初始化，在startup中设置）
+        self.alarm_manager: Optional[Any] = None
 
     # ---------- event loop registration ----------
     def set_event_loop(self, loop: asyncio.AbstractEventLoop):
@@ -90,14 +96,14 @@ class StrategyManagerIPC:
         self.logger.info("策略管理器启动中...")
         
         # 加载所有已启用策略的持久化状态
+        # 使用临时字典存储，避免影响load_strategy的判断
+        self._cached_states = {}
         for sid in self.registry.list_enabled().keys():
             try:
                 state = await self.state_persistence.load_strategy_state(sid)
                 if state:
-                    # 将状态缓存，等待策略进程启动后注入
-                    if sid not in self._meta:
-                        self._meta[sid] = {}
-                    self._meta[sid]["cached_state"] = state
+                    # 将状态缓存到临时字典，等待策略进程启动后注入
+                    self._cached_states[sid] = state
                     self.logger.info(f"已加载 {sid} 的持久化状态")
             except Exception as e:
                 self.logger.warning(f"加载 {sid} 状态失败: {e}")
@@ -217,8 +223,8 @@ class StrategyManagerIPC:
             proc = self.mp_ctx.Process(target=run_strategy_process, args=(sid, module_path, class_name, params, child_conn), daemon=True)
             proc.start()
 
-            # 检查是否有缓存的持久化状态
-            cached_state = self._meta.get(sid, {}).get("cached_state")
+            # 检查是否有缓存的持久化状态（从临时字典中获取）
+            cached_state = getattr(self, '_cached_states', {}).get(sid)
             
             meta = {
                 "proc": proc,
@@ -226,8 +232,7 @@ class StrategyManagerIPC:
                 "module": module_path,
                 "class": class_name,
                 "file": cfg.get("file"),
-                "last_state": None,
-                "cached_state": cached_state  # 保留缓存状态
+                "last_state": None
             }
             self._meta[sid] = meta
 
@@ -244,8 +249,9 @@ class StrategyManagerIPC:
                     time.sleep(0.1)
                     parent_conn.send({"type": "command", "command": "load_state", "state": cached_state})
                     self.logger.info(f"已注入持久化状态到 {sid}")
-                    # 清除缓存
-                    self._meta[sid]["cached_state"] = None
+                    # 清除缓存（从临时字典中移除）
+                    if hasattr(self, '_cached_states') and sid in self._cached_states:
+                        del self._cached_states[sid]
                 except Exception as e:
                     self.logger.warning(f"注入状态失败: {e}")
 
@@ -402,6 +408,24 @@ class StrategyManagerIPC:
                     self.logger.warning(f"load_state send failed: {e}")
 
             self.logger.info(f"Reloaded {sid}")
+        except Exception as e:
+            # 重载失败，触发告警
+            self.logger.error(f"重载策略 {sid} 失败: {e}", exc_info=True)
+            
+            if self.alarm_manager and self._loop:
+                asyncio.run_coroutine_threadsafe(
+                    self.alarm_manager.trigger_alarm(
+                        alarm_type="reload_failed",
+                        severity="error",
+                        source="strategy_manager",
+                        target=sid,
+                        message=f"策略 {sid} 重载失败: {str(e)}",
+                        details={"error": str(e)}
+                    ),
+                    self._loop
+                )
+            
+            raise
         finally:
             # 移除reload标记
             self._reloading.discard(sid)
@@ -431,6 +455,21 @@ class StrategyManagerIPC:
             if proc and not proc.is_alive():
                 # notify ws
                 self._forward_to_ws({"type": "status", "sid": sid, "payload": "proc_dead"})
+                
+                # 触发告警
+                if self.alarm_manager and self._loop:
+                    asyncio.run_coroutine_threadsafe(
+                        self.alarm_manager.trigger_alarm(
+                            alarm_type="process_crash",
+                            severity="critical",
+                            source="strategy_manager",
+                            target=sid,
+                            message=f"策略进程 {sid} 意外退出",
+                            details={"pid": proc.pid, "exitcode": proc.exitcode}
+                        ),
+                        self._loop
+                    )
+                
                 try:
                     self.unload_strategy(sid)
                 except Exception:

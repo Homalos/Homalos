@@ -182,8 +182,8 @@ class StrategyService:
             meta[sid] = {
                 "pid": proc.pid if proc else None,
                 "alive": proc.is_alive() if proc else False,
-                "module": m.get("module"),
-                "class": m.get("class")
+                "module": m.get("module") or "",  # 确保不返回None
+                "class": m.get("class") or ""      # 确保不返回None
             }
         
         return meta

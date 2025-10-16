@@ -17,12 +17,8 @@
           登录资金账户
         </el-button>
         
-        <!-- 通知图标 -->
-        <el-badge :value="unreadCount" :hidden="unreadCount === 0" class="header-icon">
-          <el-icon :size="20" @click="handleNotificationClick">
-            <Bell />
-          </el-icon>
-        </el-badge>
+        <!-- 告警通知中心 -->
+        <NotificationCenter />
         
         <!-- 控制台图标 -->
         <el-icon :size="20" class="header-icon" @click="handleConsoleClick">
@@ -112,6 +108,10 @@
             <el-icon><Timer /></el-icon>
             <span>任务调度器</span>
           </el-menu-item>
+          <el-menu-item index="alarms">
+            <el-icon><Bell /></el-icon>
+            <span>告警管理</span>
+          </el-menu-item>
           <el-menu-item index="notifications">
             <el-icon><Bell /></el-icon>
             <span>通知中心</span>
@@ -173,6 +173,9 @@
             @login="showTradingLogin = true"
           />
             </div>
+
+        <!-- 告警管理 -->
+        <AlarmManagement v-if="activeMenu === 'alarms'" />
 
         <!-- 系统设置（完全可访问） -->
         <Settings v-if="activeMenu === 'settings'" />
@@ -248,6 +251,8 @@ import TradingAccountLogin from '@/components/TradingAccountLogin.vue'
 import AccountManager from '@/components/AccountManager.vue'
 import FirstTimeGuide from '@/components/FirstTimeGuide.vue'
 import PageMask from '@/components/PageMask.vue'
+import NotificationCenter from '@/components/NotificationCenter.vue'
+import AlarmManagement from '@/views/AlarmManagement.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
