@@ -18,7 +18,10 @@
         </el-button>
         
         <!-- 告警通知中心 -->
-        <NotificationCenter />
+        <NotificationCenter 
+          @switchToAlarms="handleSwitchToAlarms"
+          @switchToAlarmSettings="handleSwitchToAlarmSettings"
+        />
         
         <!-- 控制台图标 -->
         <el-icon :size="20" class="header-icon" @click="handleConsoleClick">
@@ -276,6 +279,63 @@ const {
 
 const handleMenuSelect = (index) => {
   activeMenu.value = index
+  
+  // 如果切换到告警管理，重置到主页面
+  if (index === 'alarms') {
+    setTimeout(() => {
+      const alarmManagementComponent = document.querySelector('.alarm-management')
+      if (alarmManagementComponent) {
+        const event = new CustomEvent('resetToMainPage')
+        alarmManagementComponent.dispatchEvent(event)
+      }
+    }, 100)
+  }
+}
+
+/**
+ * 处理控制台图标点击
+ */
+const handleConsoleClick = () => {
+  activeMenu.value = 'console'
+}
+
+/**
+ * 处理设置图标点击
+ */
+const handleSettingsClick = () => {
+  activeMenu.value = 'settings'
+}
+
+/**
+ * 处理切换到告警管理
+ */
+const handleSwitchToAlarms = () => {
+  activeMenu.value = 'alarms'
+  // 等待组件渲染后重置到主页面
+  setTimeout(() => {
+    const alarmManagementComponent = document.querySelector('.alarm-management')
+    if (alarmManagementComponent) {
+      const event = new CustomEvent('resetToMainPage')
+      alarmManagementComponent.dispatchEvent(event)
+    }
+  }, 100)
+}
+
+/**
+ * 处理切换到告警设置
+ */
+const handleSwitchToAlarmSettings = () => {
+  activeMenu.value = 'alarms'
+  // 需要等待组件渲染后再切换到设置子页面
+  setTimeout(() => {
+    // 通过事件或状态通知AlarmManagement组件显示设置页面
+    const alarmManagementComponent = document.querySelector('.alarm-management')
+    if (alarmManagementComponent) {
+      // 触发显示设置页面的逻辑
+      const event = new CustomEvent('showAlarmSettings')
+      alarmManagementComponent.dispatchEvent(event)
+    }
+  }, 100)
 }
 
 /**
@@ -352,20 +412,6 @@ async function handleLogout() {
  */
 const handleNotificationClick = () => {
   activeMenu.value = 'notifications'
-}
-
-/**
- * 处理设置图标点击，跳转到系统设置页面
- */
-const handleSettingsClick = () => {
-  activeMenu.value = 'settings'
-}
-
-/**
- * 控制台图标点击
- */
-const handleConsoleClick = () => {
-  activeMenu.value = 'console'
 }
 
 /**
@@ -471,6 +517,7 @@ onMounted(async () => {
 .header-icon {
   cursor: pointer;
   transition: opacity 0.3s;
+  color: white;
 }
 
 .header-icon:hover {
