@@ -18,9 +18,12 @@ dependencies = [
     "python-jose[cryptography]>=3.5.0",
     "python-multipart>=0.0.20",
     "pyyaml>=6.0.2",
+    "requests>=2.32.5",
     "ruamel-yaml>=0.18.15",
     "sqlalchemy>=2.0.43",
     "tzdata>=2025.2",
     "uvicorn[standard]>=0.37.0",
+    "watchdog>=6.0.0",
     "watchfiles>=1.1.0",
+    "websocket-client>=1.9.0",
 ]
