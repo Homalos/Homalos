@@ -7,7 +7,19 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 策略池
+@Description: 策略池，负责策略实例的注册与订阅管理
+StrategyPool 负责静态生命周期内策略的注册与配置聚合，不处理运行态加载或卸载逻辑。
+
+策略注册与管理	strategy_map, add_strategy, get_strategies, get_strategy_pool_info	存储、添加、查看策略实例
+订阅管理	init_sub, init_sub_id, init_kline_type	收集所有策略订阅的合约和K线类型
+文件初始化	create_trade_file	为每个策略创建交易流水文件
+
+[ StrategyManager ]  →  控制加载/卸载/重载
+        ↓
+[ StrategyPool ]     →  保存策略对象集合
+        ↓
+[ BaseStrategy / SpecificStrategyApi ] → 执行具体逻辑
+
 """
 from src.constants import TRADING_FLOW_DIR_NAME, trade_file_head
 from src.core.constants import Interval
@@ -30,22 +42,19 @@ class StrategyPool(object):
         # 订阅了哪些合约以及具体K线类型
         # 如：{'FG209': ['min'], 'SA209': ['min', 'min5'], 'au2208': ['min', 'min5']}
         self.sub_kline_type: dict[str, list[Interval]] = {}
-        self.logger = get_logger(__class__.__name__)
+        self.logger = get_logger(self.__class__.__name__)
 
     def init_sub(self) -> None:
         """
-        初始化订阅
+        重置订阅集合
 
         Returns:
             None
         """
-        del self.sub_ins_id
-        del self.sub_kline_type
-
         self.sub_ins_id: list[str] = []
         self.sub_kline_type: dict[str, list[Interval]] = {}
 
-    def add_strategy(self, strategy_id: str, strategy) -> None:
+    def add_strategy(self, strategy_id: str, strategy: BaseStrategy) -> None:
         """
         添加策略到策略字典
 
@@ -75,8 +84,10 @@ class StrategyPool(object):
 
     def init_sub_id(self):
         # 遍历所有策略，将所有策略的合约进行合并
+        ids = []
         for strategy in self.strategy_map.values():
-            self.sub_ins_id: list[str] = list(set(self.sub_ins_id + strategy.sub_ins_id))
+            ids.extend(strategy.sub_ins_id)
+        self.sub_ins_id = list(set(ids))
 
     def init_kline_type(self) -> dict[str, list[Interval]]:
         """
@@ -93,12 +104,10 @@ class StrategyPool(object):
             sub_id = strategy.sub_ins_id
             kline_types = strategy.sub_kline_type
             # 如果策略没有订阅K线，则过滤掉
-            if len(kline_types) == 0:
+            if not kline_types:
                 continue
             # 遍历sub_id列表
-            for i in range(len(sub_id)):
-                # 获取合约代码
-                instrument_id = sub_id[i]
+            for instrument_id in sub_id:
                 # 如果该合约还没有被记录在sub_kline_type字典中，创建一个空列表来记录其订阅的K线类型
                 if instrument_id not in self.sub_kline_type:
                     self.sub_kline_type[instrument_id] = []
@@ -107,7 +116,6 @@ class StrategyPool(object):
                     # 如果该合约还没有订阅这种K线类型，就添加到列表中
                     if kline_type not in self.sub_kline_type[instrument_id]:
                         self.sub_kline_type[instrument_id].append(kline_type)
-
         # 返回包含订阅了哪些合约及其订阅的K线类型的字典
         return self.sub_kline_type
 
@@ -122,7 +130,6 @@ class StrategyPool(object):
         trading_flow_path = str(get_path_ins.get_data_dir() / TRADING_FLOW_DIR_NAME)
         for strategy in self.strategy_map.values():
             for sub_id in strategy.sub_ins_id:
-                file_name = 'strategy{}_{}.csv'.format(strategy.strategy_id, sub_id)
-                # 判断文件是否存在
+                file_name = f"strategy{strategy.strategy_id}_{sub_id}.csv"
                 if file_name not in get_file_name(trading_flow_path, '.csv'):
                     write_csv(f"{trading_flow_path}/{file_name}", 'w', trade_file_head)
