@@ -460,15 +460,15 @@ onMounted(() => {
 /* 开关与提示文字容器 */
 .switch-with-hint {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
   width: 100%;
 }
 
 .switch-hint {
+  flex: 1;
   margin-left: 0;
-  max-width: 100%;
 }
 
 /* 表单项样式优化 */
@@ -485,11 +485,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
-}
-
-/* 开关表单项特殊处理 */
-:deep(.el-form-item__content .switch-with-hint) {
   gap: 8px;
 }
 
