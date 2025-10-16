@@ -14,7 +14,7 @@ from typing import Optional
 
 from src.core.constants import Interval
 from src.core.object import TickData, BarData, OrderData, TradeData
-from src.strategy.strategy_function import check_on_tick, check_on_bar
+from src.strategy.decorators import check_on_bar, check_on_tick
 
 
 class BaseStrategy(object):
@@ -31,23 +31,20 @@ class BaseStrategy(object):
 
 
 class SpecificStrategyApi(ABC):
-
     def __init__(self, instrument_id: str, strategy_id: str, sub_kline_type: list):
-
         self.instrument_id = instrument_id
         self.strategy_id = strategy_id
         self.sub_kline_type = sub_kline_type
-
         self.kline_lock = None
         self.bar_data: Optional[BarData] = None
 
     @abstractmethod
-    def on_before_open(self) -> None:
+    def on_init(self) -> None:
         """开盘前执行"""
         pass
 
     @abstractmethod
-    def on_after_close(self) -> None:
+    def on_close(self) -> None:
         """收盘后执行"""
         pass
 
@@ -69,12 +66,12 @@ class SpecificStrategyApi(ABC):
         pass
 
     @abstractmethod
-    def on_rtn_trade(self, trade: TradeData) -> None:
+    def on_trade(self, trade: TradeData) -> None:
         """有订单成交时执行"""
         pass
 
     @abstractmethod
-    def on_rtn_order(self, order: OrderData) -> None:
+    def on_order(self, order: OrderData) -> None:
         """订单状态发生改变时执行"""
         pass
 
