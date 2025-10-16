@@ -482,6 +482,16 @@ function formatDateTime(timestamp) {
   })
 }
 
+// 监听来自导航栏的设置页面切换事件
+const handleShowSettings = () => {
+  showSettings.value = true
+}
+
+// 监听来自导航栏的重置到主页面事件
+const handleResetToMainPage = () => {
+  showSettings.value = false
+}
+
 // 生命周期
 onMounted(() => {
   loadData()
@@ -490,9 +500,22 @@ onMounted(() => {
   if (!alarmStore.wsConnected) {
     alarmStore.connectWebSocket()
   }
+  
+  // 添加事件监听器
+  const element = document.querySelector('.alarm-management')
+  if (element) {
+    element.addEventListener('showAlarmSettings', handleShowSettings)
+    element.addEventListener('resetToMainPage', handleResetToMainPage)
+  }
 })
 
 onUnmounted(() => {
+  // 清理事件监听器
+  const element = document.querySelector('.alarm-management')
+  if (element) {
+    element.removeEventListener('showAlarmSettings', handleShowSettings)
+    element.removeEventListener('resetToMainPage', handleResetToMainPage)
+  }
   // 不断开WebSocket，保持全局连接
 })
 </script>
