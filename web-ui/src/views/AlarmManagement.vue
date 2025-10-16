@@ -498,9 +498,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.alarm-management {
-  padding: 20px;
-}
+/* 告警管理页面样式 - 使用主内容区域的统一边距 */
 
 .header-card {
   margin-bottom: 20px;

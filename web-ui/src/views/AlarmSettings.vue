@@ -24,39 +24,45 @@
             label-position="left"
           >
             <el-form-item label="CPU告警阈值" prop="cpu_threshold">
-              <el-slider
-                v-model="thresholdForm.cpu_threshold"
-                :min="50"
-                :max="100"
-                :step="5"
-                show-input
-                :marks="{ 50: '50%', 75: '75%', 100: '100%' }"
-              >
-                <template #default="{ value }">
-                  {{ value }}%
-                </template>
-              </el-slider>
-              <el-text type="info" size="small">
-                当CPU使用率持续60秒超过此阈值时触发告警
-              </el-text>
+              <div class="slider-with-hint">
+                <el-slider
+                  v-model="thresholdForm.cpu_threshold"
+                  :min="50"
+                  :max="100"
+                  :step="5"
+                  show-input
+                  :marks="{ 50: '50%', 75: '75%', 100: '100%' }"
+                  class="threshold-slider"
+                >
+                  <template #default="{ value }">
+                    {{ value }}%
+                  </template>
+                </el-slider>
+                <el-text type="info" size="small" class="slider-hint">
+                  当CPU使用率持续60秒超过此阈值时触发告警
+                </el-text>
+              </div>
             </el-form-item>
 
             <el-form-item label="内存告警阈值" prop="memory_threshold">
-              <el-slider
-                v-model="thresholdForm.memory_threshold"
-                :min="50"
-                :max="100"
-                :step="5"
-                show-input
-                :marks="{ 50: '50%', 75: '75%', 100: '100%' }"
-              >
-                <template #default="{ value }">
-                  {{ value }}%
-                </template>
-              </el-slider>
-              <el-text type="info" size="small">
-                当内存使用率持续60秒超过此阈值时触发告警
-              </el-text>
+              <div class="slider-with-hint">
+                <el-slider
+                  v-model="thresholdForm.memory_threshold"
+                  :min="50"
+                  :max="100"
+                  :step="5"
+                  show-input
+                  :marks="{ 50: '50%', 75: '75%', 100: '100%' }"
+                  class="threshold-slider"
+                >
+                  <template #default="{ value }">
+                    {{ value }}%
+                  </template>
+                </el-slider>
+                <el-text type="info" size="small" class="slider-hint">
+                  当内存使用率持续60秒超过此阈值时触发告警
+                </el-text>
+              </div>
             </el-form-item>
 
             <el-form-item label="历史保留天数" prop="retention_days">
@@ -402,9 +408,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.alarm-settings {
-  padding: 20px;
-}
+/* 告警设置页面样式 - 使用主内容区域的统一边距 */
 
 .header-card {
   margin-bottom: 20px;
@@ -471,6 +475,20 @@ onMounted(() => {
   margin-left: 0;
 }
 
+/* 滑块与提示文字容器 */
+.slider-with-hint {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.slider-hint {
+  flex: 1;
+  margin-left: 0;
+}
+
 /* 表单项样式优化 */
 :deep(.el-form-item) {
   margin-bottom: 32px;
@@ -491,12 +509,12 @@ onMounted(() => {
 /* Slider样式优化 */
 :deep(.el-slider) {
   width: 100%;
-  margin-bottom: 16px; /* 为滑块tooltip预留空间 */
 }
 
-/* 滑块tooltip样式 */
-:deep(.el-slider__tooltip) {
-  margin-bottom: 8px;
+/* 阈值滑块特定样式 */
+.threshold-slider {
+  width: 600px; /* 设置固定宽度，为提示文字留出空间 */
+  flex-shrink: 0; /* 防止滑块被压缩 */
 }
 
 /* 提示文字样式 */
