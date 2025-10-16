@@ -461,10 +461,19 @@ onMounted(async () => {
     strategyStore.fetchStatus()
   }, 5000)
   
+  // 页面卸载时强制保存日志
+  const handleBeforeUnload = () => {
+    strategyStore.forcePersistAllLogs()
+  }
+  
+  // 添加页面卸载监听器
+  window.addEventListener('beforeunload', handleBeforeUnload)
+  
   // 保存定时器ID用于清理
   onUnmounted(() => {
     clearInterval(intervalId)
     strategyStore.disconnectWebSocket()
+    window.removeEventListener('beforeunload', handleBeforeUnload)
   })
 })
 </script>

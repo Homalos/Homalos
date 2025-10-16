@@ -17,12 +17,67 @@ import { ElMessage } from 'element-plus'
 const STORAGE_KEY = 'homalos_strategy_logs'
 const MAX_STORED_LOGS = 500
 const LOG_RETENTION_DAYS = 7
+const DEBUG_LOGS = true // 临时调试开关
+
+// 生成消息唯一ID
+function generateMessageId(message) {
+  // 添加更多唯一性因素：时间戳、随机数、消息序号
+  const timestamp = message.timestamp || new Date().toISOString()
+  const random = Math.random().toString(36).substring(2, 8)
+  const sequence = Date.now().toString(36) // 更精确的时间序列
+  
+  const content = `${message.sid}_${message.type}_${message.payload}_${timestamp}_${random}_${sequence}`
+  
+  // 使用更长的哈希避免冲突
+  let hash = 0
+  for (let i = 0; i < content.length; i++) {
+    const char = content.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // 转换为32位整数
+  }
+  
+  return Math.abs(hash).toString(36) + random
+}
+
+// 日志去重函数 - 基于内容和时间窗口的智能去重
+function deduplicateLogs(logs) {
+  const result = []
+  const recentLogs = new Map() // 存储最近的日志，key为内容哈希，value为时间戳
+  
+  // 按时间排序
+  const sortedLogs = [...logs].sort((a, b) => 
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  )
+  
+  for (const log of sortedLogs) {
+    // 生成内容哈希（不包含时间戳和随机因素）
+    const contentKey = `${log.sid}_${log.type}_${log.payload}`
+    const logTime = new Date(log.timestamp).getTime()
+    
+    // 检查是否在时间窗口内有相同内容的日志（5秒内）
+    const recentTime = recentLogs.get(contentKey)
+    const isDuplicate = recentTime && (logTime - recentTime) < 5000
+    
+    if (!isDuplicate) {
+      // 确保日志有ID
+      if (!log.id) {
+        log.id = generateMessageId(log)
+      }
+      result.push(log)
+      recentLogs.set(contentKey, logTime)
+    }
+  }
+  
+  return result
+}
 
 // 日志持久化工具函数
 function saveLogsToStorage(logs) {
   try {
+    // 去重后再保存
+    const deduplicatedLogs = deduplicateLogs(logs)
     const dataToStore = {
-      logs: logs,
+      logs: deduplicatedLogs,
       timestamp: Date.now()
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToStore))
@@ -253,19 +308,25 @@ export const useStrategyStore = defineStore('strategy', () => {
       
       const historyLogs = loadLogsFromStorage()
       if (historyLogs.length > 0) {
-        // 标记为历史日志
+        // 标记为历史日志并确保有ID
         const markedLogs = historyLogs.map(log => ({
           ...log,
-          isPersisted: true
+          isPersisted: true,
+          id: log.id || generateMessageId(log)
         }))
         
-        // 合并到当前消息列表，按时间排序
+        // 合并到当前消息列表并去重
         const allLogs = [...markedLogs, ...messages.value]
-        messages.value = allLogs.sort((a, b) => 
+        const deduplicatedLogs = deduplicateLogs(allLogs)
+        
+        // 按时间排序
+        messages.value = deduplicatedLogs.sort((a, b) => 
           new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         )
         
-        console.log(`已加载 ${historyLogs.length} 条历史日志`)
+        console.log(`已加载 ${historyLogs.length} 条历史日志，去重后共 ${messages.value.length} 条`)
+        console.log('历史日志详情:', historyLogs.map(log => `${log.sid}-${log.type}-${log.payload?.substring(0, 30)}`))
+        console.log('当前所有日志:', messages.value.map(log => `${log.sid}-${log.type}-${log.payload?.substring(0, 30)}`))
       }
       
       // 标记历史日志已加载
@@ -282,7 +343,8 @@ export const useStrategyStore = defineStore('strategy', () => {
         .filter(msg => !msg.isPersisted && shouldPersistMessage(msg))
         .map(msg => ({
           ...msg,
-          isPersisted: true
+          isPersisted: true,
+          id: msg.id || generateMessageId(msg)
         }))
       
       if (logsToSave.length > 0) {
@@ -309,7 +371,7 @@ export const useStrategyStore = defineStore('strategy', () => {
     wsConnection.value = createStrategyWebSocket(
       // onMessage
       (message) => {
-        // 添加时间戳
+        // 添加时间戳和唯一ID
         const enrichedMessage = {
           ...message,
           timestamp: new Date().toISOString(),
@@ -317,18 +379,47 @@ export const useStrategyStore = defineStore('strategy', () => {
           isPersisted: false // 标记为实时消息
         }
         
-        messages.value.push(enrichedMessage)
+        // 生成唯一ID
+        enrichedMessage.id = generateMessageId(enrichedMessage)
+        
+        // 简化的重复检查：只检查最近10条消息，避免过度过滤
+        const recentMessages = messages.value.slice(-10)
+        const contentKey = `${enrichedMessage.sid}_${enrichedMessage.type}_${enrichedMessage.payload}`
+        const currentTime = new Date(enrichedMessage.timestamp).getTime()
+        
+        const isDuplicate = recentMessages.some(msg => {
+          const msgContentKey = `${msg.sid}_${msg.type}_${msg.payload}`
+          const msgTime = new Date(msg.timestamp).getTime()
+          return msgContentKey === contentKey && (currentTime - msgTime) < 1000 // 1秒内的重复
+        })
+        
+        if (!isDuplicate) {
+          messages.value.push(enrichedMessage)
+          if (DEBUG_LOGS) {
+            console.log('✅ 添加新消息:', `${enrichedMessage.sid}-${enrichedMessage.type}-${enrichedMessage.payload?.substring(0, 30)}`)
+          }
+        } else {
+          if (DEBUG_LOGS) {
+            console.log('⚠️ 跳过重复消息:', enrichedMessage.payload)
+          }
+        }
         
         // 限制消息历史长度（保留最近1000条）
         if (messages.value.length > 1000) {
           messages.value = messages.value.slice(-1000)
         }
         
-        // 异步持久化重要消息
+        // 立即持久化重要消息，延迟持久化普通消息
         if (shouldPersistMessage(enrichedMessage)) {
+          // 重要消息立即持久化
           setTimeout(() => {
             persistImportantLogs()
-          }, 100) // 延迟100ms执行，避免频繁写入
+          }, 10) // 减少延迟到10ms
+        } else {
+          // 普通消息也进行延迟持久化，防止丢失
+          setTimeout(() => {
+            persistImportantLogs()
+          }, 500) // 普通消息延迟500ms
         }
         
         // 根据消息类型处理
@@ -413,6 +504,34 @@ export const useStrategyStore = defineStore('strategy', () => {
     }
   }
   
+  // 页面卸载时强制保存所有日志
+  function forcePersistAllLogs() {
+    try {
+      // 获取所有未持久化的消息
+      const unsavedLogs = messages.value
+        .filter(msg => !msg.isPersisted)
+        .map(msg => ({
+          ...msg,
+          isPersisted: true,
+          id: msg.id || generateMessageId(msg)
+        }))
+      
+      if (unsavedLogs.length > 0) {
+        // 合并现有的持久化日志
+        const existingLogs = loadLogsFromStorage()
+        const allLogs = [...existingLogs, ...unsavedLogs]
+        const cleanedLogs = cleanupExpiredLogs(allLogs)
+        
+        // 同步保存，确保在页面卸载前完成
+        saveLogsToStorage(cleanedLogs)
+        console.log(`页面卸载时强制保存了 ${unsavedLogs.length} 条日志`)
+        console.log('保存的日志详情:', unsavedLogs.map(log => `${log.sid}-${log.type}-${log.payload?.substring(0, 30)}`))
+      }
+    } catch (error) {
+      console.error('强制保存日志失败:', error)
+    }
+  }
+  
   // ========== 返回 ==========
   return {
     // 状态
@@ -444,7 +563,8 @@ export const useStrategyStore = defineStore('strategy', () => {
     getWebSocketStatus,
     clearMessages,
     loadHistoryLogs,
-    clearHistoryLogs
+    clearHistoryLogs,
+    forcePersistAllLogs
   }
 })
 
