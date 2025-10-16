@@ -72,7 +72,7 @@
     <el-card class="filter-card" shadow="hover">
       <el-form :inline="true" :model="filters" class="filter-form">
         <el-form-item label="状态">
-          <el-select v-model="filters.status" placeholder="全部" clearable @change="handleFilterChange">
+          <el-select v-model="filters.status" placeholder="全部" clearable @change="handleFilterChange" class="filter-select-status">
             <el-option label="未处理" value="active" />
             <el-option label="已确认" value="acknowledged" />
             <el-option label="已解决" value="resolved" />
@@ -80,7 +80,7 @@
         </el-form-item>
         
         <el-form-item label="严重程度">
-          <el-select v-model="filters.severity" placeholder="全部" clearable @change="handleFilterChange">
+          <el-select v-model="filters.severity" placeholder="全部" clearable @change="handleFilterChange" class="filter-select-severity">
             <el-option label="信息" value="info" />
             <el-option label="警告" value="warning" />
             <el-option label="错误" value="error" />
@@ -89,7 +89,7 @@
         </el-form-item>
         
         <el-form-item label="告警类型">
-          <el-select v-model="filters.alarm_type" placeholder="全部" clearable @change="handleFilterChange">
+          <el-select v-model="filters.alarm_type" placeholder="全部" clearable @change="handleFilterChange" class="filter-select-type">
             <el-option label="进程崩溃" value="process_crash" />
             <el-option label="重载失败" value="reload_failed" />
             <el-option label="CPU过高" value="high_cpu" />
@@ -108,6 +108,7 @@
             format="YYYY-MM-DD"
             value-format="YYYY-MM-DD"
             @change="handleDateChange"
+            class="filter-date-picker"
           />
         </el-form-item>
         
@@ -595,6 +596,23 @@ onUnmounted(() => {
 
 .filter-form {
   margin: 0;
+}
+
+/* 筛选器组件宽度设置 */
+.filter-select-status {
+  width: 100px;
+}
+
+.filter-select-severity {
+  width: 100px;
+}
+
+.filter-select-type {
+  width: 140px;
+}
+
+.filter-date-picker {
+  width: 240px;
 }
 
 .table-card {

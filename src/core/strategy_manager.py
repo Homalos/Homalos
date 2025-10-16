@@ -52,6 +52,7 @@ class StrategyManagerIPC:
         self._meta: Dict[str, Dict[str, Any]] = {}
         self._lock = Lock()
         self._reloading: set = set()  # 正在reload的策略ID集合
+        self._expected_stops: set = set()  # 预期停止的策略ID集合，用于区分主动停止和意外崩溃
 
         # WebSocket integration:
         # we will store a set of asyncio.Queues (one per active websocket connection)
@@ -261,6 +262,9 @@ class StrategyManagerIPC:
             if not meta:
                 self.logger.warning(f"{sid} not loaded")
                 return
+            
+            # 标记为预期停止，避免触发崩溃告警
+            self._expected_stops.add(sid)
 
             conn = meta["conn"]
             proc = meta["proc"]
@@ -305,6 +309,8 @@ class StrategyManagerIPC:
                 pass
 
             del self._meta[sid]
+            # 清理预期停止标记（延迟清理，给_reader_loop时间处理）
+            # 注意：不在这里立即清理，因为_reader_loop可能还在运行
             self.logger.info(f"Unloaded {sid}")
 
     def reload_strategy(self, sid: str):
@@ -361,6 +367,9 @@ class StrategyManagerIPC:
                 
                 # unload if loaded (内联逻辑，避免嵌套锁)
                 if sid in self._meta:
+                    # 标记为预期停止，避免在reload过程中触发崩溃告警
+                    self._expected_stops.add(sid)
+                    
                     meta = self._meta[sid]
                     conn = meta["conn"]
                     proc = meta["proc"]
@@ -456,8 +465,10 @@ class StrategyManagerIPC:
                 # notify ws
                 self._forward_to_ws({"type": "status", "sid": sid, "payload": "proc_dead"})
                 
-                # 触发告警
-                if self.alarm_manager and self._loop:
+                # 检查是否为预期停止，只有意外退出才触发告警
+                is_expected_stop = sid in self._expected_stops
+                if not is_expected_stop and self.alarm_manager and self._loop:
+                    # 只有非预期停止才触发崩溃告警
                     asyncio.run_coroutine_threadsafe(
                         self.alarm_manager.trigger_alarm(
                             alarm_type="process_crash",
@@ -469,6 +480,11 @@ class StrategyManagerIPC:
                         ),
                         self._loop
                     )
+                elif is_expected_stop:
+                    self.logger.info(f"策略 {sid} 正常停止，不触发告警")
+                
+                # 清理预期停止标记
+                self._expected_stops.discard(sid)
                 
                 try:
                     self.unload_strategy(sid)
