@@ -13,9 +13,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from src.web.api import auth, monitor, datacenter, system_config, trading_account
+from src.web.api import auth, monitor, datacenter, system_config, trading_account, strategy
 from src.web.core.database import init_db, close_db
+from src.web.services.strategy_service import strategy_service
 from src.utils.log import get_logger
+import asyncio
 
 logger = get_logger(__name__)
 
@@ -31,12 +33,27 @@ async def lifespan(app: FastAPI):
     # 初始化数据库
     await init_db()
     
+    # 初始化策略管理器
+    try:
+        loop = asyncio.get_running_loop()
+        await strategy_service.initialize_manager(loop)
+        logger.info("策略管理器初始化成功")
+    except Exception as e:
+        logger.error(f"策略管理器初始化失败: {e}", exc_info=True)
+    
     yield
     
     # 关闭时执行
     logger.info("=" * 60)
     logger.info("Homalos Web应用关闭")
     logger.info("=" * 60)
+    
+    # 关闭策略管理器
+    try:
+        await strategy_service.shutdown()
+        logger.info("策略管理器已关闭")
+    except Exception as e:
+        logger.error(f"关闭策略管理器失败: {e}", exc_info=True)
     
     # 关闭数据库连接
     await close_db()
@@ -72,6 +89,7 @@ app.include_router(monitor.router, prefix="/api")
 app.include_router(datacenter.router, prefix="/api")
 app.include_router(system_config.router, prefix="/api")
 app.include_router(trading_account.router, prefix="/api")
+app.include_router(strategy.router, prefix="/api")
 
 
 @app.get("/", tags=["根路径"])
