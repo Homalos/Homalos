@@ -187,6 +187,140 @@ async def clear_reload_lock(sid: str):
         return {"status": "not_found", "sid": sid, "message": f"{sid} 没有reload锁"}
 
 
+# ========== 状态持久化相关端点 ==========
+
+@router.post("/{sid}/state/save", summary="手动保存策略状态")
+async def save_strategy_state(sid: str):
+    """
+    手动保存指定策略的当前状态到文件
+    
+    Args:
+        sid: 策略ID
+        
+    Returns:
+        操作结果
+    """
+    try:
+        success = await strategy_service.save_strategy_state(sid)
+        if success:
+            return {
+                "status": "saved",
+                "sid": sid,
+                "message": f"策略 {sid} 的状态已保存"
+            }
+        else:
+            return {
+                "status": "failed",
+                "sid": sid,
+                "message": f"策略 {sid} 的状态保存失败"
+            }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"保存策略 {sid} 状态失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"保存状态失败: {str(e)}")
+
+
+@router.get("/{sid}/state", summary="获取策略状态")
+async def get_strategy_state(
+    sid: str,
+    timestamp: Optional[str] = Query(None, description="可选：指定时间戳（格式：20251016_143000）")
+):
+    """
+    获取策略的保存状态
+    
+    Args:
+        sid: 策略ID
+        timestamp: 可选，指定时间戳获取历史状态
+        
+    Returns:
+        策略状态数据
+    """
+    try:
+        state = await strategy_service.load_strategy_state(sid, timestamp)
+        if state is None:
+            raise HTTPException(status_code=404, detail=f"策略 {sid} 没有保存的状态")
+        
+        return {
+            "sid": sid,
+            "timestamp": timestamp or "latest",
+            "state": state
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取策略 {sid} 状态失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"获取状态失败: {str(e)}")
+
+
+@router.get("/{sid}/state/history", summary="获取状态历史列表")
+async def get_state_history(
+    sid: str,
+    limit: int = Query(10, ge=1, le=100, description="返回最近N条记录")
+):
+    """
+    获取策略的状态历史列表（不包含状态数据，只有元信息）
+    
+    Args:
+        sid: 策略ID
+        limit: 返回最近N条记录
+        
+    Returns:
+        历史记录列表
+    """
+    try:
+        history = await strategy_service.get_state_history(sid, limit)
+        return {
+            "sid": sid,
+            "count": len(history),
+            "history": history
+        }
+    except Exception as e:
+        logger.error(f"获取策略 {sid} 历史失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"获取历史失败: {str(e)}")
+
+
+@router.delete("/states/cleanup", summary="清理旧状态")
+async def cleanup_old_states(
+    days: int = Query(30, ge=1, le=365, description="保留最近N天的状态")
+):
+    """
+    清理超过指定天数的旧状态文件
+    
+    Args:
+        days: 保留最近N天
+        
+    Returns:
+        清理结果
+    """
+    try:
+        result = await strategy_service.cleanup_old_states(days)
+        return {
+            "status": "success",
+            "message": f"已清理超过 {days} 天的旧状态",
+            "days": days
+        }
+    except Exception as e:
+        logger.error(f"清理旧状态失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"清理失败: {str(e)}")
+
+
+@router.get("/states/storage-info", summary="获取存储信息")
+async def get_storage_info():
+    """
+    获取状态存储的统计信息
+    
+    Returns:
+        存储统计数据
+    """
+    try:
+        info = strategy_service.get_storage_info()
+        return info
+    except Exception as e:
+        logger.error(f"获取存储信息失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"获取存储信息失败: {str(e)}")
+
+
 @router.get("/status", response_model=StrategyStatusResponse, summary="获取策略运行状态")
 async def get_strategy_status():
     """

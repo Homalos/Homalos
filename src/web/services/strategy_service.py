@@ -58,6 +58,9 @@ class StrategyService:
             # 设置事件循环（用于 WebSocket 线程安全转发）
             self._manager.set_event_loop(loop)
             
+            # 启动状态加载和自动保存任务
+            await self._manager.startup()
+            
             # 启动文件监控
             strategies_dir = get_path_ins.join_path("src", "strategy", "strategies")
             self._manager.start_watchdog(str(strategies_dir))
@@ -87,6 +90,9 @@ class StrategyService:
         
         try:
             self.logger.info("关闭策略管理器...")
+            
+            # 调用管理器的shutdown（会保存状态并停止自动保存任务）
+            await self._manager.shutdown()
             
             # 停止文件监控
             self._manager.stop_watchdog()
@@ -199,6 +205,118 @@ class StrategyService:
     def clear_reload_lock(self, sid: str) -> bool:
         """清除reload锁（用于恢复）"""
         return self.get_manager().clear_reload_lock(sid)
+    
+    # ========== 状态持久化相关方法 ==========
+    
+    async def save_strategy_state(self, sid: str) -> bool:
+        """
+        手动保存单个策略的状态
+        
+        Args:
+            sid: 策略ID
+            
+        Returns:
+            bool: 是否保存成功
+        """
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+        
+        manager = self.get_manager()
+        
+        # 获取策略当前状态
+        with manager._lock:
+            meta = manager._meta.get(sid)
+            if not meta:
+                raise ValueError(f"策略 {sid} 未加载")
+            
+            conn = meta.get("conn")
+            proc = meta.get("proc")
+            
+            if not proc or not proc.is_alive():
+                self.logger.warning(f"策略 {sid} 未运行，无法保存状态")
+                return False
+            
+            # 清除旧缓存
+            meta["last_state"] = None
+            
+            # 请求策略保存状态
+            try:
+                conn.send({"type": "command", "command": "save_state"})
+            except Exception as e:
+                self.logger.error(f"发送save_state命令失败: {e}")
+                return False
+        
+        # 等待状态返回
+        import time
+        state = None
+        start = time.time()
+        while time.time() - start < 2.0:
+            await asyncio.sleep(0.05)
+            with manager._lock:
+                cached = meta.get("last_state")
+                if cached is not None:
+                    state = cached
+                    meta["last_state"] = None
+                    break
+        
+        if state is None:
+            self.logger.warning(f"策略 {sid} 没有返回状态")
+            return False
+        
+        # 保存到文件
+        success = await manager.state_persistence.save_strategy_state(sid, state)
+        if success:
+            self.logger.info(f"已手动保存策略 {sid} 的状态")
+        return success
+    
+    async def load_strategy_state(self, sid: str, timestamp: str = None) -> dict:
+        """
+        加载策略状态
+        
+        Args:
+            sid: 策略ID
+            timestamp: 可选，指定时间戳（格式：20251016_143000）
+            
+        Returns:
+            dict: 策略状态，如果不存在返回None
+        """
+        manager = self.get_manager()
+        state = await manager.state_persistence.load_strategy_state(sid, timestamp)
+        return state
+    
+    async def get_state_history(self, sid: str, limit: int = 10) -> list:
+        """
+        获取策略的状态历史列表
+        
+        Args:
+            sid: 策略ID
+            limit: 返回最近N条
+            
+        Returns:
+            list: 历史记录列表
+        """
+        manager = self.get_manager()
+        history = await manager.state_persistence.get_state_history(sid, limit)
+        return history
+    
+    async def cleanup_old_states(self, days: int = 30) -> dict:
+        """
+        清理超过N天的旧状态
+        
+        Args:
+            days: 保留最近N天
+            
+        Returns:
+            dict: 清理结果
+        """
+        manager = self.get_manager()
+        await manager.state_persistence.cleanup_old_states(days)
+        return {"status": "cleaned", "days": days}
+    
+    def get_storage_info(self) -> dict:
+        """获取状态存储信息统计"""
+        manager = self.get_manager()
+        return manager.state_persistence.get_storage_info()
 
 
 # 全局单例

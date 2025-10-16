@@ -48,7 +48,7 @@ class StrategyManagerIPC:
         self.strategies_pkg = strategies_pkg  # module package prefix for dynamic import if needed
         self.registry = StrategyRegistry(registry_path)
         self.mp_ctx = mp_ctx or mp.get_context()  # allow injection for testing
-        # meta: sid -> {proc, conn, module, class_name, file_path, last_state}
+        # meta: sid -> {proc, conn, module, class_name, file_path, last_state, cached_state}
         self._meta: Dict[str, Dict[str, Any]] = {}
         self._lock = Lock()
         self._reloading: set = set()  # 正在reload的策略ID集合
@@ -61,11 +61,133 @@ class StrategyManagerIPC:
         # watchdog
         self._watch_observer: Optional[Observer] = None
         self._last_event_time: Dict[str, float] = {}
+        
+        # 状态持久化管理器
+        from src.core.state_persistence import StatePersistenceManager
+        from src.utils.get_path import get_path_ins
+        
+        state_storage_dir = get_path_ins.join_path("data", "strategy_states")
+        self.state_persistence = StatePersistenceManager(
+            storage_dir=Path(state_storage_dir),
+            max_history=288  # 24小时历史（5分钟间隔）
+        )
+        
+        # 自动保存定时任务
+        self._auto_save_task: Optional[asyncio.Task] = None
 
     # ---------- event loop registration ----------
     def set_event_loop(self, loop: asyncio.AbstractEventLoop):
         """Call once from the FastAPI app on startup to allow thread->loop callbacks."""
         self._loop = loop
+    
+    # ---------- lifecycle management ----------
+    async def startup(self):
+        """
+        系统启动时调用
+        - 加载所有策略的持久化状态
+        - 启动自动保存定时任务
+        """
+        self.logger.info("策略管理器启动中...")
+        
+        # 加载所有已启用策略的持久化状态
+        for sid in self.registry.list_enabled().keys():
+            try:
+                state = await self.state_persistence.load_strategy_state(sid)
+                if state:
+                    # 将状态缓存，等待策略进程启动后注入
+                    if sid not in self._meta:
+                        self._meta[sid] = {}
+                    self._meta[sid]["cached_state"] = state
+                    self.logger.info(f"已加载 {sid} 的持久化状态")
+            except Exception as e:
+                self.logger.warning(f"加载 {sid} 状态失败: {e}")
+        
+        # 启动自动保存任务
+        self._start_auto_save_task()
+        
+        self.logger.info("策略管理器启动完成")
+    
+    async def shutdown(self):
+        """
+        系统关闭时调用
+        - 保存所有策略状态
+        - 停止自动保存任务
+        """
+        self.logger.info("策略管理器关闭中...")
+        
+        # 停止自动保存任务
+        if self._auto_save_task:
+            self._auto_save_task.cancel()
+            try:
+                await self._auto_save_task
+            except asyncio.CancelledError:
+                pass
+            self.logger.info("自动保存任务已停止")
+        
+        # 最后一次保存所有状态
+        try:
+            await self._save_all_current_states()
+        except Exception as e:
+            self.logger.error(f"关闭时保存状态失败: {e}")
+        
+        self.logger.info("策略管理器已关闭")
+    
+    def _start_auto_save_task(self):
+        """启动自动保存任务"""
+        if self._loop:
+            self._auto_save_task = self._loop.create_task(self._auto_save_loop())
+            self.logger.info("自动保存任务已启动（每5分钟）")
+        else:
+            self.logger.warning("事件循环未设置，无法启动自动保存任务")
+    
+    async def _auto_save_loop(self):
+        """自动保存循环（每5分钟）"""
+        while True:
+            try:
+                await asyncio.sleep(300)  # 5分钟
+                await self._save_all_current_states()
+            except asyncio.CancelledError:
+                self.logger.info("自动保存任务被取消")
+                break
+            except Exception as e:
+                self.logger.error(f"自动保存失败: {e}", exc_info=True)
+    
+    async def _save_all_current_states(self):
+        """保存所有当前运行策略的状态"""
+        states_to_save = {}
+        
+        with self._lock:
+            for sid, meta in self._meta.items():
+                conn = meta.get("conn")
+                proc = meta.get("proc")
+                
+                if proc and proc.is_alive():
+                    try:
+                        # 清除旧缓存
+                        meta["last_state"] = None
+                        
+                        # 请求保存状态
+                        conn.send({"type": "command", "command": "save_state"})
+                        
+                        # 等待响应（超时2秒）
+                        start = time.time()
+                        while time.time() - start < 2.0:
+                            time.sleep(0.05)
+                            cached = meta.get("last_state")
+                            if cached is not None:
+                                states_to_save[sid] = cached
+                                meta["last_state"] = None  # 清除缓存
+                                break
+                    except Exception as e:
+                        self.logger.warning(f"获取 {sid} 状态失败: {e}")
+        
+        # 批量保存到文件
+        if states_to_save:
+            results = await self.state_persistence.save_all_states(states_to_save)
+            success_count = sum(1 for v in results.values() if v)
+            self.logger.info(f"自动保存完成：成功 {success_count}/{len(states_to_save)}")
+        else:
+            self.logger.debug("没有需要保存的状态")
 
     # ---------- process lifecycle ----------
     def load_strategy(self, sid: str):
@@ -95,13 +217,17 @@ class StrategyManagerIPC:
             proc = self.mp_ctx.Process(target=run_strategy_process, args=(sid, module_path, class_name, params, child_conn), daemon=True)
             proc.start()
 
+            # 检查是否有缓存的持久化状态
+            cached_state = self._meta.get(sid, {}).get("cached_state")
+            
             meta = {
                 "proc": proc,
                 "conn": parent_conn,
                 "module": module_path,
                 "class": class_name,
                 "file": cfg.get("file"),
-                "last_state": None
+                "last_state": None,
+                "cached_state": cached_state  # 保留缓存状态
             }
             self._meta[sid] = meta
 
@@ -110,6 +236,18 @@ class StrategyManagerIPC:
             t.start()
 
             self.logger.info(f"Loaded {sid} (proc pid={proc.pid})")
+            
+            # 如果有缓存的持久化状态，注入到新启动的进程
+            if cached_state:
+                try:
+                    # 给进程一点启动时间
+                    time.sleep(0.1)
+                    parent_conn.send({"type": "command", "command": "load_state", "state": cached_state})
+                    self.logger.info(f"已注入持久化状态到 {sid}")
+                    # 清除缓存
+                    self._meta[sid]["cached_state"] = None
+                except Exception as e:
+                    self.logger.warning(f"注入状态失败: {e}")
 
     def unload_strategy(self, sid: str):
         with self._lock:
