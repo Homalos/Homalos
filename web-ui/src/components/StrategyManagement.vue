@@ -45,13 +45,34 @@
       style="width: 100%"
       v-loading="strategyStore.isLoading"
     >
-      <el-table-column prop="sid" label="策略ID" width="180" />
-      <el-table-column prop="module" label="模块路径" min-width="200" />
+      <el-table-column prop="sid" label="策略ID" width="150" />
+      <el-table-column label="策略名称" width="150">
+        <template #default="scope">
+          {{ getStrategyName(scope.row.sid) || scope.row.sid }}
+        </template>
+      </el-table-column>
+      <el-table-column label="浮动盈亏" width="120" align="right">
+        <template #default="scope">
+          <span :style="getPnlStyle(getStrategyPnl(scope.row.sid))">
+            {{ formatPnl(getStrategyPnl(scope.row.sid)) }}
+          </span>
+        </template>
+      </el-table-column>
+      <el-table-column label="交易次数" width="100" align="center">
+        <template #default="scope">
+          {{ getStrategyTradeCount(scope.row.sid) || 0 }}
+        </template>
+      </el-table-column>
       <el-table-column label="状态" width="100">
         <template #default="scope">
           <el-tag :type="getStrategyStatus(scope.row.sid) === '运行中' ? 'success' : 'info'">
             {{ getStrategyStatus(scope.row.sid) }}
           </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="启动时间" width="180">
+        <template #default="scope">
+          {{ formatStartTime(getStrategyStartTime(scope.row.sid)) }}
         </template>
       </el-table-column>
       <el-table-column label="启用" width="80">
@@ -62,37 +83,45 @@
           />
         </template>
       </el-table-column>
-      <el-table-column label="PID" width="100">
-        <template #default="scope">
-          {{ getStrategyPID(scope.row.sid) || '-' }}
-        </template>
-      </el-table-column>
       <el-table-column label="操作" width="280" fixed="right">
         <template #default="scope">
-          <el-button
-            v-if="getStrategyStatus(scope.row.sid) === '已停止'"
-            size="small"
-            type="success"
-            @click="handleStartStrategy(scope.row.sid)"
-          >
-            启动
-          </el-button>
-          <el-button
-            v-if="getStrategyStatus(scope.row.sid) === '运行中'"
-            size="small"
-            type="warning"
-            @click="handleStopStrategy(scope.row.sid)"
-          >
-            停止
-          </el-button>
-          <el-button
-            v-if="getStrategyStatus(scope.row.sid) === '运行中'"
-            size="small"
-            type="primary"
-            @click="handleReloadStrategy(scope.row.sid)"
-          >
-            重载
-          </el-button>
+          <!-- 已停止策略的操作：启动、卸载、详情 -->
+          <template v-if="getStrategyStatus(scope.row.sid) === '已停止'">
+            <el-button
+              size="small"
+              type="success"
+              @click="handleStartStrategy(scope.row.sid)"
+            >
+              启动
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="handleUnloadStrategy(scope.row.sid)"
+            >
+              卸载
+            </el-button>
+          </template>
+          
+          <!-- 运行中策略的操作：停止、重载、详情 -->
+          <template v-if="getStrategyStatus(scope.row.sid) === '运行中'">
+            <el-button
+              size="small"
+              type="warning"
+              @click="handleStopStrategy(scope.row.sid)"
+            >
+              停止
+            </el-button>
+            <el-button
+              size="small"
+              type="primary"
+              @click="handleReloadStrategy(scope.row.sid)"
+            >
+              重载
+            </el-button>
+          </template>
+          
+          <!-- 通用操作：详情 -->
           <el-button 
             size="small" 
             @click="handleShowDetail(scope.row)"
@@ -277,6 +306,50 @@ function getStrategyPID(sid) {
   return status ? status.pid : null
 }
 
+function getStrategyName(sid) {
+  const status = strategyStore.strategyStatus[sid]
+  return status ? status.strategy_name : null
+}
+
+function getStrategyPnl(sid) {
+  const status = strategyStore.strategyStatus[sid]
+  return status ? status.pnl : 0
+}
+
+function getStrategyTradeCount(sid) {
+  const status = strategyStore.strategyStatus[sid]
+  return status ? status.trade_count : 0
+}
+
+function getStrategyStartTime(sid) {
+  const status = strategyStore.strategyStatus[sid]
+  return status ? status.start_time : null
+}
+
+function formatPnl(pnl) {
+  if (pnl === 0) return '0.00'
+  return pnl > 0 ? `+${pnl.toFixed(2)}` : pnl.toFixed(2)
+}
+
+function getPnlStyle(pnl) {
+  if (pnl > 0) return { color: '#f56c6c', fontWeight: 'bold' }  // 红色表示盈利
+  if (pnl < 0) return { color: '#67c23a', fontWeight: 'bold' }  // 绿色表示亏损
+  return { color: '#303133' }  // 黑色表示不亏不赚
+}
+
+function formatStartTime(timestamp) {
+  if (!timestamp) return '-'
+  const date = new Date(timestamp * 1000)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
+
 function getLogTypeColor(type) {
   const colorMap = {
     log: '',
@@ -339,6 +412,23 @@ async function handleToggleEnabled(sid, enabled) {
     await strategyStore.enable(sid)
   } else {
     await strategyStore.disable(sid)
+  }
+}
+
+async function handleUnloadStrategy(sid) {
+  try {
+    await ElMessageBox.confirm(
+      `确认卸载策略 ${sid}？\n卸载后策略将从管理表格中移除，需要重启服务才能重新加载`,
+      '卸载确认',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    await strategyStore.unload(sid)
+  } catch {
+    ElMessage.info('已取消')
   }
 }
 

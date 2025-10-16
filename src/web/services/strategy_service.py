@@ -11,7 +11,6 @@
 """
 import asyncio
 from typing import Optional, Dict, Any
-from pathlib import Path
 
 from src.core.strategy_manager import StrategyManagerIPC
 from src.utils.log import get_logger
@@ -28,7 +27,7 @@ class StrategyService:
     
     def get_manager(self) -> StrategyManagerIPC:
         """获取策略管理器实例"""
-        if not self._initialized:
+        if not self._initialized or self._manager is None:
             raise RuntimeError("StrategyService not initialized. Call initialize_manager() first.")
         return self._manager
     
@@ -179,14 +178,65 @@ class StrategyService:
         
         for sid, m in manager._meta.items():
             proc = m.get("proc")
+            
+            # 生成策略显示名称（基于类名或策略ID）
+            class_name = m.get("class") or ""
+            strategy_name = class_name.replace("Strategy", "").replace("_", " ").strip()
+            if not strategy_name:
+                strategy_name = sid.replace("_", " ").title()
+            
             meta[sid] = {
                 "pid": proc.pid if proc else None,
                 "alive": proc.is_alive() if proc else False,
                 "module": m.get("module") or "",  # 确保不返回None
-                "class": m.get("class") or ""      # 确保不返回None
+                "class": m.get("class") or "",      # 确保不返回None
+                "strategy_name": strategy_name,
+                "start_time": m.get("start_time"),  # 启动时间
+                "pnl": self._get_mock_pnl(sid),     # 模拟浮动盈亏
+                "trade_count": self._get_mock_trade_count(sid)  # 模拟交易次数
             }
         
         return meta
+    
+    def _get_mock_pnl(self, sid: str) -> float:
+        """获取模拟浮动盈亏（临时硬编码）"""
+        # 基于策略ID生成模拟数据
+        import hashlib
+        hash_val = int(hashlib.md5(sid.encode()).hexdigest()[:8], 16)
+        
+        # 生成-10000到10000之间的随机盈亏
+        pnl = (hash_val % 20001) - 10000
+        return round(pnl * 0.1, 2)  # 缩小到合理范围
+    
+    def _get_mock_trade_count(self, sid: str) -> int:
+        """获取模拟交易次数（临时硬编码）"""
+        # 基于策略ID生成模拟数据
+        import hashlib
+        hash_val = int(hashlib.md5((sid + "_trades").encode()).hexdigest()[:8], 16)
+        
+        # 生成0到100之间的交易次数
+        return hash_val % 101
+    
+    def unload_strategy(self, sid: str):
+        """卸载策略（停止运行并从管理器中移除）"""
+        manager = self.get_manager()
+        
+        # 检查策略是否存在于注册表中
+        if sid not in manager.registry.strategies:
+            raise ValueError(f"策略 {sid} 不存在")
+        
+        # 如果策略正在运行，先停止它
+        if sid in manager._meta:
+            manager.unload_strategy(sid)
+            self.logger.info(f"运行中的策略 {sid} 已停止并卸载")
+        else:
+            # 策略已停止，只需要从注册表中移除
+            self.logger.info(f"策略 {sid} 已停止，直接从注册表中卸载")
+        
+        # 从注册表中移除策略配置
+        del manager.registry.strategies[sid]
+        manager.registry.save()
+        self.logger.info(f"策略 {sid} 已从注册表中移除")
     
     def register_ws_queue(self, q: asyncio.Queue):
         """注册 WebSocket 队列"""
@@ -219,7 +269,6 @@ class StrategyService:
             bool: 是否保存成功
         """
         import asyncio
-        from concurrent.futures import ThreadPoolExecutor
         
         manager = self.get_manager()
         
@@ -232,8 +281,8 @@ class StrategyService:
             conn = meta.get("conn")
             proc = meta.get("proc")
             
-            if not proc or not proc.is_alive():
-                self.logger.warning(f"策略 {sid} 未运行，无法保存状态")
+            if not proc or not proc.is_alive() or not conn:
+                self.logger.warning(f"策略 {sid} 未运行或连接无效，无法保存状态")
                 return False
             
             # 清除旧缓存
@@ -269,7 +318,7 @@ class StrategyService:
             self.logger.info(f"已手动保存策略 {sid} 的状态")
         return success
     
-    async def load_strategy_state(self, sid: str, timestamp: str = None) -> dict:
+    async def load_strategy_state(self, sid: str, timestamp: Optional[str] = None) -> Optional[dict]:
         """
         加载策略状态
         
@@ -281,7 +330,7 @@ class StrategyService:
             dict: 策略状态，如果不存在返回None
         """
         manager = self.get_manager()
-        state = await manager.state_persistence.load_strategy_state(sid, timestamp)
+        state = await manager.state_persistence.load_strategy_state(sid, timestamp or "")
         return state
     
     async def get_state_history(self, sid: str, limit: int = 10) -> list:

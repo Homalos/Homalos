@@ -170,6 +170,29 @@ async def disable_strategy(sid: str):
         raise HTTPException(status_code=500, detail=f"禁用策略失败: {str(e)}")
 
 
+@router.delete("/{sid}/unload", response_model=OperationResponse, summary="卸载策略")
+async def unload_strategy(sid: str):
+    """
+    卸载指定的策略（停止运行并从管理器中移除）
+    
+    Args:
+        sid: 策略ID
+        
+    Returns:
+        OperationResponse: 操作结果
+    """
+    try:
+        strategy_service.unload_strategy(sid)
+        return {
+            "status": "unloaded",
+            "sid": sid,
+            "message": f"策略 {sid} 已卸载"
+        }
+    except Exception as e:
+        logger.error(f"卸载策略 {sid} 失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"卸载策略失败: {str(e)}")
+
+
 @router.get("/debug/reloading", summary="获取正在reload的策略（调试）")
 async def get_reloading_strategies():
     """获取当前正在reload的策略列表（用于调试）"""
@@ -237,7 +260,7 @@ async def get_strategy_state(
         策略状态数据
     """
     try:
-        state = await strategy_service.load_strategy_state(sid, timestamp)
+        state = await strategy_service.load_strategy_state(sid, timestamp or "")
         if state is None:
             raise HTTPException(status_code=404, detail=f"策略 {sid} 没有保存的状态")
         
@@ -294,7 +317,7 @@ async def cleanup_old_states(
         清理结果
     """
     try:
-        result = await strategy_service.cleanup_old_states(days)
+        await strategy_service.cleanup_old_states(days)
         return {
             "status": "success",
             "message": f"已清理超过 {days} 天的旧状态",
@@ -387,6 +410,6 @@ async def websocket_endpoint(
         strategy_service.unregister_ws_queue(q)
         try:
             await websocket.close()
-        except:
+        except Exception:
             pass
 

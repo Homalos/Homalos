@@ -35,6 +35,17 @@ def run_strategy_process(strategy_id: str, module_path: str, class_name: str, pa
         return
 
     conn.send({"type": "log", "sid": strategy_id, "payload": f"strategy {strategy_id} started"})
+    
+    # 获取策略订阅的合约列表
+    subscribed_instruments = getattr(strategy, 'instruments', [])
+    if subscribed_instruments:
+        conn.send({"type": "log", "sid": strategy_id, "payload": f"Subscribed to instruments: {subscribed_instruments}"})
+    else:
+        # 向后兼容：如果没有instruments属性，尝试获取instrument_id
+        instrument_id = getattr(strategy, 'instrument_id', None)
+        if instrument_id:
+            subscribed_instruments = [instrument_id]
+            conn.send({"type": "log", "sid": strategy_id, "payload": f"Single instrument mode: {instrument_id}"})
 
     running = True
     while running:
@@ -54,6 +65,13 @@ def run_strategy_process(strategy_id: str, module_path: str, class_name: str, pa
                 ev = msg.get("event", {})
                 ev_type = ev.get("type")
                 data = ev.get("data")
+                
+                # 数据过滤：只处理订阅的合约数据
+                if subscribed_instruments and hasattr(data, 'instrument_id'):
+                    instrument_id = data.instrument_id
+                    if instrument_id not in subscribed_instruments:
+                        continue  # 跳过未订阅的合约数据
+                
                 # dispatch by conventional method names
                 try:
                     if ev_type == "tick" and hasattr(strategy, "on_tick"):

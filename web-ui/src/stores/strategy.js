@@ -8,6 +8,7 @@ import {
   reloadStrategy,
   enableStrategy,
   disableStrategy,
+  unloadStrategy,
   createStrategyWebSocket
 } from '@/api/strategy'
 import { ElMessage } from 'element-plus'
@@ -226,6 +227,21 @@ export const useStrategyStore = defineStore('strategy', () => {
     }
   }
   
+  async function unload(sid) {
+    try {
+      await unloadStrategy(sid)
+      // 从本地状态中移除
+      delete strategies.value[sid]
+      delete strategyStatus.value[sid]
+      ElMessage.success(`策略 ${sid} 已卸载`)
+      // 刷新状态
+      await fetchStatus()
+    } catch (error) {
+      console.error(`卸载策略 ${sid} 失败:`, error)
+      ElMessage.error(`卸载策略失败: ${error.response?.data?.detail || error.message}`)
+    }
+  }
+  
   // ========== 方法：日志管理 ==========
   function loadHistoryLogs() {
     try {
@@ -422,6 +438,7 @@ export const useStrategyStore = defineStore('strategy', () => {
     reload,
     enable,
     disable,
+    unload,
     connectWebSocket,
     disconnectWebSocket,
     getWebSocketStatus,

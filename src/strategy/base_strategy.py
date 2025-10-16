@@ -31,11 +31,27 @@ class BaseStrategy(object):
 
 
 class SpecificStrategyApi(ABC):
-    def __init__(self, instrument_id: str, strategy_id: str, sub_kline_type: list):
-        self.instrument_id = instrument_id
+    def __init__(self, instruments=None, strategy_id: str = "", sub_kline_type: Optional[list] = None):
+        # 支持多合约订阅（兼容单合约和多合约）
+        if isinstance(instruments, str):
+            self.instruments = [instruments]
+        elif isinstance(instruments, list):
+            self.instruments = instruments
+        elif instruments is None:
+            self.instruments = []
+        else:
+            self.instruments = [str(instruments)]
+        
         self.strategy_id = strategy_id
-        self.sub_kline_type = sub_kline_type
+        self.sub_kline_type = sub_kline_type or []
         self.kline_lock = None
+        
+        # 多合约数据管理
+        self.positions: dict[str, int] = {ins: 0 for ins in self.instruments}
+        self.prices: dict[str, list[float]] = {ins: [] for ins in self.instruments}
+        
+        # 向后兼容属性
+        self.instrument_id = self.instruments[0] if self.instruments else ""
         self.bar_data: Optional[BarData] = None
 
     @abstractmethod
@@ -74,6 +90,29 @@ class SpecificStrategyApi(ABC):
     def on_order(self, order: OrderData) -> None:
         """订单状态发生改变时执行"""
         pass
+    
+    # ========== 多合约支持方法 ==========
+    
+    def is_subscribed(self, instrument_id: str) -> bool:
+        """
+        检查是否订阅了指定合约
+        
+        Args:
+            instrument_id: 合约ID
+            
+        Returns:
+            bool: 如果订阅了该合约返回True，否则返回False
+        """
+        return instrument_id in self.instruments
+    
+    def get_subscribed_instruments(self) -> list[str]:
+        """
+        获取订阅的合约列表
+        
+        Returns:
+            list[str]: 订阅的合约ID列表
+        """
+        return self.instruments.copy()
     
     # ========== 状态持久化方法（可选实现） ==========
     

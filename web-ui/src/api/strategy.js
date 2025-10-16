@@ -72,6 +72,18 @@ export function disableStrategy(sid) {
 }
 
 /**
+ * 卸载策略
+ * @param {string} sid - 策略ID
+ * @returns {Promise} 操作结果
+ */
+export function unloadStrategy(sid) {
+  return request({
+    url: `/api/strategies/${sid}/unload`,
+    method: 'delete'
+  })
+}
+
+/**
  * 获取策略运行状态
  * @returns {Promise} 运行状态
  */

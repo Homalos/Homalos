@@ -233,7 +233,8 @@ class StrategyManagerIPC:
                 "module": module_path,
                 "class": class_name,
                 "file": cfg.get("file"),
-                "last_state": None
+                "last_state": None,
+                "start_time": time.time()  # 记录启动时间戳
             }
             self._meta[sid] = meta
 

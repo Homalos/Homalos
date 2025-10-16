@@ -21,7 +21,7 @@ class StrategyFuncsHolder(SpecificStrategyApi):
     
     def __init__(self):
         super().__init__(
-            instrument_id="AG2601", 
+            instruments="AG2601", 
             strategy_id="example_ipc_funcs", 
             sub_kline_type=[Interval.MINUTE]
         )

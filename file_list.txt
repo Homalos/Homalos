@@ -2,7 +2,6 @@
 ======================================== 
  
 [文件夹列表] 
-.cursor 
 assets 
 config 
 data 
@@ -18,9 +17,15 @@ web-ui
 .gitignore 
 .python-version 
 CODE_OF_CONDUCT.md 
+CRITICAL_死锁问题修复.md 
+CRITICAL_竞态条件修复.md 
+DEBUG_文件监控卡住问题.md 
 init_admin.bat 
 LICENSE 
 pyproject.toml 
+QUICKFIX_reload锁问题修复.md 
+QUICKFIX_异步调用修复.md 
+QUICKFIX_策略文件修复说明.md 
 README.md 
 SECURITY.md 
 start_all_web.bat 
@@ -30,4 +35,18 @@ start_homalos.py
 start_web.bat 
 start_web.py 
 start_web_ui.bat 
+STRATEGY_INTEGRATION_README.md 
+test_alarm_system.py 
+test_strategy_integration.bat 
 uv.lock 
+WebSocket自动重连功能说明.md 
+前端测试清单.md 
+后续优化路线图.md 
+开始测试.bat 
+快速测试.bat 
+测试修复总结.md 
+测试说明.md 
+热更新功能测试指南.md 
+热更新问题修复总结.md 
+策略管理热更新完整修复总结.md
+

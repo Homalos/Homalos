@@ -18,7 +18,7 @@ class Strategy(SpecificStrategyApi):
     示例策略 - 完整实现所有抽象方法
     """
     def __init__(self):
-        super().__init__(instrument_id="RU2601", strategy_id="example_ipc_class", sub_kline_type=[Interval.MINUTE])
+        super().__init__(instruments="RU2601", strategy_id="example_ipc_class", sub_kline_type=[Interval.MINUTE])
         self.counter = 0
         self.prices = []  # 用于演示状态持久化
 

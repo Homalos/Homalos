@@ -1,15 +1,15 @@
 {
-  "example_ipc_class": {
-    "file": "src/strategy/strategies/example_strategy_ipc_class.py",
-    "module": "src.strategy.strategies.example_strategy_ipc_class",
-    "class": "Strategy",
-    "enabled": true,
-    "params": {}
-  },
   "example_ipc_funcs": {
     "file": "src/strategy/strategies/example_strategy_ipc_funcs.py",
     "module": "src.strategy.strategies.example_strategy_ipc_funcs",
     "class": "StrategyFuncsHolder",
+    "enabled": true,
+    "params": {}
+  },
+  "multi_contract_example": {
+    "file": "src/strategy/strategies/multi_contract_example.py",
+    "module": "src.strategy.strategies.multi_contract_example",
+    "class": "MultiContractStrategy",
     "enabled": true,
     "params": {}
   }

@@ -31,6 +31,10 @@ class StrategyStatus(BaseModel):
     alive: bool = Field(..., description="是否存活")
     module: str = Field(..., description="模块路径")
     class_name: str = Field(..., alias="class", description="类名")
+    strategy_name: str = Field(..., description="策略显示名称")
+    start_time: Optional[float] = Field(None, description="启动时间戳")
+    pnl: float = Field(..., description="浮动盈亏")
+    trade_count: int = Field(..., description="交易次数")
     
     class Config:
         populate_by_name = True
