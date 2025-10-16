@@ -16,18 +16,6 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/alarms',
-    name: 'AlarmManagement',
-    component: () => import('@/views/AlarmManagement.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/alarms/settings',
-    name: 'AlarmSettings',
-    component: () => import('@/views/AlarmSettings.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
     path: '/:pathMatch(.*)*',
     redirect: '/login'
   }

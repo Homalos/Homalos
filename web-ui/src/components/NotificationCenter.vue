@@ -2,12 +2,14 @@
   <div class="notification-center">
     <!-- 铃铛图标 -->
     <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99" class="notification-badge">
-      <el-button 
-        :icon="Bell" 
-        circle 
+      <el-icon 
+        :size="20" 
+        class="header-icon"
         @click="togglePanel"
         :class="{ 'has-unread': unreadCount > 0 }"
-      />
+      >
+        <Bell />
+      </el-icon>
     </el-badge>
 
     <!-- 下拉面板 -->
@@ -179,12 +181,13 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAlarmStore } from '@/stores/alarm'
 import { ElMessage, ElNotification } from 'element-plus'
 import { Bell, Location } from '@element-plus/icons-vue'
 
-const router = useRouter()
+// 定义事件
+const emit = defineEmits(['switchToAlarms', 'switchToAlarmSettings'])
+
 const alarmStore = useAlarmStore()
 
 // 状态
@@ -234,12 +237,12 @@ async function resolveAlarm(alarmId) {
 
 function goToAlarmManagement() {
   panelVisible.value = false
-  router.push('/alarms')
+  emit('switchToAlarms')
 }
 
 function goToAlarmSettings() {
   panelVisible.value = false
-  router.push('/alarms/settings')
+  emit('switchToAlarmSettings')
 }
 
 // 格式化函数
@@ -343,8 +346,19 @@ onUnmounted(() => {
   position: relative;
 }
 
+.header-icon {
+  cursor: pointer;
+  transition: opacity 0.3s;
+  color: white;
+}
+
+.header-icon:hover {
+  opacity: 0.8;
+}
+
 .notification-badge :deep(.el-badge__content) {
-  border: 2px solid var(--el-bg-color);
+  border: 2px solid #409eff;
+  background-color: var(--el-color-danger);
 }
 
 .has-unread {
