@@ -32,7 +32,7 @@ class Strategy(SpecificStrategyApi):
     def on_tick(self, tick) -> None:
         """有新的tick产生时执行"""
         self.counter += 1
-        if self.counter % 3 == 0:
+        if self.counter % 5 == 0:
             print(f"[{self.strategy_id}] 已处理 {self.counter} 个tick")
 
     def on_bar(self, bar) -> None:

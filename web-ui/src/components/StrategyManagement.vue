@@ -3,7 +3,10 @@
   <el-card shadow="hover">
     <template #header>
       <div class="card-header">
-        <span>策略管理</span>
+        <div class="header-left">
+          <span class="header-title">策略管理</span>
+          <WebSocketStatus />
+        </div>
         <el-button type="primary" size="small" @click="handleRefresh">
           <el-icon><Refresh /></el-icon>
           刷新
@@ -224,6 +227,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useStrategyStore } from '@/stores/strategy'
+import WebSocketStatus from './WebSocketStatus.vue'
 
 // ========== 初始化 ==========
 const strategyStore = useStrategyStore()
@@ -363,6 +367,17 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .log-container {

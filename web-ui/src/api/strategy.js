@@ -83,49 +83,172 @@ export function getStrategyStatus() {
 }
 
 /**
- * 创建策略WebSocket连接
+ * 创建增强的策略WebSocket连接（支持自动重连、心跳检测）
  * @param {Function} onMessage - 消息回调函数
  * @param {Function} onError - 错误回调函数
  * @param {Function} onClose - 关闭回调函数
  * @param {string} filter - 可选，过滤特定策略ID
- * @returns {WebSocket} WebSocket实例
+ * @returns {Object} WebSocket管理对象
  */
 export function createStrategyWebSocket(onMessage, onError = null, onClose = null, filter = null) {
   const wsUrl = filter 
     ? `ws://localhost:8000/api/strategies/ws?filter=${filter}`
     : `ws://localhost:8000/api/strategies/ws`
   
-  const ws = new WebSocket(wsUrl)
+  let ws = null
+  let reconnectAttempts = 0
+  let maxReconnectAttempts = 10
+  let reconnectDelay = 1000 // 初始重连延迟1秒
+  let maxReconnectDelay = 30000 // 最大30秒
+  let reconnectTimer = null
+  let heartbeatTimer = null
+  let heartbeatInterval = 30000 // 30秒心跳
+  let isManualClose = false
   
-  ws.onopen = () => {
-    console.log('策略WebSocket已连接')
-  }
-  
-  ws.onmessage = (event) => {
+  // 创建连接
+  function connect() {
     try {
-      const data = JSON.parse(event.data)
-      if (onMessage) {
-        onMessage(data)
+      ws = new WebSocket(wsUrl)
+      
+      ws.onopen = () => {
+        console.log('✅ 策略WebSocket已连接')
+        reconnectAttempts = 0 // 重置重连次数
+        reconnectDelay = 1000 // 重置延迟
+        startHeartbeat() // 启动心跳
+      }
+      
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          
+          // 处理心跳响应
+          if (data.type === 'pong') {
+            console.log('💓 收到心跳响应')
+            return
+          }
+          
+          // 调用消息回调
+          if (onMessage) {
+            onMessage(data)
+          }
+        } catch (error) {
+          console.error('❌ 解析WebSocket消息失败:', error)
+        }
+      }
+      
+      ws.onerror = (error) => {
+        console.error('❌ WebSocket错误:', error)
+        if (onError) {
+          onError(error)
+        }
+      }
+      
+      ws.onclose = (event) => {
+        console.log('🔌 WebSocket已断开', { code: event.code, reason: event.reason })
+        stopHeartbeat()
+        
+        if (onClose) {
+          onClose(event)
+        }
+        
+        // 如果不是手动关闭，尝试重连
+        if (!isManualClose && reconnectAttempts < maxReconnectAttempts) {
+          scheduleReconnect()
+        } else if (reconnectAttempts >= maxReconnectAttempts) {
+          console.error('❌ 达到最大重连次数，停止重连')
+        }
       }
     } catch (error) {
-      console.error('解析WebSocket消息失败:', error)
+      console.error('❌ 创建WebSocket失败:', error)
+      scheduleReconnect()
     }
   }
   
-  ws.onerror = (error) => {
-    console.error('WebSocket错误:', error)
-    if (onError) {
-      onError(error)
+  // 计划重连
+  function scheduleReconnect() {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer)
+    }
+    
+    reconnectAttempts++
+    const delay = Math.min(reconnectDelay * Math.pow(1.5, reconnectAttempts - 1), maxReconnectDelay)
+    
+    console.log(`🔄 ${delay/1000}秒后尝试第${reconnectAttempts}次重连...`)
+    
+    reconnectTimer = setTimeout(() => {
+      console.log(`🔄 正在进行第${reconnectAttempts}次重连...`)
+      connect()
+    }, delay)
+  }
+  
+  // 启动心跳
+  function startHeartbeat() {
+    stopHeartbeat()
+    heartbeatTimer = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        try {
+          ws.send(JSON.stringify({ type: 'ping' }))
+          console.log('💓 发送心跳')
+        } catch (error) {
+          console.error('❌ 发送心跳失败:', error)
+        }
+      }
+    }, heartbeatInterval)
+  }
+  
+  // 停止心跳
+  function stopHeartbeat() {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer)
+      heartbeatTimer = null
     }
   }
   
-  ws.onclose = (event) => {
-    console.log('策略WebSocket已断开', event.code, event.reason)
-    if (onClose) {
-      onClose(event)
+  // 手动关闭
+  function close(code = 1000, reason = 'Client disconnect') {
+    isManualClose = true
+    stopHeartbeat()
+    
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer)
+      reconnectTimer = null
     }
+    
+    if (ws) {
+      ws.close(code, reason)
+      ws = null
+    }
+    
+    console.log('🔌 WebSocket已手动关闭')
   }
   
-  return ws
+  // 获取连接状态
+  function getReadyState() {
+    return ws ? ws.readyState : WebSocket.CLOSED
+  }
+  
+  // 获取状态文本
+  function getReadyStateText() {
+    const state = getReadyState()
+    const states = {
+      [WebSocket.CONNECTING]: '连接中',
+      [WebSocket.OPEN]: '已连接',
+      [WebSocket.CLOSING]: '关闭中',
+      [WebSocket.CLOSED]: '已关闭'
+    }
+    return states[state] || '未知'
+  }
+  
+  // 立即连接
+  connect()
+  
+  // 返回管理对象
+  return {
+    close,
+    getReadyState,
+    getReadyStateText,
+    get reconnectAttempts() { return reconnectAttempts },
+    get isConnected() { return ws && ws.readyState === WebSocket.OPEN }
+  }
 }
 

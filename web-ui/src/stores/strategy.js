@@ -201,19 +201,21 @@ export const useStrategyStore = defineStore('strategy', () => {
       // onError
       (error) => {
         console.error('WebSocket连接错误:', error)
-        ElMessage.error('WebSocket连接错误，实时消息可能无法接收')
+        // 只在第一次错误时提示，避免重连时频繁提示
+        if (!wsConnection.value || wsConnection.value.reconnectAttempts === 0) {
+          ElMessage.warning('WebSocket连接错误，正在尝试重连...')
+        }
       },
       // onClose
       (event) => {
-        console.log('WebSocket连接已关闭，尝试重连...')
-        wsConnection.value = null
+        console.log('WebSocket连接已关闭', event.code, event.reason)
         
-        // 非正常关闭（非1000状态码），尝试重连
-        if (event.code !== 1000) {
-          setTimeout(() => {
-            console.log('尝试重新连接WebSocket...')
-            connectWebSocket()
-          }, 3000)
+        // 非正常关闭且不是手动关闭，显示提示
+        if (event.code !== 1000 && event.code !== 1001) {
+          // 自动重连会由API层处理
+          if (wsConnection.value && wsConnection.value.reconnectAttempts === 1) {
+            ElMessage.info('连接已断开，正在自动重连...')
+          }
         }
       }
     )
@@ -224,6 +226,18 @@ export const useStrategyStore = defineStore('strategy', () => {
       wsConnection.value.close(1000, 'Client disconnect')
       wsConnection.value = null
       console.log('WebSocket已手动断开')
+    }
+  }
+  
+  // 获取WebSocket连接状态
+  function getWebSocketStatus() {
+    if (!wsConnection.value) {
+      return { connected: false, status: '未连接', attempts: 0 }
+    }
+    return {
+      connected: wsConnection.value.isConnected,
+      status: wsConnection.value.getReadyStateText(),
+      attempts: wsConnection.value.reconnectAttempts
     }
   }
   
@@ -258,6 +272,7 @@ export const useStrategyStore = defineStore('strategy', () => {
     disable,
     connectWebSocket,
     disconnectWebSocket,
+    getWebSocketStatus,
     clearMessages
   }
 })
