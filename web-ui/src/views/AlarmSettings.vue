@@ -1,14 +1,51 @@
 <template>
   <div class="alarm-settings">
-    <el-card class="header-card">
+          <el-card class="header-card" shadow="hover">
       <div class="page-header">
         <h2>告警设置</h2>
         <el-button @click="goBack">返回</el-button>
       </div>
     </el-card>
 
+    <!-- 当前配置预览 -->
+    <el-card class="preview-card" shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span class="card-title">当前配置预览</span>
+          <el-button :icon="Refresh" size="small" @click="loadConfig">刷新</el-button>
+        </div>
+      </template>
+
+      <el-descriptions :column="3" border>
+        <el-descriptions-item label="CPU告警阈值">
+          {{ config.cpu_threshold }}%
+        </el-descriptions-item>
+        <el-descriptions-item label="内存告警阈值">
+          {{ config.memory_threshold }}%
+        </el-descriptions-item>
+        <el-descriptions-item label="历史保留天数">
+          {{ config.retention_days }} 天
+        </el-descriptions-item>
+        <el-descriptions-item label="邮件通知">
+          <el-tag :type="config.email_enabled ? 'success' : 'info'">
+            {{ config.email_enabled ? '已启用' : '已禁用' }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="WebSocket状态">
+          <el-tag :type="wsConnected ? 'success' : 'danger'">
+            {{ wsConnected ? '已连接' : '未连接' }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="浏览器通知">
+          <el-tag :type="browserNotificationEnabled ? 'success' : 'info'">
+            {{ browserNotificationEnabled ? '已授权' : '未授权' }}
+          </el-tag>
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-card>
+
     <!-- 告警阈值配置 -->
-    <el-card class="config-card">
+    <el-card class="config-card" shadow="hover">
       <template #header>
         <div class="card-header">
           <span class="card-title">告警阈值配置</span>
@@ -90,7 +127,7 @@
     </el-card>
 
     <!-- 通知配置 -->
-    <el-card class="config-card">
+    <el-card class="config-card" shadow="hover">
       <template #header>
         <div class="card-header">
           <span class="card-title">通知配置</span>
@@ -154,7 +191,7 @@
     </el-card>
 
     <!-- 测试告警 -->
-    <el-card class="config-card test-card">
+    <el-card class="config-card test-card" shadow="hover">
       <template #header>
         <div class="card-header">
           <span class="card-title">测试告警</span>
@@ -197,43 +234,6 @@
           </el-button>
         </el-form-item>
       </el-form>
-    </el-card>
-
-    <!-- 当前配置预览 -->
-    <el-card class="preview-card">
-      <template #header>
-        <div class="card-header">
-          <span class="card-title">当前配置预览</span>
-          <el-button :icon="Refresh" size="small" @click="loadConfig">刷新</el-button>
-        </div>
-      </template>
-
-      <el-descriptions :column="3" border>
-        <el-descriptions-item label="CPU告警阈值">
-          {{ config.cpu_threshold }}%
-        </el-descriptions-item>
-        <el-descriptions-item label="内存告警阈值">
-          {{ config.memory_threshold }}%
-        </el-descriptions-item>
-        <el-descriptions-item label="历史保留天数">
-          {{ config.retention_days }} 天
-        </el-descriptions-item>
-        <el-descriptions-item label="邮件通知">
-          <el-tag :type="config.email_enabled ? 'success' : 'info'">
-            {{ config.email_enabled ? '已启用' : '已禁用' }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="WebSocket状态">
-          <el-tag :type="wsConnected ? 'success' : 'danger'">
-            {{ wsConnected ? '已连接' : '未连接' }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="浏览器通知">
-          <el-tag :type="browserNotificationEnabled ? 'success' : 'info'">
-            {{ browserNotificationEnabled ? '已授权' : '未授权' }}
-          </el-tag>
-        </el-descriptions-item>
-      </el-descriptions>
     </el-card>
   </div>
 </template>
@@ -446,7 +446,7 @@ onMounted(() => {
 }
 
 .preview-card {
-  margin-top: 20px;
+  margin-bottom: 20px;
 }
 
 /* 输入框与提示文字容器 */

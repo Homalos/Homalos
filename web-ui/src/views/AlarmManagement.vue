@@ -5,7 +5,7 @@
     
     <!-- 告警管理主页面 -->
     <template v-else>
-      <el-card class="header-card">
+      <el-card class="header-card" shadow="hover">
         <div class="page-header">
           <div class="header-left">
             <h2>告警管理</h2>
@@ -23,7 +23,7 @@
     <!-- 统计卡片 -->
     <el-row :gutter="16" class="stats-row">
       <el-col :span="6">
-        <el-card class="stat-card">
+        <el-card class="stat-card" shadow="hover">
           <div class="stat-content">
             <el-icon class="stat-icon" color="#409EFF"><Bell /></el-icon>
             <div class="stat-info">
@@ -34,7 +34,7 @@
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card class="stat-card">
+        <el-card class="stat-card" shadow="hover">
           <div class="stat-content">
             <el-icon class="stat-icon" color="#F56C6C"><Warning /></el-icon>
             <div class="stat-info">
@@ -45,7 +45,7 @@
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card class="stat-card">
+        <el-card class="stat-card" shadow="hover">
           <div class="stat-content">
             <el-icon class="stat-icon" color="#E6A23C"><InfoFilled /></el-icon>
             <div class="stat-info">
@@ -56,7 +56,7 @@
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card class="stat-card">
+        <el-card class="stat-card" shadow="hover">
           <div class="stat-content">
             <el-icon class="stat-icon" color="#67C23A"><CircleCheck /></el-icon>
             <div class="stat-info">
@@ -69,7 +69,7 @@
     </el-row>
 
     <!-- 筛选器 -->
-    <el-card class="filter-card">
+    <el-card class="filter-card" shadow="hover">
       <el-form :inline="true" :model="filters" class="filter-form">
         <el-form-item label="状态">
           <el-select v-model="filters.status" placeholder="全部" clearable @change="handleFilterChange">
@@ -119,7 +119,7 @@
     </el-card>
 
     <!-- 告警列表 -->
-    <el-card class="table-card">
+    <el-card class="table-card" shadow="hover">
       <el-table
         v-loading="loading"
         :data="alarms"
@@ -537,7 +537,6 @@ onUnmounted(() => {
 }
 
 .stat-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
 }
 
