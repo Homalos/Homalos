@@ -109,7 +109,7 @@
     <template #header>
       <div class="card-header">
         <span>实时日志</span>
-        <div>
+          <div>
           <el-select 
             v-model="selectedLogType" 
             placeholder="筛选日志类型" 
@@ -122,7 +122,8 @@
             <el-option label="错误(error)" value="error" />
             <el-option label="状态(status)" value="status" />
           </el-select>
-          <el-button size="small" @click="strategyStore.clearMessages">清空</el-button>
+          <el-button size="small" @click="strategyStore.clearMessages">清空全部</el-button>
+          <el-button size="small" type="warning" @click="handleClearHistory">清空历史</el-button>
         </div>
       </div>
     </template>
@@ -148,6 +149,14 @@
               style="margin-right: 8px;"
             >
               {{ msg.type }}
+            </el-tag>
+            <el-tag 
+              :type="msg.isPersisted ? 'info' : 'success'"
+              size="small" 
+              style="margin-right: 8px;"
+              effect="plain"
+            >
+              {{ msg.isPersisted ? '历史' : '实时' }}
             </el-tag>
             <span class="log-message">{{ msg.payload }}</span>
             <div v-if="msg.trace" class="log-trace">
@@ -338,8 +347,16 @@ function handleShowDetail(row) {
   detailDrawerVisible.value = true
 }
 
+function handleClearHistory() {
+  strategyStore.clearHistoryLogs()
+  ElMessage.success('历史日志已清空')
+}
+
 // ========== 生命周期 ==========
 onMounted(async () => {
+  // 加载历史日志
+  strategyStore.loadHistoryLogs()
+  
   // 加载策略列表和状态
   await Promise.all([
     strategyStore.fetchStrategies(),

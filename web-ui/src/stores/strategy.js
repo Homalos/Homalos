@@ -12,6 +12,79 @@ import {
 } from '@/api/strategy'
 import { ElMessage } from 'element-plus'
 
+// 日志持久化常量
+const STORAGE_KEY = 'homalos_strategy_logs'
+const MAX_STORED_LOGS = 500
+const LOG_RETENTION_DAYS = 7
+
+// 日志持久化工具函数
+function saveLogsToStorage(logs) {
+  try {
+    const dataToStore = {
+      logs: logs,
+      timestamp: Date.now()
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToStore))
+  } catch (error) {
+    console.warn('保存日志到localStorage失败:', error)
+  }
+}
+
+function loadLogsFromStorage() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (!stored) return []
+    
+    const data = JSON.parse(stored)
+    if (!data.logs || !Array.isArray(data.logs)) return []
+    
+    // 清理过期日志
+    return cleanupExpiredLogs(data.logs)
+  } catch (error) {
+    console.warn('从localStorage加载日志失败:', error)
+    return []
+  }
+}
+
+function shouldPersistMessage(message) {
+  // 重要的消息类型
+  const importantTypes = ['status', 'error', 'stopped']
+  
+  // 重要的关键词
+  const importantKeywords = [
+    '已启动', '已停止', '启动成功', '停止成功',
+    '重载成功', '重载失败', '启动失败', '停止失败',
+    'started', 'stopped', 'load_state done', 'save_state result'
+  ]
+  
+  // 检查消息类型
+  if (importantTypes.includes(message.type)) {
+    return true
+  }
+  
+  // 检查消息内容
+  if (message.payload && typeof message.payload === 'string') {
+    return importantKeywords.some(keyword => 
+      message.payload.includes(keyword)
+    )
+  }
+  
+  return false
+}
+
+function cleanupExpiredLogs(logs) {
+  const now = Date.now()
+  const retentionTime = LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000
+  
+  return logs
+    .filter(log => {
+      // 保留最近指定天数的日志
+      const logTime = new Date(log.timestamp).getTime()
+      return (now - logTime) <= retentionTime
+    })
+    .slice(-MAX_STORED_LOGS) // 保留最近的指定条数
+}
+
 export const useStrategyStore = defineStore('strategy', () => {
   // ========== 状态 ==========
   const strategies = ref({})
@@ -19,6 +92,7 @@ export const useStrategyStore = defineStore('strategy', () => {
   const wsConnection = ref(null)
   const messages = ref([])
   const isLoading = ref(false)
+  const historyLogsLoaded = ref(false) // 标记历史日志是否已加载
   
   // ========== 计算属性 ==========
   const enabledStrategies = computed(() => {
@@ -152,6 +226,63 @@ export const useStrategyStore = defineStore('strategy', () => {
     }
   }
   
+  // ========== 方法：日志管理 ==========
+  function loadHistoryLogs() {
+    try {
+      // 检查是否已经加载过历史日志，避免重复加载
+      if (historyLogsLoaded.value) {
+        console.log('历史日志已加载，跳过重复加载')
+        return
+      }
+      
+      const historyLogs = loadLogsFromStorage()
+      if (historyLogs.length > 0) {
+        // 标记为历史日志
+        const markedLogs = historyLogs.map(log => ({
+          ...log,
+          isPersisted: true
+        }))
+        
+        // 合并到当前消息列表，按时间排序
+        const allLogs = [...markedLogs, ...messages.value]
+        messages.value = allLogs.sort((a, b) => 
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        )
+        
+        console.log(`已加载 ${historyLogs.length} 条历史日志`)
+      }
+      
+      // 标记历史日志已加载
+      historyLogsLoaded.value = true
+    } catch (error) {
+      console.error('加载历史日志失败:', error)
+    }
+  }
+  
+  function persistImportantLogs() {
+    try {
+      // 获取需要持久化的日志（排除已持久化的）
+      const logsToSave = messages.value
+        .filter(msg => !msg.isPersisted && shouldPersistMessage(msg))
+        .map(msg => ({
+          ...msg,
+          isPersisted: true
+        }))
+      
+      if (logsToSave.length > 0) {
+        // 合并现有的持久化日志
+        const existingLogs = loadLogsFromStorage()
+        const allLogs = [...existingLogs, ...logsToSave]
+        const cleanedLogs = cleanupExpiredLogs(allLogs)
+        
+        saveLogsToStorage(cleanedLogs)
+        console.log(`已持久化 ${logsToSave.length} 条重要日志`)
+      }
+    } catch (error) {
+      console.error('持久化日志失败:', error)
+    }
+  }
+
   // ========== 方法：WebSocket管理 ==========
   function connectWebSocket() {
     if (wsConnection.value) {
@@ -166,7 +297,8 @@ export const useStrategyStore = defineStore('strategy', () => {
         const enrichedMessage = {
           ...message,
           timestamp: new Date().toISOString(),
-          displayTime: new Date().toLocaleTimeString('zh-CN')
+          displayTime: new Date().toLocaleTimeString('zh-CN'),
+          isPersisted: false // 标记为实时消息
         }
         
         messages.value.push(enrichedMessage)
@@ -174,6 +306,13 @@ export const useStrategyStore = defineStore('strategy', () => {
         // 限制消息历史长度（保留最近1000条）
         if (messages.value.length > 1000) {
           messages.value = messages.value.slice(-1000)
+        }
+        
+        // 异步持久化重要消息
+        if (shouldPersistMessage(enrichedMessage)) {
+          setTimeout(() => {
+            persistImportantLogs()
+          }, 100) // 延迟100ms执行，避免频繁写入
         }
         
         // 根据消息类型处理
@@ -243,6 +382,19 @@ export const useStrategyStore = defineStore('strategy', () => {
   
   function clearMessages() {
     messages.value = []
+    historyLogsLoaded.value = false // 重置加载标记
+  }
+  
+  function clearHistoryLogs() {
+    try {
+      localStorage.removeItem(STORAGE_KEY)
+      // 只保留实时消息
+      messages.value = messages.value.filter(msg => !msg.isPersisted)
+      historyLogsLoaded.value = false // 重置加载标记，允许重新加载
+      console.log('历史日志已清空')
+    } catch (error) {
+      console.error('清空历史日志失败:', error)
+    }
   }
   
   // ========== 返回 ==========
@@ -273,7 +425,9 @@ export const useStrategyStore = defineStore('strategy', () => {
     connectWebSocket,
     disconnectWebSocket,
     getWebSocketStatus,
-    clearMessages
+    clearMessages,
+    loadHistoryLogs,
+    clearHistoryLogs
   }
 })
 

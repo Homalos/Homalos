@@ -38,10 +38,10 @@ class StrategyDemo(BaseStrategy):
 
             self.logger = get_logger(__class__.__name__)
 
-        def on_before_open(self) -> None:
+        def on_init(self) -> None:
             self.logger.info("on_before_open")
 
-        def on_after_close(self) -> None:
+        def on_close(self) -> None:
             self.logger.info("on_after_close")
 
         def on_alarm(self) -> None:
@@ -53,9 +53,9 @@ class StrategyDemo(BaseStrategy):
         def on_bar(self, bar: BarData) -> None:
             self.logger.info("on_bar")
 
-        def on_rtn_trade(self, trade: TradeData) -> None:
+        def on_trade(self, trade: TradeData) -> None:
             self.logger.info("on_rtn_trade")
 
-        def on_rtn_order(self, order: OrderData) -> None:
+        def on_order(self, order: OrderData) -> None:
             self.logger.info("on_rtn_order")
 

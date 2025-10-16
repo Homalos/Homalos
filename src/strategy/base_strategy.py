@@ -107,7 +107,7 @@ class SpecificStrategyApi(ABC):
             - 系统会自动保留24小时内的历史快照
             - 超过30天的旧状态会被自动清理
         """
-        return None
+        return {}
     
     def load_state(self, state: dict):
         """

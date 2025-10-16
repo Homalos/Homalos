@@ -10,9 +10,13 @@
 @Description: 示例策略 - 完整实现所有抽象方法
 """
 from src.core.constants import Interval
+from src.core.object import TickData
 from src.strategy.base_strategy import SpecificStrategyApi
 
 class Strategy(SpecificStrategyApi):
+    """
+    示例策略 - 完整实现所有抽象方法
+    """
     def __init__(self):
         super().__init__(instrument_id="RU2601", strategy_id="example_ipc_class", sub_kline_type=[Interval.MINUTE])
         self.counter = 0
@@ -30,11 +34,11 @@ class Strategy(SpecificStrategyApi):
         """到达设置闹钟时间时执行"""
         pass
 
-    def on_tick(self, tick) -> None:
+    def on_tick(self, tick: TickData) -> None:
         """有新的tick产生时执行"""
         self.counter += 1
         # 记录价格用于状态持久化演示
-        price = tick.get('last_price', 0)
+        price = tick.last_price
         self.prices.append(price)
         # 只保留最近100个价格
         if len(self.prices) > 100:

@@ -47,10 +47,10 @@ class Strategy1(BaseStrategy):
             self.sub_kline_type: list[Interval] = sub_kline_type
 
 
-        def on_before_open(self) -> None:
+        def on_init(self) -> None:
             self.logger.info(f"{self.ins_id}策略开始运行")
 
-        def on_after_close(self) -> None:
+        def on_close(self) -> None:
             pass
 
         def on_alarm(self) -> None:
@@ -62,8 +62,8 @@ class Strategy1(BaseStrategy):
         def on_bar(self, bar: BarData) -> None:
             self.logger.info(f"{self.ins_id}策略收到K线数据: {bar}")
 
-        def on_rtn_trade(self, trade: TradeData) -> None:
+        def on_trade(self, trade: TradeData) -> None:
             pass
 
-        def on_rtn_order(self, order: OrderData) -> None:
+        def on_order(self, order: OrderData) -> None:
             pass
