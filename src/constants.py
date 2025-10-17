@@ -48,6 +48,8 @@ INSTRUMENT_EXCHANGE_FILENAME = "instrument_exchange.json"  # 期货合约与交�
 
 PRODUCT_INFO_FILENAME = "product_info.ini"  # 合约乘数及手续费信息文件名
 
+STRATEGY_REGISTRY_FILENAME = "strategy_registry.json"   # 策略注册文件名
+
 HOLIDAY_FILENAME = "holidays.json"  # 节假日文件名称
 
 BAIDU_YUN_FILES = "baidu_list.txt"

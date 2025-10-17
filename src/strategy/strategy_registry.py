@@ -14,11 +14,16 @@
 """
 import json
 from pathlib import Path
-from typing import Dict
+
+from src.utils.log import get_logger
 
 
 class StrategyRegistry:
+    """
+    策略注册中心，JSON 配置，支持启停设置
+    """
     def __init__(self, config_path: str):
+        self.logger = get_logger(self.__class__.__name__)
         self.path = Path(config_path)
         if not self.path.exists():
             self.path.write_text("{}")
@@ -26,9 +31,10 @@ class StrategyRegistry:
 
     def _load(self):
         try:
-            self.strategies: Dict[str, dict] = json.loads(self.path.read_text(encoding="utf-8") or "{}")
-        except Exception:
+            self.strategies: dict[str, dict] = json.loads(self.path.read_text(encoding="utf-8") or "{}")
+        except Exception as e:
             self.strategies = {}
+            self.logger.exception(f"加载策略配置文件失败: {e}", exc_info=True)
 
     def save(self):
         self.path.write_text(json.dumps(self.strategies, indent=2, ensure_ascii=False), encoding="utf-8")

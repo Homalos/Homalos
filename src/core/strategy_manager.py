@@ -47,6 +47,7 @@ from src.utils.log.logger import get_logger
 
 _DEBOUNCE = 2.0  # 增加到2秒，避免重复触发
 
+
 class StrategyManagerIPC:
     """
     策略管理器IPC通信类，用于策略进程与策略管理器之间的通信
@@ -680,11 +681,6 @@ class StrategyManagerIPC:
         """设置交易信号处理器引用"""
         self._trade_signal_handler = trade_signal_handler
         self.logger.info("已设置交易信号处理器引用")
-    
-    def set_event_bus(self, event_bus):
-        """设置事件总线引用（用于集成）"""
-        self.event_bus = event_bus
-        self.logger.info("已设置事件总线引用")
     
     def register_strategy_subscription(self, sid: str, subscription_info: dict[str, Any]):
         """

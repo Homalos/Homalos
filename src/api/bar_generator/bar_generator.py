@@ -15,10 +15,12 @@ import os
 import threading
 import traceback
 from queue import Queue
+from typing import Optional
 
 from src import constants
 from src.constants import TRADING_DIR_NAME, is_queue
 from src.core.constants import Interval
+from src.core.event_bus import EventBus
 from src.core.object import BarData, TickData
 from src.strategy.base_strategy import BaseStrategy
 from src.utils.get_path import get_path_ins
@@ -29,7 +31,7 @@ from src.utils.utility import del_num
 
 class BarGenerator:
 
-    def __init__(self, event_bus=None):
+    def __init__(self, event_bus: Optional[EventBus] = None):
         self.logger = get_logger(self.__class__.__name__)
         self.event_bus = event_bus
 

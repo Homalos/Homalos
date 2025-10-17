@@ -12,7 +12,8 @@
 from src.constants import (
     SYSTEM_DEV_CONFIG_FILENAME,
     SYSTEM_PROD_CONFIG_FILENAME,
-    SYSTEM_CONFIG_FILENAME
+    SYSTEM_CONFIG_FILENAME,
+    STRATEGY_REGISTRY_FILENAME
 )
 from src.utils.config_manager import ConfigManager
 from src.utils.get_path import get_path_ins
@@ -75,6 +76,9 @@ class Config(object):
     trading_dir_name = extra_config.get("data.trading_dir")     # 交易时间数据目录名
     trading_flow_dir_name = extra_config.get("data.trading_flow_dir")   # 交易流水数据目录名
 
+    # 策略注册文件
+    strategy_registry_filepath = config_dir_path / STRATEGY_REGISTRY_FILENAME
+
     # 微信相关配置
     wx_app_name: str = extra_config.get("wx_app_name", "")
     wx_agent_id: int = extra_config.get("wx_agent_id", 0)
@@ -91,4 +95,4 @@ class Config(object):
 
 
 if __name__ == '__main__':
-    print(Config.system_config)
+    print(Config.strategy_registry_filepath)

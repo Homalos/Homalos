@@ -15,6 +15,7 @@ from pathlib import Path
 from src.api.bar_generator.bar_generator import BarGenerator
 from src.core.alarm_manager import AlarmManager
 from src.core.constants import Interval
+from src.core.event import EventType
 from src.core.event_bus import EventBus
 from src.core.strategy_manager import StrategyManagerIPC
 from src.core.subscription_manager import SubscriptionManager
@@ -65,8 +66,9 @@ class IntegratedTradingSystem:
         
         # 4. 策略管理器
         self.strategy_manager = StrategyManagerIPC(
-            strategies_pkg="src.strategy",
-            registry_path=str(Path("strategy_registry.json"))
+            self.event_bus,
+            strategies_pkg="src.strategy.strategies",
+            registry_path=str(Config.strategy_registry_filepath)
         )
         
         # 5. 交易信号处理器
@@ -82,7 +84,7 @@ class IntegratedTradingSystem:
         self.trader_gateway = TraderGateway(self.event_bus)
         
         # 9. K线合成器
-        self.bar_generator = BarGenerator()
+        self.bar_generator = BarGenerator(self.event_bus)
         
         # 10. 系统协调器
         self.system_coordinator = SystemCoordinator(self.event_bus)
@@ -101,7 +103,6 @@ class IntegratedTradingSystem:
     def _setup_module_references(self):
         """设置模块间引用关系"""
         # 策略管理器设置引用
-        self.strategy_manager.set_event_bus(self.event_bus)
         self.strategy_manager.set_subscription_manager(self.subscription_manager)
         self.strategy_manager.set_trade_signal_handler(self.trade_signal_handler)
         
@@ -162,25 +163,25 @@ class IntegratedTradingSystem:
     def _setup_data_flow(self):
         """设置数据流连接"""
         # 1. 行情数据流：行情网关 -> K线合成器 -> 策略
-        self.event_bus.subscribe("market.tick", self._handle_tick_data)
-        self.event_bus.subscribe("market.bar", self._handle_bar_data)
+        self.event_bus.subscribe(EventType.TICK, self._handle_tick_data)
+        self.event_bus.subscribe(EventType.BAR, self._handle_bar_data)
         
         # 2. 订阅管理流：订阅管理器 -> 行情网关 & K线合成器
-        self.event_bus.subscribe("market.subscribe.request", self._handle_subscription_request)
-        self.event_bus.subscribe("kline.config.update", self._handle_kline_config_update)
+        self.event_bus.subscribe(EventType.MARKET_SUBSCRIBE_REQUEST, self._handle_subscription_request)
+        self.event_bus.subscribe(EventType.KLINE_CONFIG_UPDATE, self._handle_kline_config_update)
         
         # 3. 交易信号流：策略 -> 信号处理器 -> 风控 -> 交易网关
-        self.event_bus.subscribe("strategy.trade.signal", self._handle_strategy_signal)
-        self.event_bus.subscribe("trade.order.approved", self._handle_order_approved)
-        self.event_bus.subscribe("order.submit.request", self._handle_order_submission)
+        self.event_bus.subscribe(EventType.STRATEGY_TRADE_SIGNAL, self._handle_strategy_signal)
+        self.event_bus.subscribe(EventType.TRADE_ORDER_APPROVED, self._handle_order_approved)
+        self.event_bus.subscribe(EventType.ORDER_SUBMIT_REQUEST, self._handle_order_submission)
         
         # 4. 订单回报流：交易网关 -> 策略
-        self.event_bus.subscribe("order.status.update", self._handle_order_update)
-        self.event_bus.subscribe("trade.execution", self._handle_trade_execution)
+        self.event_bus.subscribe(EventType.ORDER_STATUS_UPDATE, self._handle_order_update)
+        self.event_bus.subscribe(EventType.TRADE_EXECUTION, self._handle_trade_execution)
         
         # 5. 告警流
-        self.event_bus.subscribe("risk.alarm", self._handle_risk_alarm)
-        self.event_bus.subscribe("system.alarm", self._handle_system_alarm)
+        self.event_bus.subscribe(EventType.RISK_ALARM, self._handle_risk_alarm)
+        self.event_bus.subscribe(EventType.SYSTEM_ALARM, self._handle_system_alarm)
         
         self.logger.info("数据流连接已设置")
     
