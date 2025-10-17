@@ -13,7 +13,7 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 from queue import Queue
-from typing import Any
+from typing import Any, SupportsInt
 
 from src.core.api_response import APIResponse
 from src.core.base_gateway import BaseGateway
@@ -30,20 +30,66 @@ from src.utils.utility import prepare_address
 
 class MarketGateway(BaseGateway):
 
-    def __init__(self, event_bus: EventBus | None = None, gateway_name: str = "MarketGateway") -> None:
+    def __init__(self, event_bus: EventBus, gateway_name: str = "MarketGateway") -> None:
         super().__init__(event_bus, gateway_name)
         self.gateway_name = gateway_name
         # CTP API相关
         self.md_api: CtpMdApi | None = None
-        self.logger = get_logger(__class__.__name__)
+        self.logger = get_logger(self.__class__.__name__)
+        
+        # 设置网关事件处理器
+        if self.event_bus:
+            self._setup_gateway_event_handlers()
 
     def _setup_gateway_event_handlers(self) -> None:
         """设置网关事件处理器"""
-        # self.event_bus.subscribe(EventType.GATEWAY_SUBSCRIBE, self._handle_gateway_subscribe)
-        # self.event_bus.subscribe(EventType.MD_GATEWAY_CONNECT, self._on_gateway_connected)
-        # # 订阅合约更新事件，用于同步交易网关的合约数据
-        # self.event_bus.subscribe(EventType.CONTRACT_UPDATED, self._handle_contract_updated)
+        # 订阅行情订阅请求事件
+        self.event_bus.subscribe(EventType.MARKET_SUBSCRIBE_REQUEST, self._handle_market_subscribe_request)
         self.logger.info(f"{self.gateway_name} 网关事件处理器已注册")
+    
+    def _handle_market_subscribe_request(self, event: Event) -> None:
+        """
+        处理行情订阅请求事件
+        
+        Args:
+            event: 订阅请求事件，payload支持两种格式:
+                   1. 单合约: {"instrument_id": "合约代码", "action": "subscribe/unsubscribe"}
+                   2. 批量: {"instruments": ["合约1", "合约2", ...], "action": "subscribe/unsubscribe"}
+        """
+        try:
+            payload = event.payload
+            action = payload.get('action', 'subscribe')
+            
+            # 判断是单合约还是批量订阅
+            instrument_id = payload.get('instrument_id')
+            instruments = payload.get('instruments', [])
+            
+            # 统一转换为列表处理
+            if instrument_id:
+                instruments = [instrument_id]
+            
+            if not instruments:
+                self.logger.warning("收到空的订阅请求")
+                return
+            
+            self.logger.info(f"收到订阅请求，共 {len(instruments)} 个合约，操作: {action}")
+            
+            # 分批订阅避免阻塞
+            if action == 'subscribe':
+                for index, inst_id in enumerate(instruments, 1):
+                    req = SubscribeRequest(instrument_id=inst_id)
+                    self.subscribe(req)
+                    if index % 10 == 0:  # 每10个合约输出一次进度
+                        self.logger.info(f"已订阅 {index}/{len(instruments)} 个合约...")
+                
+                self.logger.info(f"所有合约订阅完成，共 {len(instruments)} 个")
+                
+            elif action == 'unsubscribe':
+                # CTP不支持取消订阅，只记录日志
+                self.logger.debug(f"收到取消订阅请求(CTP不支持): {len(instruments)} 个合约")
+            
+        except Exception as e:
+            self.logger.error(f"处理订阅请求失败: {e}", exc_info=True)
 
     def connect(self, setting: dict[str, Any]) -> None:
         """
@@ -63,7 +109,7 @@ class MarketGateway(BaseGateway):
         if not all([md_address, broker_id, user_id, password]):
             self.logger.error("缺少必需的连接参数")
 
-        md_address: str = prepare_address(md_address)
+        md_address = prepare_address(md_address)
 
         try:
             # 创建API实例
@@ -78,7 +124,10 @@ class MarketGateway(BaseGateway):
 
     def subscribe(self, req: SubscribeRequest) -> None:
         """订阅行情"""
-        self.md_api.subscribe(req.instrument_id)
+        if self.md_api:
+            self.md_api.subscribe(req.instrument_id)
+        else:
+            self.logger.error("行情API未初始化，无法订阅行情")
 
     def logout(self) -> None:
         """
@@ -109,7 +158,7 @@ class CtpMdApi(MdApi):
 
     def __init__(self, gateway: MarketGateway):
         super().__init__()
-        self.logger = get_logger(__class__.__name__)
+        self.logger = get_logger(self.__class__.__name__)
 
         self.gateway: MarketGateway = gateway  # 行情网关
         self.gateway_name: str = gateway.gateway_name  # 行情网关名称
@@ -145,7 +194,7 @@ class CtpMdApi(MdApi):
         self.logger.info("行情服务器连接成功，开始登录......")
         self.login()  # 调用登录方法, Calling the login method
 
-    def onFrontDisconnected(self, reason: int) -> None:
+    def onFrontDisconnected(self, reason: SupportsInt) -> None:
         """
         行情服务器连接断开响应
 
@@ -188,11 +237,11 @@ class CtpMdApi(MdApi):
         self.connect_status = False
         self.login_status = False
 
-        reason_hex: str = hex(reason)  # 错误代码转换成16进制字符串
-        reason_msg: ErrorReason = REASON_MAPPING.get(reason_hex, f"Unknown cause({reason_hex})")
+        reason_hex: str = hex(int(reason))  # 错误代码转换成16进制字符串
+        reason_msg: ErrorReason = REASON_MAPPING.get(reason_hex, ErrorReason.REASON_UNKNOWN)
         self.logger.info(f"行情服务器连接断开，原因是：{reason_msg.value} ({reason_hex})")
 
-    def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+    def onRspUserLogin(self, data: dict, error: dict, reqid: SupportsInt, last: bool) -> None:
         """
         登录请求响应，当ReqUserLogin后，该方法被调用。
 
@@ -237,7 +286,7 @@ class CtpMdApi(MdApi):
                 self.gateway.event_bus.publish(Event(EventType.MD_GATEWAY_LOGIN, payload=payload))
                 self.logger.info("已发布 MD_GATEWAY_LOGIN 事件")
 
-    def onRspError(self, error: dict, reqid: int, last: bool) -> None:
+    def onRspError(self, error: dict, reqid: SupportsInt, last: bool) -> None:
         """
         请求报错响应，针对用户请求的出错通知。
 
@@ -261,7 +310,7 @@ class CtpMdApi(MdApi):
         else:
             self.logger.info("请求报错响应", error)
 
-    def onRspSubMarketData(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+    def onRspSubMarketData(self, data: dict, error: dict, reqid: SupportsInt, last: bool) -> None:
         """
         订阅市场行情响应
         订阅行情应答，调用SubscribeMarketData后，通过此接口返回。
@@ -310,12 +359,12 @@ class CtpMdApi(MdApi):
             # 过滤没有时间戳的异常行情数据
             # Filter out abnormal market data without timestamps
             if not data.get("UpdateTime"):
-                self.logger.debug(f"跳过没有时间戳的市场行情数据")
+                self.logger.debug("跳过没有时间戳的市场行情数据")
                 return
 
             instrument_id: str = data.get("InstrumentID", "UNKNOWN")
             # 过滤还没有收到合约数据前的行情推送(没有交易过的数据)
-            contract: ContractData = symbol_contract_map.get(instrument_id, None)
+            contract: ContractData | None = symbol_contract_map.get(instrument_id)
             if not contract:
                 return
 
@@ -323,7 +372,7 @@ class CtpMdApi(MdApi):
             if not data["ActionDay"] or contract.exchange_id == Exchange.DCE:
                 date_str: str = self.current_date
             else:
-                date_str: str = data["ActionDay"]
+                date_str = data["ActionDay"]
 
             timestamp_str: str = f"{date_str} {data.get('UpdateTime')}.{data.get('UpdateMillisec')}"
             timestamp: datetime = datetime.strptime(timestamp_str, "%Y%m%d %H:%M:%S.%f").replace(tzinfo=CHINA_TZ)
@@ -338,7 +387,7 @@ class CtpMdApi(MdApi):
                 payload=APIResponse.success(message="推送市场行情", data=tick)
             ))
 
-    def onRspUserLogout(self, data: dict, error: dict, reqid: int, last: bool):
+    def onRspUserLogout(self, data: dict, error: dict, reqid: SupportsInt, last: bool):
         """
         登出请求响应，当 ReqUserLogout 后，该方法被调用。
         :param data: 用户登出请求

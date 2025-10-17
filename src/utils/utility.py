@@ -17,8 +17,7 @@ import re
 import time
 from pathlib import Path
 from typing import Any
-
-import yaml
+import yaml  # type: ignore
 
 from src.constants import INSTRUMENT_EXCHANGE_FILENAME
 from src.utils.config_manager import ConfigManager
@@ -154,7 +153,7 @@ def write_json(file_path: str, data: dict[str, Any]) -> None:
     except IOError as e:
         _logger.error("无法写入文件 {}: {}".format(file_path, e))
 
-def load_ini(file_path: str) -> configparser:
+def load_ini(file_path: str) -> configparser.ConfigParser:
     """
     从指定路径加载INI配置文件。
 
@@ -170,7 +169,7 @@ def load_ini(file_path: str) -> configparser:
         在创建空文件时，可以选择写入一些默认的空section或者注释，如果需要的话。
 
     """
-    config_parser: configparser = configparser.ConfigParser()
+    config_parser: configparser.ConfigParser = configparser.ConfigParser()
     # 检查文件是否存在，如果不存在则创建一个空的ini文件
     if not os.path.exists(file_path):
         with open(file_path, 'w', encoding='utf-8') as f:
@@ -179,7 +178,7 @@ def load_ini(file_path: str) -> configparser:
 
     return config_parser
 
-def write_ini(config_parser: configparser, file_path: str) -> None:
+def write_ini(config_parser: configparser.ConfigParser, file_path: str) -> None:
     """
     将配置写入ini文件。
 

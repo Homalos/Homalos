@@ -29,8 +29,9 @@ from src.utils.utility import del_num
 
 class BarGenerator:
 
-    def __init__(self):
+    def __init__(self, event_bus=None):
         self.logger = get_logger(self.__class__.__name__)
+        self.event_bus = event_bus
 
         # # 内存管理配置
         # self.max_kline_cache = max_kline_cache  # 每个合约最大缓存K线数量
@@ -105,6 +106,67 @@ class BarGenerator:
 
         # 订阅了哪些合约以及具体K线类型，如：{'FG209': ['min'], 'SA209': ['min', 'min5'], 'au2208': ['min', 'min5']}
         self.sub_kline_type_map: dict[str, list[Interval]] = {}
+        
+        # 设置事件订阅
+        if self.event_bus:
+            self._setup_event_handlers()
+    
+    def _setup_event_handlers(self) -> None:
+        """设置事件处理器"""
+        from src.core.event import EventType
+        # 订阅K线配置更新事件
+        self.event_bus.subscribe(EventType.KLINE_CONFIG_UPDATE, self._handle_kline_config_update)
+        # 订阅tick数据事件
+        self.event_bus.subscribe(EventType.TICK, self._handle_tick_data)
+        self.logger.info("BarGenerator事件处理器已注册")
+    
+    def _handle_kline_config_update(self, event) -> None:
+        """
+        处理K线配置更新事件
+        
+        Args:
+            event: K线配置更新事件，payload格式:
+                   {"subscription_map": {instrument_id: [Interval, ...]}}
+        """
+        try:
+            payload = event.payload
+            subscription_map = payload.get('subscription_map', {})
+            
+            if not subscription_map:
+                self.logger.warning("收到空的K线配置更新")
+                return
+            
+            self.logger.info(f"收到K线配置更新，共 {len(subscription_map)} 个合约")
+            
+            # 更新订阅的K线类型映射
+            self.set_kline_type(subscription_map)
+            
+            # 初始化K线字典
+            self.init_min_kline_map()
+            
+            self.logger.info(f"K线配置更新完成，订阅合约数: {len(self.sub_kline_type_map)}")
+            
+        except Exception as e:
+            self.logger.error(f"处理K线配置更新失败: {e}", exc_info=True)
+    
+    def _handle_tick_data(self, event) -> None:
+        """
+        处理tick数据事件
+        
+        Args:
+            event: tick数据事件，payload包含TickData对象
+        """
+        try:
+            tick_data = event.payload
+            if not tick_data:
+                return
+            
+            # 只处理订阅的合约
+            if tick_data.instrument_id in self.sub_kline_type_map:
+                self.tick_to_kline(tick_data)
+            
+        except Exception as e:
+            self.logger.error(f"处理tick数据失败: {e}", exc_info=True)
 
     def init_trading_time(self) -> None:
         """
@@ -740,10 +802,25 @@ class BarGenerator:
                 return False
 
     def distribute_kline(self, kline: BarData):
-        # 判断需要给哪些策略传Kline
-        for strategy in constants.strategy_map.values():
-            if kline.instrument_id in strategy.sub_ins_id and kline.bar_type in strategy.sub_kline_type:
-                self.save_kline(strategy, kline)
+        """
+        分发K线数据
+        新架构：发布BAR事件到事件总线，由订阅的策略接收
+        旧架构：直接调用strategy_map中的策略
+        """
+        # 新架构：使用事件总线发布BAR事件
+        if self.event_bus:
+            from src.core.event import Event, EventType
+            bar_event = Event(
+                EventType.BAR,
+                payload=kline
+            )
+            self.event_bus.publish(bar_event)
+            self.logger.debug(f"发布K线事件: {kline.instrument_id} {kline.bar_type.value} {kline.update_time}")
+        else:
+            # 旧架构：向后兼容，直接调用策略
+            for strategy in constants.strategy_map.values():
+                if kline.instrument_id in strategy.sub_ins_id and kline.bar_type in strategy.sub_kline_type:
+                    self.save_kline(strategy, kline)
 
     @staticmethod
     def save_kline(strategy: BaseStrategy, kline: BarData):

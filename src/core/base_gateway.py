@@ -20,7 +20,7 @@ from src.core.object import TickData, OrderData, PositionData, AccountData, Cont
 
 class BaseGateway(ABC):
 
-    def __init__(self, event_bus: EventBus, gateway_name: str) -> None:
+    def __init__(self, event_bus: EventBus, gateway_name: str = "BaseGateway") -> None:
         self.event_bus: EventBus = event_bus
         self.gateway_name: str = gateway_name
         # 直接回调机制，绕过事件总线处理高频tick

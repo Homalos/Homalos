@@ -25,6 +25,7 @@ class ErrorReason(Enum):
     REASON_0x2001 = "接收心跳超时"
     REASON_0x2002 = "发送心跳失败"
     REASON_0x2003 = "收到错误报文"
+    REASON_UNKNOWN = "未知原因"
 
 
 class Direction(Enum):

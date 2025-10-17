@@ -78,9 +78,9 @@ def run_strategy_process(strategy_id: str, module_path: str, class_name: str, pa
                         strategy.on_tick(data)
                     elif ev_type == "bar" and hasattr(strategy, "on_bar"):
                         strategy.on_bar(data)
-                    elif ev_type == "order" and hasattr(strategy, "on_rtn_order"):
+                    elif ev_type == "order" and hasattr(strategy, "on_order"):
                         strategy.on_rtn_order(data)
-                    elif ev_type == "trade" and hasattr(strategy, "on_rtn_trade"):
+                    elif ev_type == "trade" and hasattr(strategy, "on_trade"):
                         strategy.on_rtn_trade(data)
                 except Exception:
                     conn.send({"type": "error", "sid": strategy_id, "payload": "handler error", "trace": traceback.format_exc()})
