@@ -13,14 +13,16 @@ import configparser
 import csv
 import json
 import os
+import platform
 import re
+import sys
 import time
 from pathlib import Path
 from typing import Any
+
 import yaml  # type: ignore
 
 from src.constants import INSTRUMENT_EXCHANGE_FILENAME
-from src.utils.config_manager import ConfigManager
 from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger
 
@@ -324,6 +326,20 @@ def wait_with_timeout(condition_check: bool, check_interval: float = 0.1, timeou
         # 等待一段时间再检查
         time.sleep(check_interval)
 
+
+def get_os_info() -> dict:
+    """获取详细的系统信息"""
+    system = platform.system()  # Windows/Linux/Darwin(Linux和macOS都是类Unix系统)
+    release = platform.release()
+    version = platform.version()
+
+    os_info = {
+        'system': system,
+        'release': release,
+        'version': version,
+        'platform': sys.platform
+    }
+    return os_info
 
 # if __name__ == '__main__':
 #     is_exist = is_file_in('SA601_1m.csv', 'D:/Project/PycharmProjects/Homalos/data/kline/20250930')

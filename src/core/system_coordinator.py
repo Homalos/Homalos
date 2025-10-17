@@ -64,7 +64,7 @@ class SystemCoordinator:
             self,
             name: str,
             instance: Any,
-            dependencies: list[str] = None,
+            dependencies=None,
             startup_order: int = 0
     ) -> None:
         """
@@ -76,6 +76,8 @@ class SystemCoordinator:
             dependencies: 依赖的模块列表
             startup_order: 启动优先级（数字越小优先级越高）
         """
+        if dependencies is None:
+            dependencies = []
         with self._lock:
             module_info = ModuleInfo(
                 name=name,
@@ -299,6 +301,8 @@ class SystemCoordinator:
         # 1. 订阅网关状态事件
         self.event_bus.subscribe(EventType.MD_GATEWAY_LOGIN, self._handle_market_gateway_ready)
         self.event_bus.subscribe(EventType.TD_GATEWAY_READY, self._handle_trader_gateway_ready)
+        # 兼容TD_CONFIRM_SUCCESS事件（结算单确认后交易网关就绪）
+        self.event_bus.subscribe(EventType.TD_CONFIRM_SUCCESS, self._handle_trader_gateway_ready)
         
         # 2. 订阅策略管理相关事件
         self.event_bus.subscribe(EventType.STRATEGY_LOADED, self._handle_strategy_loaded)

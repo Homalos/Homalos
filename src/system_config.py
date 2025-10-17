@@ -73,6 +73,8 @@ class Config(object):
     kline_dir_name = extra_config.get("data.kline_dir")     # K线数据目录名
     tick_dir_name = extra_config.get("data.tick_dir")       # Tick数据目录名
     strategy_states_dir_name = extra_config.get("data.strategy_states_dir") # 策略状态数据目录名
+    strategy_registry_path = extra_config.get("data.strategy_registry_path")  # 策略注册文件地址(在根目录下的地址)
+    strategy_registry_file = extra_config.get("data.strategy_registry_file")  # 策略注册文件
     trading_dir_name = extra_config.get("data.trading_dir")     # 交易时间数据目录名
     trading_flow_dir_name = extra_config.get("data.trading_flow_dir")   # 交易流水数据目录名
 

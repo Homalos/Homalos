@@ -78,6 +78,13 @@ class MultiContractStrategy(SpecificStrategyApi):
         """处理tick数据"""
         instrument_id = tick.instrument_id
         
+        # 【测试打印】验证策略是否正常接收tick数据
+        print(f"[MultiContractStrategy] 收到tick: {instrument_id} | "
+              f"最新价: {tick.last_price:.2f} | "
+              f"买一: {tick.bid_price_1:.2f}({tick.bid_volume_1}) | "
+              f"卖一: {tick.ask_price_1:.2f}({tick.ask_volume_1}) | "
+              f"时间: {tick.update_time}")
+        
         # 更新价格数据
         self.prices[instrument_id].append(tick.last_price)
         if len(self.prices[instrument_id]) > 100:

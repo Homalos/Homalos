@@ -102,7 +102,7 @@ class EventBus:
     def start(self):
         """启动事件总线"""
         if self._active:
-            self.logger.warning("EventBus 已经启动")
+            self.logger.info(f"{self._context} 已经启动")
             return
 
         if self._loop is None:

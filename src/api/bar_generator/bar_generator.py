@@ -115,6 +115,10 @@ class BarGenerator:
     
     def _setup_event_handlers(self) -> None:
         """设置事件处理器"""
+        if not self.event_bus:
+            self.logger.warning("EventBus未初始化，跳过事件处理器注册")
+            return
+            
         from src.core.event import EventType
         # 订阅K线配置更新事件
         self.event_bus.subscribe(EventType.KLINE_CONFIG_UPDATE, self._handle_kline_config_update)
@@ -156,15 +160,33 @@ class BarGenerator:
         处理tick数据事件
         
         Args:
-            event: tick数据事件，payload包含TickData对象
+            event: tick数据事件，payload格式:
+                   - 如果是dict: {"code": 0, "data": TickData对象}
+                   - 如果直接是TickData对象
         """
         try:
-            tick_data = event.payload
+            # 解析tick数据（兼容多种格式）
+            if isinstance(event.payload, dict):
+                tick_data = event.payload.get("data")
+            else:
+                tick_data = event.payload
+            
             if not tick_data:
                 return
             
+            # 获取合约ID（兼容对象和字典）
+            instrument_id = None
+            if hasattr(tick_data, 'instrument_id'):
+                instrument_id = tick_data.instrument_id
+            elif isinstance(tick_data, dict):
+                instrument_id = tick_data.get('instrument_id')
+            
+            if not instrument_id:
+                self.logger.warning("tick数据缺少instrument_id")
+                return
+            
             # 只处理订阅的合约
-            if tick_data.instrument_id in self.sub_kline_type_map:
+            if instrument_id in self.sub_kline_type_map:
                 self.tick_to_kline(tick_data)
             
         except Exception as e:
@@ -250,7 +272,7 @@ class BarGenerator:
                     else:
                         self.trading_time[product_key][hour] = [time_point]
                         
-                self.logger.info(f"成功加载 {product_key} 的交易时间配置，共 {len(data)} 个时间点，{len(self.trading_time[product_key])} 个小时段")
+                self.logger.debug(f"成功加载 {product_key} 的交易时间配置，共 {len(data)} 个时间点，{len(self.trading_time[product_key])} 个小时段")
             else:
                 self.logger.warning(f"交易时间配置文件 {file_path} 内容为空")
                 
@@ -264,12 +286,12 @@ class BarGenerator:
             self.logger.warning("交易时间配置为空！")
             return
             
-        self.logger.info("已加载的交易时间配置:")
+        self.logger.info("已加载的交易时间配置")
         for product, time_config in self.trading_time.items():
             if time_config:
                 hour_count = len(time_config)
                 total_times = sum(len(times) for times in time_config.values())
-                self.logger.info(f"  - {product}: {hour_count} 个小时段, {total_times} 个时间点")
+                self.logger.debug(f"  - {product}: {hour_count} 个小时段, {total_times} 个时间点")
             else:
                 self.logger.warning(f"  - {product}: 配置为空")
 

@@ -12,23 +12,34 @@
 from src.core.constants import Interval
 from src.core.object import TickData
 from src.strategy.base_strategy import SpecificStrategyApi
+from src.utils.log import get_logger
+
 
 class Strategy(SpecificStrategyApi):
     """
     示例策略 - 完整实现所有抽象方法
     """
     def __init__(self):
-        super().__init__(instruments="RU2601", strategy_id="example_ipc_class", sub_kline_type=[Interval.MINUTE])
+        """策略初始化"""
+        instruments = ["RU2601"]
+        strategy_name = "example_ipc_class"
+        sub_kline_type = [Interval.MINUTE]
+        super().__init__(
+            instruments=instruments,
+            strategy_name=strategy_name,
+            sub_kline_type=sub_kline_type
+        )
+        self.logger = get_logger(self.strategy_name)
         self.counter = 0
         self.prices = []  # 用于演示状态持久化
 
     def on_init(self) -> None:
         """开盘前执行"""
-        print(f"[{self.strategy_id}] 策略初始化")
+        self.logger.info("策略初始化")
 
     def on_close(self) -> None:
         """收盘后执行"""
-        print(f"[{self.strategy_id}] 收盘处理")
+        self.logger.info("收盘处理")
 
     def on_alarm(self) -> None:
         """到达设置闹钟时间时执行"""
@@ -45,7 +56,7 @@ class Strategy(SpecificStrategyApi):
             self.prices = self.prices[-100:]
         
         if self.counter % 5 == 0:
-            print(f"[{self.strategy_id}] 已处理 {self.counter} 个tick, 价格={price}")
+            self.logger.info(f"已处理 {self.counter} 个tick, 价格={price}")
 
     def on_bar(self, bar) -> None:
         """有新的Bar产生时执行"""
@@ -81,7 +92,7 @@ class Strategy(SpecificStrategyApi):
         if state:
             self.counter = state.get("counter", 0)
             self.prices = state.get("prices", [])
-            print(f"[{self.strategy_id}] 已恢复状态: counter={self.counter}, prices={len(self.prices)}个")
+            self.logger.info(f"已恢复状态: counter={self.counter}, prices={len(self.prices)}个")
 
 def get_strategy():
     return Strategy()

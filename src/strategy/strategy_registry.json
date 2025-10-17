@@ -3,7 +3,7 @@
     "file": "src/strategy/strategies/example_strategy_ipc_funcs.py",
     "module": "src.strategy.strategies.example_strategy_ipc_funcs",
     "class": "StrategyFuncsHolder",
-    "enabled": true,
+    "enabled": false,
     "params": {}
   },
   "multi_contract_example": {

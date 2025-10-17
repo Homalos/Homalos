@@ -10,17 +10,18 @@
 @Description: 系统集成示例 - 展示完整的数据流程和模块协调
 """
 import asyncio
+import signal
+import sys
 import time
 from typing import Any
 
 from src.api.bar_generator.bar_generator import BarGenerator
 from src.common import load_broker_config
 from src.core.alarm_manager import AlarmManager
-from src.core.constants import Interval
-from src.core.event import EventType
+from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.object import SubscribeRequest
-from src.core.strategy_manager import StrategyManagerIPC
+from src.core.strategy_manager import StrategyManager
 from src.core.subscription_manager import SubscriptionManager
 from src.core.system_coordinator import SystemCoordinator
 from src.core.trade_signal_handler import TradeSignalHandler
@@ -30,6 +31,7 @@ from src.modules.risk.risk import RiskManager
 from src.system_config import Config
 from src.utils.get_path import get_path_ins
 from src.utils.log.logger import get_logger
+from src.utils.utility import get_os_info
 
 
 class IntegratedTradingSystem:
@@ -50,9 +52,14 @@ class IntegratedTradingSystem:
         self.logger = get_logger(self.__class__.__name__)
         self.config = config
         
+        # 运行状态管理
+        self._running = False
+        self._shutdown_initiated = False
+        self._monitor_task: asyncio.Task | None = None
+        
         # 1. 核心事件总线
         self.event_bus = EventBus(
-            context="TradingSystem",
+            context="IntegratedTradingSystem",
             general_max_workers=500,
             market_max_workers=1000,
             register_signals=False,
@@ -72,10 +79,10 @@ class IntegratedTradingSystem:
         self.subscription_manager = SubscriptionManager(self.event_bus)
         
         # 4. 策略管理器
-        self.strategy_manager = StrategyManagerIPC(
+        self.strategy_manager = StrategyManager(
             self.event_bus,
             strategies_pkg="src.strategy.strategies",
-            registry_path=str(Config.strategy_registry_filepath)
+            registry_path=str(get_path_ins.get_project_dir() / Config.strategy_registry_path / Config.strategy_registry_file)  # 策略注册文件完整地址
         )
         
         # 5. 交易信号处理器
@@ -101,6 +108,9 @@ class IntegratedTradingSystem:
         
         # 注册模块到协调器
         self._register_modules()
+
+        # 设置网关事件处理器
+        self._setup_gateway_event_handlers()
         
         # 设置数据流连接
         self._setup_data_flow()
@@ -197,6 +207,24 @@ class IntegratedTradingSystem:
         
         self.logger.info("数据流连接已设置")
     
+    def _setup_gateway_event_handlers(self) -> None:
+        """
+        设置网关事件处理器，订阅登录相关事件
+        
+        Returns:
+            None
+        """
+        # 订阅行情网关登录事件
+        self.event_bus.subscribe(EventType.MD_GATEWAY_LOGIN, self._handle_md_login)
+        # 订阅交易网关登录事件
+        self.event_bus.subscribe(EventType.TD_GATEWAY_LOGIN, self._handle_td_login)
+        # 订阅确认结算单成功事件
+        self.event_bus.subscribe(EventType.TD_CONFIRM_SUCCESS, self._handle_td_confirm)
+        # 订阅查询合约完成事件
+        self.event_bus.subscribe(EventType.TD_QRY_INS, self._handle_td_qry_ins)
+        
+        self.logger.info("网关事件处理器已设置")
+    
     async def startup(self) -> None:
         """
         启动整个系统
@@ -284,8 +312,9 @@ class IntegratedTradingSystem:
                 self.logger.info(f"正在加载策略: {strategy_id}")
                 self.strategy_manager.load_strategy(strategy_id)
             
-            # 等待策略启动
-            await asyncio.sleep(2)
+            # 等待策略启动和订阅信息注册
+            # 策略进程需要时间启动、初始化并发送订阅信息到订阅管理器
+            await asyncio.sleep(3)
             
             self.logger.info(f"已加载 {len(enabled_strategies)} 个策略")
             
@@ -311,7 +340,7 @@ class IntegratedTradingSystem:
         # 风控统计
         risk_stats = self.risk_manager.get_risk_statistics()
         self.logger.info(f"  - 风险统计信息：{risk_stats}")
-        self.logger.info(f"  - 风控状态: 正常")
+        self.logger.info("  - 风控状态: 正常")
         
         # 信号处理统计
         signal_stats = self.trade_signal_handler.get_signal_statistics()
@@ -319,8 +348,23 @@ class IntegratedTradingSystem:
     
     async def shutdown(self):
         """关闭系统"""
+        if self._shutdown_initiated:
+            self.logger.info("关闭操作正在进行中...")
+            return
+            
+        self._shutdown_initiated = True
+        self._running = False
+        
         try:
             self.logger.info("开始关闭集成交易系统...")
+            
+            # 停止监控任务
+            if self._monitor_task and not self._monitor_task.done():
+                self._monitor_task.cancel()
+                try:
+                    await self._monitor_task
+                except asyncio.CancelledError:
+                    pass
             
             # 使用系统协调器关闭所有模块
             await self.system_coordinator.shutdown_system()
@@ -330,33 +374,264 @@ class IntegratedTradingSystem:
         except Exception as e:
             self.logger.error(f"系统关闭异常: {e}", exc_info=True)
     
+    async def run(self):
+        """
+        主循环 - 保持系统运行直到收到停止信号
+        
+        Returns:
+            None
+        """
+        self.logger.info("进入主循环，系统持续运行中...")
+        self._running = True
+        
+        # 启动监控任务
+        self._monitor_task = asyncio.create_task(self._monitor_loop())
+        
+        try:
+            while self._running and not self._shutdown_initiated:
+                # 主循环：保持系统运行
+                await asyncio.sleep(1)
+                
+        except asyncio.CancelledError:
+            self.logger.info("主循环被取消")
+        except Exception as e:
+            self.logger.error(f"主循环异常: {e}", exc_info=True)
+        finally:
+            self.logger.info("退出主循环")
+    
+    async def _monitor_loop(self):
+        """
+        监控循环 - 定期输出系统状态
+        
+        Returns:
+            None
+        """
+        self.logger.info("监控循环已启动")
+        last_status_time = time.time()
+        status_interval = 60  # 每60秒输出一次状态
+        
+        try:
+            while self._running and not self._shutdown_initiated:
+                current_time = time.time()
+                
+                # 定期输出系统状态
+                if current_time - last_status_time >= status_interval:
+                    await self._print_runtime_status()
+                    last_status_time = current_time
+                
+                # 短暂休眠避免CPU占用过高
+                await asyncio.sleep(5)
+                
+        except asyncio.CancelledError:
+            self.logger.info("监控循环被取消")
+        except Exception as e:
+            self.logger.error(f"监控循环异常: {e}", exc_info=True)
+        finally:
+            self.logger.info("监控循环已退出")
+    
+    async def _print_runtime_status(self):
+        """
+        打印运行时状态信息
+        
+        Returns:
+            None
+        """
+        try:
+            self.logger.info("=" * 60)
+            self.logger.info("系统运行状态报告")
+            self.logger.info("=" * 60)
+            
+            # 系统协调器状态
+            status = self.system_coordinator.get_system_status()
+            self.logger.info(f"系统状态: {status['system_status']}")
+            self.logger.info(f"运行模块: {status['module_count']}")
+            
+            # 网关状态
+            self.logger.info(f"网关状态: 行情={self.md_login_status}, 交易={self.td_login_status}")
+            
+            # 订阅统计
+            sub_stats = self.subscription_manager.get_subscription_stats()
+            self.logger.info(f"策略数量: {sub_stats['total_strategies']}")
+            self.logger.info(f"订阅合约: {sub_stats['total_instruments']}")
+            
+            # 风控统计
+            risk_stats = self.risk_manager.get_risk_statistics()
+            self.logger.info(f"总订单数: {risk_stats['total_orders']}")
+            self.logger.info(f"持仓数量: {risk_stats['position_count']}")
+            
+            # 信号处理统计
+            signal_stats = self.trade_signal_handler.get_signal_statistics()
+            self.logger.info(f"活跃信号: {signal_stats['active_signals']}")
+            
+            self.logger.info("=" * 60)
+            
+        except Exception as e:
+            self.logger.error(f"打印运行状态失败: {e}", exc_info=True)
+    
     # ===== 事件处理方法 =====
+    
+    # ----- 网关事件处理 -----
+    
+    def _handle_md_login(self, event: Event) -> None:
+        """
+        处理行情网关登录事件
+        
+        Args:
+            event: 行情网关登录事件
+            
+        Returns:
+            None
+        """
+        data = event.payload
+        self.logger.info(f"收到行情网关登录事件: {data}")
+        if data and data.get("code") == 0:
+            self.md_login_status = True
+            self.logger.info("行情网关登录成功")
+        else:
+            self.md_login_status = False
+            self.logger.error(f"行情网关登录失败: {data.get('message') if data else 'Unknown'}")
+    
+    def _handle_td_login(self, event: Event) -> None:
+        """
+        处理交易网关登录事件
+        
+        Args:
+            event: 交易网关登录事件
+            
+        Returns:
+            None
+        """
+        data = event.payload
+        self.logger.info(f"收到交易网关登录事件: {data}")
+        if data and data.get("code") == 0:
+            self.logger.info("交易网关登录成功，等待结算单确认")
+            # 获取交易日
+            trading_day = data.get("data", {}).get("trading_day")
+            if trading_day:
+                from src.constants import Const
+                Const.trading_day = trading_day
+                self.logger.info(f"交易日: {trading_day}")
+        else:
+            self.logger.error(f"交易网关登录失败: {data.get('message') if data else 'Unknown'}")
+    
+    def _handle_td_confirm(self, event: Event) -> None:
+        """
+        处理交易网关确认结算单事件
+        
+        Args:
+            event: 确认结算单事件
+            
+        Returns:
+            None
+        """
+        data = event.payload
+        self.logger.info(f"收到确认结算单事件: {data}")
+        if data and data.get("code") == 0:
+            self.td_login_status = True
+            self.logger.info("结算单确认成功，交易网关完全就绪")
+            # 发送查询合约事件
+            self._publish_qry_ins()
+        else:
+            self.td_login_status = False
+            self.logger.error(f"结算单确认失败: {data.get('message') if data else 'Unknown'}")
+    
+    def _publish_qry_ins(self) -> None:
+        """
+        向交易网关发布查询合约事件
+        
+        Returns:
+            None
+        """
+        try:
+            self.event_bus.publish(Event(EventType.DATA_CENTER_QRY_INS, {}))
+            self.logger.info("已发送查询合约事件")
+        except Exception as e:
+            self.logger.error(f"发送查询合约事件失败: {e}", exc_info=True)
+    
+    def _handle_td_qry_ins(self, event: Event) -> None:
+        """
+        处理查询合约完成事件
+        
+        Args:
+            event: 查询合约完成事件
+            
+        Returns:
+            None
+        """
+        data = event.payload
+        self.logger.info(f"收到查询合约完成事件: {data}")
+        if data and data.get("code") == 0:
+            self.logger.info("合约信息查询完成，系统就绪")
+            # 此处可以添加后续的合约初始化逻辑
+        else:
+            self.logger.error(f"查询合约失败: {data.get('message') if data else 'Unknown'}")
+    
+    # ----- 行情数据处理 -----
     
     def _handle_tick_data(self, event):
         """
         处理tick数据
 
         Args:
-            event:
+            event: tick事件
 
         Returns:
-
+            None
         """
-        tick_data = event.payload.get("data")
-        if tick_data and tick_data.instrument_id:
+        try:
+            # 解析tick数据（兼容多种格式）
+            if isinstance(event.payload, dict):
+                tick_data = event.payload.get("data")
+            else:
+                tick_data = event.payload
+            
+            if not tick_data:
+                return
+            
+            # 获取合约ID（兼容对象和字典）
+            instrument_id = None
+            if hasattr(tick_data, 'instrument_id'):
+                instrument_id = tick_data.instrument_id
+            elif isinstance(tick_data, dict):
+                instrument_id = tick_data.get('instrument_id')
+            
+            if not instrument_id:
+                self.logger.warning("tick数据缺少instrument_id")
+                return
+            
             # 发送给K线合成器
-            if self.bar_generator.is_sub_kline(tick_data.instrument_id):
+            if self.bar_generator.is_sub_kline(instrument_id):
                 self.bar_generator.tick_to_kline(tick_data)
             
             # 发送给策略（通过策略管理器）
             self.strategy_manager.broadcast_market_data("tick", tick_data)
+            
+        except Exception as e:
+            self.logger.error(f"处理tick数据失败: {e}", exc_info=True)
     
     def _handle_bar_data(self, event):
-        """处理K线数据"""
-        bar_data = event.payload.get("data")
-        if bar_data:
-            # 发送给策略
-            self.strategy_manager.broadcast_market_data("bar", bar_data)
+        """
+        处理K线数据
+        
+        Args:
+            event: K线事件
+            
+        Returns:
+            None
+        """
+        try:
+            # 解析K线数据
+            if isinstance(event.payload, dict):
+                bar_data = event.payload.get("data")
+            else:
+                bar_data = event.payload
+            
+            if bar_data:
+                # 发送给策略
+                self.strategy_manager.broadcast_market_data("bar", bar_data)
+                
+        except Exception as e:
+            self.logger.error(f"处理K线数据失败: {e}", exc_info=True)
     
     def _handle_subscription_request(self, event):
         """处理订阅请求"""
@@ -427,38 +702,81 @@ class IntegratedTradingSystem:
         else:
             self.logger.info(f"系统通知: {message}")
 
+    def get_shutdown_initiated(self) -> bool:
+        """获取是否已触发关闭信号"""
+        return self._shutdown_initiated
+
 
 async def main():
-    """主函数示例"""
+    """主函数"""
+    logger = get_logger(__name__)
+    
     # 配置示例
     broker_config: dict[str, Any] = load_broker_config()
-    broker_config["auto_load_strategies"] = True   # 示例中是否自动加载策略
+    broker_config["auto_load_strategies"] = True   # 是否自动加载策略
 
     # 创建集成系统
     system = IntegratedTradingSystem(broker_config)
     
+    # 设置信号处理器
+    def signal_handler(sig, _frame):
+        """信号处理器"""
+        logger.info(f"收到信号 {sig}，开始优雅关闭...")
+        # 创建关闭任务
+        asyncio.create_task(system.shutdown())
+
+    os_info = get_os_info()
+    if os_info.get("system") == "Linux" or os_info.get("system") == "Darwin":
+        # 注册信号处理器（仅在Unix/Linux系统下可用）
+        try:
+            loop = asyncio.get_event_loop()
+            for sig in (signal.SIGTERM, signal.SIGINT):
+                loop.add_signal_handler(sig, lambda s=sig: signal_handler(s, None))  # noqa
+            logger.info("信号处理器已注册")
+        except NotImplementedError:
+            # Windows系统不支持add_signal_handler
+            logger.warning("当前系统不支持信号处理器，使用Ctrl+C停止")
+    
     try:
+        logger.info("=" * 60)
+        logger.info("集成交易系统启动中...")
+        logger.info("=" * 60)
+        
         # 启动系统
         await system.startup()
         
-        # 运行系统（在实际应用中，这里会是主循环）
-        await asyncio.sleep(10)  # 示例运行10秒
+        logger.info("=" * 60)
+        logger.info("系统启动完成，进入主循环")
+        logger.info("按 Ctrl+C 停止系统")
+        logger.info("=" * 60)
         
-        # 展示如何手动注册策略订阅
-        system.subscription_manager.register_strategy_subscription(
-            strategy_id="multi_contract_example",
-            instruments=["FG601", "SA601"],
-            intervals=[Interval.MINUTE, Interval.MINUTE5]
-        )
-        
-        await asyncio.sleep(5)
+        # 进入主循环（持续运行）
+        await system.run()
         
     except KeyboardInterrupt:
-        print("收到中断信号")
+        logger.info("\n收到键盘中断信号 (Ctrl+C)")
+    except Exception as e:
+        logger.error(f"系统运行异常: {e}", exc_info=True)
     finally:
-        # 关闭系统
-        await system.shutdown()
+        logger.info("=" * 60)
+        logger.info("开始关闭系统...")
+        logger.info("=" * 60)
+        
+        # 确保系统正确关闭
+        if not system.get_shutdown_initiated():
+            await system.shutdown()
+        
+        logger.info("=" * 60)
+        logger.info("集成交易系统已完全关闭")
+        logger.info("=" * 60)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n程序被用户中断")
+        sys.exit(0)
+    except Exception as err:
+        print(f"\n程序异常退出: {err}")
+        sys.exit(1)

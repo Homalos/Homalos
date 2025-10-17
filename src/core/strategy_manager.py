@@ -48,11 +48,17 @@ from src.utils.log.logger import get_logger
 _DEBOUNCE = 2.0  # 增加到2秒，避免重复触发
 
 
-class StrategyManagerIPC:
+class StrategyManager(object):
     """
     策略管理器IPC通信类，用于策略进程与策略管理器之间的通信
     """
-    def __init__(self, event_bus: Optional[EventBus], strategies_pkg: str, registry_path: str, mp_ctx=None):
+    def __init__(
+            self,
+            event_bus: Optional[EventBus],
+            strategies_pkg: str,
+            registry_path: str,
+            mp_ctx=None
+    ):
         self.logger = get_logger(self.__class__.__name__)
         self.event_bus = event_bus
         self.strategies_pkg = strategies_pkg  # module package prefix for dynamic import if needed
@@ -118,6 +124,19 @@ class StrategyManagerIPC:
         - 设置事件订阅
         """
         self.logger.info("策略管理器启动中...")
+        
+        # 设置事件循环（如果未设置）
+        if not self._loop:
+            try:
+                self._loop = asyncio.get_running_loop()
+                self.logger.info("已设置事件循环")
+            except RuntimeError:
+                # 如果没有运行中的循环，尝试获取当前事件循环
+                try:
+                    self._loop = asyncio.get_event_loop()
+                    self.logger.info("已设置事件循环")
+                except RuntimeError as e:
+                    self.logger.warning(f"无法获取事件循环: {e}")
         
         # 设置事件订阅（新增）
         if self.event_bus:
@@ -821,7 +840,7 @@ class _FileEventHandler(FileSystemEventHandler):
     """
     文件系统事件处理器
     """
-    def __init__(self, manager: StrategyManagerIPC):
+    def __init__(self, manager: StrategyManager):
         super().__init__()
         self.manager = manager
 

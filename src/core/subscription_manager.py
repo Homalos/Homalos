@@ -77,7 +77,12 @@ class SubscriptionManager:
         self._subscription_active = False
         self.logger.info("订阅管理器已关闭")
     
-    def register_strategy_subscription(self, strategy_id: str, instruments: list[str], intervals: list[Interval]):
+    def register_strategy_subscription(
+            self,
+            strategy_id: str,
+            instruments: list[str],
+            intervals: list[Interval]
+    ):
         """
         注册策略订阅信息
         
