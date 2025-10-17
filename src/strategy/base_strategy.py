@@ -9,6 +9,7 @@
 @Software   : PyCharm
 @Description: 策略基类
 """
+import uuid
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -18,6 +19,7 @@ from src.strategy.decorators import check_on_bar, check_on_tick
 
 
 class BaseStrategy(object):
+    """策略基类"""
     def __init__(self):
         self.strategy_id: str = ""  # 策略ID
         self.strategy_name: str = ""  # 策略名称
@@ -31,18 +33,27 @@ class BaseStrategy(object):
 
 
 class SpecificStrategyApi(ABC):
-    def __init__(self, instruments=None, strategy_id: str = "", sub_kline_type: Optional[list] = None):
+    """策略文件基类"""
+    def __init__(
+            self,
+            instruments: str | list = None,
+            strategy_name: str = "",
+            strategy_content: str = "",
+            sub_kline_type: list[Interval] = None
+    ):
         # 支持多合约订阅（兼容单合约和多合约）
+        if instruments is None:
+            self.instruments = []
         if isinstance(instruments, str):
             self.instruments = [instruments]
         elif isinstance(instruments, list):
             self.instruments = instruments
-        elif instruments is None:
-            self.instruments = []
         else:
             self.instruments = [str(instruments)]
         
-        self.strategy_id = strategy_id
+        self.strategy_id = str(uuid.uuid4())
+        self.strategy_name = strategy_name
+        self.strategy_content = strategy_content
         self.sub_kline_type = sub_kline_type or []
         self.kline_lock = None
         

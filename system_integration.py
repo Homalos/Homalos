@@ -10,7 +10,7 @@
 @Description: 系统集成示例 - 展示完整的数据流程和模块协调
 """
 import asyncio
-from pathlib import Path
+import time
 from typing import Any
 
 from src.api.bar_generator.bar_generator import BarGenerator
@@ -19,6 +19,7 @@ from src.core.alarm_manager import AlarmManager
 from src.core.constants import Interval
 from src.core.event import EventType
 from src.core.event_bus import EventBus
+from src.core.object import SubscribeRequest
 from src.core.strategy_manager import StrategyManagerIPC
 from src.core.subscription_manager import SubscriptionManager
 from src.core.system_coordinator import SystemCoordinator
@@ -27,7 +28,6 @@ from src.modules.gateway.market_gateway import MarketGateway
 from src.modules.gateway.trader_gateway import TraderGateway
 from src.modules.risk.risk import RiskManager
 from src.system_config import Config
-from src.utils.config_manager import ConfigManager
 from src.utils.get_path import get_path_ins
 from src.utils.log.logger import get_logger
 
@@ -55,8 +55,12 @@ class IntegratedTradingSystem:
             context="TradingSystem",
             general_max_workers=500,
             market_max_workers=1000,
+            register_signals=False,
             auto_start=True
         )
+        self.md_login_status: bool = False  # 行情登录状态
+        self.td_login_status: bool = False  # 交易登录状态
+        self.is_login_status: bool = False  # 登录状态
         
         # 2. 告警管理器
         self.alarm_manager = AlarmManager(
@@ -163,8 +167,13 @@ class IntegratedTradingSystem:
         
         self.logger.info("所有模块已注册到系统协调器")
     
-    def _setup_data_flow(self):
-        """设置数据流连接"""
+    def _setup_data_flow(self) -> None:
+        """
+        设置数据流连接
+
+        Returns:
+            None
+        """
         # 1. 行情数据流：行情网关 -> K线合成器 -> 策略
         self.event_bus.subscribe(EventType.TICK, self._handle_tick_data)
         self.event_bus.subscribe(EventType.BAR, self._handle_bar_data)
@@ -188,8 +197,13 @@ class IntegratedTradingSystem:
         
         self.logger.info("数据流连接已设置")
     
-    async def startup(self):
-        """启动整个系统"""
+    async def startup(self) -> None:
+        """
+        启动整个系统
+
+        Returns:
+            None
+        """
         try:
             self.logger.info("=" * 60)
             self.logger.info("开始启动集成交易系统")
@@ -198,12 +212,12 @@ class IntegratedTradingSystem:
             # 使用系统协调器启动所有模块
             await self.system_coordinator.startup_system()
             
-            # 连接到CTP网关（如果配置可用）
-            if self.config.get("ctp_config"):
+            # 连接到行情网关和交易网关
+            if self.config.get("broker_name"):
                 await self._connect_ctp_gateways()
             
             # 加载策略（如果配置了策略）
-            if self.config.get("auto_load_strategies", True):
+            if self.config.get("auto_load_strategies", True) and self.is_login_status:
                 await self._load_strategies()
             
             self.logger.info("=" * 60)
@@ -217,24 +231,48 @@ class IntegratedTradingSystem:
             self.logger.error(f"系统启动失败: {e}", exc_info=True)
             raise
     
-    async def _connect_ctp_gateways(self):
-        """连接CTP网关"""
-        ctp_config = self.config.get("ctp_config", {})
-        
+    async def _connect_ctp_gateways(self) -> None:
+        """
+        连接CTP网关
+
+        Returns:
+            None
+        """
+        broker_name = self.config.get("broker_name", "")
+        broker_config = self.config.get("broker_config", {})
+
         try:
             # 连接行情网关
-            self.logger.info("正在连接行情网关...")
-            self.market_gateway.connect(ctp_config)
+            self.logger.info(f"{broker_name}正在连接行情网关...")
+            self.market_gateway.connect(broker_config)
             
             # 连接交易网关
-            self.logger.info("正在连接交易网关...")
-            self.trader_gateway.connect(ctp_config)
+            self.logger.info(f"{broker_name}正在连接交易网关...")
+            self.trader_gateway.connect(broker_config)
             
             # 等待网关连接成功
-            await asyncio.sleep(5)  # 给网关时间建立连接
-            
+            start_time = time.time()    # 开始计时
+            timeout = 60.0              # 登录超时时间
+
+            while not (self.md_login_status and self.td_login_status):
+                # 检查是否超时
+                elapsed_time = time.time() - start_time
+                if elapsed_time > timeout:
+                    self.logger.warning(
+                        f"等待登录超时 ({timeout}秒)，当前状态 - 行情网关: {self.md_login_status}, 交易网关: {self.td_login_status}")
+                    break
+                await asyncio.sleep(1)
+
+            if not self.md_login_status or not self.td_login_status:
+                self.is_login_status = False
+                self.logger.error(f"网关登录失败 - 行情网关: {self.md_login_status}, 交易网关: {self.td_login_status}")
+            else:
+                self.is_login_status = True  # 设置登录状态为True
+                self.logger.info(
+                    f"所有网关登录成功 - 行情网关: {self.md_login_status}, 交易网关: {self.td_login_status}")
+
         except Exception as e:
-            self.logger.error(f"连接CTP网关失败: {e}", exc_info=True)
+            self.logger.error(f"连接网关失败: {e}", exc_info=True)
     
     async def _load_strategies(self):
         """加载策略"""
@@ -272,6 +310,7 @@ class IntegratedTradingSystem:
         
         # 风控统计
         risk_stats = self.risk_manager.get_risk_statistics()
+        self.logger.info(f"  - 风险统计信息：{risk_stats}")
         self.logger.info(f"  - 风控状态: 正常")
         
         # 信号处理统计
@@ -294,9 +333,17 @@ class IntegratedTradingSystem:
     # ===== 事件处理方法 =====
     
     def _handle_tick_data(self, event):
-        """处理tick数据"""
+        """
+        处理tick数据
+
+        Args:
+            event:
+
+        Returns:
+
+        """
         tick_data = event.payload.get("data")
-        if tick_data and hasattr(tick_data, 'instrument_id'):
+        if tick_data and tick_data.instrument_id:
             # 发送给K线合成器
             if self.bar_generator.is_sub_kline(tick_data.instrument_id):
                 self.bar_generator.tick_to_kline(tick_data)
@@ -313,13 +360,12 @@ class IntegratedTradingSystem:
     
     def _handle_subscription_request(self, event):
         """处理订阅请求"""
-        payload = event.payload
-        instrument_id = payload.get("instrument_id")
-        action = payload.get("action")
+        data = event.payload
+        instrument_id = data.get("instrument_id")
+        action = data.get("action")
         
         if action == "subscribe":
             # 转发给行情网关
-            from src.core.object import SubscribeRequest
             req = SubscribeRequest(instrument_id=instrument_id)
             self.market_gateway.subscribe(req)
     

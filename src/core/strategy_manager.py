@@ -267,7 +267,7 @@ class StrategyManagerIPC:
             }
             self._meta[sid] = meta
 
-            # 为该孩子启动读者线程
+            # 为该 child 启动 reader 线程
             t = Thread(target=self._reader_loop, args=(sid,), daemon=True)
             t.start()
 
@@ -334,9 +334,10 @@ class StrategyManagerIPC:
                     self.logger.exception(f"terminate failed: {e}")
             # 清理连接
             try:
-                conn.close()
-            except Exception:
-                pass
+                if conn:
+                    conn.close()
+            except Exception as e:
+                self.logger.warning(f"close conn failed: {e}")
 
             del self._meta[sid]
             # 清理预期停止标记（延迟清理，给_reader_loop时间处理）
@@ -425,9 +426,10 @@ class StrategyManagerIPC:
                     
                     # 清理连接
                     try:
-                        conn.close()
-                    except Exception:
-                        pass
+                        if conn:
+                            conn.close()
+                    except Exception as e:
+                        self.logger.warning(f"close conn failed: {e}")
                     
                     # remove from meta
                     del self._meta[sid]
@@ -518,8 +520,8 @@ class StrategyManagerIPC:
                 
                 try:
                     self.unload_strategy(sid)
-                except Exception:
-                    pass
+                except Exception as e:
+                    self.logger.exception(f"unload_strategy failed: {e}")
                 break
 
             try:
@@ -554,8 +556,8 @@ class StrategyManagerIPC:
                 # 子进程将被卸载
                 try:
                     self.unload_strategy(sid)
-                except Exception:
-                    pass
+                except Exception as e:
+                    self.logger.exception(f"unload_strategy failed: {e}")
 
     # ---------- WebSocket registration ----------
     def register_ws_queue(self, q: asyncio.Queue) -> None:
@@ -610,7 +612,7 @@ class StrategyManagerIPC:
                     # skip full queues
                     pass
 
-        loop.call_soon_threadsafe(_put_nowait)
+        loop.call_soon_threadsafe(_put_nowait)  # noqa
 
     # ---------- watchdog ----------
     def start_watchdog(self, strategies_dir: str):

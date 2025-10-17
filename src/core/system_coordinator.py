@@ -11,41 +11,14 @@
 """
 import asyncio
 import time
-from dataclasses import dataclass
-from enum import Enum
 from threading import Lock
-from typing import Dict, List, Optional, Any
+from typing import Optional, Any
 
+from src.core.constants import ModuleStatus
 from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
+from src.core.object import ModuleInfo
 from src.utils.log.logger import get_logger
-
-
-class ModuleStatus(Enum):
-    """模块状态枚举"""
-    PENDING = "pending"
-    INITIALIZING = "initializing"
-    READY = "ready"
-    RUNNING = "running"
-    STOPPING = "stopping"
-    STOPPED = "stopped"
-    ERROR = "error"
-
-
-@dataclass
-class ModuleInfo:
-    """模块信息"""
-    name: str
-    instance: Any = None
-    status: ModuleStatus = ModuleStatus.PENDING
-    dependencies: List[str] = None
-    startup_order: int = 0
-    last_health_check: float = 0
-    error_message: str = None
-    
-    def __post_init__(self):
-        if self.dependencies is None:
-            self.dependencies = []
 
 
 class SystemCoordinator:
@@ -65,9 +38,9 @@ class SystemCoordinator:
         self.event_bus = event_bus
         
         # 模块管理
-        self.modules: Dict[str, ModuleInfo] = {}
-        self.startup_sequence: List[str] = []
-        self.shutdown_sequence: List[str] = []
+        self.modules: dict[str, ModuleInfo] = {}
+        self.startup_sequence: list[str] = []
+        self.shutdown_sequence: list[str] = []
         
         # 状态管理
         self.system_status = ModuleStatus.PENDING
@@ -87,7 +60,13 @@ class SystemCoordinator:
         
         self.logger.info("系统协调器初始化完成")
     
-    def register_module(self, name: str, instance: Any, dependencies: List[str] = None, startup_order: int = 0):
+    def register_module(
+            self,
+            name: str,
+            instance: Any,
+            dependencies: list[str] = None,
+            startup_order: int = 0
+    ) -> None:
         """
         注册模块
         
@@ -111,8 +90,13 @@ class SystemCoordinator:
             
         self.logger.info(f"已注册模块: {name}, 依赖: {dependencies or 'None'}, 启动顺序: {startup_order}")
     
-    def _calculate_startup_sequence(self):
-        """计算模块启动顺序（拓扑排序）"""
+    def _calculate_startup_sequence(self) -> None:
+        """
+        计算模块启动顺序（拓扑排序）
+
+        Returns:
+
+        """
         # 简化的拓扑排序实现
         in_degree = {name: 0 for name in self.modules.keys()}
         adj_list = {name: [] for name in self.modules.keys()}
@@ -151,8 +135,13 @@ class SystemCoordinator:
         
         self.logger.info(f"模块启动顺序: {' -> '.join(self.startup_sequence)}")
     
-    async def startup_system(self):
-        """启动整个系统"""
+    async def startup_system(self) -> None:
+        """
+        启动整个系统
+
+        Returns:
+
+        """
         self.logger.info("开始系统启动流程...")
         self.system_status = ModuleStatus.INITIALIZING
         
@@ -202,8 +191,13 @@ class SystemCoordinator:
             ))
             raise
     
-    async def _startup_modules(self):
-        """按顺序启动各模块"""
+    async def _startup_modules(self) -> None:
+        """
+        按顺序启动各模块
+
+        Returns:
+
+        """
         for module_name in self.startup_sequence:
             module_info = self.modules[module_name]
             
@@ -237,8 +231,16 @@ class SystemCoordinator:
                 self.logger.error(f"模块 {module_name} 启动失败: {e}", exc_info=True)
                 raise
     
-    async def _wait_for_dependencies(self, module_name: str):
-        """等待模块依赖就绪"""
+    async def _wait_for_dependencies(self, module_name: str) -> None:
+        """
+        等待模块依赖就绪
+
+        Args:
+            module_name:
+
+        Returns:
+
+        """
         module_info = self.modules[module_name]
         max_wait_time = 60  # 最大等待60秒
         check_interval = 1  # 每秒检查一次
@@ -261,8 +263,13 @@ class SystemCoordinator:
         if module_info.dependencies:
             self.logger.info(f"模块 {module_name} 的所有依赖已就绪")
     
-    async def _wait_for_critical_modules(self):
-        """等待关键模块就绪"""
+    async def _wait_for_critical_modules(self) -> None:
+        """
+        等待关键模块就绪
+
+        Returns:
+
+        """
         critical_modules = ["event_bus", "alarm_manager", "subscription_manager"]
         max_wait_time = 30
         
@@ -280,8 +287,13 @@ class SystemCoordinator:
         
         self.logger.info("所有关键模块已就绪")
     
-    async def _initialize_data_flow(self):
-        """初始化数据流"""
+    async def _initialize_data_flow(self) -> None:
+        """
+        初始化数据流
+
+        Returns:
+
+        """
         self.logger.info("初始化数据流连接...")
         
         # 1. 订阅网关状态事件
@@ -301,8 +313,13 @@ class SystemCoordinator:
         self.data_flow_initialized = True
         self.logger.info("数据流初始化完成")
     
-    def _setup_market_data_distribution(self):
-        """设置行情数据分发"""
+    def _setup_market_data_distribution(self) -> None:
+        """
+        设置行情数据分发
+
+        Returns:
+
+        """
         # 订阅tick数据，分发给策略和K线合成器
         self.event_bus.subscribe(EventType.TICK, self._distribute_tick_data)
         
@@ -311,8 +328,13 @@ class SystemCoordinator:
         
         self.logger.info("行情数据分发器已设置")
     
-    def _setup_trade_signal_chain(self):
-        """设置交易信号处理链"""
+    def _setup_trade_signal_chain(self) -> None:
+        """
+        设置交易信号处理链
+
+        Returns:
+
+        """
         # 这些连接在各模块内部已经建立，这里只是确认
         signal_chain_events = [
             EventType.STRATEGY_TRADE_SIGNAL,  # 策略信号
@@ -325,8 +347,13 @@ class SystemCoordinator:
         
         self.logger.info(f"交易信号处理链已确认: {len(signal_chain_events)} 个事件类型")
     
-    def _start_health_monitoring(self):
-        """启动健康监控"""
+    def _start_health_monitoring(self) -> None:
+        """
+        启动健康监控
+
+        Returns:
+
+        """
         if self.health_check_task:
             return
         
@@ -334,8 +361,13 @@ class SystemCoordinator:
         self.health_check_task = loop.create_task(self._health_check_loop())
         self.logger.info("健康监控已启动")
     
-    async def _health_check_loop(self):
-        """健康检查循环"""
+    async def _health_check_loop(self) -> None:
+        """
+        健康检查循环
+
+        Returns:
+
+        """
         while not self.shutdown_initiated:
             try:
                 await asyncio.sleep(self.health_check_interval)
@@ -346,8 +378,13 @@ class SystemCoordinator:
             except Exception as e:
                 self.logger.error(f"健康检查异常: {e}", exc_info=True)
     
-    async def _perform_health_checks(self):
-        """执行健康检查"""
+    async def _perform_health_checks(self) -> None:
+        """
+        执行健康检查
+
+        Returns:
+
+        """
         unhealthy_modules = []
         
         with self._lock:
@@ -381,8 +418,13 @@ class SystemCoordinator:
                 }
             ))
     
-    async def shutdown_system(self):
-        """关闭整个系统"""
+    async def shutdown_system(self) -> None:
+        """
+        关闭整个系统
+
+        Returns:
+
+        """
         self.logger.info("开始系统关闭流程...")
         self.shutdown_initiated = True
         self.system_status = ModuleStatus.STOPPING
@@ -428,24 +470,45 @@ class SystemCoordinator:
     
     # ===== 事件处理方法 =====
     
-    def _handle_market_gateway_ready(self, event: Event):
-        """处理行情网关就绪事件"""
-        payload = event.payload
-        if isinstance(payload, dict) and payload.get("code") == 0:
+    def _handle_market_gateway_ready(self, event: Event) -> None:
+        """
+        处理行情网关就绪事件
+
+        Args:
+            event:
+
+        Returns:
+
+        """
+        data = event.payload
+        if isinstance(data, dict) and data.get("code") == 0:
             self.gateways_ready["market"] = True
             self.logger.info("行情网关已就绪")
             self._check_gateways_ready()
     
-    def _handle_trader_gateway_ready(self, event: Event):
-        """处理交易网关就绪事件"""
-        payload = event.payload
-        if isinstance(payload, dict) and payload.get("code") == 0:
+    def _handle_trader_gateway_ready(self, event: Event) -> None:
+        """
+        处理交易网关就绪事件
+
+        Args:
+            event:
+
+        Returns:
+
+        """
+        data = event.payload
+        if isinstance(data, dict) and data.get("code") == 0:
             self.gateways_ready["trader"] = True
             self.logger.info("交易网关已就绪")
             self._check_gateways_ready()
     
-    def _check_gateways_ready(self):
-        """检查网关是否都已就绪"""
+    def _check_gateways_ready(self) -> None:
+        """
+        检查网关是否都已就绪
+
+        Returns:
+
+        """
         if all(self.gateways_ready.values()):
             self.logger.info("所有网关已就绪，开始启动策略管理器")
             
@@ -460,28 +523,49 @@ class SystemCoordinator:
                 }
             ))
     
-    def _handle_strategy_loaded(self, event: Event):
-        """处理策略加载事件"""
+    def _handle_strategy_loaded(self, event: Event) -> None:
+        """
+        处理策略加载事件
+
+        Args:
+            event:
+
+        Returns:
+
+        """
         self.logger.debug(f"策略已加载: {event.payload}")
     
-    def _handle_strategy_signal(self, event: Event):
-        """处理策略交易信号"""
+    def _handle_strategy_signal(self, event: Event) -> None:
+        """
+        处理策略交易信号
+
+        Args:
+            event:
+
+        Returns:
+
+        """
         self.logger.debug(f"收到策略交易信号: {event.payload}")
     
-    def _distribute_tick_data(self, event: Event):
+    def _distribute_tick_data(self, event: Event) -> None:
         """分发tick数据"""
         # tick数据会自动分发给订阅者，这里只是监控
         pass
     
-    def _distribute_bar_data(self, event: Event):
+    def _distribute_bar_data(self, event: Event) -> None:
         """分发K线数据"""
         # K线数据会自动分发给订阅者，这里只是监控
         pass
     
     # ===== 状态查询方法 =====
     
-    def get_system_status(self) -> Dict[str, Any]:
-        """获取系统状态"""
+    def get_system_status(self) -> dict[str, Any]:
+        """
+        获取系统状态
+
+        Returns:
+
+        """
         with self._lock:
             modules_status = {}
             for name, info in self.modules.items():
@@ -505,12 +589,25 @@ class SystemCoordinator:
         }
     
     def is_system_ready(self) -> bool:
-        """检查系统是否就绪"""
+        """
+        检查系统是否就绪
+
+        Returns:
+
+        """
         return (self.system_status == ModuleStatus.RUNNING and 
                 self.startup_complete and 
                 not self.shutdown_initiated)
     
     def get_module_status(self, module_name: str) -> Optional[ModuleStatus]:
-        """获取指定模块状态"""
+        """
+        获取指定模块状态
+
+        Args:
+            module_name:
+
+        Returns:
+
+        """
         module_info = self.modules.get(module_name)
         return module_info.status if module_info else None

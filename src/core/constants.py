@@ -232,3 +232,13 @@ class Task(Enum):
     WEEKDAY = "weekday"
     MONTHLY = "monthly"
 
+
+class ModuleStatus(Enum):
+    """模块状态枚举"""
+    PENDING = "pending"
+    INITIALIZING = "initializing"
+    READY = "ready"
+    RUNNING = "running"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
+    ERROR = "error"

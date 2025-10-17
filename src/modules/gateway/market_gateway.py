@@ -57,12 +57,12 @@ class MarketGateway(BaseGateway):
                    2. 批量: {"instruments": ["合约1", "合约2", ...], "action": "subscribe/unsubscribe"}
         """
         try:
-            payload = event.payload
-            action = payload.get('action', 'subscribe')
+            data = event.payload
+            action = data.get('action', 'subscribe')
             
             # 判断是单合约还是批量订阅
-            instrument_id = payload.get('instrument_id')
-            instruments = payload.get('instruments', [])
+            instrument_id = data.get('instrument_id')
+            instruments = data.get('instruments', [])
             
             # 统一转换为列表处理
             if instrument_id:

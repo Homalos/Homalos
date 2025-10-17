@@ -19,8 +19,10 @@
 """
 import datetime
 from dataclasses import dataclass, field
+from typing import Any
 
-from src.core.constants import Exchange, OrderType, Direction, Offset, Product, OptionType, OrderStatus, Interval
+from src.core.constants import Exchange, OrderType, Direction, Offset, Product, OptionType, OrderStatus, Interval, \
+    ModuleStatus
 
 
 @dataclass
@@ -299,3 +301,19 @@ class TradingSchedule:
     sub_id_times: list[str] = field(default_factory=lambda: [""])
     after_close_times: list[str] = field(default_factory=lambda: [""])
     check_interval: int = 60  # 检查间隔（秒）
+
+
+@dataclass
+class ModuleInfo:
+    """模块信息"""
+    name: str
+    instance: Any = None
+    status: ModuleStatus = ModuleStatus.PENDING
+    dependencies: list[str] = None
+    startup_order: int = 0
+    last_health_check: float = 0
+    error_message: str = None
+
+    def __post_init__(self):
+        if self.dependencies is None:
+            self.dependencies = []

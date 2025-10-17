@@ -9,9 +9,13 @@
 @Software   : PyCharm
 @Description: 多合约策略示例 - 展示如何在单个策略中处理多个合约
 """
+from typing import Any
+
 from src.core.constants import Interval
 from src.core.object import TickData, BarData, OrderData, TradeData
 from src.strategy.base_strategy import SpecificStrategyApi
+from src.utils.log import get_logger
+
 
 class MultiContractStrategy(SpecificStrategyApi):
     """
@@ -26,7 +30,18 @@ class MultiContractStrategy(SpecificStrategyApi):
     def __init__(self):
         # 订阅多个合约
         instruments = ["SA601", "FG601", "RU2601"]
-        super().__init__(instruments=instruments, strategy_id="multi_contract_example", sub_kline_type=[Interval.MINUTE])
+        strategy_name = "multi_contract_example"
+        strategy_content = "多合约策略示例"
+        sub_kline_type = [Interval.MINUTE]
+
+        super().__init__(
+            instruments = instruments,
+            strategy_name = strategy_name,
+            strategy_content = strategy_content,
+            sub_kline_type = sub_kline_type
+        )
+
+        self.logger = get_logger(self.__class__.__name__)
         
         # 策略参数
         self.ma_period = 20
@@ -41,19 +56,19 @@ class MultiContractStrategy(SpecificStrategyApi):
         }
         
         # 策略状态
-        self.last_signals = {ins: None for ins in self.instruments}
+        self.last_signals = {ins: Any for ins in self.instruments}
         self.entry_prices = {ins: 0.0 for ins in self.instruments}
 
     def on_init(self) -> None:
         """策略初始化"""
-        print(f"[{self.strategy_id}] 多合约策略初始化")
-        print(f"订阅合约: {self.instruments}")
+        self.logger.info("多合约策略初始化")
+        self.logger.info(f"订阅合约: {self.instruments}")
         for ins, config in self.contract_config.items():
             print(f"  {ins}: 角色={config['role']}, 手数={config['position_size']}")
 
     def on_close(self) -> None:
         """收盘处理"""
-        print(f"[{self.strategy_id}] 收盘处理，当前持仓: {self.positions}")
+        self.logger.info(f"收盘处理，当前持仓: {self.positions}")
 
     def on_alarm(self) -> None:
         """闹钟处理"""
@@ -77,7 +92,7 @@ class MultiContractStrategy(SpecificStrategyApi):
         elif role == "close":
             self._handle_close_logic(instrument_id, tick)
         elif role == "arbitrage":
-            self._handle_arbitrage_logic(instrument_id, tick)
+            self._handle_arbitrage_logic(instrument_id)
         
         # 执行跨合约分析
         self._cross_contract_analysis()
@@ -122,7 +137,7 @@ class MultiContractStrategy(SpecificStrategyApi):
             if pnl_rate < -stop_loss or abs(price_change) > self.close_threshold:
                 self._close_position(instrument_id, tick.last_price)
 
-    def _handle_arbitrage_logic(self, instrument_id: str, tick: TickData):
+    def _handle_arbitrage_logic(self, instrument_id: str):
         """处理套利逻辑（RU2601）"""
         # 这里可以实现更复杂的套利逻辑
         # 例如：与其他合约的价差分析、相关性分析等
@@ -152,14 +167,14 @@ class MultiContractStrategy(SpecificStrategyApi):
                 # 简单的相关性指标
                 correlation_signal = sum(sa_returns[i] * fg_returns[i] for i in range(len(sa_returns)))
                 if abs(correlation_signal) > 0.001:
-                    print(f"SA601-FG601 相关性信号: {correlation_signal:.6f}")
+                    self.logger.info(f"SA601-FG601 相关性信号: {correlation_signal:.6f}")
 
     def _open_position(self, instrument_id: str, direction: str, price: float):
         """开仓"""
         config = self.contract_config[instrument_id]
         size = config["position_size"]
         
-        print(f"[{instrument_id}] 开仓 {direction} {size}手 @ {price}")
+        self.logger.info(f"[{instrument_id}] 开仓 {direction} {size}手 @ {price}")
         
         # 更新持仓和入场价格
         if direction == "buy":
@@ -179,13 +194,13 @@ class MultiContractStrategy(SpecificStrategyApi):
         if current_pos == 0:
             return
             
-        print(f"[{instrument_id}] 平仓 {abs(current_pos)}手 @ {price}")
+        self.logger.info(f"[{instrument_id}] 平仓 {abs(current_pos)}手 @ {price}")
         
         # 计算盈亏
         entry_price = self.entry_prices[instrument_id]
         if entry_price > 0:
             pnl = (price - entry_price) * current_pos
-            print(f"[{instrument_id}] 盈亏: {pnl:.2f}")
+            self.logger.info(f"[{instrument_id}] 盈亏: {pnl:.2f}")
         
         # 清空持仓
         self.positions[instrument_id] = 0
@@ -198,17 +213,17 @@ class MultiContractStrategy(SpecificStrategyApi):
     def on_bar(self, bar: BarData) -> None:
         """K线数据处理"""
         instrument_id = bar.instrument_id
-        print(f"[{instrument_id}] 收到K线: O={bar.open_price} H={bar.high_price} L={bar.low_price} C={bar.close_price}")
+        self.logger.info(f"[{instrument_id}] 收到K线: O={bar.open_price} H={bar.high_price} L={bar.low_price} C={bar.close_price}")
 
     def on_trade(self, trade: TradeData) -> None:
         """成交回报处理"""
         instrument_id = trade.instrument_id
-        print(f"[{instrument_id}] 成交回报: {trade.volume}手 @ {trade.price}")
+        self.logger.info(f"[{instrument_id}] 成交回报: {trade.volume}手 @ {trade.price}")
 
     def on_order(self, order: OrderData) -> None:
         """订单状态变化处理"""
         instrument_id = order.instrument_id
-        print(f"[{instrument_id}] 订单状态: {order.order_status}")
+        self.logger.info(f"[{instrument_id}] 订单状态: {order.order_status}")
 
     # ========== 状态持久化 ==========
     
@@ -228,9 +243,9 @@ class MultiContractStrategy(SpecificStrategyApi):
             self.prices = state.get("prices", {ins: [] for ins in self.instruments})
             self.entry_prices = state.get("entry_prices", {ins: 0.0 for ins in self.instruments})
             self.last_signals = state.get("last_signals", {ins: None for ins in self.instruments})
-            print(f"[{self.strategy_id}] 多合约状态已恢复")
-            print(f"  持仓: {self.positions}")
-            print(f"  入场价格: {self.entry_prices}")
+            self.logger.info("多合约状态已恢复")
+            self.logger.info(f"  持仓: {self.positions}")
+            self.logger.info(f"  入场价格: {self.entry_prices}")
 
 def get_strategy():
     return MultiContractStrategy()
