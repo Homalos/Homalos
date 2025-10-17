@@ -263,65 +263,6 @@ def get_file_name(path, ext):
             list_file.append(file)
     return list_file[:]
 
-def get_enable_broker(cfg: ConfigManager) -> dict[str, Any]:
-    """
-    获取配置中启用的broker配置
-    :param cfg: ConfigManager实例
-    :return:
-    """
-    rsp_enable_broker: dict[str, Any] = {}
-    # 获取根配置
-    brokers_config = cfg.get("base", {})
-
-    if not brokers_config:
-        _logger.warning("请检查券商配置文件，base配置为空或不存在")
-        return {}
-
-    # 获取启用的broker名称
-    enable_broker_name: str = brokers_config.get("enable_broker", "")
-
-    if not enable_broker_name:
-        _logger.warning("未找到可用的broker名称，请检查base.enable_broker配置项")
-        return {}
-
-    # 获取启用的broker配置
-    all_brokers: dict = brokers_config.get("brokers", {})
-
-    if not all_brokers:
-        _logger.warning("未找到brokers配置，请检查base.brokers配置项")
-        return {}
-
-    # 检查启用的broker名称是否存在于brokers配置中
-    if enable_broker_name not in all_brokers:
-        _logger.warning(f"启用的broker '{enable_broker_name}' 在brokers配置中不存在，请检查配置")
-        return {}
-
-    # 获取启用broker的配置
-    enable_broker_config = all_brokers.get(enable_broker_name)
-
-    if not enable_broker_config:
-        _logger.warning(f"启用的broker '{enable_broker_name}' 配置为空，请检查具体配置项")
-        return {}
-
-    # 确定broker类型（simnow和simnow7x24都使用ctp类，tts和tts7x24使用tts类）
-    broker_type_mapping = {
-        'simnow': 'ctp',
-        'simnow7x24': 'ctp',
-        'tts': 'tts',
-        'tts7x24': 'tts',
-        'real': 'ctp'
-    }
-
-    # 获取broker类型，如果不在映射中则默认使用ctp(实盘通常使用CTP)
-    enable_broker_type = broker_type_mapping.get(enable_broker_name, "ctp")
-
-    rsp_enable_broker["broker_name"] = enable_broker_name
-    rsp_enable_broker["broker_type"] = enable_broker_type
-    rsp_enable_broker["broker_config"] = enable_broker_config
-
-    return rsp_enable_broker
-
-
 def convert_intervals_to_minutes(interval_strings: list[str]) -> list[int]:
     """将时间间隔字符串转换为分钟数"""
     conversion_map = {

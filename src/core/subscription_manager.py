@@ -12,7 +12,7 @@
 import asyncio
 from collections import defaultdict
 from threading import Lock
-from typing import Dict, Set, List, Optional, Any
+from typing import Any
 
 from src.core.constants import Interval
 from src.core.event import Event, EventType
@@ -32,20 +32,20 @@ class SubscriptionManager:
     """
     
     def __init__(self, event_bus: EventBus):
-        self.logger = get_logger("SubscriptionManager")
+        self.logger = get_logger(self.__class__.__name__)
         self.event_bus = event_bus
         
         # 策略订阅信息 {strategy_id: {instruments: set, intervals: set}}
-        self._strategy_subscriptions: Dict[str, Dict[str, Set]] = {}
+        self._strategy_subscriptions: dict[str, dict[str, set]] = {}
         
         # 全局合约订阅状态 {instrument_id: subscriber_count}
-        self._instrument_subscribers: Dict[str, int] = defaultdict(int)
+        self._instrument_subscribers: dict[str, int] = defaultdict(int)
         
         # 全局K线订阅状态 {instrument_id: {interval: subscriber_count}}
-        self._kline_subscribers: Dict[str, Dict[Interval, int]] = defaultdict(lambda: defaultdict(int))
+        self._kline_subscribers: dict[str, dict[Interval, int]] = defaultdict(lambda: defaultdict(int))
         
         # 已订阅的合约（避免重复订阅）
-        self._subscribed_instruments: Set[str] = set()
+        self._subscribed_instruments: set[str] = set()
         
         # 线程锁
         self._lock = Lock()
@@ -77,7 +77,7 @@ class SubscriptionManager:
         self._subscription_active = False
         self.logger.info("订阅管理器已关闭")
     
-    def register_strategy_subscription(self, strategy_id: str, instruments: List[str], intervals: List[Interval]):
+    def register_strategy_subscription(self, strategy_id: str, instruments: list[str], intervals: list[Interval]):
         """
         注册策略订阅信息
         
@@ -152,17 +152,17 @@ class SubscriptionManager:
             if instruments_to_unsubscribe:
                 asyncio.create_task(self._unsubscribe_instruments(instruments_to_unsubscribe))
     
-    def get_all_subscribed_instruments(self) -> Set[str]:
+    def get_all_subscribed_instruments(self) -> set[str]:
         """获取所有订阅的合约"""
         with self._lock:
             return set(self._instrument_subscribers.keys())
     
-    def get_kline_subscription_map(self) -> Dict[str, List[Interval]]:
+    def get_kline_subscription_map(self) -> dict[str, list[Interval]]:
         """
         获取K线订阅映射
         
         Returns:
-            Dict[str, List[Interval]]: {instrument_id: [intervals]}
+            dict[str, list[Interval]]: {instrument_id: [intervals]}
         """
         with self._lock:
             result = {}
@@ -170,7 +170,7 @@ class SubscriptionManager:
                 result[instrument] = list(intervals_dict.keys())
             return result
     
-    def get_subscription_stats(self) -> Dict[str, Any]:
+    def get_subscription_stats(self) -> dict[str, Any]:
         """获取订阅统计信息"""
         with self._lock:
             return {
@@ -187,7 +187,7 @@ class SubscriptionManager:
                 }
             }
     
-    async def _subscribe_instruments(self, instruments: List[str]):
+    async def _subscribe_instruments(self, instruments: list[str]):
         """向行情网关发送订阅请求"""
         if not self._subscription_active:
             return
@@ -213,7 +213,7 @@ class SubscriptionManager:
         # 更新K线合成器配置
         await self._update_kline_generator_config()
     
-    async def _unsubscribe_instruments(self, instruments: List[str]):
+    async def _unsubscribe_instruments(self, instruments: list[str]):
         """取消合约订阅"""
         for instrument in instruments:
             try:

@@ -18,12 +18,12 @@ import time
 from datetime import datetime
 from typing import Any, Optional
 
+from src.common import get_enable_broker
 from src.constants import DATA_CENTER_CONFIG_FILENAME, BROKERS_FILENAME
 from src.modules.data_center.data_center import DataCenter
 from src.utils.config_manager import ConfigManager
 from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger, logger
-from src.utils.utility import get_enable_broker
 
 
 class StartDataCenter:

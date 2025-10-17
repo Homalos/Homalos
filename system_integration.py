@@ -11,8 +11,10 @@
 """
 import asyncio
 from pathlib import Path
+from typing import Any
 
 from src.api.bar_generator.bar_generator import BarGenerator
+from src.common import load_broker_config
 from src.core.alarm_manager import AlarmManager
 from src.core.constants import Interval
 from src.core.event import EventType
@@ -25,6 +27,7 @@ from src.modules.gateway.market_gateway import MarketGateway
 from src.modules.gateway.trader_gateway import TraderGateway
 from src.modules.risk.risk import RiskManager
 from src.system_config import Config
+from src.utils.config_manager import ConfigManager
 from src.utils.get_path import get_path_ins
 from src.utils.log.logger import get_logger
 
@@ -382,22 +385,11 @@ class IntegratedTradingSystem:
 async def main():
     """主函数示例"""
     # 配置示例
-    config = {
-        "ctp_config": {
-            # 如果有CTP配置，在这里填写
-            # "md_address": "tcp://...",
-            # "td_address": "tcp://...",
-            # "broker_id": "...",
-            # "user_id": "...",
-            # "password": "...",
-            # "app_id": "...",
-            # "auth_code": "..."
-        },
-        "auto_load_strategies": False  # 示例中不自动加载策略
-    }
-    
+    broker_config: dict[str, Any] = load_broker_config()
+    broker_config["auto_load_strategies"] = True   # 示例中是否自动加载策略
+
     # 创建集成系统
-    system = IntegratedTradingSystem(config)
+    system = IntegratedTradingSystem(broker_config)
     
     try:
         # 启动系统
@@ -408,7 +400,7 @@ async def main():
         
         # 展示如何手动注册策略订阅
         system.subscription_manager.register_strategy_subscription(
-            strategy_id="example_strategy",
+            strategy_id="multi_contract_example",
             instruments=["FG601", "SA601"],
             intervals=[Interval.MINUTE, Interval.MINUTE5]
         )
