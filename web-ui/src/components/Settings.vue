@@ -1,310 +1,548 @@
 <template>
-  <el-card shadow="hover">
-    <template #header>
-      <div class="card-header">
-        <span>系统设置</span>
+  <div class="settings-page">
+    <!-- 页面标题卡片 -->
+    <el-card class="header-card" shadow="hover">
+      <div class="page-header">
+        <h2>系统设置</h2>
+        <el-button :icon="Refresh" @click="loadAllConfig">刷新所有配置</el-button>
       </div>
-    </template>
-    <el-form label-width="140px">
-      <!-- 基础设置 -->
-      <el-divider content-position="left">
-        <span style="font-weight: 600;">基础设置</span>
-      </el-divider>
-      <el-form-item :label="settings.devMode ? '开发模式' : '生产模式'">
-        <el-switch v-model="settings.devMode" />
-      </el-form-item>
-      <el-form-item v-if="settings.devMode" label="交易时间检查" style="margin-left: 20px;">
-        <el-switch v-model="settings.tradingTimeCheck" />
-        <span style="margin-left: 10px; color: #909399; font-size: 13px;">
-          开启后将检查是否在交易时间内
-        </span>
-      </el-form-item>
-      
-      <!-- 日志设置 -->
-      <el-divider content-position="left">
-        <span style="font-weight: 600;">日志设置</span>
-      </el-divider>
-      <el-form-item label="日志级别">
-        <el-select v-model="settings.logging.level" style="width: 200px;">
-          <el-option label="DEBUG" value="DEBUG" />
-          <el-option label="INFO" value="INFO" />
-          <el-option label="WARNING" value="WARNING" />
-          <el-option label="ERROR" value="ERROR" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="文件大小上限">
-        <el-input 
-          v-model="settings.logging.rotationValue" 
-          type="number"
-          placeholder="50"
-          style="width: 150px;"
-        />
-        <span style="margin-left: 10px; font-weight: 500;">MB</span>
-        <span style="margin-left: 20px; color: #909399; font-size: 13px;">
-          单个日志文件达到此大小后自动轮转
-        </span>
-      </el-form-item>
-      <el-form-item label="日志保留时间">
-        <el-input 
-          v-model="settings.logging.retentionValue" 
-          type="number"
-          placeholder="14"
-          style="width: 150px;"
-        />
-        <span style="margin-left: 10px; font-weight: 500;">天</span>
-        <span style="margin-left: 20px; color: #909399; font-size: 13px;">
-          超过保留时间的日志将被自动删除
-        </span>
-      </el-form-item>
-      <el-form-item label="压缩格式">
-        <el-select v-model="settings.logging.compression" style="width: 200px;">
-          <el-option label="ZIP" value="zip" />
-          <el-option label="TAR.GZ" value="tar.gz" />
-          <el-option label="TAR.BZ2" value="tar.bz2" />
-        </el-select>
-        <span style="margin-left: 10px; color: #909399; font-size: 13px;">
-          归档日志文件的压缩格式
-        </span>
-      </el-form-item>
-      
-      <!-- 钉钉通知配置 -->
-      <el-divider content-position="left">
-        <span style="font-weight: 600;">钉钉通知配置</span>
-      </el-divider>
-      <el-card shadow="never" style="margin-bottom: 20px; background-color: #fafafa;">
-        <el-form-item label="启用钉钉通知">
-          <el-switch v-model="settings.notificationConfig.dingtalk.enabled" />
+    </el-card>
+
+    <!-- 卡片1: 基础配置 -->
+    <el-card class="config-card" shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span class="card-title">基础配置</span>
+          <el-icon><Setting /></el-icon>
+        </div>
+      </template>
+
+      <el-form
+        ref="basicFormRef"
+        :model="basicForm"
+        label-width="140px"
+        label-position="left"
+      >
+        <el-form-item :label="basicForm.devMode ? '开发模式' : '生产模式'">
+          <div class="form-item-with-hint">
+            <el-switch
+              v-model="basicForm.devMode"
+              active-text="开启"
+              inactive-text="关闭"
+            />
+            <el-text type="info" size="small" class="hint-text">
+              开发模式下可调整更多参数
+            </el-text>
+          </div>
         </el-form-item>
-        <template v-if="settings.notificationConfig.dingtalk.enabled">
-          <el-form-item label="机器人名称">
-            <el-input 
-              v-model="settings.notificationConfig.dingtalk.name" 
+
+        <el-form-item
+          v-if="basicForm.devMode"
+          label="交易时间检查"
+          style="margin-left: 20px;"
+        >
+          <div class="form-item-with-hint">
+            <el-switch
+              v-model="basicForm.tradingTimeCheck"
+              active-text="开启"
+              inactive-text="关闭"
+            />
+            <el-text type="info" size="small" class="hint-text">
+              开启后将检查是否在交易时间内
+            </el-text>
+          </div>
+        </el-form-item>
+      </el-form>
+
+      <div class="card-footer">
+        <el-button
+          type="primary"
+          @click="saveBasicConfig"
+          :loading="basicSaving"
+        >
+          保存基础配置
+        </el-button>
+        <el-button @click="resetBasicForm">重置</el-button>
+      </div>
+    </el-card>
+
+    <!-- 卡片2: 日志设置 -->
+    <el-card class="config-card" shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span class="card-title">日志设置</span>
+          <el-icon><Document /></el-icon>
+        </div>
+      </template>
+
+      <el-form
+        ref="loggingFormRef"
+        :model="loggingForm"
+        label-width="140px"
+        label-position="left"
+      >
+        <el-form-item label="日志级别">
+          <div class="form-item-with-hint">
+            <el-select v-model="loggingForm.level" style="width: 200px;">
+              <el-option label="DEBUG" value="DEBUG" />
+              <el-option label="INFO" value="INFO" />
+              <el-option label="WARNING" value="WARNING" />
+              <el-option label="ERROR" value="ERROR" />
+            </el-select>
+            <el-text type="info" size="small" class="hint-text">
+              控制日志输出的详细程度
+            </el-text>
+          </div>
+        </el-form-item>
+
+        <el-form-item label="文件大小上限">
+          <div class="input-with-unit">
+            <el-input-number
+              v-model="loggingForm.rotationValue"
+              :min="10"
+              :max="500"
+              :step="10"
+              controls-position="right"
+            />
+            <span class="unit-text">MB</span>
+            <el-text type="info" size="small" class="hint-text">
+              单个日志文件达到此大小后自动轮转
+            </el-text>
+          </div>
+        </el-form-item>
+
+        <el-form-item label="日志保留时间">
+          <div class="input-with-unit">
+            <el-input-number
+              v-model="loggingForm.retentionValue"
+              :min="1"
+              :max="365"
+              :step="1"
+              controls-position="right"
+            />
+            <span class="unit-text">天</span>
+            <el-text type="info" size="small" class="hint-text">
+              超过保留时间的日志将被自动删除
+            </el-text>
+          </div>
+        </el-form-item>
+
+        <el-form-item label="压缩格式">
+          <div class="form-item-with-hint">
+            <el-select v-model="loggingForm.compression" style="width: 200px;">
+              <el-option label="ZIP" value="zip" />
+              <el-option label="TAR.GZ" value="tar.gz" />
+              <el-option label="TAR.BZ2" value="tar.bz2" />
+            </el-select>
+            <el-text type="info" size="small" class="hint-text">
+              归档日志文件的压缩格式
+            </el-text>
+          </div>
+        </el-form-item>
+      </el-form>
+
+      <div class="card-footer">
+        <el-button
+          type="primary"
+          @click="saveLoggingConfig"
+          :loading="loggingSaving"
+        >
+          保存日志配置
+        </el-button>
+        <el-button @click="resetLoggingForm">重置</el-button>
+      </div>
+    </el-card>
+
+    <!-- 卡片3: 钉钉通知配置 -->
+    <el-card class="config-card" shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span class="card-title">钉钉通知配置</span>
+          <el-icon><ChatDotRound /></el-icon>
+        </div>
+      </template>
+
+      <el-form
+        ref="dingtalkFormRef"
+        :model="dingtalkForm"
+        :rules="dingtalkRules"
+        label-width="140px"
+        label-position="left"
+      >
+        <el-form-item label="启用钉钉通知">
+          <el-switch
+            v-model="dingtalkForm.enabled"
+            active-text="启用"
+            inactive-text="禁用"
+          />
+        </el-form-item>
+
+        <div :class="{ 'disabled-inputs': !dingtalkForm.enabled }">
+          <el-form-item label="机器人名称" prop="name">
+            <el-input
+              v-model="dingtalkForm.name"
               placeholder="请输入钉钉机器人名称"
               style="width: 400px;"
+              :disabled="!dingtalkForm.enabled"
             />
           </el-form-item>
-          <el-form-item label="机器人ID">
-            <el-input 
-              v-model="settings.notificationConfig.dingtalk.id" 
+
+          <el-form-item label="机器人ID" prop="id">
+            <el-input
+              v-model="dingtalkForm.id"
               placeholder="请输入钉钉机器人ID"
               style="width: 400px;"
+              :disabled="!dingtalkForm.enabled"
             />
           </el-form-item>
-          <el-form-item label="Webhook地址">
-            <el-input 
-              v-model="settings.notificationConfig.dingtalk.webhookUrl" 
+
+          <el-form-item label="Webhook地址" prop="webhookUrl">
+            <el-input
+              v-model="dingtalkForm.webhookUrl"
               placeholder="请输入钉钉Webhook地址"
               style="width: 400px;"
-            />
+              :disabled="!dingtalkForm.enabled"
+            >
+              <template #prepend>
+                <el-icon><Link /></el-icon>
+              </template>
+            </el-input>
           </el-form-item>
-        </template>
-      </el-card>
-      
-      <!-- 企业微信通知配置 -->
-      <el-divider content-position="left">
-        <span style="font-weight: 600;">企业微信通知配置</span>
-      </el-divider>
-      <el-card shadow="never" style="margin-bottom: 20px; background-color: #fafafa;">
+        </div>
+      </el-form>
+
+      <div class="card-footer">
+        <el-button
+          type="primary"
+          @click="saveDingtalkConfig"
+          :loading="dingtalkSaving"
+        >
+          保存钉钉配置
+        </el-button>
+        <el-button @click="resetDingtalkForm">重置</el-button>
+      </div>
+    </el-card>
+
+    <!-- 卡片4: 企业微信通知配置 -->
+    <el-card class="config-card" shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span class="card-title">企业微信通知配置</span>
+          <el-icon><Message /></el-icon>
+        </div>
+      </template>
+
+      <el-form
+        ref="wecomFormRef"
+        :model="wecomForm"
+        :rules="wecomRules"
+        label-width="140px"
+        label-position="left"
+      >
         <el-form-item label="启用企业微信通知">
-          <el-switch v-model="settings.notificationConfig.wecom.enabled" />
+          <el-switch
+            v-model="wecomForm.enabled"
+            active-text="启用"
+            inactive-text="禁用"
+          />
         </el-form-item>
-        <template v-if="settings.notificationConfig.wecom.enabled">
-          <el-form-item label="机器人名称">
-            <el-input 
-              v-model="settings.notificationConfig.wecom.name" 
+
+        <div :class="{ 'disabled-inputs': !wecomForm.enabled }">
+          <el-form-item label="机器人名称" prop="name">
+            <el-input
+              v-model="wecomForm.name"
               placeholder="请输入企业微信机器人名称"
               style="width: 400px;"
+              :disabled="!wecomForm.enabled"
             />
           </el-form-item>
-          <el-form-item label="企业微信ID">
-            <el-input 
-              v-model="settings.notificationConfig.wecom.corpId" 
+
+          <el-form-item label="企业微信ID" prop="corpId">
+            <el-input
+              v-model="wecomForm.corpId"
               placeholder="请输入企业微信ID"
               style="width: 400px;"
+              :disabled="!wecomForm.enabled"
             />
           </el-form-item>
-          <el-form-item label="应用ID">
-            <el-input 
-              v-model="settings.notificationConfig.wecom.agentId" 
+
+          <el-form-item label="应用ID" prop="agentId">
+            <el-input
+              v-model="wecomForm.agentId"
               placeholder="请输入应用ID"
               style="width: 400px;"
+              :disabled="!wecomForm.enabled"
             />
           </el-form-item>
-          <el-form-item label="应用密钥">
-            <el-input 
-              v-model="settings.notificationConfig.wecom.appSecret" 
-              :type="settings.notificationConfig.wecom.showSecret ? 'text' : 'password'"
+
+          <el-form-item label="应用密钥" prop="appSecret">
+            <el-input
+              v-model="wecomForm.appSecret"
+              :type="wecomForm.showSecret ? 'text' : 'password'"
               placeholder="请输入企业微信应用密钥"
               style="width: 400px;"
+              :disabled="!wecomForm.enabled"
             >
               <template #append>
-                <el-checkbox v-model="settings.notificationConfig.wecom.showSecret">
+                <el-checkbox
+                  v-model="wecomForm.showSecret"
+                  :disabled="!wecomForm.enabled"
+                >
                   显示明文
                 </el-checkbox>
               </template>
             </el-input>
           </el-form-item>
-        </template>
-      </el-card>
-      
-      <!-- 邮箱通知配置 -->
-      <el-divider content-position="left">
-        <span style="font-weight: 600;">邮箱通知配置</span>
-      </el-divider>
-      <el-card shadow="never" style="margin-bottom: 20px; background-color: #fafafa;">
+        </div>
+      </el-form>
+
+      <div class="card-footer">
+        <el-button
+          type="primary"
+          @click="saveWecomConfig"
+          :loading="wecomSaving"
+        >
+          保存企业微信配置
+        </el-button>
+        <el-button @click="resetWecomForm">重置</el-button>
+      </div>
+    </el-card>
+
+    <!-- 卡片5: 邮箱通知配置 -->
+    <el-card class="config-card" shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span class="card-title">邮箱通知配置</span>
+          <el-icon><Promotion /></el-icon>
+        </div>
+      </template>
+
+      <el-form
+        ref="emailFormRef"
+        :model="emailForm"
+        :rules="emailRules"
+        label-width="140px"
+        label-position="left"
+      >
         <el-form-item label="启用邮箱通知">
-          <el-switch v-model="settings.notificationConfig.email.enabled" />
+          <el-switch
+            v-model="emailForm.enabled"
+            active-text="启用"
+            inactive-text="禁用"
+          />
         </el-form-item>
-        <template v-if="settings.notificationConfig.email.enabled">
-          <el-form-item label="邮箱地址">
-            <el-input 
-              v-model="settings.notificationConfig.email.address" 
+
+        <div :class="{ 'disabled-inputs': !emailForm.enabled }">
+          <el-form-item label="邮箱地址" prop="address">
+            <el-input
+              v-model="emailForm.address"
               placeholder="请输入邮箱地址"
               style="width: 400px;"
-            />
+              :disabled="!emailForm.enabled"
+            >
+              <template #prepend>
+                <el-icon><Message /></el-icon>
+              </template>
+            </el-input>
           </el-form-item>
-          <el-form-item label="SMTP服务器">
-            <el-input 
-              v-model="settings.notificationConfig.email.smtpServer" 
-              placeholder="请输入SMTP服务器"
+
+          <el-form-item label="SMTP服务器" prop="smtpServer">
+            <el-input
+              v-model="emailForm.smtpServer"
+              placeholder="请输入SMTP服务器地址"
               style="width: 400px;"
-            />
+              :disabled="!emailForm.enabled"
+            >
+              <template #prepend>
+                <el-icon><Monitor /></el-icon>
+              </template>
+            </el-input>
           </el-form-item>
-        </template>
-      </el-card>
-      
-      <el-form-item>
-        <el-button type="primary" @click="saveSettings">保存设置</el-button>
-      </el-form-item>
-    </el-form>
-  </el-card>
+        </div>
+      </el-form>
+
+      <div class="card-footer">
+        <el-button
+          type="primary"
+          @click="saveEmailConfig"
+          :loading="emailSaving"
+        >
+          保存邮箱配置
+        </el-button>
+        <el-button @click="resetEmailForm">重置</el-button>
+      </div>
+    </el-card>
+  </div>
 </template>
 
 <script setup>
-import { reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { 
-  getSystemConfig, 
-  updateSystemConfig, 
-  getNotificationConfig, 
+import {
+  Setting,
+  Document,
+  ChatDotRound,
+  Message,
+  Promotion,
+  Refresh,
+  Link,
+  Monitor
+} from '@element-plus/icons-vue'
+import {
+  getSystemConfig,
+  updateSystemConfig,
+  getNotificationConfig,
   updateNotificationConfig,
   getLoggingConfig,
   updateLoggingConfig
 } from '@/api/system'
 
-const settings = reactive({
-  systemName: 'Homalos',
-  devMode: true,              // 开发模式，默认开启
-  tradingTimeCheck: false,    // 交易时间检查，默认关闭
-  logging: {
-    level: 'INFO',            // 日志级别
-    rotationValue: 50,        // 文件大小上限数值
-    retentionValue: 14,       // 日志保留时间数值
-    compression: 'zip'        // 日志文件压缩格式
-  },
-  notificationConfig: {
-    dingtalk: {
-      enabled: false,        // 独立启用开关
-      name: '',              // 钉钉机器人名称
-      id: '',                // 钉钉机器人ID
-      webhookUrl: ''         // 钉钉Webhook地址
-    },
-    wecom: {
-      enabled: false,        // 独立启用开关
-      name: '',              // 企业微信机器人名称
-      corpId: '',            // 企业微信ID
-      agentId: '',           // 应用ID
-      appSecret: '',         // 应用密钥
-      showSecret: false      // 是否显示密钥明文
-    },
-    email: {
-      enabled: false,        // 独立启用开关
-      address: '',           // 邮箱地址
-      smtpServer: ''         // SMTP服务器
-    }
+// ========== 表单引用 ==========
+const basicFormRef = ref(null)
+const loggingFormRef = ref(null)
+const dingtalkFormRef = ref(null)
+const wecomFormRef = ref(null)
+const emailFormRef = ref(null)
+
+// ========== 基础配置表单 ==========
+const basicForm = reactive({
+  devMode: true,
+  tradingTimeCheck: false
+})
+const basicSaving = ref(false)
+const originalBasicForm = { ...basicForm }
+
+// ========== 日志配置表单 ==========
+const loggingForm = reactive({
+  level: 'INFO',
+  rotationValue: 50,
+  retentionValue: 14,
+  compression: 'zip'
+})
+const loggingSaving = ref(false)
+const originalLoggingForm = { ...loggingForm }
+
+// ========== 钉钉配置表单 ==========
+const dingtalkForm = reactive({
+  enabled: false,
+  name: '',
+  id: '',
+  webhookUrl: ''
+})
+const dingtalkSaving = ref(false)
+const originalDingtalkForm = { ...dingtalkForm }
+
+// ========== 企业微信配置表单 ==========
+const wecomForm = reactive({
+  enabled: false,
+  name: '',
+  corpId: '',
+  agentId: '',
+  appSecret: '',
+  showSecret: false
+})
+const wecomSaving = ref(false)
+const originalWecomForm = { ...wecomForm }
+
+// ========== 邮箱配置表单 ==========
+const emailForm = reactive({
+  enabled: false,
+  address: '',
+  smtpServer: ''
+})
+const emailSaving = ref(false)
+const originalEmailForm = { ...emailForm }
+
+// ========== 验证规则 ==========
+const dingtalkRules = computed(() => {
+  if (!dingtalkForm.enabled) return {}
+  return {
+    name: [{ required: true, message: '请输入机器人名称', trigger: 'blur' }],
+    id: [{ required: true, message: '请输入机器人ID', trigger: 'blur' }],
+    webhookUrl: [
+      { required: true, message: '请输入Webhook地址', trigger: 'blur' },
+      { type: 'url', message: '请输入正确的URL格式', trigger: 'blur' }
+    ]
   }
 })
 
-/**
- * 加载系统配置
- */
+const wecomRules = computed(() => {
+  if (!wecomForm.enabled) return {}
+  return {
+    name: [{ required: true, message: '请输入机器人名称', trigger: 'blur' }],
+    corpId: [{ required: true, message: '请输入企业微信ID', trigger: 'blur' }],
+    agentId: [{ required: true, message: '请输入应用ID', trigger: 'blur' }],
+    appSecret: [{ required: true, message: '请输入应用密钥', trigger: 'blur' }]
+  }
+})
+
+const emailRules = computed(() => {
+  if (!emailForm.enabled) return {}
+  return {
+    address: [
+      { required: true, message: '请输入邮箱地址', trigger: 'blur' },
+      { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
+    ],
+    smtpServer: [{ required: true, message: '请输入SMTP服务器', trigger: 'blur' }]
+  }
+})
+
+// ========== 加载配置 ==========
+const loadAllConfig = async () => {
+  await loadSystemConfig()
+  await loadLoggingConfig()
+  await loadNotificationConfig()
+  ElMessage.success('所有配置已刷新')
+}
+
 const loadSystemConfig = async () => {
   try {
     const response = await getSystemConfig()
     console.log('获取系统配置:', response)
-    
-    // 更新 settings 中的系统配置项
+
     if (response.dev_mode !== undefined) {
-      settings.devMode = response.dev_mode
+      basicForm.devMode = response.dev_mode
+      originalBasicForm.devMode = response.dev_mode
     }
     if (response.dev_trading_hours_check !== undefined) {
-      settings.tradingTimeCheck = response.dev_trading_hours_check
+      basicForm.tradingTimeCheck = response.dev_trading_hours_check
+      originalBasicForm.tradingTimeCheck = response.dev_trading_hours_check
     }
-    
-    console.log('系统配置已加载:', { devMode: settings.devMode, tradingTimeCheck: settings.tradingTimeCheck })
+
+    console.log('系统配置已加载')
   } catch (error) {
     console.error('加载系统配置失败:', error)
     ElMessage.error('加载系统配置失败')
   }
-  
-  // 加载通知配置
+}
+
+const loadLoggingConfig = async () => {
   try {
-    const notificationResponse = await getNotificationConfig()
-    console.log('获取通知配置:', notificationResponse)
-    
-    // 更新钉钉配置
-    if (notificationResponse.dingtalk) {
-      settings.notificationConfig.dingtalk.enabled = notificationResponse.dingtalk.enabled
-      settings.notificationConfig.dingtalk.name = notificationResponse.dingtalk.name
-      settings.notificationConfig.dingtalk.id = notificationResponse.dingtalk.id
-      settings.notificationConfig.dingtalk.webhookUrl = notificationResponse.dingtalk.webhookUrl
-    }
-    
-    // 更新企业微信配置
-    if (notificationResponse.wecom) {
-      settings.notificationConfig.wecom.enabled = notificationResponse.wecom.enabled
-      settings.notificationConfig.wecom.name = notificationResponse.wecom.name
-      settings.notificationConfig.wecom.corpId = notificationResponse.wecom.corpId
-      settings.notificationConfig.wecom.agentId = notificationResponse.wecom.agentId
-      settings.notificationConfig.wecom.appSecret = notificationResponse.wecom.appSecret
-    }
-    
-    // 更新邮件配置
-    if (notificationResponse.email) {
-      settings.notificationConfig.email.enabled = notificationResponse.email.enabled
-      settings.notificationConfig.email.address = notificationResponse.email.address
-      settings.notificationConfig.email.smtpServer = notificationResponse.email.smtpServer
-    }
-    
-    console.log('通知配置已加载')
-  } catch (error) {
-    console.error('加载通知配置失败:', error)
-    ElMessage.warning('加载通知配置失败，使用默认配置')
-  }
-  
-  // 加载日志配置
-  try {
-    const loggingResponse = await getLoggingConfig()
-    console.log('获取日志配置:', loggingResponse)
-    
-    if (loggingResponse) {
-      settings.logging.level = loggingResponse.level
-      
+    const response = await getLoggingConfig()
+    console.log('获取日志配置:', response)
+
+    if (response) {
+      loggingForm.level = response.level
+
       // 拆分 rotation (例如 "50 MB" -> 50)
-      if (loggingResponse.rotation) {
-        const rotationMatch = loggingResponse.rotation.match(/^(\d+)/)
-        settings.logging.rotationValue = rotationMatch ? parseInt(rotationMatch[1]) : 50
+      if (response.rotation) {
+        const rotationMatch = response.rotation.match(/^(\d+)/)
+        loggingForm.rotationValue = rotationMatch ? parseInt(rotationMatch[1]) : 50
+        originalLoggingForm.rotationValue = loggingForm.rotationValue
       }
-      
+
       // 拆分 retention (例如 "14 days" -> 14)
-      if (loggingResponse.retention) {
-        const retentionMatch = loggingResponse.retention.match(/^(\d+)/)
-        settings.logging.retentionValue = retentionMatch ? parseInt(retentionMatch[1]) : 14
+      if (response.retention) {
+        const retentionMatch = response.retention.match(/^(\d+)/)
+        loggingForm.retentionValue = retentionMatch ? parseInt(retentionMatch[1]) : 14
+        originalLoggingForm.retentionValue = loggingForm.retentionValue
       }
-      
-      settings.logging.compression = loggingResponse.compression
+
+      loggingForm.compression = response.compression
+      originalLoggingForm.level = response.level
+      originalLoggingForm.compression = response.compression
     }
-    
+
     console.log('日志配置已加载')
   } catch (error) {
     console.error('加载日志配置失败:', error)
@@ -312,154 +550,327 @@ const loadSystemConfig = async () => {
   }
 }
 
-/**
- * 保存系统设置
- */
-const saveSettings = async () => {
-  let systemConfigSaved = false
-  let loggingConfigSaved = false
-  let notificationConfigSaved = false
-  
-  // ========== 第一步：保存系统配置 ==========
+const loadNotificationConfig = async () => {
   try {
-    const systemConfig = {
-      dev_mode: settings.devMode,
-      dev_trading_hours_check: settings.tradingTimeCheck
+    const response = await getNotificationConfig()
+    console.log('获取通知配置:', response)
+
+    // 更新钉钉配置
+    if (response.dingtalk) {
+      dingtalkForm.enabled = response.dingtalk.enabled
+      dingtalkForm.name = response.dingtalk.name
+      dingtalkForm.id = response.dingtalk.id
+      dingtalkForm.webhookUrl = response.dingtalk.webhookUrl
+      Object.assign(originalDingtalkForm, { ...dingtalkForm })
     }
-    
-    console.log('保存系统配置:', systemConfig)
-    
-    const response = await updateSystemConfig(systemConfig)
+
+    // 更新企业微信配置
+    if (response.wecom) {
+      wecomForm.enabled = response.wecom.enabled
+      wecomForm.name = response.wecom.name
+      wecomForm.corpId = response.wecom.corpId
+      wecomForm.agentId = response.wecom.agentId
+      wecomForm.appSecret = response.wecom.appSecret
+      Object.assign(originalWecomForm, { ...wecomForm, showSecret: false })
+    }
+
+    // 更新邮件配置
+    if (response.email) {
+      emailForm.enabled = response.email.enabled
+      emailForm.address = response.email.address
+      emailForm.smtpServer = response.email.smtpServer
+      Object.assign(originalEmailForm, { ...emailForm })
+    }
+
+    console.log('通知配置已加载')
+  } catch (error) {
+    console.error('加载通知配置失败:', error)
+    ElMessage.warning('加载通知配置失败，使用默认配置')
+  }
+}
+
+// ========== 保存配置 ==========
+const saveBasicConfig = async () => {
+  basicSaving.value = true
+  try {
+    const config = {
+      dev_mode: basicForm.devMode,
+      dev_trading_hours_check: basicForm.tradingTimeCheck
+    }
+
+    console.log('保存系统配置:', config)
+    const response = await updateSystemConfig(config)
     console.log('系统配置保存响应:', response)
-    
-    systemConfigSaved = true
-    ElMessage.success('系统配置保存成功')
+
+    Object.assign(originalBasicForm, { ...basicForm })
+    ElMessage.success('基础配置保存成功')
   } catch (error) {
     console.error('保存系统配置失败:', error)
-    ElMessage.error('系统配置保存失败')
+    ElMessage.error('基础配置保存失败')
+  } finally {
+    basicSaving.value = false
   }
-  
-  // ========== 第二步：保存日志配置 ==========
+}
+
+const saveLoggingConfig = async () => {
+  loggingSaving.value = true
   try {
-    const loggingConfig = {
-      level: settings.logging.level,
-      rotation: `${settings.logging.rotationValue} MB`,  // 数值 + 空格 + 单位
-      retention: `${settings.logging.retentionValue} days`,  // 数值 + 空格 + 单位
-      compression: settings.logging.compression
+    const config = {
+      level: loggingForm.level,
+      rotation: `${loggingForm.rotationValue} MB`,
+      retention: `${loggingForm.retentionValue} days`,
+      compression: loggingForm.compression
     }
-    
-    console.log('保存日志配置:', loggingConfig)
-    
-    const loggingResponse = await updateLoggingConfig(loggingConfig)
-    console.log('日志配置保存响应:', loggingResponse)
-    
-    loggingConfigSaved = true
+
+    console.log('保存日志配置:', config)
+    const response = await updateLoggingConfig(config)
+    console.log('日志配置保存响应:', response)
+
+    Object.assign(originalLoggingForm, { ...loggingForm })
     ElMessage.success('日志配置保存成功')
   } catch (error) {
     console.error('保存日志配置失败:', error)
     ElMessage.error('日志配置保存失败')
-  }
-  
-  // ========== 第三步：验证并保存通知配置 ==========
-  const errors = []
-  
-  // 钉钉配置验证
-  if (settings.notificationConfig.dingtalk.enabled) {
-    if (!settings.notificationConfig.dingtalk.name) {
-      errors.push('钉钉机器人名称')
-    }
-    if (!settings.notificationConfig.dingtalk.id) {
-      errors.push('钉钉机器人ID')
-    }
-    if (!settings.notificationConfig.dingtalk.webhookUrl) {
-      errors.push('钉钉Webhook地址')
-    }
-  }
-  
-  // 企业微信配置验证
-  if (settings.notificationConfig.wecom.enabled) {
-    if (!settings.notificationConfig.wecom.name) {
-      errors.push('企业微信机器人名称')
-    }
-    if (!settings.notificationConfig.wecom.corpId) {
-      errors.push('企业微信ID')
-    }
-    if (!settings.notificationConfig.wecom.agentId) {
-      errors.push('应用ID')
-    }
-    if (!settings.notificationConfig.wecom.appSecret) {
-      errors.push('企业微信应用密钥')
-    }
-  }
-  
-  // 邮箱配置验证
-  if (settings.notificationConfig.email.enabled) {
-    if (!settings.notificationConfig.email.address) {
-      errors.push('邮箱地址')
-    }
-    if (!settings.notificationConfig.email.smtpServer) {
-      errors.push('SMTP服务器')
-    }
-  }
-  
-  // 如果有未填写的配置，显示警告（但不影响系统配置的保存）
-  if (errors.length > 0) {
-    ElMessage.warning(`通知配置未完整填写：${errors.join('、')}，已跳过保存通知配置`)
-    console.log('通知配置验证失败，跳过保存')
-  } else {
-    // 保存通知配置到后端
-    try {
-      const notificationConfig = {
-        dingtalk: {
-          enabled: settings.notificationConfig.dingtalk.enabled,
-          name: settings.notificationConfig.dingtalk.name,
-          id: settings.notificationConfig.dingtalk.id,
-          webhookUrl: settings.notificationConfig.dingtalk.webhookUrl
-        },
-        wecom: {
-          enabled: settings.notificationConfig.wecom.enabled,
-          name: settings.notificationConfig.wecom.name,
-          corpId: settings.notificationConfig.wecom.corpId,
-          agentId: settings.notificationConfig.wecom.agentId,
-          appSecret: settings.notificationConfig.wecom.appSecret
-        },
-        email: {
-          enabled: settings.notificationConfig.email.enabled,
-          address: settings.notificationConfig.email.address,
-          smtpServer: settings.notificationConfig.email.smtpServer
-        }
-      }
-      
-      console.log('保存通知配置:', notificationConfig)
-      
-      const notificationResponse = await updateNotificationConfig(notificationConfig)
-      console.log('通知配置保存响应:', notificationResponse)
-      
-      notificationConfigSaved = true
-      ElMessage.success('通知配置保存成功')
-      
-      // 如果所有配置都保存成功，显示完整成功消息
-      if (systemConfigSaved && loggingConfigSaved && notificationConfigSaved) {
-        ElMessage.success('所有设置保存成功')
-      }
-    } catch (error) {
-      console.error('保存通知配置失败:', error)
-      ElMessage.error('通知配置保存失败')
-    }
+  } finally {
+    loggingSaving.value = false
   }
 }
 
-// 组件挂载时加载系统配置
+const saveDingtalkConfig = async () => {
+  // 如果启用，先验证表单
+  if (dingtalkForm.enabled) {
+    const valid = await dingtalkFormRef.value?.validate().catch(() => false)
+    if (!valid) {
+      ElMessage.warning('请完整填写钉钉配置信息')
+      return
+    }
+  }
+
+  dingtalkSaving.value = true
+  try {
+    const config = {
+      dingtalk: {
+        enabled: dingtalkForm.enabled,
+        name: dingtalkForm.name,
+        id: dingtalkForm.id,
+        webhookUrl: dingtalkForm.webhookUrl
+      }
+    }
+
+    console.log('保存钉钉配置:', config)
+    const response = await updateNotificationConfig(config)
+    console.log('钉钉配置保存响应:', response)
+
+    Object.assign(originalDingtalkForm, { ...dingtalkForm })
+    ElMessage.success('钉钉配置保存成功')
+  } catch (error) {
+    console.error('保存钉钉配置失败:', error)
+    ElMessage.error('钉钉配置保存失败')
+  } finally {
+    dingtalkSaving.value = false
+  }
+}
+
+const saveWecomConfig = async () => {
+  // 如果启用，先验证表单
+  if (wecomForm.enabled) {
+    const valid = await wecomFormRef.value?.validate().catch(() => false)
+    if (!valid) {
+      ElMessage.warning('请完整填写企业微信配置信息')
+      return
+    }
+  }
+
+  wecomSaving.value = true
+  try {
+    const config = {
+      wecom: {
+        enabled: wecomForm.enabled,
+        name: wecomForm.name,
+        corpId: wecomForm.corpId,
+        agentId: wecomForm.agentId,
+        appSecret: wecomForm.appSecret
+      }
+    }
+
+    console.log('保存企业微信配置:', config)
+    const response = await updateNotificationConfig(config)
+    console.log('企业微信配置保存响应:', response)
+
+    Object.assign(originalWecomForm, { ...wecomForm, showSecret: false })
+    ElMessage.success('企业微信配置保存成功')
+  } catch (error) {
+    console.error('保存企业微信配置失败:', error)
+    ElMessage.error('企业微信配置保存失败')
+  } finally {
+    wecomSaving.value = false
+  }
+}
+
+const saveEmailConfig = async () => {
+  // 如果启用，先验证表单
+  if (emailForm.enabled) {
+    const valid = await emailFormRef.value?.validate().catch(() => false)
+    if (!valid) {
+      ElMessage.warning('请完整填写邮箱配置信息')
+      return
+    }
+  }
+
+  emailSaving.value = true
+  try {
+    const config = {
+      email: {
+        enabled: emailForm.enabled,
+        address: emailForm.address,
+        smtpServer: emailForm.smtpServer
+      }
+    }
+
+    console.log('保存邮箱配置:', config)
+    const response = await updateNotificationConfig(config)
+    console.log('邮箱配置保存响应:', response)
+
+    Object.assign(originalEmailForm, { ...emailForm })
+    ElMessage.success('邮箱配置保存成功')
+  } catch (error) {
+    console.error('保存邮箱配置失败:', error)
+    ElMessage.error('邮箱配置保存失败')
+  } finally {
+    emailSaving.value = false
+  }
+}
+
+// ========== 重置表单 ==========
+const resetBasicForm = () => {
+  Object.assign(basicForm, originalBasicForm)
+  ElMessage.info('已重置基础配置')
+}
+
+const resetLoggingForm = () => {
+  Object.assign(loggingForm, originalLoggingForm)
+  ElMessage.info('已重置日志配置')
+}
+
+const resetDingtalkForm = () => {
+  Object.assign(dingtalkForm, originalDingtalkForm)
+  dingtalkFormRef.value?.clearValidate()
+  ElMessage.info('已重置钉钉配置')
+}
+
+const resetWecomForm = () => {
+  Object.assign(wecomForm, originalWecomForm)
+  wecomForm.showSecret = false
+  wecomFormRef.value?.clearValidate()
+  ElMessage.info('已重置企业微信配置')
+}
+
+const resetEmailForm = () => {
+  Object.assign(emailForm, originalEmailForm)
+  emailFormRef.value?.clearValidate()
+  ElMessage.info('已重置邮箱配置')
+}
+
+// ========== 生命周期 ==========
 onMounted(() => {
-  loadSystemConfig()
+  loadAllConfig()
 })
 </script>
 
 <style scoped>
+/* 页面布局 */
+.settings-page {
+  padding: 0;
+}
+
+/* 页面标题卡片 */
+.header-card {
+  margin-bottom: 20px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.page-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+}
+
+/* 配置卡片 */
+.config-card {
+  margin-bottom: 20px;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-</style>
 
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+/* 卡片底部按钮区 */
+.card-footer {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #EBEEF5;
+  display: flex;
+  gap: 12px;
+}
+
+/* 表单项布局 */
+.form-item-with-hint {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.input-with-unit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.unit-text {
+  font-weight: 500;
+  color: #606266;
+  min-width: 30px;
+}
+
+.hint-text {
+  color: #909399;
+  font-size: 13px;
+}
+
+/* 禁用输入框样式 */
+.disabled-inputs {
+  opacity: 0.6;
+}
+
+/* 表单样式微调 */
+:deep(.el-form-item) {
+  margin-bottom: 22px;
+}
+
+:deep(.el-form-item__label) {
+  font-weight: 500;
+}
+
+:deep(.el-input-number) {
+  width: 150px;
+}
+
+/* 开关样式 */
+:deep(.el-switch) {
+  --el-switch-on-color: #409eff;
+}
+</style>
