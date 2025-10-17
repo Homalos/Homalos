@@ -1,10 +1,10 @@
 <template>
   <div class="alarm-management">
-    <!-- 告警设置页面 -->
-    <AlarmSettings v-if="showSettings" @back="showSettings = false" />
-    
-    <!-- 告警管理主页面 -->
-    <template v-else>
+    <!-- 使用路由视图支持子路由（告警设置） -->
+    <router-view v-slot="{ Component }">
+      <component :is="Component" v-if="Component" />
+      <template v-else>
+        <!-- 告警管理主页面（告警列表） -->
       <el-card class="header-card" shadow="hover">
         <div class="page-header">
           <div class="header-left">
@@ -15,7 +15,7 @@
           </div>
           <div class="header-right">
             <el-button :icon="Refresh" @click="handleRefresh">刷新</el-button>
-            <el-button type="primary" @click="showSettings = true">告警设置</el-button>
+            <el-button type="primary" @click="$router.push('/alarms/settings')">告警设置</el-button>
           </div>
         </div>
       </el-card>
@@ -275,23 +275,22 @@
         </el-button>
       </template>
     </el-dialog>
-    </template>
+      </template>
+    </router-view>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAlarmStore } from '@/stores/alarm'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import AlarmSettings from '@/views/AlarmSettings.vue'
 import { Bell, Warning, InfoFilled, CircleCheck, Refresh } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const alarmStore = useAlarmStore()
 
 // 状态
-const showSettings = ref(false)
 const loading = ref(false)
 const detailDialogVisible = ref(false)
 const selectedAlarm = ref(null)
@@ -415,8 +414,6 @@ async function handleResolve(row) {
   }
 }
 
-// goToSettings函数已移除，现在使用showSettings状态切换视图
-
 // 格式化函数
 function getSeverityType(severity) {
   const types = {
@@ -483,16 +480,6 @@ function formatDateTime(timestamp) {
   })
 }
 
-// 监听来自导航栏的设置页面切换事件
-const handleShowSettings = () => {
-  showSettings.value = true
-}
-
-// 监听来自导航栏的重置到主页面事件
-const handleResetToMainPage = () => {
-  showSettings.value = false
-}
-
 // 生命周期
 onMounted(() => {
   loadData()
@@ -501,24 +488,9 @@ onMounted(() => {
   if (!alarmStore.wsConnected) {
     alarmStore.connectWebSocket()
   }
-  
-  // 添加事件监听器
-  const element = document.querySelector('.alarm-management')
-  if (element) {
-    element.addEventListener('showAlarmSettings', handleShowSettings)
-    element.addEventListener('resetToMainPage', handleResetToMainPage)
-  }
 })
 
-onUnmounted(() => {
-  // 清理事件监听器
-  const element = document.querySelector('.alarm-management')
-  if (element) {
-    element.removeEventListener('showAlarmSettings', handleShowSettings)
-    element.removeEventListener('resetToMainPage', handleResetToMainPage)
-  }
-  // 不断开WebSocket，保持全局连接
-})
+// 不需要 onUnmounted，因为不再使用事件监听器和自定义事件
 </script>
 
 <style scoped>

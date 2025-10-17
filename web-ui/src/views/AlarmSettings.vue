@@ -248,9 +248,6 @@ import { Setting, Message, Bell, Refresh } from '@element-plus/icons-vue'
 const router = useRouter()
 const alarmStore = useAlarmStore()
 
-// 定义emit
-const emit = defineEmits(['back'])
-
 // 表单引用
 const thresholdFormRef = ref(null)
 const notificationFormRef = ref(null)
@@ -393,7 +390,7 @@ async function handleBrowserNotificationChange(enabled) {
 }
 
 function goBack() {
-  emit('back')
+  router.push('/alarms')
 }
 
 // 生命周期

@@ -11,13 +11,15 @@
 """
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+
+from src.system_config import Config
 from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger
 
 logger = get_logger(__name__)
 
 # 数据库文件路径
-DATABASE_URL = f"sqlite+aiosqlite:///{get_path_ins.get_data_dir()}/homalos_web.db"
+DATABASE_URL = Config.database_path
 
 # 创建异步引擎
 engine = create_async_engine(

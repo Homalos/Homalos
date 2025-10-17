@@ -91,39 +91,39 @@
       <!-- 侧边栏 -->
       <el-aside width="200px" class="sidebar">
         <el-menu
-          :default-active="activeMenu"
+          :default-active="currentMenuIndex"
           class="sidebar-menu"
           @select="handleMenuSelect"
         >
-          <el-menu-item index="dashboard">
+          <el-menu-item index="/dashboard">
             <el-icon><Monitor /></el-icon>
             <span>仪表盘</span>
           </el-menu-item>
-          <el-menu-item index="console">
+          <el-menu-item index="/console">
             <el-icon><Operation /></el-icon>
             <span>控制台</span>
           </el-menu-item>
-          <el-menu-item index="strategy">
+          <el-menu-item index="/strategy">
             <el-icon><DataAnalysis /></el-icon>
             <span>策略管理</span>
           </el-menu-item>
-          <el-menu-item index="task-scheduler">
+          <el-menu-item index="/task-scheduler">
             <el-icon><Timer /></el-icon>
             <span>任务调度器</span>
           </el-menu-item>
-          <el-menu-item index="alarms">
+          <el-menu-item index="/alarms">
             <el-icon><Bell /></el-icon>
             <span>告警管理</span>
           </el-menu-item>
-          <el-menu-item index="notifications">
+          <el-menu-item index="/notifications">
             <el-icon><Bell /></el-icon>
             <span>通知中心</span>
           </el-menu-item>
-          <el-menu-item index="settings">
+          <el-menu-item index="/settings">
             <el-icon><Setting /></el-icon>
             <span>系统设置</span>
           </el-menu-item>
-          <el-menu-item index="about">
+          <el-menu-item index="/about">
             <el-icon><InfoFilled /></el-icon>
             <span>关于</span>
           </el-menu-item>
@@ -132,60 +132,18 @@
 
       <!-- 主内容区 -->
       <el-main class="main-content">
-        <!-- 仪表盘 -->
-        <div v-if="activeMenu === 'dashboard'" style="position: relative;">
-          <Dashboard />
-          <PageMask 
-            :show="!tradingAccountStore.isLoggedIn" 
-            @login="showTradingLogin = true"
-          />
-        </div>
-
-        <!-- 控制台 -->
-        <div v-if="activeMenu === 'console'" style="position: relative;">
-          <Console />
-          <PageMask 
-            :show="!tradingAccountStore.isLoggedIn" 
-            @login="showTradingLogin = true"
-          />
-                  </div>
-
-        <!-- 策略管理 -->
-        <div v-if="activeMenu === 'strategy'" style="position: relative;">
-          <StrategyManagement />
-          <PageMask 
-            :show="!tradingAccountStore.isLoggedIn" 
-            @login="showTradingLogin = true"
-          />
-                  </div>
-
-        <!-- 通知中心 -->
-        <div v-if="activeMenu === 'notifications'" style="position: relative;">
-          <Notifications />
-          <PageMask 
-            :show="!tradingAccountStore.isLoggedIn" 
-            @login="showTradingLogin = true"
-          />
-            </div>
-
-        <!-- 任务调度器 -->
-        <div v-if="activeMenu === 'task-scheduler'" style="position: relative;">
-          <TaskScheduler />
-          <PageMask 
-            :show="!tradingAccountStore.isLoggedIn" 
-            @login="showTradingLogin = true"
-          />
-            </div>
-
-        <!-- 告警管理 -->
-        <AlarmManagement v-if="activeMenu === 'alarms'" />
-
-        <!-- 系统设置（完全可访问） -->
-        <Settings v-if="activeMenu === 'settings'" />
-
-        <!-- 关于（完全可访问） -->
-        <About v-if="activeMenu === 'about'" />
-
+        <!-- 使用路由视图渲染子页面 -->
+        <router-view v-slot="{ Component, route }">
+          <div style="position: relative;">
+            <component :is="Component" />
+            <!-- 需要资金账户登录的页面显示遮罩 -->
+            <PageMask 
+              v-if="route.meta.requiresTradingAuth && !tradingAccountStore.isLoggedIn"
+              :show="true" 
+              @login="showTradingLogin = true"
+            />
+          </div>
+        </router-view>
       </el-main>
     </el-container>
     
@@ -211,7 +169,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import {
   User,
   ArrowDown,
@@ -242,27 +200,25 @@ import { getSystemStats } from '@/api/monitor'
 import {
   useNotifications
 } from '@/composables'
-// 组件导入
-import Console from '@/components/Console.vue'
-import TaskScheduler from '@/components/TaskScheduler.vue'
-import Notifications from '@/components/Notifications.vue'
-import Settings from '@/components/Settings.vue'
-import About from '@/components/About.vue'
-import Dashboard from '@/components/Dashboard.vue'
-import StrategyManagement from '@/components/StrategyManagement.vue'
+// 组件导入（页面组件由路由懒加载，这里只导入对话框和公共组件）
 import TradingAccountLogin from '@/components/TradingAccountLogin.vue'
 import AccountManager from '@/components/AccountManager.vue'
 import FirstTimeGuide from '@/components/FirstTimeGuide.vue'
 import PageMask from '@/components/PageMask.vue'
 import NotificationCenter from '@/components/NotificationCenter.vue'
-import AlarmManagement from '@/views/AlarmManagement.vue'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const tradingAccountStore = useTradingAccountStore()
 
-// 默认显示"关于"页面，登录资金账户后切换到仪表盘
-const activeMenu = ref('about')
+// 根据当前路由计算侧边栏高亮项
+const currentMenuIndex = computed(() => {
+  const path = route.path
+  // 特殊处理告警管理子路由，统一高亮告警管理菜单
+  if (path.startsWith('/alarms')) return '/alarms'
+  return path
+})
 
 // 对话框状态
 const showTradingLogin = ref(false)
@@ -277,65 +233,36 @@ const {
   markAllAsRead
 } = useNotifications()
 
-const handleMenuSelect = (index) => {
-  activeMenu.value = index
-  
-  // 如果切换到告警管理，重置到主页面
-  if (index === 'alarms') {
-    setTimeout(() => {
-      const alarmManagementComponent = document.querySelector('.alarm-management')
-      if (alarmManagementComponent) {
-        const event = new CustomEvent('resetToMainPage')
-        alarmManagementComponent.dispatchEvent(event)
-      }
-    }, 100)
-  }
+const handleMenuSelect = (path) => {
+  router.push(path)
 }
 
 /**
  * 处理控制台图标点击
  */
 const handleConsoleClick = () => {
-  activeMenu.value = 'console'
+  router.push('/console')
 }
 
 /**
  * 处理设置图标点击
  */
 const handleSettingsClick = () => {
-  activeMenu.value = 'settings'
+  router.push('/settings')
 }
 
 /**
  * 处理切换到告警管理
  */
 const handleSwitchToAlarms = () => {
-  activeMenu.value = 'alarms'
-  // 等待组件渲染后重置到主页面
-  setTimeout(() => {
-    const alarmManagementComponent = document.querySelector('.alarm-management')
-    if (alarmManagementComponent) {
-      const event = new CustomEvent('resetToMainPage')
-      alarmManagementComponent.dispatchEvent(event)
-    }
-  }, 100)
+  router.push('/alarms')
 }
 
 /**
  * 处理切换到告警设置
  */
 const handleSwitchToAlarmSettings = () => {
-  activeMenu.value = 'alarms'
-  // 需要等待组件渲染后再切换到设置子页面
-  setTimeout(() => {
-    // 通过事件或状态通知AlarmManagement组件显示设置页面
-    const alarmManagementComponent = document.querySelector('.alarm-management')
-    if (alarmManagementComponent) {
-      // 触发显示设置页面的逻辑
-      const event = new CustomEvent('showAlarmSettings')
-      alarmManagementComponent.dispatchEvent(event)
-    }
-  }, 100)
+  router.push('/alarms/settings')
 }
 
 /**
@@ -372,7 +299,7 @@ async function handleLogoutTrading() {
     
     await tradingAccountStore.logout()
     ElMessage.success('已退出资金账户')
-    activeMenu.value = 'about'
+    router.push('/about')
   } catch (error) {
     // 取消操作
   }
@@ -411,7 +338,7 @@ async function handleLogout() {
  * 处理通知图标点击，跳转到通知中心
  */
 const handleNotificationClick = () => {
-  activeMenu.value = 'notifications'
+  router.push('/notifications')
 }
 
 /**
@@ -419,7 +346,10 @@ const handleNotificationClick = () => {
  */
 function handleTradingLoginSuccess(account) {
   ElMessage.success('资金账户登录成功')
-  activeMenu.value = 'dashboard'
+  // 只在 about 页面或根路径时才跳转到 dashboard，否则保持当前页面
+  if (route.path === '/about' || route.path === '/') {
+    router.push('/dashboard')
+  }
 }
 
 /**
@@ -428,7 +358,7 @@ function handleTradingLoginSuccess(account) {
 function handleGuideFinish(completed) {
   if (completed) {
     ElMessage.success('欢迎使用 Homalos 量化交易系统！')
-    activeMenu.value = 'dashboard'
+    router.push('/dashboard')
   }
 }
 
@@ -481,10 +411,7 @@ onMounted(async () => {
   // 检查是否首次使用
   checkFirstTime()
   
-  // 如果已登录资金账户，切换到仪表盘
-  if (tradingAccountStore.isLoggedIn) {
-    activeMenu.value = 'dashboard'
-  }
+  // 不再强制跳转到仪表盘，保持用户当前页面
 })
 </script>
 

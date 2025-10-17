@@ -14,6 +14,7 @@ from typing import Any
 from ruamel.yaml import YAML
 
 from src.constants import BROKERS_FILENAME
+from src.utils.config_manager import ConfigManager
 from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger
 
@@ -24,6 +25,8 @@ class BrokerService:
     """券商配置服务"""
     
     _CONFIG_FILE = get_path_ins.get_config_dir() / BROKERS_FILENAME
+    brokers_config = {}
+    brokers_cfg_manager = ConfigManager(_CONFIG_FILE)
     
     @classmethod
     def get_broker_list(cls) -> list[dict[str, str]]:
@@ -34,12 +37,18 @@ class BrokerService:
             [{"broker_key": "simnow", "broker_id": "9999", "name": "SimNow模拟", "description": "..."}]
         """
         try:
-            yaml = YAML()
-            with open(cls._CONFIG_FILE, 'r', encoding='utf-8') as f:
-                config = yaml.load(f) or {}
-            
-            brokers_config = config.get('base', {}).get('brokers', {})
-            
+            # yaml = YAML()
+            # with open(cls._CONFIG_FILE, 'r', encoding='utf-8') as f:
+            #     config = yaml.load(f) or {}
+
+            # brokers_config = config.get('base', {}).get('brokers', {})
+
+            brokers_base = cls.brokers_cfg_manager.get("base", {})
+            if not brokers_base:
+                logger.warning("请检查券商配置文件，base配置为空或不存在")
+            else:
+                cls.brokers_config = brokers_base.get('brokers', {})
+
             broker_list = []
             broker_names = {
                 'simnow': 'SimNow模拟（日盘）',
@@ -50,7 +59,7 @@ class BrokerService:
                 'everbright': '光大期货-主席'
             }
             
-            for key, broker_config in brokers_config.items():
+            for key, broker_config in cls.brokers_config.items():
                 broker_list.append({
                     'broker_key': key,  # 使用配置key作为唯一标识符
                     'broker_id': broker_config.get('broker_id', '9999'),
@@ -77,12 +86,19 @@ class BrokerService:
             券商配置字典
         """
         try:
-            yaml = YAML()
-            with open(cls._CONFIG_FILE, 'r', encoding='utf-8') as f:
-                config = yaml.load(f) or {}
+            # yaml = YAML()
+            # with open(cls._CONFIG_FILE, 'r', encoding='utf-8') as f:
+            #     config = yaml.load(f) or {}
             
-            brokers_config = config.get('base', {}).get('brokers', {})
-            return brokers_config.get(broker_key, {})
+            # brokers_config = config.get('base', {}).get('brokers', {})
+
+            brokers_base = cls.brokers_cfg_manager.get("base", {})
+            if not brokers_base:
+                logger.warning("请检查券商配置文件，base配置为空或不存在")
+            else:
+                cls.brokers_config = brokers_base.get('brokers', {})
+
+            return cls.brokers_config.get(broker_key, {})
             
         except Exception as e:
             logger.error(f"读取券商配置失败: {e}")

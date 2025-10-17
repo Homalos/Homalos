@@ -9,10 +9,7 @@
 @Software   : PyCharm
 @Description: 获取系统配置信息
 """
-from pathlib import Path
-
 from src.constants import (
-    CONFIG_DIR_NAME,
     SYSTEM_DEV_CONFIG_FILENAME,
     SYSTEM_PROD_CONFIG_FILENAME,
     SYSTEM_CONFIG_FILENAME
@@ -27,7 +24,6 @@ class Config(object):
     系统配置类
     """
     # 配置目录
-    # config_dir_path = Path(__file__).resolve().parent.parent / CONFIG_DIR_NAME
     config_dir_path = get_path_ins.get_config_dir()
     # 系统配置文件 system.yaml
     _system_config_path = config_dir_path / SYSTEM_CONFIG_FILENAME
@@ -44,17 +40,32 @@ class Config(object):
     system_version = system_config.get("base").get("version")
     timezone = system_config.get("base").get("timezone")
     dev_mode = system_config.get("base").get("dev_mode")
-    dev_trading_hours = system_config.get("base.dev_trading_hours_check")
 
     # 如果是开发模式，则使用开发配置文件
     if dev_mode:
         extra_config = ConfigManager(str(_dev_config_path))
     else:
         extra_config = ConfigManager(str(_prod_config_path))
-    data_dir_name = extra_config.get("base.data_dir")                       # 数据目录名
-    log_dir_name = extra_config.get("base.log_dir")                         # 日志目录名
-    flow_dir_name = extra_config.get("base.flow_dir")                       # 流水目录名
-    timezone = extra_config.get("base.timezone")                            # 时区
+
+    # 目录
+    assets_dir_name = extra_config.get("base.assets_dir")   # 资产目录名
+    flow_dir_name = extra_config.get("base.flow_dir")       # 流水目录名
+    config_dir_name = extra_config.get("base.config_dir")   # 配置目录名
+    data_dir_name = extra_config.get("base.data_dir")       # 数据目录名
+    docs_dir_name = extra_config.get("base.docs_dir")       # 文档目录名
+    i18n_dir_name = extra_config.get("base.i18n_dir")       # 国际化目录名
+    logs_dir_name = extra_config.get("base.logs_dir")       # 日志目录名
+    tests_dir_name = extra_config.get("base.tests_dir")     # 测试目录名
+
+    # 数据库
+    database_type = extra_config.get("database.type")           # 数据库类型
+    database_filename = extra_config.get("database.filename")   # 数据库文件名
+    if database_type == "sqlite":
+        database_path = f"sqlite+aiosqlite:///{get_path_ins.get_data_dir()}/{database_filename}"
+    else:
+        database_path = ""
+
+    # 交易时间检查
     trading_hours_check = extra_config.get("trading_hours.enable_check")    # 交易时间检查
     futures = extra_config.get("trading_hours.futures")                     # 期货交易时间
 

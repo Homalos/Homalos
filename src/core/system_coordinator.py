@@ -14,7 +14,7 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 from threading import Lock
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any
 
 from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
@@ -61,7 +61,7 @@ class SystemCoordinator:
     """
     
     def __init__(self, event_bus: EventBus):
-        self.logger = get_logger("SystemCoordinator")
+        self.logger = get_logger(self.__class__.__name__)
         self.event_bus = event_bus
         
         # 模块管理

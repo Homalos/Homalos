@@ -187,6 +187,8 @@ def write_ini(config_parser: configparser.ConfigParser, file_path: str) -> None:
         file_path (str): 要写入的ini文件路径。
 
     """
+    # with open(file_path, 'w', encoding='utf-8') as f:
+    #     config_parser.write(f)
     config_parser.write(open(file_path, "w", encoding='utf-8'))
 
 def load_yaml(config_path: str) -> dict:
