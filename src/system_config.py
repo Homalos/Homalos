@@ -69,6 +69,12 @@ class Config(object):
     trading_hours_check = extra_config.get("trading_hours.enable_check")    # 交易时间检查
     futures = extra_config.get("trading_hours.futures")                     # 期货交易时间
 
+    kline_dir_name = extra_config.get("data.kline_dir")     # K线数据目录名
+    tick_dir_name = extra_config.get("data.tick_dir")       # Tick数据目录名
+    strategy_states_dir_name = extra_config.get("data.strategy_states_dir") # 策略状态数据目录名
+    trading_dir_name = extra_config.get("data.trading_dir")     # 交易时间数据目录名
+    trading_flow_dir_name = extra_config.get("data.trading_flow_dir")   # 交易流水数据目录名
+
     # 微信相关配置
     wx_app_name: str = extra_config.get("wx_app_name", "")
     wx_agent_id: int = extra_config.get("wx_agent_id", 0)

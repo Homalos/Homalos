@@ -23,6 +23,8 @@ from src.core.trade_signal_handler import TradeSignalHandler
 from src.modules.gateway.market_gateway import MarketGateway
 from src.modules.gateway.trader_gateway import TraderGateway
 from src.modules.risk.risk import RiskManager
+from src.system_config import Config
+from src.utils.get_path import get_path_ins
 from src.utils.log.logger import get_logger
 
 
@@ -41,7 +43,7 @@ class IntegratedTradingSystem:
     """
     
     def __init__(self, config: dict):
-        self.logger = get_logger("IntegratedTradingSystem")
+        self.logger = get_logger(self.__class__.__name__)
         self.config = config
         
         # 1. 核心事件总线
@@ -54,7 +56,7 @@ class IntegratedTradingSystem:
         
         # 2. 告警管理器
         self.alarm_manager = AlarmManager(
-            db_path=str(Path("data/alarms.db")),
+            db_path=str(get_path_ins.get_data_dir() / Config.database_filename),
             loop=asyncio.get_event_loop()
         )
         

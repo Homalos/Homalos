@@ -28,13 +28,18 @@ import multiprocessing as mp
 import time
 from pathlib import Path
 from threading import Thread, Lock
-from typing import Any, Dict, Optional, List
+from typing import Any, Optional
 
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
+from src.core.event import Event, EventType
+from src.core.event_bus import EventBus
+from src.core.state_persistence import StatePersistenceManager
 from src.core.strategy_worker import run_strategy_process  # child entry
 from src.strategy.strategy_registry import StrategyRegistry
+from src.system_config import Config
+from src.utils.get_path import get_path_ins
 from src.utils.log.logger import get_logger
 
 # message delivered to WS clients will be JSON serializable dict:
@@ -43,31 +48,32 @@ from src.utils.log.logger import get_logger
 _DEBOUNCE = 2.0  # 增加到2秒，避免重复触发
 
 class StrategyManagerIPC:
-    def __init__(self, strategies_pkg: str, registry_path: str, mp_ctx=None):
-        self.logger = get_logger("StrategyManagerIPC")
+    """
+    策略管理器IPC通信类，用于策略进程与策略管理器之间的通信
+    """
+    def __init__(self, event_bus: Optional[EventBus], strategies_pkg: str, registry_path: str, mp_ctx=None):
+        self.logger = get_logger(self.__class__.__name__)
+        self.event_bus = event_bus
         self.strategies_pkg = strategies_pkg  # module package prefix for dynamic import if needed
         self.registry = StrategyRegistry(registry_path)
         self.mp_ctx = mp_ctx or mp.get_context()  # allow injection for testing
         # meta: sid -> {proc, conn, module, class_name, file_path, last_state, cached_state}
-        self._meta: Dict[str, Dict[str, Any]] = {}
+        self._meta: dict[str, dict[str, Any]] = {}
         self._lock = Lock()
         self._reloading: set = set()  # 正在reload的策略ID集合
         self._expected_stops: set = set()  # 预期停止的策略ID集合，用于区分主动停止和意外崩溃
 
         # WebSocket integration:
         # we will store a set of asyncio.Queues (one per active websocket connection)
-        self._ws_queues: List[asyncio.Queue] = []
+        self._ws_queues: list[asyncio.Queue] = []
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
         # watchdog
         self._watch_observer: Optional[Any] = None  # Observer类型
-        self._last_event_time: Dict[str, float] = {}
-        
+        self._last_event_time: dict[str, float] = {}
+
+        state_storage_dir = get_path_ins.get_data_dir() / Config.strategy_states_dir_name
         # 状态持久化管理器
-        from src.core.state_persistence import StatePersistenceManager
-        from src.utils.get_path import get_path_ins
-        
-        state_storage_dir = get_path_ins.join_path("data", "strategy_states")
         self.state_persistence = StatePersistenceManager(
             storage_dir=Path(state_storage_dir),
             max_history=288  # 24小时历史（5分钟间隔）
@@ -77,24 +83,32 @@ class StrategyManagerIPC:
         self._auto_save_task: Optional[asyncio.Task] = None
         
         # 状态缓存字典（用于在启动时临时存储持久化状态）
-        self._cached_states: Dict[str, dict] = {}
+        self._cached_states: dict[str, dict] = {}
         
         # 告警管理器（延迟初始化，在startup中设置）
         self.alarm_manager: Optional[Any] = None
         
         # 策略订阅管理（新增）
-        self._strategy_subscriptions: Dict[str, Dict[str, Any]] = {}  # 策略订阅信息
+        self._strategy_subscriptions: dict[str, dict[str, Any]] = {}  # 策略订阅信息
         self._subscription_manager: Optional[Any] = None  # 订阅管理器引用
         
         # 交易信号处理（新增）
         self._trade_signal_handler: Optional[Any] = None  # 交易信号处理器引用
 
-    # ---------- event loop registration ----------
+    # ---------- 事件循环注册 ----------
     def set_event_loop(self, loop: asyncio.AbstractEventLoop):
-        """Call once from the FastAPI app on startup to allow thread->loop callbacks."""
+        """
+        启动时从 FastAPI 应用程序调用一次以允许线程->循环回调。
+
+        Args:
+            loop:
+
+        Returns:
+
+        """
         self._loop = loop
     
-    # ---------- lifecycle management ----------
+    # ---------- 生命周期管理 ----------
     async def startup(self):
         """
         系统启动时调用
@@ -105,9 +119,9 @@ class StrategyManagerIPC:
         self.logger.info("策略管理器启动中...")
         
         # 设置事件订阅（新增）
-        if hasattr(self, 'event_bus') and self.event_bus:
+        if self.event_bus:
             # 订阅策略信号结果事件
-            self.event_bus.subscribe("strategy.signal.result", self._handle_signal_result)
+            self.event_bus.subscribe(EventType.STRATEGY_SIGNAL_RESULT, self._handle_signal_result)
             self.logger.info("已订阅策略信号结果事件")
         
         # 加载所有已启用策略的持久化状态
@@ -210,11 +224,11 @@ class StrategyManagerIPC:
         else:
             self.logger.debug("没有需要保存的状态")
 
-    # ---------- process lifecycle ----------
+    # ---------- 流程生命周期 ----------
     def load_strategy(self, sid: str):
         """
-        Start child process for strategy id defined in registry.
-        registry[strategy_id] expected fields: {'file': 'src.strategy.strategies.example',
+        根据注册表中定义的策略 ID 启动子进程。
+        registry[strategy_id] 预期字段：{'file': 'src.strategy.strategies.example',
         'module':'src.strategy.strategies.example', 'class':'Strategy', 'enabled':True, 'params':{}}
         """
         cfg = self.registry.strategies.get(sid)
@@ -227,14 +241,14 @@ class StrategyManagerIPC:
                 self.logger.warning(f"{sid} already loaded")
                 return
 
-            # prepare conn
+            # 准备连接
             parent_conn, child_conn = mp.Pipe(duplex=True)
-            # determine module path and class name
-            module_path = cfg.get("module") or cfg.get("file")  # prefer explicit module key
+            # 确定模块路径和类名
+            module_path = cfg.get("module") or cfg.get("file")  # 更喜欢明确的模块键
             class_name = cfg.get("class", "Strategy")
             params = cfg.get("params", {})
 
-            # spawn process
+            # spawn 进程
             proc = self.mp_ctx.Process(target=run_strategy_process, args=(sid, module_path, class_name, params, child_conn), daemon=True)
             proc.start()
 
@@ -252,7 +266,7 @@ class StrategyManagerIPC:
             }
             self._meta[sid] = meta
 
-            # start reader thread for this child
+            # 为该孩子启动读者线程
             t = Thread(target=self._reader_loop, args=(sid,), daemon=True)
             t.start()
 
@@ -284,10 +298,10 @@ class StrategyManagerIPC:
             conn = meta["conn"]
             proc = meta["proc"]
 
-            # request save_state
+            # 请求保存状态
             try:
                 conn.send({"type": "command", "command": "save_state"})
-                # read soon from conn (non-blocking short wait)
+                # 即将从 conn 读取（非阻塞短暂等待）
                 start = time.time()
                 saved = None
                 while time.time() - start < 1.0:
@@ -297,27 +311,27 @@ class StrategyManagerIPC:
                             saved = msg.get("payload")
                             break
                         else:
-                            # forward any other msg
+                            # 转发任何其他消息
                             self._forward_to_ws(msg)
                     time.sleep(0.01)
                 meta["last_state"] = saved
-            except Exception:
-                self.logger.exception("save_state request failed")
+            except Exception as e:
+                self.logger.exception(f"save_state request failed: {e}")
 
-            # send stop
+            # 发送停止
             try:
                 conn.send({"type": "command", "command": "stop"})
-            except Exception:
-                self.logger.exception("stop send failed")
+            except Exception as e:
+                self.logger.exception(f"stop send failed: {e}")
 
-            # wait then terminate if needed
+            # 等待然后终止（如果需要）
             proc.join(timeout=1.0)
             if proc.is_alive():
                 try:
                     proc.terminate()
-                except Exception:
-                    self.logger.exception("terminate failed")
-            # cleanup conn
+                except Exception as e:
+                    self.logger.exception(f"terminate failed: {e}")
+            # 清理连接
             try:
                 conn.close()
             except Exception:
@@ -330,12 +344,12 @@ class StrategyManagerIPC:
 
     def reload_strategy(self, sid: str):
         """
-        Save state, unload, reload, restore state.
+        保存状态、卸载、重新加载、恢复状态。
         """
         # 检查是否正在reload
         if sid in self._reloading:
-            self.logger.warning(f"{sid} is already reloading, skip duplicate reload")
-            raise RuntimeError(f"{sid} is already reloading")
+            self.logger.warning(f"{sid} 已在重新加载，跳过重复重新加载")
+            raise RuntimeError(f"{sid} 已在重新加载")
         
         # 标记为正在reload
         self._reloading.add(sid)
@@ -355,7 +369,7 @@ class StrategyManagerIPC:
                         
                         # 检查进程是否还活着
                         if proc and not proc.is_alive():
-                            self.logger.warning(f"{sid} process already dead, skipping save_state")
+                            self.logger.warning(f"{sid} 进程已死亡，跳过 save_state")
                         else:
                             # 尝试保存状态 - 使用meta中缓存的last_state
                             # 注意：save_state消息会被_reader_loop接收并缓存到meta["last_state"]
@@ -376,7 +390,7 @@ class StrategyManagerIPC:
                             if saved is None:
                                 self.logger.debug(f"{sid} 没有状态需要保存（这是正常的）")
                     except Exception as e:
-                        self.logger.warning(f"save_state failed during reload: {e}")
+                        self.logger.warning(f"重新加载时 save_state 失败：{e}")
                 
                 self.logger.info(f"save_state阶段完成，开始unload {sid}")
                 
@@ -389,14 +403,14 @@ class StrategyManagerIPC:
                     conn = meta["conn"]
                     proc = meta["proc"]
                     
-                    # send stop command
+                    # 发送停止命令
                     self.logger.info(f"发送stop命令给 {sid}")
                     try:
                         conn.send({"type": "command", "command": "stop"})
                     except Exception as e:
                         self.logger.warning(f"stop send failed: {e}")
                     
-                    # wait for process to exit
+                    # 等待进程退出
                     self.logger.info(f"等待 {sid} 进程退出")
                     try:
                         proc.join(timeout=1.0)
@@ -408,7 +422,7 @@ class StrategyManagerIPC:
                     except Exception as e:
                         self.logger.warning(f"process termination failed: {e}")
                     
-                    # cleanup connection
+                    # 清理连接
                     try:
                         conn.close()
                     except Exception:
@@ -420,10 +434,10 @@ class StrategyManagerIPC:
 
             time.sleep(0.1)
             
-            # load again
+            # 再次加载
             self.load_strategy(sid)
 
-            # restore state
+            # 恢复状态
             if saved is not None and sid in self._meta:
                 try:
                     new_conn = self._meta[sid]["conn"]
@@ -455,26 +469,26 @@ class StrategyManagerIPC:
             self._reloading.discard(sid)
 
     # ---------- broadcasting events to children ----------
-    def broadcast_event(self, ev_type: str, data: dict):
+    def broadcast_event(self, ev_type: str, data: dict) -> None:
         """
         ev_type: 'tick'/'bar'/'order' ...
-        data: JSON-serializable payload
+        data：JSON 序列化负载
         """
         with self._lock:
             for sid, meta in list(self._meta.items()):
                 try:
                     meta["conn"].send({"type": "event", "event": {"type": ev_type, "data": data}})
-                except Exception:
-                    self.logger.exception(f"forward fail to {sid}")
+                except Exception as e:
+                    self.logger.exception(f"forward fail to {sid}: {e}")
 
     # ---------- reader thread for child messages ----------
-    def _reader_loop(self, sid: str):
+    def _reader_loop(self, sid: str) -> None:
         meta = self._meta.get(sid)
         if not meta:
             return
         conn = meta["conn"]
         while True:
-            # if process died, stop
+            # 如果进程死亡，则停止
             proc = meta.get("proc")
             if proc and not proc.is_alive():
                 # notify ws
@@ -513,17 +527,17 @@ class StrategyManagerIPC:
                 msg = conn.recv()
             except EOFError:
                 break
-            except Exception:
-                self.logger.exception("reader recv failed")
+            except Exception as e:
+                self.logger.exception(f"reader recv failed: {e}")
                 break
 
-            # forward messages to registered websocket queues
+            # 将消息转发到已注册的 websocket 队列
             try:
                 self._forward_to_ws(msg)
-            except Exception:
-                self.logger.exception("forward to ws failed")
+            except Exception as e:
+                self.logger.exception(f"forward to ws failed: {e}")
 
-            # also optionally log locally
+            # 也可以选择在本地记录
             mtype = msg.get("type")
             if mtype == "log":
                 self.logger.info(f"[{sid}] {msg.get('payload')}")
@@ -536,28 +550,45 @@ class StrategyManagerIPC:
                 self.logger.info(f"[{sid}] save_state result received")
             elif mtype == "stopped":
                 self.logger.info(f"[{sid}] child stopped")
-                # child will be cleaned up by unload
+                # 子进程将被卸载
                 try:
                     self.unload_strategy(sid)
                 except Exception:
                     pass
 
     # ---------- WebSocket registration ----------
-    def register_ws_queue(self, q: asyncio.Queue):
-        """Called from main event loop (FastAPI) to register a websocket queue."""
+    def register_ws_queue(self, q: asyncio.Queue) -> None:
+        """
+        从主事件循环（FastAPI）调用以注册 websocket 队列。
+
+        Args:
+            q:
+
+        Returns:
+            None
+        """
         if q not in self._ws_queues:
             self._ws_queues.append(q)
 
     def unregister_ws_queue(self, q: asyncio.Queue):
+        """
+        取消注册
+
+        Args:
+            q:
+
+        Returns:
+
+        """
         if q in self._ws_queues:
             self._ws_queues.remove(q)
 
     def _forward_to_ws(self, msg: dict):
         """
-        Thread-safe forward -> schedule on main loop.
-        Called from reader threads.
+        线程安全转发 -> 在主循环中调度。
+        从读取线程调用。
         """
-        # normalize message: ensure sid/type/payload top-level keys
+        # 规范化消息：确保 sid/type/payload 顶级键
         normalized = {}
         if isinstance(msg, dict):
             normalized = msg.copy()
@@ -593,24 +624,37 @@ class StrategyManagerIPC:
             observer.start()
             self._watch_observer = observer
             self.logger.info("started watchdog on " + str(p))
-        except Exception:
-            self.logger.exception("start_watchdog failed")
+        except Exception as e:
+            self.logger.exception(f"start_watchdog failed: {e}")
 
     def stop_watchdog(self):
         if self._watch_observer:
             try:
                 self._watch_observer.stop()
                 self._watch_observer.join(timeout=1.0)
-            except Exception:
-                self.logger.exception("stop_watchdog failed")
+            except Exception as e:
+                self.logger.exception(f"stop_watchdog failed: {e}")
     
     # ---------- 调试和管理方法 ----------
-    def get_reloading_strategies(self):
-        """获取当前正在reload的策略列表"""
+    def get_reloading_strategies(self) -> list:
+        """
+        获取当前正在reload的策略列表
+
+        Returns:
+            list
+        """
         return list(self._reloading)
     
-    def clear_reload_lock(self, sid: str):
-        """清除reload锁（仅用于调试/恢复）"""
+    def clear_reload_lock(self, sid: str) -> bool:
+        """
+        清除reload锁（仅用于调试/恢复）
+
+        Args:
+            sid:
+
+        Returns:
+
+        """
         if sid in self._reloading:
             self._reloading.discard(sid)
             self.logger.warning(f"手动清除 {sid} 的reload锁")
@@ -619,8 +663,16 @@ class StrategyManagerIPC:
     
     # ===== 新增：订阅管理和交易信号处理 =====
     
-    def set_subscription_manager(self, subscription_manager):
-        """设置订阅管理器引用"""
+    def set_subscription_manager(self, subscription_manager) -> None:
+        """
+        设置订阅管理器引用
+
+        Args:
+            subscription_manager:
+
+        Returns:
+
+        """
         self._subscription_manager = subscription_manager
         self.logger.info("已设置订阅管理器引用")
     
@@ -634,7 +686,7 @@ class StrategyManagerIPC:
         self.event_bus = event_bus
         self.logger.info("已设置事件总线引用")
     
-    def register_strategy_subscription(self, sid: str, subscription_info: Dict[str, Any]):
+    def register_strategy_subscription(self, sid: str, subscription_info: dict[str, Any]):
         """
         注册策略订阅信息
         
@@ -654,10 +706,9 @@ class StrategyManagerIPC:
             self._subscription_manager.register_strategy_subscription(sid, instruments, intervals)
         
         # 发布订阅更新事件
-        if hasattr(self, 'event_bus') and self.event_bus:
-            from src.core.event import Event
+        if self.event_bus:
             event = Event(
-                "strategy.subscription.update",
+                EventType.STRATEGY_SUBSCRIPTION_UPDATE,
                 payload={
                     "strategy_id": sid,
                     "instruments": subscription_info.get('instruments', []),
@@ -678,7 +729,7 @@ class StrategyManagerIPC:
         
         self.logger.info(f"策略 {sid} 订阅信息已取消")
     
-    def handle_strategy_trade_signal(self, sid: str, signal_data: Dict[str, Any]):
+    def handle_strategy_trade_signal(self, sid: str, signal_data: dict[str, Any]):
         """
         处理来自策略的交易信号
         
@@ -690,10 +741,9 @@ class StrategyManagerIPC:
             self.logger.info(f"收到策略 {sid} 的交易信号: {signal_data}")
             
             # 发布策略交易信号事件
-            if hasattr(self, 'event_bus') and self.event_bus:
-                from src.core.event import Event
+            if self.event_bus:
                 event = Event(
-                    "strategy.trade.signal",
+                    EventType.STRATEGY_TRADE_SIGNAL,
                     payload={
                         "strategy_id": sid,
                         "signal_data": signal_data
@@ -743,7 +793,7 @@ class StrategyManagerIPC:
         except Exception as e:
             self.logger.error(f"处理信号结果事件异常: {e}", exc_info=True)
     
-    def get_strategy_subscriptions(self) -> Dict[str, Dict[str, Any]]:
+    def get_strategy_subscriptions(self) -> dict[str, dict[str, Any]]:
         """获取所有策略的订阅信息"""
         with self._lock:
             return self._strategy_subscriptions.copy()
@@ -764,13 +814,30 @@ class StrategyManagerIPC:
         # 使用现有的 broadcast_event 方法
         self.broadcast_event(data_type, event_data)
 
+    def get_last_event_time(self) -> dict[str, float]:
+        """获取最后一次处理的事件时间"""
+        return self._last_event_time
+
 
 class _FileEventHandler(FileSystemEventHandler):
+    """
+    文件系统事件处理器
+    """
     def __init__(self, manager: StrategyManagerIPC):
         super().__init__()
         self.manager = manager
 
-    def _valid(self, path: str) -> bool:
+    @staticmethod
+    def _valid(path: str) -> bool:
+        """
+        判断文件是否有效
+
+        Args:
+            path:
+
+        Returns:
+
+        """
         if not path.endswith(".py"):
             return False
         name = Path(path).stem
@@ -778,22 +845,29 @@ class _FileEventHandler(FileSystemEventHandler):
             return False
         return True
 
-    def on_modified(self, event):
+    def on_modified(self, event) -> None:
+        """
+        处理文件修改事件
+
+        Args:
+            event:
+
+        Returns:
+
+        """
         if event.is_directory:
             return
         if not self._valid(event.src_path):
             return
         module_name = Path(event.src_path).stem
         now = time.time()
-        last = self.manager._last_event_time.get(module_name, 0)
+        last = self.manager.get_last_event_time().get(module_name, 0)
         if now - last < _DEBOUNCE:
             return
-        self.manager._last_event_time[module_name] = now
+        self.manager.get_last_event_time()[module_name] = now
         # find which sid uses this file
         for sid, cfg in list(self.manager.registry.strategies.items()):
             f = cfg.get("file")
             if f and Path(f).stem == module_name:
                 Thread(target=self.manager.reload_strategy, args=(sid,), daemon=True).start()
                 break
-
-
