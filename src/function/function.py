@@ -9,16 +9,13 @@
 @Software   : PyCharm
 @Description: 业务函数
 """
-import time
 from typing import Optional
 
-from src.api.notify import notify_ins
 from src.api.thread_pool import thread_pool_ins
-from src.function.func import get_ip_port, is_open
 from src.modules.gateway.market_gateway import MarketGateway
 from src.modules.gateway.trader_gateway import TraderGateway
 from src.strategy import strategy_pool_ins
-from src.utils.alarm import Alarm
+from src.utils.alarm_scheduler import AlarmScheduler
 from src.utils.log import get_logger
 from src.utils.time import time_module_ins
 
@@ -27,7 +24,7 @@ class Function(object):
 
     def __init__(self):
         self.logger = get_logger(__name__)
-        self.alarm_ins = Alarm()
+        self.alarm_ins = AlarmScheduler()
         self.is_open: bool = False
         self.market_gateway: Optional[MarketGateway] = None  # 行情网关
         self.trader_gateway: Optional[TraderGateway] = None  # 交易网关

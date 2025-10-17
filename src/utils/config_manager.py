@@ -7,11 +7,12 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 支持多实例的配置管理工具类。
+@Description: 配置管理工具类
 
 1. 启动程序 → 自动加载配置文件，例如 config.yaml。
 2. 修改配置文件（比如改交易标的、风控参数）→ 自动触发 reload()。
 3. EventBus 发布 CONFIG_UPDATED → 各个模块收到更新事件。
+4. 支持多实例的配置管理
 
 如果只想单纯加载 yaml 文件后直接返回 dict 数据，可以用 utils/utility.py 中 load_yaml()
 """
@@ -27,22 +28,29 @@ from src.core.event_bus import EventBus, Event
 from src.utils.log.logger import get_logger
 
 
-class ConfigManager:
-    """支持多实例的配置管理器，每个实例可以监控不同的配置文件"""
-    
+class ConfigManager(object):
+    """
+    支持多实例的配置管理器，每个实例可以监控不同的配置文件
+    """
     def __init__(self, config_path: str, event_bus: EventBus | None = None):
-        self.logger = get_logger(__class__.__name__)
-
+        self.logger = get_logger(self.__class__.__name__)
         self._config_path = Path(config_path)
         self._data: dict[str, Any] = {}
         self._event_bus = event_bus
-
         self._watch_task: asyncio.Task | None = None
         self.reload()
 
-    # ===================== 配置读取 =====================
     def get(self, key: str, default: Any = None) -> Any:
-        """获取配置，支持 a.b.c 的层级查询"""
+        """
+        获取配置，支持 a.b.c 的层级查询
+
+        Args:
+            key: 键
+            default: 值
+
+        Returns:
+            Any: value
+        """
         parts = key.split(".")
         value = self._data
         for part in parts:
@@ -52,8 +60,13 @@ class ConfigManager:
                 return default
         return value
 
-    def reload(self):
-        """重新加载配置"""
+    def reload(self) -> None:
+        """
+        重新加载配置
+
+        Returns:
+            None
+        """
         if not self._config_path.exists():
             self.logger.warning(f"配置文件 {self._config_path} 不存在，使用空配置")
             self._data = {}
@@ -71,9 +84,13 @@ class ConfigManager:
         except Exception as e:
             self.logger.error(f"加载配置失败: {e}")
 
-    # ===================== 文件监听 =====================
-    async def _watch_loop(self):
-        """后台协程：监听配置文件变化"""
+    async def _watch_loop(self) -> None:
+        """
+        后台协程：监听配置文件变化
+
+        Returns:
+            None
+        """
         self.logger.info(f"开始监听 {self._config_path}")
         async for changes in awatch(self._config_path.parent):
             for change, path in changes:
@@ -81,14 +98,24 @@ class ConfigManager:
                     self.logger.info(f"检测到配置文件变化: {path}，重新加载...")
                     self.reload()
 
-    def start_watch(self):
-        """启动文件监听（需要在 asyncio 环境中）"""
+    def start_watch(self) -> None:
+        """
+        启动文件监听（需要在 asyncio 环境中）
+
+        Returns:
+            None
+        """
         if self._watch_task is None:
             loop = asyncio.get_running_loop()
             self._watch_task = loop.create_task(self._watch_loop())
 
-    def stop_watch(self):
-        """停止文件监听"""
+    def stop_watch(self) -> None:
+        """
+        停止文件监听
+
+        Returns:
+            None
+        """
         if self._watch_task and not self._watch_task.done():
             self._watch_task.cancel()
             self.logger.info("停止监听配置文件")

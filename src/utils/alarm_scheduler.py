@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 @ProjectName: Homalos
-@FileName   : alarm.py
+@FileName   : alarm_scheduler.py
 @Date       : 2025/9/11 10:59
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 闹钟工具类
+@Description: 闹钟调度器
 """
 import threading
 from typing import List, Set, Dict, Optional
@@ -15,9 +15,9 @@ from collections import defaultdict
 from src.utils.log.logger import get_logger
 
 
-class Alarm:
+class AlarmScheduler:
     """
-    线程安全的闹钟工具类
+    线程安全的闹钟调度器
     
     使用字典数据结构提高性能，支持一个时间点关联多个策略ID
     """
@@ -25,7 +25,7 @@ class Alarm:
     _instance = None
     _lock = threading.Lock()
     
-    def __new__(cls) -> 'Alarm':
+    def __new__(cls) -> 'AlarmScheduler':
         """单例模式实现"""
         if cls._instance is None:
             with cls._lock:

@@ -9,10 +9,7 @@
 @Software   : PyCharm
 @Description: 全局常量
 """
-import os
-from typing import Optional, Any, TYPE_CHECKING
-
-from src.utils.get_path import get_path_ins
+from typing import Any
 
 
 class Const:
@@ -20,10 +17,6 @@ class Const:
     trading_day: str = ""
 
 # ================== 项目中目录名称 ==================
-# PROJECT_NAME = "Homalos"  # 项目名称
-#
-# LOG_DIR_NAME = "log"  # 日志目录名
-
 DATA_DIR_NAME = "data"  # 数据目录名
 
 TICK_DIR_NAME = "tick"  # TICK数据子目录名

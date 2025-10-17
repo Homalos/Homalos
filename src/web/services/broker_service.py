@@ -9,10 +9,12 @@
 @Software   : PyCharm
 @Description: 券商配置服务
 """
-from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any
+
 from ruamel.yaml import YAML
 
+from src.constants import BROKERS_FILENAME
+from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger
 
 logger = get_logger(__name__)
@@ -21,10 +23,10 @@ logger = get_logger(__name__)
 class BrokerService:
     """券商配置服务"""
     
-    _CONFIG_FILE = Path("config") / "brokers.yaml"
+    _CONFIG_FILE = get_path_ins.get_config_dir() / BROKERS_FILENAME
     
     @classmethod
-    def get_broker_list(cls) -> List[Dict[str, str]]:
+    def get_broker_list(cls) -> list[dict[str, str]]:
         """
         获取可用的券商列表
         
@@ -64,7 +66,7 @@ class BrokerService:
             return []
     
     @classmethod
-    def get_broker_config(cls, broker_key: str) -> Dict[str, Any]:
+    def get_broker_config(cls, broker_key: str) -> dict[str, Any]:
         """
         获取指定券商的完整配置
         

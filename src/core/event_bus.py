@@ -44,9 +44,7 @@ class EventBus:
     def __init__(self,
                  context: str = "EventBus",
                  general_max_workers: int = 500,        # 普通队列最大线程数
-                 general_add_max_workers: int = 250,    # 普通队列动态扩展最大线程数
                  market_max_workers: int = 1000,        # 行情高频队列最大线程数
-                 market_add_max_workers: int = 500,     # 行情高频队列动态扩展最大线程数
                  register_signals: bool = True,         # 是否注册信号处理
                  auto_start: bool = True                # 是否自动启动
                  ) -> None:

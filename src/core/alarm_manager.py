@@ -8,14 +8,19 @@
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
 @Description: 告警管理器 - 负责告警的创建、存储、通知和清理
+
+职责：
+- 直接操作SQLite数据库
+- 告警的创建、查询、更新、删除
+- 配置的读取和更新
+- 定时清理过期记录
 """
 import asyncio
 import json
 import time
 import uuid
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
-from pathlib import Path
+from typing import Optional, Any
 
 import aiosqlite
 
@@ -39,7 +44,7 @@ class AlarmManager:
             db_path: 数据库文件路径
             loop: 事件循环
         """
-        self.logger = get_logger("AlarmManager")
+        self.logger = get_logger(self.__class__.__name__)
         self.db_path = db_path
         self.loop = loop
         
@@ -47,11 +52,11 @@ class AlarmManager:
         self._notifiers = []
         
         # 告警去重缓存 {alarm_key: last_trigger_time}
-        self._alarm_cache: Dict[str, float] = {}
+        self._alarm_cache: dict[str, float] = {}
         self._cache_ttl = 60  # 1分钟内同类告警只触发一次
         
         # 告警配置缓存
-        self._config: Dict[str, Any] = {}
+        self._config: dict[str, Any] = {}
         self._config_refresh_interval = 30  # 30秒刷新一次配置
         self._last_config_refresh = 0
         
@@ -118,7 +123,7 @@ class AlarmManager:
         source: str,
         message: str,
         target: Optional[str] = None,
-        details: Optional[Dict] = None
+        details: Optional[dict] = None
     ) -> Optional[str]:
         """
         触发告警
@@ -241,7 +246,7 @@ class AlarmManager:
         end_date: Optional[str] = None,
         page: int = 1,
         page_size: int = 20
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         查询告警列表
         
@@ -255,7 +260,7 @@ class AlarmManager:
             page_size: 每页数量
         
         Returns:
-            Dict: 包含 total, page, page_size, items
+            dict: 包含 total, page, page_size, items
         """
         try:
             # 构建查询条件
@@ -329,7 +334,7 @@ class AlarmManager:
             self.logger.error(f"查询告警失败: {e}", exc_info=True)
             return {"total": 0, "page": page, "page_size": page_size, "items": []}
     
-    async def get_alarm_detail(self, alarm_id: str) -> Optional[Dict]:
+    async def get_alarm_detail(self, alarm_id: str) -> Optional[dict]:
         """获取告警详情"""
         try:
             async with aiosqlite.connect(self.db_path) as db:
@@ -353,7 +358,7 @@ class AlarmManager:
             self.logger.error(f"获取告警详情失败: {e}", exc_info=True)
             return None
     
-    async def get_alarm_stats(self) -> Dict[str, Any]:
+    async def get_alarm_stats(self) -> dict[str, Any]:
         """获取告警统计"""
         try:
             async with aiosqlite.connect(self.db_path) as db:
@@ -404,13 +409,13 @@ class AlarmManager:
             self.logger.error(f"获取告警统计失败: {e}", exc_info=True)
             return {}
     
-    async def get_config(self) -> Dict[str, Any]:
+    async def get_config(self) -> dict[str, Any]:
         """获取告警配置"""
         if not self._config or time.time() - self._last_config_refresh > self._config_refresh_interval:
             await self._refresh_config()
         return self._config.copy()
     
-    async def update_config(self, config: Dict[str, Any]) -> bool:
+    async def update_config(self, config: dict[str, Any]) -> bool:
         """
         更新告警配置
         
@@ -440,7 +445,7 @@ class AlarmManager:
             self.logger.error(f"更新告警配置失败: {e}", exc_info=True)
             return False
     
-    async def _save_alarm(self, alarm_data: Dict):
+    async def _save_alarm(self, alarm_data: dict):
         """保存告警到数据库"""
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(

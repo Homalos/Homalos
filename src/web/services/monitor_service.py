@@ -9,21 +9,21 @@
 @Software   : PyCharm
 @Description: 系统监控服务
 """
-import psutil  # type: ignore
 import time
 from datetime import datetime
-from typing import Optional, Any, TYPE_CHECKING
-from src.utils.log import get_logger
+from typing import Optional
 
-if TYPE_CHECKING:
-    from src.core.alarm_manager import AlarmManager
+import psutil  # type: ignore
+
+from src.core.alarm_manager import AlarmManager
+from src.utils.log import get_logger
 
 logger = get_logger(__name__)
 
 
 class MonitorService:
     """系统监控服务类"""
-    
+
     # 告警管理器实例（由外部设置）
     alarm_manager: Optional["AlarmManager"] = None
     

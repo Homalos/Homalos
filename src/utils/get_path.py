@@ -21,7 +21,7 @@ ensure_dir_exists(path) → 确保目录存在，不存在则创建
 from pathlib import Path
 
 
-PROJECT_NAME = "Homalos"
+PROJECT_NAME = "Homalos"  # 在内部定义项目名称，防止循环引用
 
 
 class GetPath:

@@ -8,6 +8,8 @@
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
 @Description: 通知类
+
+负责企业微信、钉钉、邮件等通知实现
 """
 import json
 import time

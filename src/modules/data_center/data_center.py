@@ -31,7 +31,7 @@ from src.modules.gateway.market_gateway import MarketGateway
 from src.modules.gateway.trader_gateway import TraderGateway
 from src.strategy.base_strategy import BaseStrategy
 from src.strategy.strategy_pool import StrategyPool
-from src.utils.alarm import Alarm
+from src.utils.alarm_scheduler import AlarmScheduler
 from concurrent.futures import ThreadPoolExecutor
 from src.utils.log import get_logger
 
@@ -40,7 +40,7 @@ class DataCenter(object):
 
     def __init__(self, dc_config: dict[str, Any]) -> None:
         self.logger = get_logger(self.__class__.__name__)
-        self._alarm = Alarm()                                       # 使用单例模式的闹钟实例
+        self._alarm = AlarmScheduler()                              # 闹钟实例
         self._alarm_thread: Optional[Thread] = None                 # 闹钟线程实例
         self._alarm_stop_event: ThreadEvent = ThreadEvent()         # 闹钟线程控制
         self._alarm_stop_timeout: float = 3.0                       # 闹钟停止超时时间
@@ -199,9 +199,7 @@ class DataCenter(object):
         self.dc_event_bus: EventBus = EventBus(
             context="DataCenter",
             market_max_workers=5000,        # 提升到5K，专门处理高频tick
-            market_add_max_workers=300,     # 大幅提升扩容能力到300
             general_max_workers=1000,       # 普通事件处理保持不变
-            general_add_max_workers=50,
             register_signals=False
         )
         self.logger.info("数据中心EventBus实例创建成功")

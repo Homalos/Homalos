@@ -14,6 +14,7 @@ from pathlib import Path
 
 from src.api.bar_generator.bar_generator import BarGenerator
 from src.core.alarm_manager import AlarmManager
+from src.core.constants import Interval
 from src.core.event_bus import EventBus
 from src.core.strategy_manager import StrategyManagerIPC
 from src.core.subscription_manager import SubscriptionManager
@@ -405,8 +406,8 @@ async def main():
         # 展示如何手动注册策略订阅
         system.subscription_manager.register_strategy_subscription(
             strategy_id="example_strategy",
-            instruments=["cu2501", "au2501"],
-            intervals=["MINUTE", "MINUTE5"]
+            instruments=["FG601", "SA601"],
+            intervals=[Interval.MINUTE, Interval.MINUTE5]
         )
         
         await asyncio.sleep(5)
