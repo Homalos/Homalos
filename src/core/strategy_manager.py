@@ -31,7 +31,7 @@ from threading import Thread, Lock
 from typing import Any, Dict, Optional, List
 
 from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer  # type: ignore
+from watchdog.observers import Observer
 
 from src.core.strategy_worker import run_strategy_process  # child entry
 from src.strategy.strategy_registry import StrategyRegistry
@@ -60,7 +60,7 @@ class StrategyManagerIPC:
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
         # watchdog
-        self._watch_observer: Optional[Observer] = None
+        self._watch_observer: Optional[Any] = None  # Observer类型
         self._last_event_time: Dict[str, float] = {}
         
         # 状态持久化管理器
@@ -81,6 +81,13 @@ class StrategyManagerIPC:
         
         # 告警管理器（延迟初始化，在startup中设置）
         self.alarm_manager: Optional[Any] = None
+        
+        # 策略订阅管理（新增）
+        self._strategy_subscriptions: Dict[str, Dict[str, Any]] = {}  # 策略订阅信息
+        self._subscription_manager: Optional[Any] = None  # 订阅管理器引用
+        
+        # 交易信号处理（新增）
+        self._trade_signal_handler: Optional[Any] = None  # 交易信号处理器引用
 
     # ---------- event loop registration ----------
     def set_event_loop(self, loop: asyncio.AbstractEventLoop):
@@ -93,8 +100,15 @@ class StrategyManagerIPC:
         系统启动时调用
         - 加载所有策略的持久化状态
         - 启动自动保存定时任务
+        - 设置事件订阅
         """
         self.logger.info("策略管理器启动中...")
+        
+        # 设置事件订阅（新增）
+        if hasattr(self, 'event_bus') and self.event_bus:
+            # 订阅策略信号结果事件
+            self.event_bus.subscribe("strategy.signal.result", self._handle_signal_result)
+            self.logger.info("已订阅策略信号结果事件")
         
         # 加载所有已启用策略的持久化状态
         # 使用临时字典存储，避免影响load_strategy的判断
@@ -602,6 +616,153 @@ class StrategyManagerIPC:
             self.logger.warning(f"手动清除 {sid} 的reload锁")
             return True
         return False
+    
+    # ===== 新增：订阅管理和交易信号处理 =====
+    
+    def set_subscription_manager(self, subscription_manager):
+        """设置订阅管理器引用"""
+        self._subscription_manager = subscription_manager
+        self.logger.info("已设置订阅管理器引用")
+    
+    def set_trade_signal_handler(self, trade_signal_handler):
+        """设置交易信号处理器引用"""
+        self._trade_signal_handler = trade_signal_handler
+        self.logger.info("已设置交易信号处理器引用")
+    
+    def set_event_bus(self, event_bus):
+        """设置事件总线引用（用于集成）"""
+        self.event_bus = event_bus
+        self.logger.info("已设置事件总线引用")
+    
+    def register_strategy_subscription(self, sid: str, subscription_info: Dict[str, Any]):
+        """
+        注册策略订阅信息
+        
+        Args:
+            sid: 策略ID
+            subscription_info: 订阅信息 {instruments: [...], intervals: [...]}
+        """
+        with self._lock:
+            self._strategy_subscriptions[sid] = subscription_info
+        
+        self.logger.info(f"策略 {sid} 订阅信息已注册: {subscription_info}")
+        
+        # 转发给订阅管理器
+        if self._subscription_manager:
+            instruments = subscription_info.get('instruments', [])
+            intervals = subscription_info.get('intervals', [])
+            self._subscription_manager.register_strategy_subscription(sid, instruments, intervals)
+        
+        # 发布订阅更新事件
+        if hasattr(self, 'event_bus') and self.event_bus:
+            from src.core.event import Event
+            event = Event(
+                "strategy.subscription.update",
+                payload={
+                    "strategy_id": sid,
+                    "instruments": subscription_info.get('instruments', []),
+                    "intervals": subscription_info.get('intervals', [])
+                }
+            )
+            self.event_bus.publish(event)
+    
+    def unregister_strategy_subscription(self, sid: str):
+        """取消策略订阅信息"""
+        with self._lock:
+            if sid in self._strategy_subscriptions:
+                del self._strategy_subscriptions[sid]
+        
+        # 通知订阅管理器
+        if self._subscription_manager:
+            self._subscription_manager.unregister_strategy_subscription(sid)
+        
+        self.logger.info(f"策略 {sid} 订阅信息已取消")
+    
+    def handle_strategy_trade_signal(self, sid: str, signal_data: Dict[str, Any]):
+        """
+        处理来自策略的交易信号
+        
+        Args:
+            sid: 策略ID
+            signal_data: 信号数据
+        """
+        try:
+            self.logger.info(f"收到策略 {sid} 的交易信号: {signal_data}")
+            
+            # 发布策略交易信号事件
+            if hasattr(self, 'event_bus') and self.event_bus:
+                from src.core.event import Event
+                event = Event(
+                    "strategy.trade.signal",
+                    payload={
+                        "strategy_id": sid,
+                        "signal_data": signal_data
+                    }
+                )
+                self.event_bus.publish(event)
+            
+            # 直接转发给交易信号处理器（如果存在）
+            if self._trade_signal_handler:
+                # 这里可以添加直接调用逻辑，或者依赖事件总线
+                pass
+        
+        except Exception as e:
+            self.logger.error(f"处理策略 {sid} 交易信号异常: {e}", exc_info=True)
+    
+    def _handle_signal_result(self, event):
+        """处理策略信号执行结果"""
+        try:
+            payload = event.payload
+            strategy_id = payload.get("strategy_id")
+            signal_id = payload.get("signal_id")
+            status = payload.get("status")
+            message = payload.get("message")
+            
+            if not strategy_id:
+                return
+            
+            self.logger.info(f"策略 {strategy_id} 信号 {signal_id} 执行结果: {status} - {message}")
+            
+            # 转发结果给策略进程
+            with self._lock:
+                meta = self._meta.get(strategy_id)
+                if meta and meta.get("conn"):
+                    try:
+                        result_msg = {
+                            "type": "signal_result",
+                            "signal_id": signal_id,
+                            "status": status,
+                            "message": message,
+                            "signal_data": payload.get("signal_data", {})
+                        }
+                        meta["conn"].send(result_msg)
+                        self.logger.debug(f"已转发信号结果给策略 {strategy_id}")
+                    except Exception as e:
+                        self.logger.warning(f"转发信号结果失败: {e}")
+        
+        except Exception as e:
+            self.logger.error(f"处理信号结果事件异常: {e}", exc_info=True)
+    
+    def get_strategy_subscriptions(self) -> Dict[str, Dict[str, Any]]:
+        """获取所有策略的订阅信息"""
+        with self._lock:
+            return self._strategy_subscriptions.copy()
+    
+    def broadcast_market_data(self, data_type: str, data: Any):
+        """
+        向所有策略广播行情数据
+        
+        Args:
+            data_type: 数据类型 ('tick', 'bar')
+            data: 数据对象
+        """
+        event_data = {
+            "type": data_type,
+            "data": data
+        }
+        
+        # 使用现有的 broadcast_event 方法
+        self.broadcast_event(data_type, event_data)
 
 
 class _FileEventHandler(FileSystemEventHandler):
