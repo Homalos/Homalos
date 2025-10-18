@@ -49,7 +49,7 @@ class MarketGateway(BaseGateway):
     
     def _handle_market_subscribe_request(self, event: Event) -> None:
         """
-        处理行情订阅请求事件
+        处理行情订阅请求事件（带登录状态检查和错误处理）
         
         Args:
             event: 订阅请求事件，payload支持两种格式:
@@ -57,6 +57,13 @@ class MarketGateway(BaseGateway):
                    2. 批量: {"instruments": ["合约1", "合约2", ...], "action": "subscribe/unsubscribe"}
         """
         try:
+            # 步骤1：检查网关登录状态
+            if not self.md_api or not self.md_api.login_status:
+                self.logger.warning("行情网关未登录，拒绝订阅请求")
+                self.logger.info("提示：请等待行情网关登录完成后再尝试订阅")
+                return
+            
+            # 步骤2：解析订阅请求
             data = event.payload
             action = data.get('action', 'subscribe')
             
@@ -69,27 +76,68 @@ class MarketGateway(BaseGateway):
                 instruments = [instrument_id]
             
             if not instruments:
-                self.logger.warning("收到空的订阅请求")
+                self.logger.warning("收到空的订阅请求，已忽略")
                 return
             
-            self.logger.info(f"收到订阅请求，共 {len(instruments)} 个合约，操作: {action}")
+            self.logger.info(f"收到订阅请求: {len(instruments)} 个合约, 操作: {action}")
             
-            # 分批订阅避免阻塞
+            # 步骤3：执行订阅操作
             if action == 'subscribe':
-                for index, inst_id in enumerate(instruments, 1):
-                    req = SubscribeRequest(instrument_id=inst_id)
-                    self.subscribe(req)
-                    if index % 10 == 0:  # 每10个合约输出一次进度
-                        self.logger.info(f"已订阅 {index}/{len(instruments)} 个合约...")
+                success_count = 0
+                failed_list = []
                 
-                self.logger.info(f"所有合约订阅完成，共 {len(instruments)} 个")
+                for index, inst_id in enumerate(instruments, 1):
+                    try:
+                        # 验证合约代码格式
+                        if not inst_id or not isinstance(inst_id, str):
+                            self.logger.warning(f"⚠️ 无效的合约代码: {inst_id}")
+                            failed_list.append(inst_id)
+                            continue
+                        
+                        # 创建订阅请求
+                        req = SubscribeRequest(instrument_id=inst_id)
+                        self.subscribe(req)
+                        success_count += 1
+                        
+                        # 每10个合约输出一次进度
+                        if index % 10 == 0:
+                            self.logger.info(f"订阅进度: {index}/{len(instruments)} 个合约...")
+                    
+                    except Exception as e:
+                        self.logger.error(f"✗ 订阅合约 {inst_id} 失败: {e}")
+                        failed_list.append(inst_id)
+                
+                # 输出订阅结果统计
+                if failed_list:
+                    self.logger.warning(f"订阅完成: 成功 {success_count}/{len(instruments)}, 失败 {len(failed_list)} 个")
+                    self.logger.warning(f"失败合约列表: {failed_list}")
+                else:
+                    self.logger.info(f"✓ 所有合约订阅完成: 成功 {success_count}/{len(instruments)} 个")
                 
             elif action == 'unsubscribe':
                 # CTP不支持取消订阅，只记录日志
                 self.logger.debug(f"收到取消订阅请求(CTP不支持): {len(instruments)} 个合约")
             
+            else:
+                self.logger.warning(f"未知的订阅操作: {action}")
+        
         except Exception as e:
-            self.logger.error(f"处理订阅请求失败: {e}", exc_info=True)
+            self.logger.error(f"✗ 处理订阅请求异常: {e}", exc_info=True)
+            # 发送告警事件（如果有告警管理器）
+            try:
+                from src.core.event import EventType
+                alarm_event = Event(
+                    EventType.SYSTEM_ALARM,
+                    payload={
+                        "alarm_type": "subscription_error",
+                        "severity": "error",
+                        "message": f"行情订阅请求处理失败: {str(e)}",
+                        "details": {"error": str(e)}
+                    }
+                )
+                self.event_bus.publish(alarm_event)
+            except Exception:
+                pass  # 告警发送失败不影响主流程
 
     def connect(self, setting: dict[str, Any]) -> None:
         """

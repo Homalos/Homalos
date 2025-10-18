@@ -46,6 +46,18 @@ def run_strategy_process(strategy_id: str, module_path: str, class_name: str, pa
         if instrument_id:
             subscribed_instruments = [instrument_id]
             conn.send({"type": "log", "sid": strategy_id, "payload": f"Single instrument mode: {instrument_id}"})
+    
+    # 发送订阅信息到主进程（新增）
+    if subscribed_instruments:
+        sub_kline_type = getattr(strategy, 'sub_kline_type', [])
+        conn.send({
+            "type": "subscription",
+            "sid": strategy_id,
+            "payload": {
+                "instruments": subscribed_instruments,
+                "intervals": sub_kline_type
+            }
+        })
 
     running = True
     while running:

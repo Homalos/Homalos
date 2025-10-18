@@ -24,12 +24,11 @@ class MultiContractStrategy(SpecificStrategyApi):
     功能演示：
     1. SA601: 开仓逻辑（基于移动平均线突破）
     2. FG601: 平仓逻辑（基于价格变化率）
-    3. RU2601: 综合逻辑（可扩展为套利等复杂策略）
     """
     
     def __init__(self):
         # 订阅多个合约
-        instruments = ["SA601", "FG601", "RU2601"]
+        instruments = ["SA601", "FG601"]
         strategy_name = "multi_contract_example"
         strategy_content = "多合约策略示例"
         sub_kline_type = [Interval.MINUTE]
@@ -43,6 +42,9 @@ class MultiContractStrategy(SpecificStrategyApi):
 
         self.logger = get_logger(self.__class__.__name__)
         
+        # 明确 instruments 类型，避免 lint 错误
+        self.instruments: list[str] = instruments
+        
         # 策略参数
         self.ma_period = 20
         self.open_threshold = 0.02  # 开仓阈值
@@ -51,13 +53,12 @@ class MultiContractStrategy(SpecificStrategyApi):
         # 合约特定配置
         self.contract_config = {
             "SA601": {"position_size": 2, "stop_loss": 0.03, "role": "open"},
-            "FG601": {"position_size": 1, "stop_loss": 0.02, "role": "close"},
-            "RU2601": {"position_size": 3, "stop_loss": 0.04, "role": "arbitrage"}
+            "FG601": {"position_size": 1, "stop_loss": 0.02, "role": "close"}
         }
         
         # 策略状态
-        self.last_signals = {ins: Any for ins in self.instruments}
-        self.entry_prices = {ins: 0.0 for ins in self.instruments}
+        self.last_signals: dict[str, Any | None] = {ins: None for ins in self.instruments}
+        self.entry_prices: dict[str, float] = {ins: 0.0 for ins in self.instruments}
 
     def on_init(self) -> None:
         """策略初始化"""
@@ -98,8 +99,6 @@ class MultiContractStrategy(SpecificStrategyApi):
             self._handle_open_logic(instrument_id, tick)
         elif role == "close":
             self._handle_close_logic(instrument_id, tick)
-        elif role == "arbitrage":
-            self._handle_arbitrage_logic(instrument_id)
         
         # 执行跨合约分析
         self._cross_contract_analysis()
@@ -143,17 +142,6 @@ class MultiContractStrategy(SpecificStrategyApi):
             stop_loss = self.contract_config[instrument_id]["stop_loss"]
             if pnl_rate < -stop_loss or abs(price_change) > self.close_threshold:
                 self._close_position(instrument_id, tick.last_price)
-
-    def _handle_arbitrage_logic(self, instrument_id: str):
-        """处理套利逻辑（RU2601）"""
-        # 这里可以实现更复杂的套利逻辑
-        # 例如：与其他合约的价差分析、相关性分析等
-        prices = self.prices[instrument_id]
-        if len(prices) >= 5:
-            # 简单的价格趋势分析
-            recent_trend = (prices[-1] - prices[-5]) / prices[-5]
-            if abs(recent_trend) > 0.005:  # 0.5%的价格变化
-                print(f"[{instrument_id}] 价格趋势: {recent_trend:.4f}")
 
     def _cross_contract_analysis(self):
         """跨合约分析"""

@@ -565,6 +565,14 @@ class StrategyManager(object):
                 self.logger.info(f"[{sid}] {msg.get('payload')}")
             elif mtype == "error":
                 self.logger.error(f"[{sid}] ERROR {msg.get('payload')}\n{msg.get('trace')}")
+            elif mtype == "subscription":
+                # 处理策略订阅信息（新增）
+                subscription_info = msg.get("payload", {})
+                self.logger.info(f"[{sid}] 收到订阅信息: {subscription_info}")
+                try:
+                    self.register_strategy_subscription(sid, subscription_info)
+                except Exception as e:
+                    self.logger.exception(f"注册策略订阅失败: {e}")
             elif mtype == "save_state_result":
                 # 缓存状态数据，供reload使用
                 if sid in self._meta:
@@ -821,15 +829,11 @@ class StrategyManager(object):
         
         Args:
             data_type: 数据类型 ('tick', 'bar')
-            data: 数据对象
+            data: 数据对象（TickData 或 BarData）
         """
-        event_data = {
-            "type": data_type,
-            "data": data
-        }
-        
-        # 使用现有的 broadcast_event 方法
-        self.broadcast_event(data_type, event_data)
+        # 直接传递数据对象，不要再包装成字典
+        # strategy_worker.py 中会从 event["data"] 获取数据
+        self.broadcast_event(data_type, data)
 
     def get_last_event_time(self) -> dict[str, float]:
         """获取最后一次处理的事件时间"""

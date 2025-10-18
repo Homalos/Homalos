@@ -26,8 +26,8 @@ class Strategy(SpecificStrategyApi):
         print(f"[{self.instrument_id}] tick={tick['last_price']} avg={avg}")
 
     def on_bar(self, bar): pass
-    def on_before_open(self): pass
-    def on_after_close(self): pass
+    def on_init(self): pass
+    def on_close(self): pass
     def on_alarm(self): pass
-    def on_rtn_trade(self, trade): pass
-    def on_rtn_order(self, order): pass
+    def on_trade(self, trade): pass
+    def on_order(self, order): pass
