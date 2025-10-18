@@ -7,33 +7,15 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: subscribe 装饰器
+@Description: 策略性能监控装饰器
 
-src/strategy/decorators.py
+用于监控策略方法执行时间，防止策略逻辑过慢阻塞数据流。
 """
 import time
-from typing import Callable
 from src.utils.log import get_logger
 
 _logger = get_logger(__name__)
 
-
-def subscribe(event_type: str, async_mode: bool = False):
-    """
-    装饰器：标记策略函数订阅的事件类型
-
-    策略函数打上此装饰器后，系统会自动识别并注册到 EventBus。
-
-    使用示例：
-        @subscribe(EventType.TICK)
-        def on_tick(event): ...
-    """
-    def decorator(func: Callable):
-        if not hasattr(func, "_subscribe_to"):
-            func._subscribe_to = []
-        func._subscribe_to.append((event_type, async_mode))
-        return func
-    return decorator
 
 def check_on_tick(func):
     def checkfunc(self, *args, **kwargs):

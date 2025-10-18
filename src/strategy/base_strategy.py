@@ -8,10 +8,21 @@
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
 @Description: 策略基类
+特点：
+- 双层：管理层(BaseStrategy) + 合约层(SpecificStrategy)，BaseStrategy 管理策略元信息与全局状态（如持仓、风险参数）。
+SpecificStrategy 是每个合约的策略实例，独立运行。
+- 每个合约对应独立策略对象 SpecificStrategy，天然隔离
+- 每个 SpecificStrategy 可自行管理多个周期（更灵活）
+- 每个合约独立策略实例，状态隔离强，可独立持久化
+- 完整工程体系，支持状态保存、恢复、装饰器校验、订阅控制
+- 抽象层清晰，可组合不同 SpecificStrategy
+- 多实例封装，每合约独立执行
+优点：职责分离清晰、支持策略文件动态加载、支持分合约调度。
 """
+import datetime
 import uuid
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Any
 
 from src.core.constants import Interval
 from src.core.object import TickData, BarData, OrderData, TradeData
@@ -21,50 +32,58 @@ from src.strategy.decorators import check_on_bar, check_on_tick
 class BaseStrategy(object):
     """策略基类"""
     def __init__(self):
-        self.strategy_id: str = ""  # 策略ID
-        self.strategy_name: str = ""  # 策略名称
-        self.strategy_content: str = ""  # 策略内容介绍
-        self.sub_ins_id: list[str] = []  # 订阅的合约
-        self.sub_kline_type: list[Interval] = []  # 订阅K线类型
-        self.specific_strategy_map: dict[str, SpecificStrategyApi] = {}  # 初始化详细策略文件
+        # 策略基本信息
+        self.strategy_id: str = str(uuid.uuid4())   # 策略ID
+        self.strategy_name: str = ""                # 策略名称
+        self.strategy_content: str = ""             # 策略内容介绍
+        self.author: str = ""                       # 作者
+        self.instruments: list[str] = []            # 订阅的合约
+        self.bar_intervals: list[Interval] = []     # 订阅K线类型
+        self.specific_strategy_map: dict[str, SpecificStrategy] = {}  # 初始化详细策略文件
 
-    def one_min(self, now_time):
+        # 策略数据
+        self.positions: list[dict[str, Any]] = []   # 策略当前持仓
+        self.orders: list[dict[str, Any]] = []      # 策略当前挂单
+        self.entrusts: list[dict[str, Any]] = []    # 策略当前委托
+        self.trades: list[dict[str, Any]] = []      # 策略当前成交
+        self.risk_control: dict[str, Any] = {}      # 策略风控参数
+        self.strategy_params: dict[str, Any] = {}   # 策略参数
+        self.data_cache: dict[str, Any] = {}        # 任意缓存（如bar序列、信号等）
+
+    def one_min(self, now: datetime) -> None:
+        """每分钟调用一次执行"""
         pass
 
+    def is_subscribed(self, instrument_id: str) -> bool:
+        """
+        检查是否订阅了指定合约
 
-class SpecificStrategyApi(ABC):
+        Args:
+            instrument_id: 合约ID
+
+        Returns:
+            bool: 如果订阅了该合约返回True，否则返回False
+        """
+        return instrument_id in self.instruments
+
+    def get_subscribed_instruments(self) -> list[str]:
+        """
+        获取订阅的合约列表
+
+        Returns:
+            list[str]: 订阅的合约ID列表
+        """
+        return self.instruments.copy()
+
+
+class SpecificStrategy(ABC):
     """策略文件基类"""
-    def __init__(
-            self,
-            instruments: str | list = None,
-            strategy_name: str = "",
-            strategy_content: str = "",
-            sub_kline_type: list[Interval] = None
-    ):
-        # 支持多合约订阅（兼容单合约和多合约）
-        if instruments is None:
-            self.instruments = []
-        if isinstance(instruments, str):
-            self.instruments = [instruments]
-        elif isinstance(instruments, list):
-            self.instruments = instruments
-        else:
-            self.instruments = [str(instruments)]
-        
-        self.strategy_id = str(uuid.uuid4())
-        self.strategy_name = strategy_name
-        self.strategy_content = strategy_content
-        self.sub_kline_type = sub_kline_type or []
+    def __init__(self, instrument_id: str, bar_intervals: list[Interval]):
+        self.instrument_id: str = instrument_id
+        self.bar_intervals: list[Interval] = bar_intervals or []
         self.kline_lock = None
-        
-        # 多合约数据管理
-        self.positions: dict[str, int] = {ins: 0 for ins in self.instruments}
-        self.prices: dict[str, list[float]] = {ins: [] for ins in self.instruments}
-        
-        # 向后兼容属性
-        self.instrument_id = self.instruments[0] if self.instruments else ""
         self.bar_data: Optional[BarData] = None
-
+        
     @abstractmethod
     def on_init(self) -> None:
         """开盘前执行"""
@@ -101,29 +120,6 @@ class SpecificStrategyApi(ABC):
     def on_order(self, order: OrderData) -> None:
         """订单状态发生改变时执行"""
         pass
-    
-    # ========== 多合约支持方法 ==========
-    
-    def is_subscribed(self, instrument_id: str) -> bool:
-        """
-        检查是否订阅了指定合约
-        
-        Args:
-            instrument_id: 合约ID
-            
-        Returns:
-            bool: 如果订阅了该合约返回True，否则返回False
-        """
-        return instrument_id in self.instruments
-    
-    def get_subscribed_instruments(self) -> list[str]:
-        """
-        获取订阅的合约列表
-        
-        Returns:
-            list[str]: 订阅的合约ID列表
-        """
-        return self.instruments.copy()
     
     # ========== 状态持久化方法（可选实现） ==========
     

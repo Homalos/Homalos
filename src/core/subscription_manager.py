@@ -127,7 +127,7 @@ class SubscriptionManager:
                     'instruments': instruments,
                     'intervals': intervals
                 }
-                self.logger.info(f"⏳ 网关尚未完全就绪，策略 {strategy_id} 的订阅请求已缓存，等待网关就绪后处理")
+                self.logger.info(f"网关尚未完全就绪，策略 {strategy_id} 的订阅请求已缓存，等待网关就绪后处理")
                 self._log_gateway_status()
                 return
             
@@ -431,7 +431,7 @@ class SubscriptionManager:
             self.logger.debug("没有待处理的订阅请求")
             return
         
-        self.logger.info(f"🚀 网关已完全就绪，开始处理 {len(self._pending_subscriptions)} 个待处理的订阅请求")
+        self.logger.info(f"网关已完全就绪，开始处理 {len(self._pending_subscriptions)} 个待处理的订阅请求")
         
         # 收集所有待订阅的合约
         all_instruments = []
@@ -445,7 +445,7 @@ class SubscriptionManager:
         unique_instruments = list(set(all_instruments))
         
         if unique_instruments:
-            self.logger.info(f"📡 开始订阅合约: {len(unique_instruments)} 个（去重后）")
+            self.logger.info(f"开始订阅合约: {len(unique_instruments)} 个（去重后）")
             self._publish_subscription_requests(unique_instruments)
         
         # 清空待处理队列
@@ -473,7 +473,7 @@ class SubscriptionManager:
             
             # 如果这是重连（之前已经订阅过），则重新订阅
             if len(self._subscribed_instruments) > 0:
-                self.logger.info(f"🔄 检测到行情网关重新登录，准备重新订阅 {len(self._subscribed_instruments)} 个合约")
+                self.logger.info(f"检测到行情网关重新登录，准备重新订阅 {len(self._subscribed_instruments)} 个合约")
                 instruments_to_resubscribe = list(self._subscribed_instruments)
                 self._subscribed_instruments.clear()
                 self._publish_subscription_requests(instruments_to_resubscribe)
@@ -481,7 +481,7 @@ class SubscriptionManager:
             
             # 检查是否所有网关都就绪，如果是，则处理待处理的订阅
             if not was_ready_before and self._is_ready_to_subscribe():
-                self.logger.info("🎉 所有网关已就绪！")
+                self.logger.info("所有网关已就绪！")
                 self._process_pending_subscriptions()
             else:
                 self._log_gateway_status()
@@ -510,7 +510,7 @@ class SubscriptionManager:
             
             # 检查是否所有网关都就绪
             if not was_ready_before and self._is_ready_to_subscribe():
-                self.logger.info("🎉 所有网关已就绪！")
+                self.logger.info("所有网关已就绪！")
                 self._process_pending_subscriptions()
             else:
                 self._log_gateway_status()
@@ -539,11 +539,10 @@ class SubscriptionManager:
             
             # 检查是否所有网关都就绪
             if not was_ready_before and self._is_ready_to_subscribe():
-                self.logger.info("🎉 所有网关已就绪！")
+                self.logger.info("所有网关已就绪！")
                 self._process_pending_subscriptions()
             else:
                 self._log_gateway_status()
                 
         except Exception as e:
             self.logger.error(f"处理合约加载事件失败: {e}", exc_info=True)
-    

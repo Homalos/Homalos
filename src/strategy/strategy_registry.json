@@ -1,22 +1,29 @@
 {
-  "example_ipc_funcs": {
-    "file": "src/strategy/strategies/example_strategy_ipc_funcs.py",
-    "module": "src.strategy.strategies.example_strategy_ipc_funcs",
-    "class": "StrategyFuncsHolder",
+  "strategy_ipc_class": {
+    "file": "src/strategy/strategies/strategy_ipc_class.py",
+    "module": "src.strategy.strategies.strategy_ipc_class",
+    "class": "StrategyIpc",
     "enabled": false,
     "params": {}
   },
-  "multi_contract_example": {
-    "file": "src/strategy/strategies/multi_contract_example.py",
-    "module": "src.strategy.strategies.multi_contract_example",
+  "multi_contract": {
+    "file": "src/strategy/strategies/multi_contract.py",
+    "module": "src.strategy.strategies.multi_contract",
     "class": "MultiContractStrategy",
-    "enabled": true,
+    "enabled": false,
     "params": {}
   },
-  "ma_cross_strategy": {
-    "file": "src/strategy/strategies/simple_ma.py",
-    "module": "src.strategy.strategies.simple_ma",
-    "class": "MACrossStrategy",
+  "simple_ma_cross": {
+    "file": "src/strategy/strategies/simple_ma_cross.py",
+    "module": "src.strategy.strategies.simple_ma_cross",
+    "class": "SimpleMACrossStrategy",
+    "enabled": false,
+    "params": {}
+  },
+  "strategy1": {
+    "file": "src/strategy/strategies/strategy1.py",
+    "module": "src.strategy.strategies.strategy1",
+    "class": "Strategy1",
     "enabled": true,
     "params": {}
   }
