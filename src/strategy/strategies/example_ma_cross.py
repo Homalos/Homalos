@@ -9,7 +9,6 @@
 @Software   : PyCharm
 @Description: description
 """
-# src/strategy/example_ma_cross.py
 from src.strategy.decorators import subscribe
 from src.core.event import EventType
 

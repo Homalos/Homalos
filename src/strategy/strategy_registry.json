@@ -12,5 +12,12 @@
     "class": "MultiContractStrategy",
     "enabled": true,
     "params": {}
+  },
+  "ma_cross_strategy": {
+    "file": "src/strategy/strategies/simple_ma.py",
+    "module": "src.strategy.strategies.simple_ma",
+    "class": "MACrossStrategy",
+    "enabled": true,
+    "params": {}
   }
 }
