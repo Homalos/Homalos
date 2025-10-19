@@ -40,7 +40,7 @@ class PackPayload(object):
             dict: 响应字典
         """
         rsp = {
-            "code": code,
+            "code": code.value,
             "message": message,
             "data": data,
             "timestamp": int(time.time() * 1000)
@@ -48,13 +48,13 @@ class PackPayload(object):
         return rsp
 
     @classmethod
-    def success(cls, data: Optional[Any] = None, message: str = "success") -> dict:
+    def success(cls, message: str = "success", data: Optional[Any] = None) -> dict:
         """
-        成功响应
+        成功响应，成功返回码统一为0
 
         Args:
-            data: 数据
             message: 信息
+            data: 数据
 
         Returns:
             dict: 响应字典
@@ -62,18 +62,16 @@ class PackPayload(object):
         return cls._base(RspCode.SUCCESS, message, data)
 
     @classmethod
-    def fail(cls, code: int | str | RspCode, message: str, data: Optional[Any] = None) -> dict:
+    def fail(cls, code: RspCode, message: str = "fail", data: Optional[Any] = None) -> dict:
         """
-        失败响应
+        失败响应，失败的响应需要指定错误码
 
         Args:
-            code: 错误码
+            code: 错误码，枚举类型
             message: 信息
             data: 数据
 
         Returns:
             dict: 响应字典
         """
-        if isinstance(code, str):
-            code = int(code)
         return cls._base(code, message, data)

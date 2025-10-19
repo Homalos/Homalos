@@ -12,6 +12,9 @@
 import uuid
 from typing import Optional, Any
 
+from src.core.constants import SubscribeAction, RspCode
+from src.core.pack_payload import PackPayload
+
 
 class Event(object):
     """
@@ -25,12 +28,21 @@ class Event(object):
     def __init__(
             self,
             event_type: str,
-            payload: Optional[Any] = None,
+            payload: dict[str, Any] = None,
             source: Optional[str] = None,
             trace_id: Optional[str] = None
     ):
         self.event_type: str = event_type                   # 事件类型
-        self.payload: Any = payload                         # 事件数据
+        """
+        payload 数据结构：
+        {
+            "code": code,                           # 返回码
+            "message": message,                     # 信息
+            "data": data,                           # 事件数据
+            "timestamp": int(time.time() * 1000)    # 时间戳
+        }
+        """
+        self.payload: dict[str, Any] = payload              # 事件相关数据
         self.source: str = source or "unknown"              # 事件来源，如果没有提供来源，则默认为"unknown"
         self.trace_id: str = trace_id or str(uuid.uuid4())  # 事件追踪ID，如果没有提供追踪ID，则生成一个新的UUID
 
@@ -159,3 +171,48 @@ def create_alarm_event(payload: Any = None, source: str = "unknown") -> Event:
         Event: 系统告警事件对象。
     """
     return _create_event(event_type=EventType.SYSTEM_ALARM, payload=payload, source=source)
+
+def create_subscription_event(
+        code: RspCode = RspCode.SUCCESS,
+        message: str = "success",
+        instruments: list[str] = None,
+        action: SubscribeAction = None,
+        source: str = "unknown"
+) -> Event:
+    """
+    创建一个订阅信息请求事件对象便捷函数
+
+    Args:
+        code (RspCode): 返回码
+        message (str): 订阅请求信息
+        instruments (list[str]): 订阅合约。
+        action (SubscribeAction): 订阅操作，枚举类型
+        source (str): 事件来源，如果没有提供来源，则默认为"unknown"
+    Returns:
+        Event: 订阅信息更新事件对象。
+    """
+    if code == RspCode.SUCCESS:
+        return _create_event(
+            event_type=EventType.MARKET_SUBSCRIBE_REQUEST,
+            payload=PackPayload.success(
+                message=message,
+                data={
+                    "instruments": instruments,
+                    "action": action.value
+                }
+            ),
+            source=source
+        )
+    else:
+        return _create_event(
+            event_type=EventType.MARKET_SUBSCRIBE_REQUEST,
+            payload=PackPayload.fail(
+                code=code,
+                message=message,
+                data={
+                    "instruments": instruments,
+                    "action": action.value
+                }
+            ),
+            source=source
+        )

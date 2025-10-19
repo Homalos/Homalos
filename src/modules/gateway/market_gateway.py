@@ -16,7 +16,7 @@ from queue import Queue
 from typing import Any, SupportsInt, Optional
 
 from src.core.base_gateway import BaseGateway
-from src.core.constants import ErrorReason, Exchange
+from src.core.constants import ErrorReason, Exchange, SubscribeAction
 from src.core.event import Event, EventType, create_tick_event, create_alarm_event
 from src.core.event_bus import EventBus
 from src.core.object import SubscribeRequest, ContractData, TickData
@@ -67,10 +67,10 @@ class MarketGateway(BaseGateway):
                 return
             
             # 步骤2：解析订阅请求
-            payload = event.payload
-            action = payload.get('action', 'subscribe')
-            instruments = payload.get('instruments', [])
-            
+            payload: dict = event.payload
+            action: SubscribeAction = payload.get("data", {}).get("action", SubscribeAction.SUBSCRIBE)
+            instruments: list[str] = payload.get('data', {}).get("instruments", [])
+
             if not instruments:
                 self.logger.warning("收到空的订阅请求，已忽略")
                 return
@@ -78,7 +78,7 @@ class MarketGateway(BaseGateway):
             self.logger.info(f"收到订阅请求: {len(instruments)} 个合约, 操作: {action}")
             
             # 步骤3：执行订阅操作
-            if action == 'subscribe':
+            if action == SubscribeAction.SUBSCRIBE:
                 success_count = 0
                 failed_list = []
                 
@@ -110,10 +110,9 @@ class MarketGateway(BaseGateway):
                 else:
                     self.logger.info(f"所有合约订阅完成: 成功 {success_count}/{len(instruments)} 个")
                 
-            elif action == 'unsubscribe':
+            elif action == SubscribeAction.UNSUBSCRIBE:
                 # CTP不支持取消订阅，只记录日志
                 self.logger.debug(f"收到取消订阅请求(CTP不支持): {len(instruments)} 个合约")
-            
             else:
                 self.logger.warning(f"未知的订阅操作: {action}")
         
@@ -124,10 +123,12 @@ class MarketGateway(BaseGateway):
 
             self.event_bus.publish(create_alarm_event(
                 payload = {
-                    "alarm_type": "subscription_error",
-                    "severity": "error",
                     "message": f"行情订阅请求处理失败: {str(e)}",
-                    "details": {"error": str(e)}
+                    "data": {
+                        "alarm_type": "subscription_error",
+                        "severity": "error",
+                        "details": {"error": str(e)}
+                    }
                 },
                 source=self.__class__.__name__
             ))

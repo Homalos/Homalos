@@ -14,8 +14,8 @@ from collections import defaultdict
 from threading import Lock
 from typing import Any
 
-from src.core.constants import Interval
-from src.core.event import Event, EventType
+from src.core.constants import Interval, SubscribeAction, RspCode
+from src.core.event import Event, EventType, create_subscription_event
 from src.core.event_bus import EventBus
 from src.utils.log.logger import get_logger
 
@@ -228,36 +228,24 @@ class SubscriptionManager:
             return
         
         self.logger.info(f"开始发送订阅请求: {len(instruments)} 个合约")
+
+        # 发送订阅事件给行情网关
+        self.event_bus.publish(
+            create_subscription_event(
+                RspCode.SUCCESS,
+                "发送订阅请求成功",
+                instruments,
+                SubscribeAction.SUBSCRIBE)
+        )
+        # 标记为已订阅
+        for instrument_id in instruments:
+            self._subscribed_instruments.add(instrument_id)
+        self.logger.info(f"已发送合约订阅请求: {instruments}")
         
-        try:
-            # 逐个发送订阅事件到事件总线
-            for instrument in instruments:
-                try:
-                    # 发送订阅事件给行情网关
-                    event = Event(
-                        EventType.MARKET_SUBSCRIBE_REQUEST,
-                        payload={
-                            "instrument_id": instrument,
-                            "action": "subscribe"
-                        }
-                    )
-                    self.event_bus.publish(event)
-                    
-                    # 标记为已订阅
-                    self._subscribed_instruments.add(instrument)
-                    self.logger.info(f"✓ 已发送合约订阅请求: {instrument}")
-                    
-                except Exception as e:
-                    self.logger.error(f"✗ 订阅合约 {instrument} 失败: {e}", exc_info=True)
+        # 发送K线配置更新事件
+        self._publish_kline_config_update()
+        self.logger.info(f"订阅请求发送完成: 成功 {len(instruments)} 个合约")
             
-            # 发送K线配置更新事件
-            self._publish_kline_config_update()
-            
-            self.logger.info(f"订阅请求发送完成: 成功 {len(instruments)} 个合约")
-            
-        except Exception as e:
-            self.logger.error(f"批量发送订阅请求失败: {e}", exc_info=True)
-    
     def _publish_kline_config_update(self):
         """
         发送K线配置更新事件（线程安全，同步方法）
@@ -288,50 +276,38 @@ class SubscriptionManager:
         if not self._subscription_active:
             return
         
-        for instrument in instruments:
-            try:
-                # 发送订阅事件给行情网关
-                event = Event(
-                    EventType.MARKET_SUBSCRIBE_REQUEST,
-                    payload={
-                        "instrument_id": instrument,
-                        "action": "subscribe"
-                    }
-                )
-                self.event_bus.publish(event)
+        # 发送订阅事件给行情网关
+        self.event_bus.publish(
+            create_subscription_event(
+                RspCode.SUCCESS,
+                "发送订阅请求成功",
+                instruments,
+                SubscribeAction.SUBSCRIBE)
+        )
+        for instrument_id in instruments:
+            if instrument_id not in self._subscribed_instruments:
+                self._subscribed_instruments.add(instrument_id)
+        self.logger.info(f"已发送合约订阅请求: {instruments}")
                 
-                self._subscribed_instruments.add(instrument)
-                self.logger.info(f"已发送合约订阅请求: {instrument}")
-                
-            except Exception as e:
-                self.logger.error(f"订阅合约 {instrument} 失败: {e}", exc_info=True)
-        
         # 更新K线合成器配置
         await self._update_kline_generator_config()
     
     async def _unsubscribe_instruments(self, instruments: list[str]):
         """取消合约订阅"""
-        for instrument in instruments:
-            try:
-                # 发送取消订阅事件给行情网关
-                event = Event(
-                    EventType.MARKET_SUBSCRIBE_REQUEST,
-                    payload={
-                        "instrument_id": instrument,
-                        "action": "unsubscribe"
-                    }
-                )
-                self.event_bus.publish(event)
-                
-                self.logger.info(f"已取消合约订阅: {instrument}")
-                
-            except Exception as e:
-                self.logger.error(f"取消订阅合约 {instrument} 失败: {e}", exc_info=True)
-        
+        # 发送取消订阅事件给行情网关
+        self.event_bus.publish(
+            create_subscription_event(
+                RspCode.SUCCESS,
+                "发送取消订阅请求成功",
+                instruments,
+                SubscribeAction.UNSUBSCRIBE)
+        )
+        self.logger.info(f"已取消合约订阅: {instruments}")
+
         # 更新K线合成器配置
         await self._update_kline_generator_config()
     
-    async def _update_kline_generator_config(self):
+    async def _update_kline_generator_config(self) -> None:
         """更新K线合成器配置"""
         try:
             kline_config = self.get_kline_subscription_map()
@@ -344,7 +320,6 @@ class SubscriptionManager:
                 }
             )
             self.event_bus.publish(event)
-            
             self.logger.info(f"已更新K线合成器配置: {len(kline_config)} 个合约")
             
         except Exception as e:

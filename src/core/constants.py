@@ -242,3 +242,8 @@ class ModuleStatus(Enum):
     STOPPING = "stopping"
     STOPPED = "stopped"
     ERROR = "error"
+
+class SubscribeAction(Enum):
+    """订阅操作枚举"""
+    UNSUBSCRIBE = "unsubscribe"
+    SUBSCRIBE = "subscribe"
