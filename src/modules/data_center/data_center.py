@@ -344,12 +344,12 @@ class DataCenter(object):
         if self.strategy_map:
             for strategy in self.strategy_map.values():
                 # 获取策略所有需要订阅的合约
-                self.sub_all_ins = list(set(strategy.sub_ins_id))
+                self.sub_all_ins = list(set(strategy.instruments))
 
                 # 添加订阅的K线类型
-                if strategy.sub_kline_type:
-                    # self.bar_generator.add_sub_kline_id(strategy.sub_ins_id)
-                    # self.bar_generator.add_sub_kline_type(strategy.sub_kline_type)
+                if strategy.bar_intervals:
+                    # self.bar_generator.add_sub_kline_id(strategy.instruments)
+                    # self.bar_generator.add_sub_kline_type(strategy.bar_intervals)
                     self.bar_generator.set_kline_type(self.strategy_pool.sub_kline_type)
 
             self.bar_generator.init_min_kline_map()
@@ -378,7 +378,7 @@ class DataCenter(object):
         """
         # 传递tick到策略
         for strategy_id, strategy in self.strategy_map.items():
-            if tick.instrument_id in strategy.sub_ins_id:
+            if tick.instrument_id in strategy.instruments:
                 try:
                     strategy.specific_strategy_map[tick.instrument_id].on_tick(tick)
                 except Exception as e:
@@ -697,7 +697,7 @@ class DataCenter(object):
                     # 线程不为None执行
                     if self.thread_pool:
                         # 执行策略闹钟回调
-                        for instrument_id in strategy.sub_ins_id:
+                        for instrument_id in strategy.instruments:
                             specific_strategy = strategy.specific_strategy_map[instrument_id]
                             self.thread_pool.submit(
                                 specific_strategy.on_alarm
@@ -806,11 +806,11 @@ class DataCenter(object):
                 # 对于数据中心策略，只需要在策略级别执行一次开盘前事件
                 self.logger.info(f"为策略 {strategy.strategy_id} 执行开盘前事件")
                 self.thread_pool.submit(
-                    self._execute_before_open,
+                    self._execute_on_init,
                     strategy
                 )
 
-    def _execute_before_open(self, strategy) -> None:
+    def _execute_on_init(self, strategy) -> None:
         """
         执行数据中心策略的开盘前事件（策略级别，而非每个合约）
         :param strategy: 数据中心策略实例
@@ -819,9 +819,9 @@ class DataCenter(object):
             self.logger.info(f"数据中心策略 {strategy.strategy_id} 开盘前事件开始")
             # 数据中心策略的开盘前逻辑可以在这里实现
             # 例如：准备数据存储目录、初始化文件等
-            for instrument_id in strategy.sub_ins_id:
+            for instrument_id in strategy.instruments:
                 if instrument_id in strategy.specific_strategy_map:
-                    strategy.specific_strategy_map[instrument_id].on_before_open()
+                    strategy.specific_strategy_map[instrument_id].on_init()
         except Exception as e:
             self.logger.exception(f"数据中心策略开盘前事件执行失败: {e}")
 
@@ -833,11 +833,11 @@ class DataCenter(object):
                 # 对于数据中心策略，只需要在策略级别执行一次收盘后事件
                 self.logger.info(f"为策略{strategy.strategy_id}执行收盘后事件")
                 self.thread_pool.submit(
-                    self._execute_after_close,
+                    self._execute_on_close,
                     strategy
                 )
 
-    def _execute_after_close(self, strategy) -> None:
+    def _execute_on_close(self, strategy) -> None:
         """
         执行数据中心策略的收盘后事件（策略级别，而非每个合约）
         :param strategy: 数据中心策略实例
@@ -845,9 +845,9 @@ class DataCenter(object):
         try:
             # 数据中心策略的收盘后逻辑可以在这里实现
             # 例如：关闭文件、清理资源等
-            for instrument_id in strategy.sub_ins_id:
+            for instrument_id in strategy.instruments:
                 if instrument_id in strategy.specific_strategy_map:
-                    strategy.specific_strategy_map[instrument_id].on_after_close()
+                    strategy.specific_strategy_map[instrument_id].on_close()
         except Exception as e:
             self.logger.exception(f"数据中心策略收盘后事件执行失败: {e}")
 

@@ -11,9 +11,11 @@
 """
 import asyncio
 import time
-from src.core.api_response import APIResponse, ErrorCode
+
+from src.core.constants import RspCode
 from src.core.event import Event
 from src.core.event_bus import EventBus
+from src.core.pack_payload import PackPayload
 from src.utils.log import get_logger
 
 _logger = get_logger("strategy")
@@ -26,7 +28,7 @@ def handle_market(event: Event):
     current_logger = get_logger("strategy")
     current_logger.info(f"收到行情: {event.payload}")
     # 下单时返回响应，trace_id 自动继承
-    resp = APIResponse.fail(ErrorCode.TRADE_NO_FUNDS, "资金不足")
+    resp = PackPayload.fail(RspCode.TRADE_NO_FUNDS, "资金不足")
     current_logger.info(f"API响应: {resp}")
 
 async def main():

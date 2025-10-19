@@ -20,7 +20,7 @@ from src.common import load_broker_config
 from src.core.alarm_manager import AlarmManager
 from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
-from src.core.object import SubscribeRequest
+from src.core.object import SubscribeRequest, TickData
 from src.core.strategy_manager import StrategyManager
 from src.core.subscription_manager import SubscriptionManager
 from src.core.system_coordinator import SystemCoordinator
@@ -579,22 +579,17 @@ class IntegratedTradingSystem:
             None
         """
         try:
-            # 解析tick数据（兼容多种格式）
-            if isinstance(event.payload, dict):
-                tick_data = event.payload.get("data")
-            else:
-                tick_data = event.payload
-            
-            if not tick_data:
+            # 解析tick数据
+            payload = event.payload
+            code: int = payload.get("code")
+            tick_data: TickData = payload.get("data")
+
+            if code != 0 and not tick_data:
                 return
-            
-            # 获取合约ID（兼容对象和字典）
-            instrument_id = None
-            if hasattr(tick_data, 'instrument_id'):
-                instrument_id = tick_data.instrument_id
-            elif isinstance(tick_data, dict):
-                instrument_id = tick_data.get('instrument_id')
-            
+
+            # 获取合约ID
+            instrument_id = tick_data.instrument_id
+
             if not instrument_id:
                 self.logger.warning("tick数据缺少instrument_id")
                 return
@@ -719,9 +714,9 @@ async def main():
     system = IntegratedTradingSystem(broker_config)
     
     # 设置信号处理器
-    def signal_handler(sig, _frame):
+    def signal_handler(signum, _frame):
         """信号处理器"""
-        logger.info(f"收到信号 {sig}，开始优雅关闭...")
+        logger.info(f"收到信号 {signum}，开始优雅关闭...")
         # 创建关闭任务
         asyncio.create_task(system.shutdown())
 

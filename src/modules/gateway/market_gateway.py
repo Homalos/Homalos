@@ -13,14 +13,14 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 from queue import Queue
-from typing import Any, SupportsInt
+from typing import Any, SupportsInt, Optional
 
-from src.core.api_response import APIResponse
 from src.core.base_gateway import BaseGateway
 from src.core.constants import ErrorReason, Exchange
-from src.core.event import Event, EventType
+from src.core.event import Event, EventType, create_tick_event, create_alarm_event
 from src.core.event_bus import EventBus
 from src.core.object import SubscribeRequest, ContractData, TickData
+from src.core.pack_payload import PackPayload
 from src.ctp.api import MdApi
 from src.modules.gateway.gateway_const import REASON_MAPPING, symbol_contract_map, CHINA_TZ
 from src.modules.gateway.gateway_helper import extract_error_msg, build_tick_data
@@ -30,11 +30,14 @@ from src.utils.utility import prepare_address
 
 class MarketGateway(BaseGateway):
 
-    def __init__(self, event_bus: EventBus, gateway_name: str = "MarketGateway") -> None:
+    def __init__(
+            self,
+            event_bus: EventBus,
+            gateway_name: str = "MarketGateway"
+    ) -> None:
         super().__init__(event_bus, gateway_name)
         self.gateway_name = gateway_name
-        # CTP API相关
-        self.md_api: CtpMdApi | None = None
+        self.md_api: Optional[CtpMdApi] = None
         self.logger = get_logger(self.__class__.__name__)
         
         # 设置网关事件处理器
@@ -64,16 +67,9 @@ class MarketGateway(BaseGateway):
                 return
             
             # 步骤2：解析订阅请求
-            data = event.payload
-            action = data.get('action', 'subscribe')
-            
-            # 判断是单合约还是批量订阅
-            instrument_id = data.get('instrument_id')
-            instruments = data.get('instruments', [])
-            
-            # 统一转换为列表处理
-            if instrument_id:
-                instruments = [instrument_id]
+            payload = event.payload
+            action = payload.get('action', 'subscribe')
+            instruments = payload.get('instruments', [])
             
             if not instruments:
                 self.logger.warning("收到空的订阅请求，已忽略")
@@ -90,7 +86,7 @@ class MarketGateway(BaseGateway):
                     try:
                         # 验证合约代码格式
                         if not inst_id or not isinstance(inst_id, str):
-                            self.logger.warning(f"⚠️ 无效的合约代码: {inst_id}")
+                            self.logger.warning(f"无效的合约代码: {inst_id}")
                             failed_list.append(inst_id)
                             continue
                         
@@ -112,7 +108,7 @@ class MarketGateway(BaseGateway):
                     self.logger.warning(f"订阅完成: 成功 {success_count}/{len(instruments)}, 失败 {len(failed_list)} 个")
                     self.logger.warning(f"失败合约列表: {failed_list}")
                 else:
-                    self.logger.info(f"✓ 所有合约订阅完成: 成功 {success_count}/{len(instruments)} 个")
+                    self.logger.info(f"所有合约订阅完成: 成功 {success_count}/{len(instruments)} 个")
                 
             elif action == 'unsubscribe':
                 # CTP不支持取消订阅，只记录日志
@@ -122,22 +118,19 @@ class MarketGateway(BaseGateway):
                 self.logger.warning(f"未知的订阅操作: {action}")
         
         except Exception as e:
-            self.logger.error(f"✗ 处理订阅请求异常: {e}", exc_info=True)
+            self.logger.error(f"处理订阅请求异常: {e}", exc_info=True)
             # 发送告警事件（如果有告警管理器）
-            try:
-                from src.core.event import EventType
-                alarm_event = Event(
-                    EventType.SYSTEM_ALARM,
-                    payload={
-                        "alarm_type": "subscription_error",
-                        "severity": "error",
-                        "message": f"行情订阅请求处理失败: {str(e)}",
-                        "details": {"error": str(e)}
-                    }
-                )
-                self.event_bus.publish(alarm_event)
-            except Exception:
-                pass  # 告警发送失败不影响主流程
+            from src.core.event import EventType
+
+            self.event_bus.publish(create_alarm_event(
+                payload = {
+                    "alarm_type": "subscription_error",
+                    "severity": "error",
+                    "message": f"行情订阅请求处理失败: {str(e)}",
+                    "details": {"error": str(e)}
+                },
+                source=self.__class__.__name__
+            ))
 
     def connect(self, setting: dict[str, Any]) -> None:
         """
@@ -207,12 +200,9 @@ class CtpMdApi(MdApi):
     def __init__(self, gateway: MarketGateway):
         super().__init__()
         self.logger = get_logger(self.__class__.__name__)
-
         self.gateway: MarketGateway = gateway  # 行情网关
         self.gateway_name: str = gateway.gateway_name  # 行情网关名称
-
         self.req_id: int = 0  # 请求ID
-
         self.address: str = ""  # 服务器地址 Server address
         self.broker_id: str = ""  # 经纪公司代码
         self.user_id: str = ""  # 用户代码
@@ -316,7 +306,7 @@ class CtpMdApi(MdApi):
                 payload = {
                     "code": 1,
                     "message": "行情服务器登录失败",
-                    "data": None
+                    "data": {}
                 }
                 self.gateway.event_bus.publish(Event(EventType.MD_GATEWAY_LOGIN, payload=payload))
                 self.logger.info("已发布 MD_GATEWAY_LOGIN 事件")
@@ -329,7 +319,7 @@ class CtpMdApi(MdApi):
                 payload = {
                     "code": 0,
                     "message": "行情服务器登录成功",
-                    "data": None
+                    "data": {}
                 }
                 self.gateway.event_bus.publish(Event(EventType.MD_GATEWAY_LOGIN, payload=payload))
                 self.logger.info("已发布 MD_GATEWAY_LOGIN 事件")
@@ -430,9 +420,9 @@ class CtpMdApi(MdApi):
             self.logger.debug(f"市场行情数据接收: {tick.instrument_id} @ {tick.update_time} "
                   f"LastPrice={tick.last_price}")
 
-            self.gateway.event_bus.publish(Event(
-                EventType.TICK,
-                payload=APIResponse.success(message="推送市场行情", data=tick)
+            self.gateway.event_bus.publish(create_tick_event(
+                payload=PackPayload.success(message="推送深度市场行情成功", data=tick),
+                source=self.__class__.__name__
             ))
 
     def onRspUserLogout(self, data: dict, error: dict, reqid: SupportsInt, last: bool):

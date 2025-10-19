@@ -176,9 +176,9 @@ class OpenDate(Enum):
     YESTERDAY = "昨"
 
 # ================= 错误码定义 =================
-class ErrorCode(IntEnum):
+class RspCode(IntEnum):
     """
-    系统的错误码，和CTP的错误码有所区别
+    系统的响应码，和 CTP 的错误码有所区别
     详情参考：Homalos 期货量化交易系统 - API 响应规范.md
     """
 

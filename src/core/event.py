@@ -13,19 +13,28 @@ import uuid
 from typing import Optional, Any
 
 
-class Event:
-    def __init__(self,
-                 event_type: str,
-                 payload: Optional[Any] = None,
-                 source: Optional[str] = None,
-                 trace_id: Optional[str] = None
-                 ):
-        self.event_type: str = event_type    # 事件类型
-        self.payload: Any = payload                # 事件数据
-        self.source: str = source or "unknown"          # 事件来源，如果没有提供来源，则默认为"unknown"
-        self.trace_id: str = trace_id or str(uuid.uuid4())   # 事件追踪ID，如果没有提供追踪ID，则生成一个新的UUID
+class Event(object):
+    """
+    事件类，封装事件数据。
+    Attributes:
+        event_type (str): 事件类型。
+        payload (Any): 事件数据。
+        source (str): 事件来源，如果没有提供来源，则默认为"unknown"
+        trace_id (str): 事件追踪ID，如果没有提供追踪ID，则生成一个新的UUID。
+    """
+    def __init__(
+            self,
+            event_type: str,
+            payload: Optional[Any] = None,
+            source: Optional[str] = None,
+            trace_id: Optional[str] = None
+    ):
+        self.event_type: str = event_type                   # 事件类型
+        self.payload: Any = payload                         # 事件数据
+        self.source: str = source or "unknown"              # 事件来源，如果没有提供来源，则默认为"unknown"
+        self.trace_id: str = trace_id or str(uuid.uuid4())  # 事件追踪ID，如果没有提供追踪ID，则生成一个新的UUID
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         返回事件对象的字符串表示形式。
         Args:
@@ -36,7 +45,7 @@ class Event:
         return f"Event(event_type={self.event_type}, source={self.source}, trace_id={self.trace_id})"
 
 
-class EventType:
+class EventType(object):
     """事件类型常量"""
     EVENT_BUS_SHUTDOWN = "event_bus.shutdown"  # event_bus停止事件
 
@@ -102,12 +111,10 @@ class EventType:
     # ===== 配置更新事件 =====
     CONFIG_UPDATE = "config.update"  # 配置更新事件
 
-
-
-
-def create_event(event_type: str, payload: Any = None, source: str = "unknown") -> Event:
+def _create_event(event_type: str, payload: Any = None, source: str = "unknown") -> Event:
     """
-    创建一个默认的事件对象。
+    创建一个默认的事件对象便捷函数
+
     Args:
         event_type (str): 事件类型。
         payload (Any, optional): 事件数据。默认为空。
@@ -116,3 +123,39 @@ def create_event(event_type: str, payload: Any = None, source: str = "unknown") 
         Event: 默认事件对象。
     """
     return Event(event_type=event_type, payload=payload, source=source)
+
+def create_tick_event(payload: Any = None, source: str = "unknown"):
+    """
+    创建一个Tick事件对象便捷函数
+
+    Args:
+        payload (Any, optional): 事件数据。默认为空。
+        source (str): 事件来源，如果没有提供来源，则默认为"unknown"
+    Returns:
+        Event: Tick事件对象。
+    """
+    return _create_event(event_type=EventType.TICK, payload=payload, source=source)
+
+def create_timer_event(interval: int, source: str = "unknown") -> Event:
+    """
+    创建一个定时器事件对象便捷函数
+
+    Args:
+        interval (int): 定时器间隔。
+        source (str): 事件来源，如果没有提供来源，则默认为"unknown"
+    Returns:
+        Event: 定时器事件对象。
+    """
+    return _create_event(event_type=EventType.TIMER, payload=interval, source=source)
+
+def create_alarm_event(payload: Any = None, source: str = "unknown") -> Event:
+    """
+    创建一个系统告警事件对象便捷函数
+
+    Args:
+        payload (Any, optional): 告警数据。默认为空。
+        source (str): 事件来源，如果没有提供来源，则默认为"unknown"
+    Returns:
+        Event: 系统告警事件对象。
+    """
+    return _create_event(event_type=EventType.SYSTEM_ALARM, payload=payload, source=source)
