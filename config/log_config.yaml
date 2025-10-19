@@ -1,4 +1,5 @@
 logging:
+  is_debug: true                  # 是否开启调试模式
   level: "INFO"                   # 日志级别
   rotation: "50 MB"               # 单个日志文件大小上限
   retention: "14 days"            # 日志保留时间
