@@ -78,7 +78,8 @@ class MarketGateway(BaseGateway):
             self.logger.info(f"收到订阅请求: {len(instruments)} 个合约, 操作: {action}")
             
             # 步骤3：执行订阅操作
-            if action == SubscribeAction.SUBSCRIBE:
+            # 注意：action 是字符串（枚举的 value），需要与枚举的 value 比较
+            if action == SubscribeAction.SUBSCRIBE.value:
                 success_count = 0
                 failed_list = []
                 
@@ -110,7 +111,7 @@ class MarketGateway(BaseGateway):
                 else:
                     self.logger.info(f"所有合约订阅完成: 成功 {success_count}/{len(instruments)} 个")
                 
-            elif action == SubscribeAction.UNSUBSCRIBE:
+            elif action == SubscribeAction.UNSUBSCRIBE.value:
                 # CTP不支持取消订阅，只记录日志
                 self.logger.debug(f"收到取消订阅请求(CTP不支持): {len(instruments)} 个合约")
             else:

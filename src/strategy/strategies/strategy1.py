@@ -62,6 +62,7 @@ class Strategy1(BaseStrategy):
             pass
 
         def on_tick(self, tick: TickData) -> None:
+            self.logger.info(f"{self.strategy_id} 策略收到行情数据: {tick}")
             pass
 
         def on_bar(self, bar: BarData) -> None:

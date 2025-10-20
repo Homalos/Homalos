@@ -239,7 +239,8 @@ class SubscriptionManager:
         )
         # 标记为已订阅
         for instrument_id in instruments:
-            self._subscribed_instruments.add(instrument_id)
+            if instrument_id not in self._subscribed_instruments:
+                self._subscribed_instruments.add(instrument_id)
         self.logger.info(f"已发送合约订阅请求: {instruments}")
         
         # 发送K线配置更新事件
@@ -267,33 +268,13 @@ class SubscriptionManager:
         except Exception as e:
             self.logger.error(f"✗ 发送K线配置更新失败: {e}", exc_info=True)
     
-    async def _subscribe_instruments(self, instruments: list[str]):
-        """
-        向行情网关发送订阅请求（异步方法，保留供其他地方使用）
-        
-        注意：此方法现在主要由 _publish_subscription_requests 替代
-        """
-        if not self._subscription_active:
-            return
-        
-        # 发送订阅事件给行情网关
-        self.event_bus.publish(
-            create_subscription_event(
-                RspCode.SUCCESS,
-                "发送订阅请求成功",
-                instruments,
-                SubscribeAction.SUBSCRIBE)
-        )
-        for instrument_id in instruments:
-            if instrument_id not in self._subscribed_instruments:
-                self._subscribed_instruments.add(instrument_id)
-        self.logger.info(f"已发送合约订阅请求: {instruments}")
-                
-        # 更新K线合成器配置
-        await self._update_kline_generator_config()
-    
     async def _unsubscribe_instruments(self, instruments: list[str]):
-        """取消合约订阅"""
+        """
+        取消合约订阅（异步方法，用于策略卸载）
+        
+        Args:
+            instruments: 待取消订阅的合约列表
+        """
         # 发送取消订阅事件给行情网关
         self.event_bus.publish(
             create_subscription_event(
@@ -304,26 +285,8 @@ class SubscriptionManager:
         )
         self.logger.info(f"已取消合约订阅: {instruments}")
 
-        # 更新K线合成器配置
-        await self._update_kline_generator_config()
-    
-    async def _update_kline_generator_config(self) -> None:
-        """更新K线合成器配置"""
-        try:
-            kline_config = self.get_kline_subscription_map()
-            
-            # 发送配置更新事件给K线合成器
-            event = Event(
-                EventType.KLINE_CONFIG_UPDATE,
-                payload={
-                    "subscription_map": kline_config
-                }
-            )
-            self.event_bus.publish(event)
-            self.logger.info(f"已更新K线合成器配置: {len(kline_config)} 个合约")
-            
-        except Exception as e:
-            self.logger.error(f"更新K线合成器配置失败: {e}", exc_info=True)
+        # 更新K线合成器配置（使用同步方法）
+        self._publish_kline_config_update()
     
     async def _unsubscribe_all(self):
         """取消所有订阅"""

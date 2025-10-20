@@ -18,6 +18,7 @@ from typing import Any
 from src.api.bar_generator.bar_generator import BarGenerator
 from src.common import load_broker_config
 from src.core.alarm_manager import AlarmManager
+from src.core.constants import SubscribeAction
 from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.object import SubscribeRequest, TickData
@@ -630,11 +631,11 @@ class IntegratedTradingSystem:
     
     def _handle_subscription_request(self, event):
         """处理订阅请求"""
-        data = event.payload
-        instrument_id = data.get("instrument_id")
-        action = data.get("action")
+        payload: dict = event.payload
+        instrument_id: str = payload.get("data", {}).get("instrument_id", "")
+        action: SubscribeAction = payload.get("data", {}).get("action", SubscribeAction.SUBSCRIBE)
         
-        if action == "subscribe":
+        if action == SubscribeAction.SUBSCRIBE:
             # 转发给行情网关
             req = SubscribeRequest(instrument_id=instrument_id)
             self.market_gateway.subscribe(req)
