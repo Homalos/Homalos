@@ -131,15 +131,17 @@ class OrderData(BaseData):
     order_status: OrderStatus = OrderStatus.SUBMITTING  # 报单状态
     timestamp: datetime = None
 
-    def create_cancel_request(self) -> "CancelRequest":
-        """
-        根据订单信息创建撤单请求对象。
-        Create cancel request object from order.
-        """
-        req: CancelRequest = CancelRequest(
-            order_id=self.order_id, instrument_id=self.instrument_id, exchange_id=self.exchange_id
-        )
-        return req
+    # def create_cancel_request(self) -> "CancelRequest":
+    #     """
+    #     根据订单信息创建撤单请求对象。
+    #     Create cancel request object from order.
+    #     """
+    #     req: CancelRequest = CancelRequest(
+    #         order_id=self.order_id,
+    #         instrument_id=self.instrument_id,
+    #         exchange_id=self.exchange_id
+    #     )
+    #     return req
 
 
 @dataclass
@@ -197,6 +199,7 @@ class AccountData(BaseData):
     frozen: float = 0.0
 
     def __post_init__(self) -> None:
+        """在初始化之后执行的函数"""
         self.available: float = self.balance - self.frozen
 
 @dataclass
@@ -227,7 +230,7 @@ class ContractData(BaseData):
 
 # ================== 请求 ==================
 @dataclass
-class SubscribeRequest:
+class SubscribeRequest(BaseData):
     """
     请求发送到特定网关以订阅报价数据更新。
     Request sending to specific gateway for subscribing tick data update.
@@ -237,7 +240,7 @@ class SubscribeRequest:
 
 
 @dataclass
-class OrderRequest:
+class OrderRequest(BaseData):
     """
     订单委托请求
     Request sending to specific gateway for creating a new order.
@@ -254,6 +257,12 @@ class OrderRequest:
         """
         根据请求创建订单数据。
         Create order data from request.
+
+        Args:
+            order_id: {front_id}_{session_id}_{order_ref}
+
+        Returns:
+
         """
         order: OrderData = OrderData(
             instrument_id=self.instrument_id,
@@ -269,7 +278,7 @@ class OrderRequest:
 
 
 @dataclass
-class CancelRequest:
+class CancelRequest(BaseData):
     """
     撤销订单委托请求
     Request sending to specific gateway for canceling an existing order.
@@ -278,9 +287,21 @@ class CancelRequest:
     instrument_id: str = None
     exchange_id: Exchange = None
 
+    def create_cancel_order(self) -> "CancelRequest":
+        """
+        根据请求创建创建撤单请求对象。
+        Create cancel request object from order.
+        """
+        req: CancelRequest = CancelRequest(
+            order_id=self.order_id,
+            instrument_id=self.instrument_id,
+            exchange_id=self.exchange_id
+        )
+        return req
+
 
 @dataclass
-class HistoryRequest:
+class HistoryRequest(BaseData):
     """
     向特定网关发送请求以查询历史数据。
     Request sending to specific gateway for querying history data.
@@ -293,7 +314,7 @@ class HistoryRequest:
 
 
 @dataclass
-class TradingSchedule:
+class TradingSchedule(BaseData):
     """交易时间配置"""
     init_strategy_times: list[str] = field(default_factory=lambda: [""])
     login_times: list[str] = field(default_factory=lambda: [""])
@@ -304,9 +325,9 @@ class TradingSchedule:
 
 
 @dataclass
-class ModuleInfo:
+class ModuleInfo(BaseData):
     """模块信息"""
-    name: str
+    name: str = None
     instance: Any = None
     status: ModuleStatus = ModuleStatus.PENDING
     dependencies: list[str] = None

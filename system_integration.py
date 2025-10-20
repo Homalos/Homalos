@@ -61,6 +61,8 @@ class IntegratedTradingSystem:
         # 1. 核心事件总线
         self.event_bus = EventBus(
             context="IntegratedTradingSystem",
+            interval=5,  # 定时器间隔5秒
+            timer_enabled=True,  # 启用定时器（默认值）
             general_max_workers=500,
             market_max_workers=1000,
             register_signals=False,

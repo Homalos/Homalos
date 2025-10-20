@@ -300,9 +300,10 @@ class SystemCoordinator:
         
         # 1. 订阅网关状态事件
         self.event_bus.subscribe(EventType.MD_GATEWAY_LOGIN, self._handle_market_gateway_ready)
-        self.event_bus.subscribe(EventType.TD_GATEWAY_READY, self._handle_trader_gateway_ready)
         # 兼容TD_CONFIRM_SUCCESS事件（结算单确认后交易网关就绪）
         self.event_bus.subscribe(EventType.TD_CONFIRM_SUCCESS, self._handle_trader_gateway_ready)
+        # 结算单已确认过也表示交易网关就绪
+        self.event_bus.subscribe(EventType.TD_ALREADY_CONFIRMED, self._handle_trader_gateway_ready)
         
         # 2. 订阅策略管理相关事件
         self.event_bus.subscribe(EventType.STRATEGY_LOADED, self._handle_strategy_loaded)

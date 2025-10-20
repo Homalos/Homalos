@@ -17,7 +17,8 @@ from typing import SupportsInt
 
 from src.constants import INSTRUMENT_EXCHANGE_FILENAME, PRODUCT_INFO_FILENAME, Const
 from src.core.base_gateway import BaseGateway
-from src.core.constants import ErrorReason, Currency, Exchange, Direction, Product, OrderStatus, OrderType
+from src.core.constants import ErrorReason, Currency, Exchange, Direction, Product, OrderStatus, OrderType, RspCode, \
+    RspMsg
 from src.core.event import EventType, Event
 from src.core.event_bus import EventBus
 from src.core.object import OrderRequest, CancelRequest, ContractData, OrderData, PositionData, AccountData, TradeData
@@ -49,7 +50,11 @@ from src.utils.utility import prepare_address, write_json, load_ini, write_ini, 
 
 class TraderGateway(BaseGateway):
 
-    def __init__(self, event_bus: EventBus, gateway_name: str = "TraderGateway") -> None:
+    def __init__(
+            self,
+            event_bus: EventBus,
+            gateway_name: str = "TraderGateway"
+    ) -> None:
         super().__init__(event_bus, gateway_name)
         self.event_bus = event_bus
         self.gateway_name: str = gateway_name
@@ -59,6 +64,7 @@ class TraderGateway(BaseGateway):
         self.query_functions: list = []
         self.logger = get_logger(self.__class__.__name__)
 
+        # 订阅数据中心合约更新事件
         self.event_bus.subscribe(EventType.DATA_CENTER_QRY_INS, self.update_instrument_handler)
         
         # 设置网关事件处理器
@@ -174,6 +180,9 @@ class TraderGateway(BaseGateway):
             if self.td_api:
                 self.td_api.close()
 
+        # 初始化定时查询账户资金和持仓信息
+        self.init_query_acc_pos()
+
     def send_order(self, req: OrderRequest) -> str:
         """
         委托下单
@@ -220,13 +229,16 @@ class TraderGateway(BaseGateway):
         if self.td_api:
             self.td_api.logout()
 
-    def process_timer_event(self) -> None:
-        """定时事件处理"""
+    def process_timer_event(self, event: Event) -> None:
+        """定时事件处理 - 轮流查询账户和持仓"""
+        if not self.td_api or not self.query_functions:
+            return
+
         self.count += 1
-        if self.count < 2:
+        if self.count < 2:  # 每2次TIMER事件（如interval=5，则10秒执行一次）
             return
         self.count = 0
-
+        # 轮流执行查询任务
         func = self.query_functions.pop(0)
         func()
         self.query_functions.append(func)
@@ -234,12 +246,15 @@ class TraderGateway(BaseGateway):
         if self.td_api:
             self.td_api.update_date()
 
-    def init_query(self) -> None:
+    def init_query_acc_pos(self) -> None:
         """初始化查询任务"""
-        self.count = 0
-        self.query_functions = [self.query_account, self.query_position]
-        # TODO: 修复定时器事件发布逻辑
-        # self.event_bus.publish(Event(EventType.TIMER, payload=self.process_timer_event))
+        if not self.td_api:
+            self.logger.warning("交易接口未初始化，跳过查询任务初始化。")
+            return
+        self.count: int = 0
+        self.query_functions: list = [self.query_account, self.query_position]
+        # 订阅定时器事件
+        self.event_bus.subscribe(EventType.TIMER, self.process_timer_event)
 
     def get_order_status_summary(self) -> None:
         """
@@ -273,7 +288,6 @@ class CtpTdApi(TdApi):
 
         self.gateway: TraderGateway = gateway
         self.gateway_name: str = gateway.gateway_name
-
         self.logger = get_logger(self.__class__.__name__)
 
         # 流程：连接 -> 授权 -> 登录 -> 确认结算单
@@ -446,9 +460,9 @@ class CtpTdApi(TdApi):
 
             if self.gateway.event_bus:
                 payload = {
-                    "code": 1,
-                    "message": "交易服务器登录失败",
-                    "data": None
+                    "code": RspCode.LOGIN_TD_FAILED,
+                    "message": RspMsg.LOGIN_TD_FAILED,
+                    "data": {}
                 }
                 self.gateway.event_bus.publish(Event(EventType.TD_GATEWAY_LOGIN, payload=payload))
                 self.logger.info("已发布 TD_GATEWAY_LOGIN 事件")
@@ -457,7 +471,7 @@ class CtpTdApi(TdApi):
             # 请求响应的所有数据包全部返回，并且没有错误，则认为成功
             if last and data:
                 self.login_status = True
-                self.logger.info("交易服务器登录成功")
+                self.logger.info("登录交易服务器成功")
 
                 self.trading_day = data.get("TradingDay", "")
                 self.login_time = data.get("LoginTime", "")
@@ -466,8 +480,8 @@ class CtpTdApi(TdApi):
 
                 if self.gateway.event_bus:
                     payload = {
-                        "code": 0,
-                        "message": "交易服务器登录成功",
+                        "code": RspCode.LOGIN_TD_SUCCESS,
+                        "message": RspMsg.LOGIN_TD_SUCCESS,
                         "data": {
                             "trading_day": self.trading_day,
                             "login_time": self.login_time,
@@ -500,9 +514,9 @@ class CtpTdApi(TdApi):
                         # 这里的处理逻辑：确认过和跳过确认都发送确认成功事件
                         if self.gateway.event_bus:
                             payload = {
-                                "code": 0,
-                                "message": "结算单已经确认过，跳过再次确认",
-                                "data": None
+                                "code": RspCode.SETTLEMENT_CONFIRM_ALREADY,
+                                "message": RspMsg.SETTLEMENT_CONFIRM_ALREADY,
+                                "data": {}
                             }
                             self.gateway.event_bus.publish(Event(EventType.TD_ALREADY_CONFIRMED, payload=payload))
                             self.logger.info("已发布 TD_ALREADY_CONFIRMED 事件")
@@ -631,8 +645,8 @@ class CtpTdApi(TdApi):
             if last:
                 self.logger.info("查询所有持仓成功")
                 for position in self.positions.values():
-                    # TODO: 将仓位数据推送到事件总线
-                    # self.gateway.on_position(position)
+                    # 将仓位数据推送到事件总线
+                    self.gateway.on_position(position)
                     self.logger.info(f"持仓数据: {position}")
 
                 self.positions.clear()
@@ -686,8 +700,14 @@ class CtpTdApi(TdApi):
                 frozen = data.get("FrozenMargin", 0.0) + data.get("FrozenCash", 0.0) + data.get("FrozenCommission", 0.0)
             )
             account.available = data.get("Available", 0.0)
-            # TODO: 后期考虑推送账户信息到事件总线
-            # self.gateway.on_account(account)
+            
+            # 记录日志
+            if last:
+                self.logger.info("查询资金账户成功")
+                self.logger.info(f"账户数据: {account}")
+            
+            # 推送账户信息到事件总线
+            self.gateway.on_account(account)
 
     def onRspQryInstrument(self, data: dict, error: dict, reqid: SupportsInt, last: bool) -> None:
         """
@@ -750,9 +770,9 @@ class CtpTdApi(TdApi):
                 # 设置查询合约状态
                 if self.gateway.event_bus:
                     payload = {
-                        "code": 0,
-                        "message": "查询合约完成",
-                        "data": None
+                        "code": RspCode.CONTRACT_SYMBOL_QUERY_COMPLETE,
+                        "message": RspMsg.CONTRACT_SYMBOL_QUERY_COMPLETE,
+                        "data": {}
                     }
                     self.gateway.event_bus.publish(Event(EventType.TD_QRY_INS, payload=payload))
                     self.logger.info("已发布 TD_QRY_INS 事件")
@@ -867,13 +887,15 @@ class CtpTdApi(TdApi):
                 contract: ContractData = symbol_contract_map[instrument_id]
                 order: OrderData = build_order_data(data, contract, order_id)
 
-                # TODO:  后期考虑将订单数据推送到事件总线，方便其他模块处理
+                # 将订单数据推送到事件总线，方便其他模块处理
                 self.logger.info(f"订单号：{order.order_id}, "
                                  f"买卖方向：{order.direction}, "
                                  f"组合开平标志：{order.offset}, "
                                  f"价格：{order.price}, "
                                  f"数量：{order.volume}, "
                                  f"合约代码：{order.instrument_id}")
+                # 推送订单数据到数据总线
+                self.gateway.on_order(order)
 
             if not last:
                 self.logger.info("报单录入请求响应中......")
@@ -974,10 +996,14 @@ class CtpTdApi(TdApi):
             order_status_event = Event(
                 EventType.ORDER_STATUS_UPDATE,
                 payload={
-                    "order_id": order_id,
-                    "order_status": order_status,
-                    "order_data": order,
-                    "instrument_id": instrument_id
+                    "code": 0,
+                    "message": "发布订单状态更新",
+                    "data": {
+                        "order_id": order_id,
+                        "order_status": order_status,
+                        "order_data": order,
+                        "instrument_id": instrument_id
+                    }
                 }
             )
             self.gateway.event_bus.publish(order_status_event)
@@ -1027,9 +1053,13 @@ class CtpTdApi(TdApi):
             trade_execution_event = Event(
                 EventType.TRADE_EXECUTION,
                 payload={
-                    "trade_data": trade,
-                    "order_id": order_id,
-                    "instrument_id": instrument_id
+                    "code": 0,
+                    "message": "发布成交回报",
+                    "data": {
+                        "trade_data": trade,
+                        "order_id": order_id,
+                        "instrument_id": instrument_id
+                    }
                 }
             )
             self.gateway.event_bus.publish(trade_execution_event)
@@ -1302,13 +1332,18 @@ class CtpTdApi(TdApi):
         tp: tuple = ORDER_TYPE_ENUM_TO_CTP[req.order_type]
         price_type, time_condition, volume_condition = tp
 
+        # 开平标志
+        comb_offset_flag = OFFSET_ENUM_TO_CTP.get(req.offset, "")
+        # 买卖方向
+        direction = DIRECTION_ENUM_TO_CTP.get(req.direction, "")
+
         order_req: dict = {
             "BrokerID": self.broker_id,
             "InvestorID": self.user_id,
             "InstrumentID": req.instrument_id,
             "OrderRef": str(self.order_ref),
             "UserID": self.user_id,
-            "CombOffsetFlag": OFFSET_ENUM_TO_CTP.get(req.offset, ""),  # 开平标志
+            "CombOffsetFlag": comb_offset_flag,  # 开平标志
             "CombHedgeFlag": THOST_FTDC_HF_Speculation,  # 投机套保标志，投机
             # "GTDDate": "",  # GTD日期
             "ExchangeID": req.exchange_id.value,  # 交易所代码
@@ -1322,7 +1357,7 @@ class CtpTdApi(TdApi):
             "RequestID": self.req_id,  # 请求编号
             "IsSwapOrder": 0,  # 互换单标志
             "OrderPriceType": price_type,  # 报单价格条件，普通限价单的默认参数
-            "Direction": DIRECTION_ENUM_TO_CTP.get(req.direction, ""),  # 买卖方向
+            "Direction": direction,  # 买卖方向
             "TimeCondition": time_condition,  # 有效期类型，当日有效
             "VolumeCondition": volume_condition,  # 成交量类型，任意数量
             "ContingentCondition": THOST_FTDC_CC_Immediately,  # 触发条件
@@ -1347,9 +1382,28 @@ class CtpTdApi(TdApi):
         order_id: str = f"{self.front_id}_{self.session_id}_{self.order_ref}"
         self.logger.info(f"委托下单成功，OrderID: {order_id}")
 
-        # TODO: 后期考虑将订单推送到事件总线
-        # order: OrderData = req.create_order_data(order_id)
-        # self.gateway.on_order(order)
+        # 将订单请求数据推送到事件总线
+        order: OrderData = req.create_order_data(order_id)
+        if self.gateway.event_bus:
+            send_order_event = Event(
+                EventType.ORDER_SUBMIT_REQUEST,
+                payload={
+                    "code": 0,
+                    "message": "发布订单委托",
+                    "data": {
+                        "order_data": order,
+                        "instrument_id": req.instrument_id
+                    }
+                }
+            )
+            self.gateway.event_bus.publish(send_order_event)
+            self.logger.debug(f"已发布订单委托事件: "
+                              f"InstrumentID={req.instrument_id}, "
+                              f"ExchangeID={req.exchange_id.value}, "
+                              f"CombOffsetFlag={comb_offset_flag}, "
+                              f"DDirection={direction}, "
+                              f"Volume={req.volume}"
+                              )
 
         return order_id
 
@@ -1391,6 +1445,25 @@ class CtpTdApi(TdApi):
             self.logger.error("运行时错误！错误：{}".format(e))
             self.logger.error("traceback: {}".format(traceback.format_exc()))
 
+        cancel_order: CancelRequest = req.create_cancel_order()
+        # 将委托撤单请求数据推送到事件总线
+        if self.gateway.event_bus:
+            cancel_order_event = Event(
+                EventType.ORDER_CANCEL_REQUEST,
+                payload={
+                    "code": 0,
+                    "message": "发布委托撤单",
+                    "data": cancel_order
+                }
+            )
+            self.gateway.event_bus.publish(cancel_order_event)
+            self.logger.debug(f"已发布委托撤单事件: "
+                              f"OrderID={req.order_id}, "
+                              f"OrderRef={order_ref}, "
+                              f"InstrumentID={req.instrument_id}, "
+                              f"ExchangeID={req.exchange_id.value}"
+                              )
+
     def query_instrument(self) -> None:
         """
         查询合约
@@ -1408,7 +1481,7 @@ class CtpTdApi(TdApi):
             "InvestorID": self.user_id,
             "CurrencyID": Currency.CNY.value
         }
-        # 调用请求查询资金账户，响应: OnRspQryTradingAccount
+        # 调用请求查询资金账户，响应: onRspQryTradingAccount
         self.reqQryTradingAccount(qry_req, self.req_id)
 
     def query_position(self) -> None:
@@ -1419,7 +1492,7 @@ class CtpTdApi(TdApi):
         }
 
         self.req_id += 1
-        # 请求查询投资者持仓，对应响应OnRspQryInvestorPosition。
+        # 请求查询投资者持仓，对应响应 onRspQryInvestorPosition。
         # CTP系统将持仓明细记录按合约，持仓方向，开仓日期（仅针对上期所和能源所，区分昨仓、今仓）进行汇总。
         self.reqQryInvestorPosition(qry_req, self.req_id)
 

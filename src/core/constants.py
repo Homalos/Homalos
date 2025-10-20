@@ -216,10 +216,44 @@ class RspCode(IntEnum):
     STRATEGY_PARAM_INVALID = 5003   # 策略参数无效
     STRATEGY_BLOCKED_BY_RISK = 5004 # 策略被风控阻止
 
-    # 策略模块 5xxx
+    # 策略模块 6xxx
     DATA_CENTER_START_FAILED = 6001  # 据中心启动失败
     DATA_CENTER__RUNTIME_ERROR = 6002  # 数据中心内部异常
     DATA_CENTER_PARAM_INVALID = 6003  # 配置参数缺失或不合法
+
+    # 登录交易服务器模块 7xxx
+    LOGIN_TD_SUCCESS = 0  # 登录成功
+    LOGIN_TD_FAILED = 7001  # 登录失败
+
+    # 结算单模块 8xxx
+    SETTLEMENT_CONFIRM_SUCCESS = 0  # 确认结算单成功
+    SETTLEMENT_CONFIRM_FAILED = 8001  # 确认结算单失败
+    SETTLEMENT_CONFIRM_ALREADY = 0  # 结算单已确认
+
+    # 合约模块 9xxx
+    CONTRACT_SYMBOL_QUERY_SUCCESS = 0  # 查询合约成功
+    CONTRACT_SYMBOL_QUERY_FAILED = 9001  # 查询合约失败
+    CONTRACT_SYMBOL_QUERY_TIMEOUT = 9002  # 查询合约超时
+    CONTRACT_SYMBOL_QUERY_COMPLETE = 0  # 查询合约完成
+
+class RspMsg(Enum):
+    """
+    消息
+    """
+    # 登录交易服务器模块 7xxx
+    LOGIN_TD_SUCCESS = "登录交易服务器成功"  # 登录成功
+    LOGIN_TD_FAILED = "登录交易服务器失败"  # 登录失败
+
+    # 结算单模块 8xxx
+    SETTLEMENT_CONFIRM_SUCCESS = "确认结算单成功"
+    SETTLEMENT_CONFIRM_FAILED = "确认结算单失败"
+    SETTLEMENT_CONFIRM_ALREADY = "结算单已确认"
+
+    # 合约模块 9xxx
+    CONTRACT_SYMBOL_QUERY_SUCCESS = "查询合约成功"
+    CONTRACT_SYMBOL_QUERY_FAILED = "查询合约失败"
+    CONTRACT_SYMBOL_QUERY_TIMEOUT = "查询合约超时"
+    CONTRACT_SYMBOL_QUERY_COMPLETE = "查询合约完成"
 
 
 class Task(Enum):

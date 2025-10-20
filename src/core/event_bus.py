@@ -25,6 +25,7 @@ import inspect
 import queue
 import signal
 import threading
+import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from queue import Empty, Full
@@ -40,9 +41,12 @@ class EventBus:
     - 将事件按类别分发到不同队列，避免高频事件堵塞低频关键事件
     - 同步/异步统一接口：publish(event, async_mode=True/False)
     - 队列划分：market（行情高频）、general（普通事件）
+    - 内置定时器：定期发布 EventType.TIMER 事件，支持秒级定时任务
     """
     def __init__(self,
                  context: str = "EventBus",
+                 interval: int = 1,                     # 定时器间隔
+                 timer_enabled: bool = True,            # 是否启用定时器
                  general_max_workers: int = 500,        # 普通队列最大线程数
                  market_max_workers: int = 1000,        # 行情高频队列最大线程数
                  register_signals: bool = True,         # 是否注册信号处理
@@ -51,6 +55,7 @@ class EventBus:
 
         self.logger = get_logger(context=context)
         self._context: str = context        # 上下文(可传入服务名/模块名作为上下文)
+        self._interval = interval
         # 存储事件类型与订阅者的映射：{event_type: [(subscriber, async_mode), ...]}
         self._subscribers: dict[str, list] = defaultdict(list)
 
@@ -94,6 +99,10 @@ class EventBus:
         self._old_sigint = None
         self._old_sigterm = None
 
+        # 定时器相关
+        self._timer_enabled: bool = timer_enabled          # 是否启用定时器
+        self._timer_thread: threading.Thread | None = None # 定时器线程
+
         # 自动启动功能
         if auto_start:
             self.start()
@@ -127,6 +136,14 @@ class EventBus:
         # 启动异步消费任务
         if self._async_task is None and self._loop:
             self._async_task = self._loop.create_task(self._async_loop(), name="AsyncLoop")
+
+        # 启动定时器线程
+        if self._timer_enabled and self._timer_thread is None:
+            self._timer_thread = threading.Thread(
+                target=self._timer_loop, daemon=True, name="TimerLoop"
+            )
+            self._timer_thread.start()
+            self.logger.info(f"定时器线程已启动，间隔: {self._interval}秒")
 
         # 注册信号
         if (self._register_signals and not self._signal_registered
@@ -178,6 +195,14 @@ class EventBus:
                         except Exception as e:
                             self.logger.warning(f"等待线程退出失败: {e}")
 
+                # 等待定时器线程退出
+                if self._timer_thread and self._timer_thread.is_alive():
+                    try:
+                        self._timer_thread.join(timeout=self._sync_thread_quit_timeout)
+                        self.logger.info("定时器线程已停止")
+                    except Exception as e:
+                        self.logger.warning(f"等待定时器线程退出失败: {e}")
+
                 # 关闭线程池
                 for name, executor in self._executors.items():
                     try:
@@ -207,6 +232,7 @@ class EventBus:
                 self._loop = None
                 self._threads = {}
                 self._async_task = None
+                self._timer_thread = None
                 self.logger.info("EventBus 已优雅停止")
 
     def _signal_handler(self, signum, _frame):
@@ -218,6 +244,10 @@ class EventBus:
     def is_active(self) -> bool:
         """检查事件总线是否激活"""
         return self._active
+
+    def timer_enabled(self) -> bool:
+        """检查定时器是否启用"""
+        return self._timer_enabled
 
     def get_subscriber_count(self, event_type: str | None = None) -> int:
         """获取订阅者数量"""
@@ -405,6 +435,33 @@ class EventBus:
             self.logger.exception(f"异步事件循环异常: {e}")
         finally:
             self.logger.info("异步事件循环已退出")
+
+    def _timer_loop(self) -> None:
+        """
+        定时器循环，定期发布TIMER事件
+        
+        每隔 self._interval 秒发布一次 EventType.TIMER 事件。
+        订阅者可以监听该事件执行定时任务（如查询账户、持仓等）。
+        """
+        self.logger.info(f"定时器线程已启动，间隔: {self._interval}秒")
+        try:
+            while self._active and not self._stopped.is_set():
+                time.sleep(self._interval)
+                
+                # 检查是否仍在运行
+                if not self._active or self._stopped.is_set():
+                    break
+                
+                # 发布定时器事件（走general队列，优先级不高）
+                try:
+                    timer_event = Event.timer(source="EventBus")
+                    self.publish(timer_event, async_mode=False)
+                except Exception as e:
+                    self.logger.error(f"发布定时器事件失败: {e}")
+        except Exception as e:
+            self.logger.exception(f"定时器循环异常: {e}")
+        finally:
+            self.logger.info("定时器线程已退出")
 
     def _dispatch(self, event: Event) -> None:
         """

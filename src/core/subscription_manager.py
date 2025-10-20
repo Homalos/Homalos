@@ -15,7 +15,7 @@ from threading import Lock
 from typing import Any
 
 from src.core.constants import Interval, SubscribeAction, RspCode
-from src.core.event import Event, EventType, create_subscription_event
+from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.utils.log.logger import get_logger
 
@@ -75,6 +75,8 @@ class SubscriptionManager:
         # 订阅网关就绪事件（新增）
         self.event_bus.subscribe(EventType.MD_GATEWAY_LOGIN, self._handle_md_gateway_login)
         self.event_bus.subscribe(EventType.TD_CONFIRM_SUCCESS, self._handle_td_gateway_ready)
+        # 结算单已确认过也表示交易网关就绪
+        self.event_bus.subscribe(EventType.TD_ALREADY_CONFIRMED, self._handle_td_gateway_ready)
         self.event_bus.subscribe(EventType.TD_QRY_INS, self._handle_contracts_loaded)
         
         self._subscription_active = True
@@ -231,7 +233,7 @@ class SubscriptionManager:
 
         # 发送订阅事件给行情网关
         self.event_bus.publish(
-            create_subscription_event(
+            Event.subscription(
                 RspCode.SUCCESS,
                 "发送订阅请求成功",
                 instruments,
@@ -277,7 +279,7 @@ class SubscriptionManager:
         """
         # 发送取消订阅事件给行情网关
         self.event_bus.publish(
-            create_subscription_event(
+            Event.subscription(
                 RspCode.SUCCESS,
                 "发送取消订阅请求成功",
                 instruments,

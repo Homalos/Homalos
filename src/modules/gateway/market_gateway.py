@@ -17,7 +17,7 @@ from typing import Any, SupportsInt, Optional
 
 from src.core.base_gateway import BaseGateway
 from src.core.constants import ErrorReason, Exchange, SubscribeAction
-from src.core.event import Event, EventType, create_tick_event, create_alarm_event
+from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.object import SubscribeRequest, ContractData, TickData
 from src.core.pack_payload import PackPayload
@@ -122,7 +122,7 @@ class MarketGateway(BaseGateway):
             # 发送告警事件（如果有告警管理器）
             from src.core.event import EventType
 
-            self.event_bus.publish(create_alarm_event(
+            self.event_bus.publish(Event.alarm(
                 payload = {
                     "message": f"行情订阅请求处理失败: {str(e)}",
                     "data": {
@@ -422,7 +422,8 @@ class CtpMdApi(MdApi):
             self.logger.debug(f"市场行情数据接收: {tick.instrument_id} @ {tick.update_time} "
                   f"LastPrice={tick.last_price}")
 
-            self.gateway.event_bus.publish(create_tick_event(
+            self.gateway.event_bus.publish(
+                Event.tick(
                 payload=PackPayload.success(message="推送深度市场行情成功", data=tick),
                 source=self.__class__.__name__
             ))
