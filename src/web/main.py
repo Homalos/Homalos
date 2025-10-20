@@ -59,7 +59,8 @@ async def lifespan(app: FastAPI):
             try:
                 config = await SystemConfigService.get_email_config()
                 return config
-            except Exception:
+            except Exception as err:
+                logger.exception(f"获取邮件配置失败: {err}", exc_info=True)
                 return {}
         
         email_notifier = EmailNotifier(config_getter=get_email_config)

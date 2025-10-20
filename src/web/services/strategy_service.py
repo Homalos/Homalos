@@ -7,12 +7,12 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 策略管理服务层，封装 StrategyManagerIPC 业务逻辑
+@Description: 策略管理服务层，封装 StrategyManager 业务逻辑
 """
 import asyncio
 from typing import Optional, Dict, Any
 
-from src.core.strategy_manager import StrategyManagerIPC
+from src.core.strategy_manager import StrategyManager
 from src.utils.log import get_logger
 from src.utils.get_path import get_path_ins
 
@@ -21,11 +21,11 @@ class StrategyService:
     """策略管理服务"""
     
     def __init__(self):
-        self.logger = get_logger(__class__.__name__)
-        self._manager: Optional[StrategyManagerIPC] = None
+        self.logger = get_logger(self.__class__.__name__)
+        self._manager: Optional[StrategyManager] = None
         self._initialized = False
     
-    def get_manager(self) -> StrategyManagerIPC:
+    def get_manager(self) -> StrategyManager:
         """获取策略管理器实例"""
         if not self._initialized or self._manager is None:
             raise RuntimeError("StrategyService not initialized. Call initialize_manager() first.")
@@ -43,13 +43,24 @@ class StrategyService:
             return
         
         try:
-            # 构建 strategies.json 路径
-            registry_path = get_path_ins.join_path("src", "strategy", "strategies.json")
+            # 构建 strategy_registry.json 路径
+            registry_path = get_path_ins.join_path("src", "strategy", "strategy_registry.json")
             
             self.logger.info(f"初始化策略管理器，注册中心路径: {registry_path}")
             
+            # 创建 EventBus 实例（Web 服务专用，轻量级配置）
+            from src.core.event_bus import EventBus
+            event_bus = EventBus(
+                context="WebService",
+                general_max_workers=50,
+                market_max_workers=100,
+                register_signals=False,  # Web 服务不需要信号处理
+                auto_start=True
+            )
+            
             # 创建管理器实例
-            self._manager = StrategyManagerIPC(
+            self._manager = StrategyManager(
+                event_bus=event_bus,
                 strategies_pkg="src.strategy.strategies",
                 registry_path=str(registry_path)
             )
