@@ -1,5 +1,106 @@
 # Update History
 
+## v0.0.5.20251022
+
+### ✨ 核心架构优化
+
+#### Event.py 代码重构
+- **优化目标**：提升代码质量和可维护性
+- **重构内容**：
+  - 将10个模块级便捷函数转换为 `Event` 类方法
+  - 使用 Python 3.10+ 联合类型语法（`|` 代替 `Optional`）
+  - 新增 `Event.create()` 通用类方法
+  - 简化 `subscription()` 方法的条件逻辑
+- **API变更**（破坏性更改）：
+  - 旧方式：`create_tick_event(payload, source)`
+  - 新方式：`Event.tick(payload, source)`
+- **代码统计**：
+  - 删除 153 行重复代码
+  - 新增 155 行类方法（含完整文档）
+  - 代码结构更清晰，符合面向对象设计原则
+- **优势**：
+  - ✅ 更好的封装性（事件创建属于Event类）
+  - ✅ 更简洁的API（`Event.tick()` vs `create_tick_event()`）
+  - ✅ 完整的类型提示支持
+  - ✅ 减少命名空间污染
+
+#### EventBus 内置定时器机制
+- **功能**：支持秒级定时任务，用于定期查询账户和持仓
+- **实现**：
+  - 新增 `timer_enabled` 参数（默认 `True`）
+  - 新增 `_timer_thread` 定时器线程
+  - 新增 `_timer_loop()` 方法，定期发布 `EventType.TIMER` 事件
+  - 定时器间隔可配置（`interval` 参数，默认1秒）
+- **特性**：
+  - ⏱️ 秒级精度，支持任意间隔
+  - 🔄 自动发布 TIMER 事件到 general 队列（优先级不高）
+  - 🛡️ 线程安全的启动和停止机制
+  - 📝 完整的异常处理和日志记录
+  - 🔌 守护线程模式，主线程退出时自动结束
+- **使用示例**：
+  ```python
+  # 每5秒发布一次TIMER事件
+  event_bus = EventBus(interval=5, timer_enabled=True)
+  
+  # 订阅TIMER事件
+  event_bus.subscribe(EventType.TIMER, timer_handler)
+  ```
+- **应用场景**：
+  - 定期查询账户资金（如每5秒）
+  - 定期查询持仓信息
+  - 心跳保活机制
+  - 定时数据同步
+
+### 🐛 Bug修复
+
+#### 修复 TraderGateway 定时器事件处理
+- **问题**：`process_timer_event()` 方法签名不匹配
+  - 错误信息：`TypeError: TraderGateway.process_timer_event() takes 1 positional argument but 2 were given`
+- **原因**：EventBus 调用订阅者时会传递 `Event` 对象，但方法未接收此参数
+- **解决**：
+  - 修改方法签名：`def process_timer_event(self) -> None:` → `def process_timer_event(self, event: Event) -> None:`
+  - 保持方法内部逻辑不变
+- **效果**：
+  - ✅ 定时器事件正常接收和处理
+  - ✅ 每10秒轮流查询账户和持仓（2次TIMER事件触发一次查询）
+
+#### 增加账户查询日志输出
+- **问题**：账户查询成功但无日志输出，难以追踪
+- **原因**：`onRspQryTradingAccount()` 回调中缺少日志记录
+- **解决**：
+  - 在账户查询回调中添加日志输出
+  - 与持仓查询日志格式保持一致
+  - 记录"查询资金账户成功"和账户详细数据
+- **效果**：
+  - ✅ 账户查询和持仓查询都有清晰的日志输出
+  - ✅ 便于监控定时查询是否正常执行
+  - ✅ 便于排查账户数据问题
+
+### 📝 修改文件
+
+**核心模块**：
+- ✅ `src/core/event.py` - Event类重构，便捷函数转类方法
+- ✅ `src/core/event_bus.py` - 新增内置定时器机制
+
+**网关模块**：
+- ✅ `src/modules/gateway/trader_gateway.py` - 修复定时器事件处理，添加账户查询日志
+
+### 🔧 技术改进
+
+- 🏗️ **架构优化**：面向对象设计，类方法替代模块函数
+- 📦 **代码质量**：Python 3.10+ 类型提示，减少重复代码
+- ⏱️ **定时任务**：EventBus 内置定时器，无需外部依赖
+- 📊 **可观测性**：完善的日志输出，便于监控和调试
+
+### 🎯 用户体验提升
+
+- 🔄 **开箱即用**：定时器功能默认启用，自动查询账户和持仓
+- 📝 **清晰日志**：所有查询操作都有日志记录
+- ⚙️ **灵活配置**：定时器间隔可自定义，可独立开关
+- 🛡️ **稳定可靠**：完善的异常处理，不影响主流程
+
+---
+
 ## v0.0.4.20251013-patch14
 
 ### 🐛 Bug修复

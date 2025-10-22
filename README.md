@@ -43,22 +43,27 @@ This project is a new development fork of Homalos, a Python-based event-driven f
   - Data center control via Web API
   - Real-time data visualization
 
-### ✨ Recent Updates (v0.0.3.20251012)
+### ✨ Recent Updates (v0.0.5.20251022)
 
-- 🎨 **Component Refactoring**: Split `Home.vue` (945 lines) into 7 independent components
-  - Dashboard, Console, Strategy Management, Task Scheduler, Notifications, Settings, About
-  - Reduced Home.vue by 92% (945 → 280 lines)
-  - Improved maintainability with single responsibility principle
-- 🔧 **System Configuration**:
-  - Dev mode & trading hours check settings
-  - Two-way sync with `config/system.yaml`
-  - Automatic backup on every change
-  - Audit logging for all modifications
-- 📄 **Dynamic About Page**: Load system info from config file
-  - No hardcoded values, easy to update
-  - Public API access (no authentication required)
-- 🐛 **Bug Fixes**: Fixed config save issues, validation logic improvements
-- 📚 **Documentation**: 5 new guides and automated API tests
+- 🏗️ **Core Architecture Optimization**:
+  - Event.py refactoring: Converted 10 module-level functions to `Event` class methods
+  - Improved API: `Event.tick()` vs `create_tick_event()`
+  - Python 3.10+ union type syntax (`|` instead of `Optional`)
+  - Better encapsulation and reduced namespace pollution
+- ⏱️ **Built-in Timer Mechanism**:
+  - EventBus now has built-in timer for second-level periodic tasks
+  - Configurable interval (default 1 second)
+  - Automatic TIMER event publishing to general queue
+  - Thread-safe start/stop mechanism
+  - Use case: Periodic account/position queries
+- 🐛 **Bug Fixes**:
+  - Fixed TraderGateway timer event handler signature mismatch
+  - Added account query logging for better observability
+  - Enhanced monitoring and debugging capabilities
+- 📝 **Developer Experience**:
+  - Out-of-the-box timer functionality
+  - Clear logging for all query operations
+  - Flexible configuration options
 
 ## Web Interface
 
