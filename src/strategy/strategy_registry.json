@@ -1,22 +1,8 @@
 {
-  "strategy_ipc_class": {
-    "file": "src/strategy/strategies/strategy_ipc_class.py",
-    "module": "src.strategy.strategies.strategy_ipc_class",
-    "class": "StrategyIpc",
-    "enabled": false,
-    "params": {}
-  },
-  "multi_contract": {
-    "file": "src/strategy/strategies/multi_contract.py",
-    "module": "src.strategy.strategies.multi_contract",
-    "class": "MultiContractStrategy",
-    "enabled": false,
-    "params": {}
-  },
   "simple_ma_cross": {
-    "file": "src/strategy/strategies/simple_ma_cross.py",
-    "module": "src.strategy.strategies.simple_ma_cross",
-    "class": "SimpleMACrossStrategy",
+    "file": "src/strategy/strategies/ma_cross.py",
+    "module": "src.strategy.strategies.ma_cross",
+    "class": "MACrossStrategy",
     "enabled": false,
     "params": {}
   },

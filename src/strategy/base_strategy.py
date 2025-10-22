@@ -37,53 +37,130 @@ class BaseStrategy(object):
         self.strategy_name: str = ""                # 策略名称
         self.strategy_content: str = ""             # 策略内容介绍
         self.author: str = ""                       # 作者
-        self.instruments: list[str] = []            # 订阅的合约
-        self.bar_intervals: list[Interval] = []     # 订阅K线类型
-        self.specific_strategy_map: dict[str, SpecificStrategy] = {}  # 初始化详细策略文件
+        self.instruments: list[str] = []            # 订阅的合约，例如 ["rb2601", "ru2601"]
+        # 每个合约对应的周期枚举列表，如：{"rb2601": [Interval.MINUTE, Interval.MINUTE5], "ru2601": [Interval.MINUTE]}
+        self.bar_intervals: dict[str, list[Interval]] = {}  # 订阅K线类型
+        self.specific_strategy_map: dict[str, SpecificStrategy] = {}  # 初始化策略详情数据
 
-        # 策略数据
-        self.positions: list[dict[str, Any]] = []   # 策略当前持仓
-        self.orders: list[dict[str, Any]] = []      # 策略当前挂单
-        self.entrusts: list[dict[str, Any]] = []    # 策略当前委托
-        self.trades: list[dict[str, Any]] = []      # 策略当前成交
-        self.risk_control: dict[str, Any] = {}      # 策略风控参数
-        self.strategy_params: dict[str, Any] = {}   # 策略参数
-        self.data_cache: dict[str, Any] = {}        # 任意缓存（如bar序列、信号等）
+        # ========= 集中管理持仓和订单 =========
+        self.positions: list[dict[str, Any]] = []  # 策略当前持仓
+        self.orders: list[dict[str, Any]] = []  # 策略当前挂单
+        self.entrusts: list[dict[str, Any]] = []  # 策略当前委托
+        self.trades: list[dict[str, Any]] = []  # 策略当前成交
+        # 策略风控参数(策略级别风控参数)，合约级别风控参数在合约相关配置文件中设置
+        self.risk_control: dict[str, Any] = {}  # 策略风控参数
+        self.strategy_params: dict[str, Any] = {}  # 策略参数
+        self.data_cache: dict[str, Any] = {}  # 任意缓存（如bar序列、信号等）
+        self.historical_data: dict[str, Any] = {}  # 用于存储合约的历史数据
 
+        # 生命周期管理
+        self.is_running: bool = False
+        self.is_stop: bool = False
+
+    # ---- 生命周期管理 ----
+    def on_start(self) -> None:
+        """策略启动时调用"""
+        print(f"Strategy {self.strategy_name} started at {datetime.datetime.now()}")
+        self.is_running = True
+
+    def on_stop(self) -> None:
+        """策略停止时调用"""
+        print(f"Strategy {self.strategy_name} stopped at {datetime.datetime.now()}")
+        self.is_running = False
+
+    def load_historical_data(self, data: Any) -> None:
+        """
+        加载历史数据，模拟从文件、数据库或API中加载
+        """
+        instrument_id = data.get("instrument_id")
+        if instrument_id not in self.historical_data:
+            self.historical_data[instrument_id] = data
+            print(f"Historical data loaded for {instrument_id}")
+
+    # ---- 定时器回调（如1分钟执行一次） ----
     def one_min(self, now: datetime) -> None:
         """每分钟调用一次执行"""
-        pass
+        print("Executing strategy at", now)
 
     def is_subscribed(self, instrument_id: str) -> bool:
-        """
-        检查是否订阅了指定合约
-
-        Args:
-            instrument_id: 合约ID
-
-        Returns:
-            bool: 如果订阅了该合约返回True，否则返回False
-        """
+        """检查是否订阅了指定合约"""
         return instrument_id in self.instruments
 
     def get_subscribed_instruments(self) -> list[str]:
-        """
-        获取订阅的合约列表
-
-        Returns:
-            list[str]: 订阅的合约ID列表
-        """
+        """获取订阅的合约列表"""
         return self.instruments.copy()
+
+    def get_position(self) -> list[dict[str, Any]]:
+        """获取当前持仓"""
+        return self.positions
+
+    def update_position(self, position_data: dict) -> None:
+        """添加一个新的的持仓，注意：在这里某些持仓字段的值需要根据某种算法计算出来，例如止盈价、止损价"""
+        self.positions.append(position_data)
+
+    def get_orders(self) -> list[dict[str, Any]]:
+        """获取所有订单"""
+        return self.orders
+
+    def update_order(self, order_data: dict) -> None:
+        """添加一个新的订单到订单跟踪中"""
+        self.orders.append(order_data)
+
+    def get_entrusts(self) -> list[dict[str, Any]]:
+        """获取所有委托"""
+        return self.entrusts
+
+    def update_entrust(self, entrust_data: dict) -> None:
+        """添加一个新的委托到委托跟踪中"""
+        self.entrusts.append(entrust_data)
+
+    def get_trades(self) -> list[dict[str, Any]]:
+        """获取所有成交"""
+        return self.trades
+
+    def update_trade(self, trade_data: dict) -> None:
+        """添加一个新的成交到成交跟踪中"""
+        self.trades.append(trade_data)
+
+    def get_risk_control(self) -> dict[str, Any]:
+        """获取策略风控参数"""
+        return self.risk_control
+
+    def get_strategy_params(self) -> dict[str, Any]:
+        """获取策略参数"""
+        return self.strategy_params
+
+    def get_data_cache(self) -> dict[str, Any]:
+        """获取任意缓存"""
+        return self.data_cache
+
+    def send_order(self, order_data: dict):
+        # 这里模拟发送到交易平台的逻辑
+        instrument_id = order_data.get("instrument_id")
+        direction = order_data.get("direction")
+        price = order_data.get("price")
+        self.update_entrust(order_data)  # 模拟更新委托
+        print(f"Executed trade for {instrument_id}: {direction} contracts at {price}")
+        self.update_order(order_data)   # 模拟更新订单
+        self.update_position(order_data)    # 模拟更新持仓
+        self.update_trade(order_data)  # 模拟更新成交历史
 
 
 class SpecificStrategy(ABC):
-    """策略文件基类"""
-    def __init__(self, instrument_id: str, bar_intervals: list[Interval]):
+    """策略详情基类"""
+    def __init__(
+            self,
+            base_strategy: BaseStrategy,
+            instrument_id: str,
+            bar_intervals: list[Interval]
+    ):
+        self.base_strategy = base_strategy  # 使用传入的 BaseStrategy 对象
         self.instrument_id: str = instrument_id
-        self.bar_intervals: list[Interval] = bar_intervals or []
+        self.bar_intervals: list[Interval] = bar_intervals or {}
         self.kline_lock = None
         self.bar_data: Optional[BarData] = None
-        
+
+    # ---- 生命周期回调 ----
     @abstractmethod
     def on_init(self) -> None:
         """开盘前执行"""
@@ -94,11 +171,7 @@ class SpecificStrategy(ABC):
         """收盘后执行"""
         pass
 
-    @abstractmethod
-    def on_alarm(self) -> None:
-        """到达设置闹钟时间时执行"""
-        pass
-
+    # ---- 行情 & K线事件 ----
     @check_on_tick
     @abstractmethod
     def on_tick(self, tick: TickData) -> None:
@@ -111,6 +184,7 @@ class SpecificStrategy(ABC):
         """有新的Bar产生时执行"""
         pass
 
+    # ---- 交易相关事件 ----
     @abstractmethod
     def on_trade(self, trade: TradeData) -> None:
         """有订单成交时执行"""
@@ -119,6 +193,11 @@ class SpecificStrategy(ABC):
     @abstractmethod
     def on_order(self, order: OrderData) -> None:
         """订单状态发生改变时执行"""
+        pass
+
+    @abstractmethod
+    def on_alarm(self) -> None:
+        """到达设置闹钟时间时执行"""
         pass
     
     # ========== 状态持久化方法（可选实现） ==========

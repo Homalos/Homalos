@@ -46,7 +46,7 @@ def run_strategy_process(strategy_id: str, module_path: str, class_name: str, pa
     
     # 获取策略订阅的合约列表和K线周期（使用双层设计的属性）
     subscribed_instruments = getattr(strategy, 'instruments', [])
-    bar_intervals = getattr(strategy, 'bar_intervals', [])
+    bar_intervals = getattr(strategy, 'bar_intervals', {})
     
     if not subscribed_instruments:
         conn.send({"type": "error", "sid": strategy_id, "payload": "No instruments subscribed"})
@@ -56,13 +56,24 @@ def run_strategy_process(strategy_id: str, module_path: str, class_name: str, pa
     conn.send({"type": "log", "sid": strategy_id, "payload": f"Subscribed to instruments: {subscribed_instruments}"})
     conn.send({"type": "log", "sid": strategy_id, "payload": f"Bar intervals: {bar_intervals}"})
     
-    # 发送订阅信息到主进程
+    # 提取所有唯一的K线周期（将dict格式转换为list格式）
+    all_intervals = set()
+    if isinstance(bar_intervals, dict):
+        for intervals_list in bar_intervals.values():
+            if isinstance(intervals_list, list):
+                all_intervals.update(intervals_list)
+            else:
+                all_intervals.add(intervals_list)
+    elif isinstance(bar_intervals, list):
+        all_intervals.update(bar_intervals)
+    
+    # 发送订阅信息到主进程（统一使用 list[Interval] 格式）
     conn.send({
         "type": "subscription",
         "sid": strategy_id,
         "payload": {
             "instruments": subscribed_instruments,
-            "intervals": bar_intervals
+            "intervals": list(all_intervals)  # 统一为 list[Interval] 格式
         }
     })
     

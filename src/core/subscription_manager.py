@@ -213,7 +213,10 @@ class SubscriptionManager:
                 "strategy_subscriptions": {
                     sid: {
                         "instruments": list(info["instruments"]),
-                        "intervals": [interval.value for interval in info["intervals"]]
+                        "intervals": [
+                            interval.value if hasattr(interval, 'value') else str(interval)
+                            for interval in info["intervals"]
+                        ]
                     } for sid, info in self._strategy_subscriptions.items()
                 }
             }

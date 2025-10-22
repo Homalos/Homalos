@@ -35,7 +35,7 @@ from src.utils.log.logger import get_logger
 from src.utils.utility import get_os_info
 
 
-class IntegratedTradingSystem:
+class StartIntegratedSystem(object):
     """
     集成交易系统示例
     
@@ -714,7 +714,7 @@ async def main():
     broker_config["auto_load_strategies"] = True   # 是否自动加载策略
 
     # 创建集成系统
-    system = IntegratedTradingSystem(broker_config)
+    system = StartIntegratedSystem(broker_config)
     
     # 设置信号处理器
     def signal_handler(signum, _frame):
