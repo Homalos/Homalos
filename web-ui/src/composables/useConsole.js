@@ -125,9 +125,9 @@ export function useConsole() {
         consoleData.tradingCore.status = result.status || 'running'
         consoleData.tradingCore.startupTime = result.startup_time
         consoleData.tradingCore.message = result.message
-        
-        addConsoleLog(
-          'success',
+    
+    addConsoleLog(
+      'success',
           '核心启动',
           `交易核心启动成功: ${result.message}`,
           { startup_time: result.startup_time, component: 'tradingCore' }
@@ -160,9 +160,9 @@ export function useConsole() {
   }
 
   /**
-   * 停止量化交易系统（真实API调用）
+   * 停止交易核心（真实API调用）
    */
-  const handleStopTradingSystem = async (force = false) => {
+  const handleStopTradingCore = async (force = false) => {
     if (typeof force !== 'boolean') {
       force = false
     }
@@ -180,38 +180,53 @@ export function useConsole() {
         )
       }
       
-      await stopTradingSystem(force)
+      consoleData.tradingCore.status = 'stopping'
+      consoleData.tradingCore.message = '正在停止...'
       
-      consoleData.tradingSystem.status = 'stopped'
-      consoleData.tradingSystem.runningTime = '-'
-      consoleData.tradingSystem.pid = null
-      consoleData.tradingSystem.cpu = 0
-      consoleData.tradingSystem.memory = 0
+      const result = await stopTradingCore(force)
       
-      addConsoleLog(
-        'warning',
-        '系统停止',
-        force ? '量化交易系统已强制停止' : '量化交易系统已停止',
-        { component: 'tradingSystem' }
-      )
-      
-      ElMessage.warning('量化交易系统已停止')
-      
-      // 停止状态轮询和日志流
-      stopTradingSystemStatusPolling()
-      stopTradingSystemLogs()
+      if (result.success) {
+        consoleData.tradingCore.status = 'stopped'
+        consoleData.tradingCore.runningTime = '-'
+        consoleData.tradingCore.startupTime = null
+        consoleData.tradingCore.gateway = {
+          md_login: false,
+          td_login: false,
+          td_confirm: false,
+          instruments_loaded: false
+        }
+        consoleData.tradingCore.modules = {}
+        consoleData.tradingCore.message = result.message
+    
+    addConsoleLog(
+      'warning',
+          '核心停止',
+          force ? '交易核心已强制停止' : result.message,
+          { component: 'tradingCore' }
+        )
+        
+        ElMessage.warning(result.message || '交易核心已停止')
+        
+        // 停止状态轮询
+        stopTradingCoreStatusPolling()
+      } else {
+        throw new Error(result.message || '停止失败')
+      }
       
     } catch (error) {
       if (error === 'cancel') return
       
       const errorMsg = extractErrorMessage(error)
+      consoleData.tradingCore.status = 'error'
+      consoleData.tradingCore.message = errorMsg
+      
       addConsoleLog(
         'error',
-        '系统停止',
-        `量化交易系统停止失败: ${errorMsg}`,
-        { component: 'tradingSystem' }
+        '核心停止',
+        `交易核心停止失败: ${errorMsg}`,
+        { component: 'tradingCore' }
       )
-      ElMessage.error(`量化交易系统停止失败: ${errorMsg}`)
+      ElMessage.error(`交易核心停止失败: ${errorMsg}`)
     }
   }
 
@@ -649,246 +664,189 @@ export function useConsole() {
     lastLogLine = 0
   }
 
-  // ===== 量化交易系统状态和日志管理 =====
+  // ===== 交易核心状态管理 =====
 
-  let tradingSystemStatusTimer = null
-  let tradingSystemLogsTimer = null
-  let tradingSystemEventSource = null
-  let tradingSystemLastLogLine = 0
-  let useTradingSystemSSE = true
+  let tradingCoreStatusTimer = null
 
   /**
-   * 获取交易系统状态
+   * 连接CTP网关
    */
-  const fetchTradingSystemStatus = async () => {
+  const handleConnectGateway = async () => {
     try {
-      const status = await getTradingSystemStatus()
+      consoleData.tradingCore.status = 'connecting'
+      consoleData.tradingCore.message = '正在连接网关...'
       
-      if (status.running) {
-        consoleData.tradingSystem.status = 'running'
-        consoleData.tradingSystem.pid = status.pid
-        consoleData.tradingSystem.cpu = status.cpu_percent || 0
-        consoleData.tradingSystem.memory = status.memory_mb || 0
+      const result = await connectGateway()
+      
+      if (result.success) {
+        addConsoleLog(
+          'success',
+          '网关连接',
+          result.message || '网关连接成功',
+          { component: 'tradingCore' }
+        )
         
-        // 计算运行时长
-        if (status.create_time) {
-          const createTime = new Date(status.create_time)
-          const now = new Date()
-          const diffMinutes = Math.floor((now - createTime) / 60000)
-          if (diffMinutes < 60) {
-            consoleData.tradingSystem.runningTime = `${diffMinutes}m`
-          } else {
-            const hours = Math.floor(diffMinutes / 60)
-            const minutes = diffMinutes % 60
-            consoleData.tradingSystem.runningTime = `${hours}h${minutes}m`
+        ElMessage.success(result.message || '网关连接成功')
+        
+        // 刷新状态
+        await fetchTradingCoreStatus()
+      } else {
+        throw new Error(result.message || '网关连接失败')
+      }
+    } catch (error) {
+      const errorMsg = extractErrorMessage(error)
+      addConsoleLog(
+        'error',
+        '网关连接',
+        `网关连接失败: ${errorMsg}`,
+        { component: 'tradingCore' }
+      )
+      ElMessage.error(`网关连接失败: ${errorMsg}`)
+    }
+  }
+
+  /**
+   * 断开CTP网关
+   */
+  const handleDisconnectGateway = async () => {
+    try {
+      await ElMessageBox.confirm(
+        '确定要断开网关连接吗？',
+        '确认断开',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      )
+      
+      const result = await disconnectGateway()
+      
+      if (result.success) {
+        addConsoleLog(
+          'warning',
+          '网关断开',
+          result.message || '网关已断开',
+          { component: 'tradingCore' }
+        )
+        
+        ElMessage.warning(result.message || '网关已断开')
+        
+        // 刷新状态
+        await fetchTradingCoreStatus()
+      } else {
+        throw new Error(result.message || '网关断开失败')
+      }
+    } catch (error) {
+      if (error === 'cancel') return
+      
+      const errorMsg = extractErrorMessage(error)
+      addConsoleLog(
+        'error',
+        '网关断开',
+        `网关断开失败: ${errorMsg}`,
+        { component: 'tradingCore' }
+      )
+      ElMessage.error(`网关断开失败: ${errorMsg}`)
+    }
+  }
+
+  /**
+   * 获取交易核心状态
+   */
+  const fetchTradingCoreStatus = async () => {
+    try {
+      const status = await getTradingCoreStatus()
+      
+      // 更新核心状态
+      consoleData.tradingCore.status = status.status
+      consoleData.tradingCore.message = status.message || ''
+      
+      // 更新网关状态
+      if (status.gateway_status) {
+        consoleData.tradingCore.gateway = {
+          md_login: status.gateway_status.md_login || false,
+          td_login: status.gateway_status.td_login || false,
+          td_confirm: status.gateway_status.td_confirm || false,
+          instruments_loaded: status.gateway_status.instruments_loaded || false
+        }
+      }
+      
+      // 更新模块状态
+      if (status.module_statuses && Array.isArray(status.module_statuses)) {
+        const modules = {}
+        status.module_statuses.forEach(mod => {
+          modules[mod.name] = {
+            status: mod.status,
+            is_running: mod.is_running,
+            startup_order: mod.startup_order
           }
+        })
+        consoleData.tradingCore.modules = modules
+      }
+      
+      // 计算运行时长
+      if (status.running_duration) {
+        consoleData.tradingCore.runningTime = status.running_duration
+      } else if (status.status === 'running' && status.startup_time) {
+        const startTime = new Date(status.startup_time)
+        const now = new Date()
+        const diffMinutes = Math.floor((now - startTime) / 60000)
+        if (diffMinutes < 60) {
+          consoleData.tradingCore.runningTime = `${diffMinutes}分钟`
+        } else {
+          const hours = Math.floor(diffMinutes / 60)
+          const minutes = diffMinutes % 60
+          consoleData.tradingCore.runningTime = `${hours}小时${minutes}分钟`
         }
       } else {
-        consoleData.tradingSystem.status = 'stopped'
-        consoleData.tradingSystem.runningTime = '-'
-        consoleData.tradingSystem.pid = null
-        consoleData.tradingSystem.cpu = 0
-        consoleData.tradingSystem.memory = 0
-        
-        if (tradingSystemStatusTimer) {
-          stopTradingSystemStatusPolling()
-        }
-      }
-    } catch (error) {
-      console.error('获取交易系统状态失败:', error)
-    }
-  }
-
-  /**
-   * 启动交易系统状态轮询
-   */
-  const startTradingSystemStatusPolling = () => {
-    if (tradingSystemStatusTimer) return
-    
-    fetchTradingSystemStatus()
-    tradingSystemStatusTimer = setInterval(fetchTradingSystemStatus, 10000)
-  }
-
-  /**
-   * 停止交易系统状态轮询
-   */
-  const stopTradingSystemStatusPolling = () => {
-    if (tradingSystemStatusTimer) {
-      clearInterval(tradingSystemStatusTimer)
-      tradingSystemStatusTimer = null
-    }
-  }
-
-  /**
-   * 获取交易系统日志
-   */
-  const fetchTradingSystemLogs = async (incremental = false) => {
-    try {
-      const params = {
-        lines: 100,
-        level: 'all'
+        consoleData.tradingCore.runningTime = '-'
       }
       
-      if (incremental && tradingSystemLastLogLine > 0) {
-        params.sinceLine = tradingSystemLastLogLine
-      }
-      
-      const response = await getTradingSystemLogs(params.lines, params.level, params.sinceLine)
-      
-      if (response.success && response.logs && response.logs.length > 0) {
-        const newLogs = response.logs
-          .map((line, index) => parseLogLine(line, index))
-          .filter(log => log.message)
-        
-        if (incremental) {
-          tradingSystemLogs.value.push(...newLogs)
-          
-          if (tradingSystemLogs.value.length > 500) {
-            tradingSystemLogs.value = tradingSystemLogs.value.slice(-500)
-          }
-        } else {
-          tradingSystemLogs.value = newLogs
-        }
-        
-        if (response.total_lines) {
-          tradingSystemLastLogLine = response.total_lines
-        }
-      }
-    } catch (error) {
-      console.error('获取交易系统日志失败:', error)
-    }
-  }
-
-  /**
-   * 启动交易系统日志轮询
-   */
-  const startTradingSystemLogsPolling = () => {
-    if (tradingSystemLogsTimer) return
-    
-    fetchTradingSystemLogs(false)
-    tradingSystemLogsTimer = setInterval(() => {
-      fetchTradingSystemLogs(true)
-    }, 5000)
-  }
-
-  /**
-   * 停止交易系统日志轮询
-   */
-  const stopTradingSystemLogsPolling = () => {
-    if (tradingSystemLogsTimer) {
-      clearInterval(tradingSystemLogsTimer)
-      tradingSystemLogsTimer = null
-    }
-  }
-
-  /**
-   * 添加交易系统日志
-   */
-  const addTradingSystemLog = (log) => {
-    const logEntry = {
-      id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: log.timestamp,
-      level: log.level.toLowerCase(),
-      category: log.context || 'System',
-      message: log.message
-    }
-    
-    tradingSystemLogs.value.push(logEntry)
-    
-    if (tradingSystemLogs.value.length > 500) {
-      tradingSystemLogs.value = tradingSystemLogs.value.slice(-500)
-    }
-  }
-
-  /**
-   * 启动交易系统SSE日志流
-   */
-  const startTradingSystemSSELogs = () => {
-    if (tradingSystemEventSource) return
-    
-    console.log('[SSE] 启动交易系统SSE日志流...')
-    
-    try {
-      tradingSystemEventSource = new EventSource('/api/trading-system/logs/stream', {
-        withCredentials: true
-      })
-      
-      tradingSystemEventSource.onmessage = (event) => {
-        try {
-          const log = JSON.parse(event.data)
-          addTradingSystemLog(log)
-        } catch (error) {
-          console.error('[SSE] 解析日志失败:', error, event.data)
-        }
-      }
-      
-      tradingSystemEventSource.onopen = () => {
-        console.log('[SSE] 交易系统日志连接已建立')
-        useTradingSystemSSE = true
-      }
-      
-      tradingSystemEventSource.onerror = (error) => {
-        console.error('[SSE] 交易系统日志连接错误:', error)
-        
-        if (tradingSystemEventSource.readyState === EventSource.CLOSED) {
-          console.warn('[SSE] 连接已关闭，降级到轮询模式')
-          stopTradingSystemSSELogs()
-          useTradingSystemSSE = false
-          startTradingSystemLogsPolling()
-        } else if (tradingSystemEventSource.readyState === EventSource.CONNECTING) {
-          console.log('[SSE] 正在重连...')
-        }
+      // 如果核心已停止，停止轮询
+      if (status.status === 'stopped' && tradingCoreStatusTimer) {
+        stopTradingCoreStatusPolling()
       }
       
     } catch (error) {
-      console.error('[SSE] 创建SSE连接失败:', error)
-      useTradingSystemSSE = false
-      startTradingSystemLogsPolling()
+      console.error('获取交易核心状态失败:', error)
+      // 网络错误或其他错误，不改变当前状态
     }
   }
 
   /**
-   * 停止交易系统SSE日志流
+   * 启动交易核心状态轮询
    */
-  const stopTradingSystemSSELogs = () => {
-    if (tradingSystemEventSource) {
-      console.log('[SSE] 关闭交易系统SSE连接')
-      tradingSystemEventSource.close()
-      tradingSystemEventSource = null
+  const startTradingCoreStatusPolling = () => {
+    if (tradingCoreStatusTimer) return
+    
+    fetchTradingCoreStatus()
+    tradingCoreStatusTimer = setInterval(fetchTradingCoreStatus, 5000)  // 每5秒刷新
+  }
+
+  /**
+   * 停止交易核心状态轮询
+   */
+  const stopTradingCoreStatusPolling = () => {
+    if (tradingCoreStatusTimer) {
+      clearInterval(tradingCoreStatusTimer)
+      tradingCoreStatusTimer = null
     }
   }
 
-  /**
-   * 启动交易系统日志（使用轮询模式）
-   * 注意：暂时禁用SSE，因为EventSource不支持携带认证token
-   */
-  const startTradingSystemLogs = () => {
-    console.log('[交易系统] 使用轮询模式获取日志')
-    startTradingSystemLogsPolling()
-  }
-
-  /**
-   * 停止交易系统日志
-   */
-  const stopTradingSystemLogs = () => {
-    stopTradingSystemSSELogs()
-    stopTradingSystemLogsPolling()
-    tradingSystemLastLogLine = 0
-  }
 
   // 组件挂载时检查状态
   onMounted(() => {
     fetchDataCenterStatus()
-    fetchTradingSystemStatus()
-    // 如果数据中心在运行，启动轮询
+    fetchTradingCoreStatus()
+    // 如果数据中心或交易核心在运行，启动轮询
     setTimeout(() => {
       if (consoleData.dataCenter.status === 'running') {
         startStatusPolling()
         startDataCenterLogs()  // 使用智能选择（SSE或轮询）
       }
-      if (consoleData.tradingSystem.status === 'running') {
-        startTradingSystemStatusPolling()
-        startTradingSystemLogs()
+      if (consoleData.tradingCore.status === 'running') {
+        startTradingCoreStatusPolling()
       }
     }, 1000)
   })
@@ -897,31 +855,36 @@ export function useConsole() {
   onUnmounted(() => {
     stopStatusPolling()
     stopDataCenterLogs()  // 同时清理SSE和轮询
-    stopTradingSystemStatusPolling()
-    stopTradingSystemLogs()
+    stopTradingCoreStatusPolling()
   })
 
   return {
     // 状态
     consoleData,
-    tradingSystemLogs,
+    tradingCoreLogs,
     dataCenterLogs,
-    selectedTradingLogLevel,
+    selectedTradingCoreLogLevel,
     selectedDataCenterLogLevel,
     
     // 计算属性
-    filteredTradingLogs,
+    filteredTradingCoreLogs,
     filteredDataCenterLogs,
     
-    // 方法
-    addConsoleLog,
-    handleStartTradingSystem,
-    handleStopTradingSystem,
+    // 交易核心方法
+    handleStartTradingCore,
+    handleStopTradingCore,
+    handleConnectGateway,
+    handleDisconnectGateway,
+    fetchTradingCoreStatus,
+    
+    // 数据中心方法
     handleStartDataCenter,
     handleStopDataCenter,
     handleRestartDataCenter,
     fetchDataCenterStatus,
-    fetchTradingSystemStatus
+    
+    // 工具方法
+    addConsoleLog
   }
 }
 
