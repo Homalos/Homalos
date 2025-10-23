@@ -241,6 +241,169 @@ class StrategyService:
             self.logger.error(f"扫描策略失败: {e}", exc_info=True)
             raise
     
+    def get_available_strategy_files(self) -> Dict[str, Any]:
+        """
+        获取所有可用的策略文件列表
+        
+        Returns:
+            dict: {
+                "success": true,
+                "files": [
+                    {
+                        "filename": "strategy1.py",
+                        "strategy_id": "src.strategy.strategies.strategy1.Strategy1",
+                        "strategy_name": "策略名称",
+                        "class_name": "类名",
+                        "loaded": true,
+                        "enabled": true
+                    },
+                    ...
+                ]
+            }
+        """
+        from pathlib import Path
+        from src.strategy.strategy_scanner import StrategyScanner
+        
+        try:
+            strategies_dir = Path.cwd() / "src" / "strategy" / "strategies"
+            scanner = StrategyScanner(strategies_dir)
+            manager = self.get_manager()
+            existing_strategies = manager.registry.strategies
+            
+            files = []
+            
+            # 遍历所有.py文件
+            for py_file in strategies_dir.glob("*.py"):
+                if py_file.name.startswith("_") or py_file.name.startswith("."):
+                    continue
+                
+                try:
+                    # 扫描文件获取策略信息
+                    strategy_info = scanner._scan_file(py_file)
+                    
+                    if strategy_info:
+                        strategy_id = strategy_info["strategy_id"]
+                        is_loaded = strategy_id in existing_strategies
+                        
+                        files.append({
+                            "filename": py_file.name,
+                            "strategy_id": strategy_id,
+                            "strategy_name": strategy_info["name"],
+                            "class_name": strategy_info["class"],
+                            "loaded": is_loaded,
+                            "enabled": existing_strategies[strategy_id].get("enabled") if is_loaded else None
+                        })
+                except Exception as e:
+                    self.logger.warning(f"扫描文件 {py_file.name} 失败: {e}")
+                    continue
+            
+            return {
+                "success": True,
+                "files": files
+            }
+        
+        except Exception as e:
+            self.logger.error(f"获取策略文件列表失败: {e}", exc_info=True)
+            return {
+                "success": False,
+                "message": str(e),
+                "files": []
+            }
+    
+    def scan_single_strategy(self, filename: str) -> Dict[str, Any]:
+        """
+        扫描并加载单个策略文件
+        
+        Args:
+            filename: 策略文件名，如 "strategy2.py"
+        
+        Returns:
+            dict: {
+                "success": true,
+                "message": "策略加载成功",
+                "strategy": {...}
+            }
+        """
+        from pathlib import Path
+        from src.strategy.strategy_scanner import StrategyScanner
+        
+        try:
+            strategies_dir = Path.cwd() / "src" / "strategy" / "strategies"
+            py_file = strategies_dir / filename
+            
+            # 检查文件是否存在
+            if not py_file.exists():
+                return {
+                    "success": False,
+                    "message": f"策略文件 {filename} 不存在"
+                }
+            
+            # 扫描文件
+            scanner = StrategyScanner(strategies_dir)
+            strategy_info = scanner._scan_file(py_file)
+            
+            if not strategy_info:
+                return {
+                    "success": False,
+                    "message": f"文件 {filename} 中未找到有效的策略类"
+                }
+            
+            strategy_id = strategy_info["strategy_id"]
+            manager = self.get_manager()
+            
+            # 检查策略是否已存在
+            if strategy_id in manager.registry.strategies:
+                # 已存在：更新元数据，保留enabled和params
+                existing = manager.registry.strategies[strategy_id]
+                manager.registry.strategies[strategy_id] = {
+                    "file": strategy_info["file"],
+                    "module": strategy_info["module"],
+                    "class": strategy_info["class"],
+                    "name": strategy_info["name"],
+                    "description": strategy_info["description"],
+                    "author": strategy_info["author"],
+                    "instruments": strategy_info["instruments"],
+                    "enabled": existing.get("enabled", True),  # 保留原值
+                    "params": existing.get("params", {})
+                }
+                message = f"策略 {strategy_info['name']} 已更新"
+            else:
+                # 新策略：添加到注册表，enabled=true
+                manager.registry.strategies[strategy_id] = {
+                    "file": strategy_info["file"],
+                    "module": strategy_info["module"],
+                    "class": strategy_info["class"],
+                    "name": strategy_info["name"],
+                    "description": strategy_info["description"],
+                    "author": strategy_info["author"],
+                    "instruments": strategy_info["instruments"],
+                    "enabled": True,  # 默认启用
+                    "params": {}
+                }
+                message = f"策略 {strategy_info['name']} 已加载"
+            
+            # 保存注册表
+            manager.registry.save()
+            
+            self.logger.info(message)
+            
+            return {
+                "success": True,
+                "message": message,
+                "strategy": {
+                    "strategy_id": strategy_id,
+                    "name": strategy_info["name"],
+                    "filename": filename
+                }
+            }
+        
+        except Exception as e:
+            self.logger.error(f"加载策略文件 {filename} 失败: {e}", exc_info=True)
+            return {
+                "success": False,
+                "message": f"加载失败: {str(e)}"
+            }
+    
     def get_status(self) -> Dict[str, Any]:
         """获取所有策略运行状态"""
         manager = self.get_manager()

@@ -107,6 +107,30 @@ export function scanStrategies() {
 }
 
 /**
+ * 获取可用的策略文件列表
+ * @returns {Promise} 策略文件列表
+ */
+export function getAvailableStrategyFiles() {
+  return request({
+    url: '/api/strategies/available-files',
+    method: 'get'
+  })
+}
+
+/**
+ * 扫描并加载单个策略文件
+ * @param {string} filename - 策略文件名
+ * @returns {Promise} 加载结果
+ */
+export function scanSingleStrategy(filename) {
+  return request({
+    url: '/api/strategies/scan-single',
+    method: 'post',
+    data: { filename }
+  })
+}
+
+/**
  * 创建增强的策略WebSocket连接（支持自动重连、心跳检测）
  * @param {Function} onMessage - 消息回调函数
  * @param {Function} onError - 错误回调函数

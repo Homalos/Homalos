@@ -12,6 +12,10 @@
             <el-icon><FolderOpened /></el-icon>
             加载全部
           </el-button>
+          <el-button type="primary" size="small" @click="handleShowFileSelectDialog">
+            <el-icon><DocumentAdd /></el-icon>
+            加载单个
+          </el-button>
           <el-button type="primary" size="small" @click="handleRefresh">
             <el-icon><Refresh /></el-icon>
             刷新
@@ -100,6 +104,7 @@
             <el-button
               size="small"
               type="success"
+              :disabled="!scope.row.enabled"
               @click="handleStartStrategy(scope.row.sid)"
             >
               启动
@@ -287,11 +292,50 @@
       </el-card>
     </div>
   </el-drawer>
+
+  <!-- 文件选择对话框 -->
+  <el-dialog
+    v-model="fileSelectDialogVisible"
+    title="选择要加载的策略文件"
+    width="600px"
+    :close-on-click-modal="false"
+  >
+    <el-table 
+      :data="availableFiles" 
+      highlight-current-row
+      @current-change="handleFileSelectionChange"
+      style="width: 100%"
+    >
+      <el-table-column type="index" width="50" />
+      <el-table-column label="文件名" prop="filename" width="150" />
+      <el-table-column label="策略名称" prop="strategy_name" width="150" />
+      <el-table-column label="类名" prop="class_name" width="120" />
+      <el-table-column label="状态" width="100">
+        <template #default="scope">
+          <el-tag v-if="scope.row.loaded" type="success" size="small">
+            已加载
+          </el-tag>
+          <el-tag v-else type="info" size="small">
+            未加载
+          </el-tag>
+        </template>
+      </el-table-column>
+    </el-table>
+    
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="fileSelectDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleConfirmLoadSingle">
+          确定
+        </el-button>
+      </span>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
 import {
-  DataAnalysis, SuccessFilled, Setting, Refresh, FolderOpened
+  DataAnalysis, SuccessFilled, Setting, Refresh, FolderOpened, DocumentAdd
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
@@ -305,6 +349,9 @@ const strategyStore = useStrategyStore()
 const detailDrawerVisible = ref(false)
 const currentStrategy = ref(null)
 const selectedLogType = ref('')
+const fileSelectDialogVisible = ref(false)
+const availableFiles = ref([])
+const selectedFile = ref('')
 
 // ========== 计算属性 ==========
 const strategyList = computed(() => {
@@ -426,6 +473,38 @@ async function handleScanStrategies() {
   }
 }
 
+async function handleShowFileSelectDialog() {
+  try {
+    availableFiles.value = await strategyStore.fetchAvailableFiles()
+    if (availableFiles.value.length === 0) {
+      ElMessage.warning('没有可用的策略文件')
+      return
+    }
+    selectedFile.value = ''
+    fileSelectDialogVisible.value = true
+  } catch (error) {
+    console.error('获取策略文件列表失败:', error)
+  }
+}
+
+async function handleConfirmLoadSingle() {
+  if (!selectedFile.value) {
+    ElMessage.warning('请选择要加载的策略文件')
+    return
+  }
+  
+  const success = await strategyStore.loadSingleStrategy(selectedFile.value)
+  if (success) {
+    fileSelectDialogVisible.value = false
+  }
+}
+
+function handleFileSelectionChange(currentRow) {
+  if (currentRow) {
+    selectedFile.value = currentRow.filename
+  }
+}
+
 async function handleStartStrategy(sid) {
   await strategyStore.start(sid)
 }
@@ -475,7 +554,7 @@ async function handleToggleEnabled(sid, enabled) {
 async function handleUnloadStrategy(sid) {
   try {
     await ElMessageBox.confirm(
-      `确认卸载策略 ${sid}？\n卸载后策略将从管理表格中移除，需要重启服务才能重新加载`,
+      `确认卸载策略 ${sid}？\n卸载后策略将从管理表格中移除，需要重新加载才可展示`,
       '卸载确认',
       {
         confirmButtonText: '确认',

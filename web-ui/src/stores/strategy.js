@@ -10,7 +10,9 @@ import {
   disableStrategy,
   unloadStrategy,
   createStrategyWebSocket,
-  scanStrategies
+  scanStrategies,
+  getAvailableStrategyFiles,
+  scanSingleStrategy
 } from '@/api/strategy'
 import { getSystemInfo } from '@/api/system'
 import { ElMessage } from 'element-plus'
@@ -244,6 +246,48 @@ export const useStrategyStore = defineStore('strategy', () => {
     } catch (error) {
       console.error('扫描策略失败:', error)
       ElMessage.error(error.response?.data?.detail || '扫描策略失败')
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  async function fetchAvailableFiles() {
+    try {
+      const response = await getAvailableStrategyFiles()
+      if (response.success) {
+        return response.files
+      } else {
+        ElMessage.error(response.message || '获取策略文件列表失败')
+        return []
+      }
+    } catch (error) {
+      console.error('获取策略文件列表失败:', error)
+      ElMessage.error(error.response?.data?.detail || '获取策略文件列表失败')
+      return []
+    }
+  }
+  
+  async function loadSingleStrategy(filename) {
+    isLoading.value = true
+    try {
+      const response = await scanSingleStrategy(filename)
+      if (response.success) {
+        ElMessage.success({
+          message: response.message,
+          duration: 3000,
+          showClose: true
+        })
+        // 加载成功后自动刷新策略列表
+        await fetchStrategies()
+        return true
+      } else {
+        ElMessage.error(response.message || '加载策略失败')
+        return false
+      }
+    } catch (error) {
+      console.error('加载策略失败:', error)
+      ElMessage.error(error.response?.data?.detail || '加载策略失败')
+      return false
     } finally {
       isLoading.value = false
     }
@@ -615,6 +659,8 @@ export const useStrategyStore = defineStore('strategy', () => {
     initializeSystemTimezone,
     fetchStrategies,
     scanAndLoadStrategies,
+    fetchAvailableFiles,
+    loadSingleStrategy,
     fetchStatus,
     start,
     stop,

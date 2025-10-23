@@ -30,9 +30,15 @@ from src.web.schemas.strategy import (
     StrategyStatusResponse,
     OperationResponse
 )
+from pydantic import BaseModel, Field
 from src.utils.log import get_logger
 
 logger = get_logger(__name__)
+
+
+class ScanSingleRequest(BaseModel):
+    """扫描单个策略文件请求"""
+    filename: str = Field(..., description="策略文件名，如 strategy2.py")
 
 
 def serialize_message(msg: dict[str, Any]) -> dict[str, Any]:
@@ -220,6 +226,58 @@ async def scan_strategies():
     except Exception as e:
         logger.error(f"扫描策略失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"扫描策略失败: {str(e)}")
+
+
+@router.get("/available-files", summary="获取可用的策略文件列表")
+async def get_available_strategy_files():
+    """
+    获取所有可用的策略文件列表
+    
+    功能：
+    - 列出 src/strategy/strategies/ 目录下的所有.py策略文件
+    - 显示每个文件的加载状态（已加载/未加载）
+    - 显示策略名称和类名
+    
+    Returns:
+        dict: 策略文件列表及加载状态
+    """
+    try:
+        result = strategy_service.get_available_strategy_files()
+        return result
+    except Exception as e:
+        logger.error(f"获取策略文件列表失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"获取策略文件列表失败: {str(e)}")
+
+
+@router.post("/scan-single", summary="扫描并加载单个策略文件")
+async def scan_single_strategy(request: ScanSingleRequest):
+    """
+    扫描并加载单个策略文件
+    
+    功能：
+    - 扫描指定的策略文件
+    - 如果策略ID已存在，更新元数据（保留enabled和params）
+    - 如果策略ID不存在，添加到注册表（enabled=true）
+    - 不自动启动策略运行
+    
+    Args:
+        request: 包含文件名的请求体
+    
+    Returns:
+        dict: 加载结果
+    """
+    try:
+        result = strategy_service.scan_single_strategy(request.filename)
+        
+        if not result.get("success"):
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"加载策略文件失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"加载策略文件失败: {str(e)}")
 
 
 @router.delete("/{sid}/unload", response_model=OperationResponse, summary="卸载策略")
