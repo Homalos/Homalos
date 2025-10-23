@@ -11,23 +11,29 @@ import {
   getDataCenterLogs
 } from '@/api/datacenter'
 import {
-  startTradingSystem,
-  stopTradingSystem,
-  restartTradingSystem,
-  getTradingSystemStatus,
-  getTradingSystemLogs
-} from '@/api/tradingSystem'
+  startTradingCore,
+  stopTradingCore,
+  getTradingCoreStatus,
+  connectGateway,
+  disconnectGateway
+} from '@/api/tradingCore'
 import { getCurrentTime, addLog } from '@/utils'
 
 export function useConsole() {
   // ===== 状态管理 =====
   const consoleData = reactive({
-    tradingSystem: {
-      status: 'stopped',  // running | stopped
+    tradingCore: {
+      status: 'stopped',  // stopped | initializing | connecting | running | stopping | error
       runningTime: '-',
-      pid: null,
-      cpu: 0,
-      memory: 0
+      startupTime: null,
+      gateway: {
+        md_login: false,
+        td_login: false,
+        td_confirm: false,
+        instruments_loaded: false
+      },
+      modules: {},  // 核心模块状态
+      message: ''
     },
     dataCenter: {
       status: 'stopped',
@@ -38,11 +44,11 @@ export function useConsole() {
     }
   })
   
-  // 分离日志：量化交易系统和数据中心各自的日志（初始都为空）
-  const tradingSystemLogs = ref([])
+  // 分离日志：交易核心和数据中心各自的日志（初始都为空）
+  const tradingCoreLogs = ref([])
   const dataCenterLogs = ref([])
   
-  const selectedTradingLogLevel = ref('all')
+  const selectedTradingCoreLogLevel = ref('all')
   const selectedDataCenterLogLevel = ref('all')
   
   let statusTimer = null  // 状态轮询定时器
@@ -73,12 +79,12 @@ export function useConsole() {
 
   // ===== 计算属性 =====
   
-  // 量化交易系统日志过滤
-  const filteredTradingLogs = computed(() => {
-    if (selectedTradingLogLevel.value === 'all') {
-      return tradingSystemLogs.value
+  // 交易核心日志过滤
+  const filteredTradingCoreLogs = computed(() => {
+    if (selectedTradingCoreLogLevel.value === 'all') {
+      return tradingCoreLogs.value
     }
-    return tradingSystemLogs.value.filter(log => log.level === selectedTradingLogLevel.value)
+    return tradingCoreLogs.value.filter(log => log.level === selectedTradingCoreLogLevel.value)
   })
   
   // 数据中心日志过滤
@@ -95,50 +101,61 @@ export function useConsole() {
    * 添加控制台日志（根据组件类型分配到不同的日志数组）
    */
   const addConsoleLog = (level, category, message, details = {}) => {
-    const component = details.component || 'tradingSystem'  // 默认为交易系统
+    const component = details.component || 'tradingCore'  // 默认为交易核心
     
     if (component === 'dataCenter') {
       addLog(dataCenterLogs, level, category, message, details, getCurrentTime)
     } else {
-      addLog(tradingSystemLogs, level, category, message, details, getCurrentTime)
+      addLog(tradingCoreLogs, level, category, message, details, getCurrentTime)
     }
   }
 
   /**
-   * 启动量化交易系统（真实API调用）
+   * 启动交易核心（真实API调用）
+   * @param {Boolean} autoConnectGateway - 是否自动连接网关
    */
-  const handleStartTradingSystem = async () => {
+  const handleStartTradingCore = async (autoConnectGateway = true) => {
     try {
-      const result = await startTradingSystem()
+      consoleData.tradingCore.status = 'initializing'
+      consoleData.tradingCore.message = '正在启动...'
       
-      consoleData.tradingSystem.status = 'running'
-      consoleData.tradingSystem.pid = result.pid || null
+      const result = await startTradingCore(null, autoConnectGateway)
       
-      addConsoleLog(
-        'success',
-        '系统启动',
-        '量化交易系统启动成功',
-        { pid: result.pid, component: 'tradingSystem' }
-      )
-      
-      ElMessage.success('量化交易系统已启动')
-      
-      // 立即刷新一次状态
-      await fetchTradingSystemStatus()
-      
-      // 启动状态轮询和日志流
-      startTradingSystemStatusPolling()
-      startTradingSystemLogs()
+      if (result.success) {
+        consoleData.tradingCore.status = result.status || 'running'
+        consoleData.tradingCore.startupTime = result.startup_time
+        consoleData.tradingCore.message = result.message
+        
+        addConsoleLog(
+          'success',
+          '核心启动',
+          `交易核心启动成功: ${result.message}`,
+          { startup_time: result.startup_time, component: 'tradingCore' }
+        )
+        
+        ElMessage.success(result.message || '交易核心已启动')
+        
+        // 立即刷新一次状态
+        await fetchTradingCoreStatus()
+        
+        // 启动状态轮询
+        startTradingCoreStatusPolling()
+      } else {
+        throw new Error(result.message || '启动失败')
+      }
       
     } catch (error) {
       const errorMsg = extractErrorMessage(error)
+      consoleData.tradingCore.status = 'error'
+      consoleData.tradingCore.message = errorMsg
+      
       addConsoleLog(
         'error',
-        '系统启动',
-        `量化交易系统启动失败: ${errorMsg}`,
-        { component: 'tradingSystem' }
+        '核心启动',
+        `交易核心启动失败: ${errorMsg}`,
+        { component: 'tradingCore' }
       )
-      ElMessage.error(`量化交易系统启动失败: ${errorMsg}`)
+      ElMessage.error(`交易核心启动失败: ${errorMsg}`)
     }
   }
 

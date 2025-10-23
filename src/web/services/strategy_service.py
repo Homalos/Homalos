@@ -24,6 +24,17 @@ class StrategyService:
         self.logger = get_logger(self.__class__.__name__)
         self._manager: Optional[StrategyManager] = None
         self._initialized = False
+        self._trading_core = None  # TradingCoreService引用
+    
+    def set_trading_core(self, trading_core):
+        """
+        设置交易核心服务引用
+        
+        Args:
+            trading_core: TradingCoreService实例
+        """
+        self._trading_core = trading_core
+        self.logger.info("交易核心服务已关联到策略服务")
     
     def get_manager(self) -> StrategyManager:
         """获取策略管理器实例"""
@@ -48,22 +59,67 @@ class StrategyService:
             
             self.logger.info(f"初始化策略管理器，注册中心路径: {registry_path}")
             
-            # 创建 EventBus 实例（Web 服务专用，轻量级配置）
-            from src.core.event_bus import EventBus
-            event_bus = EventBus(
-                context="WebService",
-                general_max_workers=50,
-                market_max_workers=100,
-                register_signals=False,  # Web 服务不需要信号处理
-                auto_start=True
-            )
+            # 从交易核心获取EventBus等依赖
+            if self._trading_core:
+                core_status = self._trading_core.get_status()
+                if core_status['status'] == 'running':
+                    # 核心运行中，使用核心的EventBus和模块
+                    event_bus = self._trading_core.get_event_bus()
+                    subscription_manager = self._trading_core.get_subscription_manager()
+                    trade_signal_handler = self._trading_core.get_trade_signal_handler()
+                    alarm_manager = self._trading_core.get_alarm_manager()
+                    
+                    self.logger.info("使用交易核心的EventBus和模块")
+                else:
+                    # 核心未运行，创建独立的EventBus（仅用于策略管理，无交易功能）
+                    self.logger.warning("交易核心未运行，策略将无法接收行情和交易")
+                    self.logger.info("创建独立EventBus（仅用于策略管理）")
+                    
+                    from src.core.event_bus import EventBus
+                    event_bus = EventBus(
+                        context="WebService_StrategyOnly",
+                        general_max_workers=50,
+                        market_max_workers=100,
+                        register_signals=False,
+                        auto_start=True
+                    )
+                    subscription_manager = None
+                    trade_signal_handler = None
+                    alarm_manager = None
+            else:
+                # 未设置交易核心，创建独立EventBus
+                self.logger.warning("未设置交易核心服务")
+                from src.core.event_bus import EventBus
+                event_bus = EventBus(
+                    context="WebService_Standalone",
+                    general_max_workers=50,
+                    market_max_workers=100,
+                    register_signals=False,
+                    auto_start=True
+                )
+                subscription_manager = None
+                trade_signal_handler = None
+                alarm_manager = None
             
-            # 创建管理器实例
+            # 创建策略管理器实例
             self._manager = StrategyManager(
                 event_bus=event_bus,
                 strategies_pkg="src.strategy.strategies",
                 registry_path=str(registry_path)
             )
+            
+            # 设置依赖（如果可用）
+            if subscription_manager:
+                self._manager.set_subscription_manager(subscription_manager)
+                self.logger.info("已设置订阅管理器依赖")
+            
+            if trade_signal_handler:
+                self._manager.set_trade_signal_handler(trade_signal_handler)
+                self.logger.info("已设置交易信号处理器依赖")
+            
+            if alarm_manager:
+                self._manager.alarm_manager = alarm_manager
+                self.logger.info("已设置告警管理器依赖")
             
             # 设置事件循环（用于 WebSocket 线程安全转发）
             self._manager.set_event_loop(loop)
@@ -75,20 +131,11 @@ class StrategyService:
             strategies_dir = get_path_ins.join_path("src", "strategy", "strategies")
             self._manager.start_watchdog(str(strategies_dir))
             
-            # 注释掉自动加载逻辑，由用户手动决定何时启动策略
-            # enabled_strategies = self._manager.registry.list_enabled()
-            # self.logger.info(f"发现 {len(enabled_strategies)} 个已启用的策略")
-            # 
-            # for sid, cfg in enabled_strategies.items():
-            #     try:
-            #         self.logger.info(f"自动加载策略: {sid}")
-            #         self._manager.load_strategy(sid)
-            #     except Exception as e:
-            #         self.logger.error(f"加载策略 {sid} 失败: {e}", exc_info=True)
-            
-            self.logger.info("策略管理器已就绪，等待用户手动启动策略")
             self._initialized = True
             self.logger.info("策略管理器初始化完成")
+            
+            if not subscription_manager or not trade_signal_handler:
+                self.logger.warning("⚠️ 策略管理器缺少交易依赖，启动策略前请先启动交易核心")
             
         except Exception as e:
             self.logger.error(f"初始化策略管理器失败: {e}", exc_info=True)

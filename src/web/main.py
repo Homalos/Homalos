@@ -13,9 +13,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from src.web.api import auth, monitor, datacenter, system_config, trading_account, strategy, alarm, trading_system
+from src.web.api import auth, monitor, datacenter, system_config, trading_account, strategy, alarm, trading_system, trading_core
 from src.web.core.database import init_db, close_db
 from src.web.services.strategy_service import strategy_service
+from src.web.services.trading_core_service import TradingCoreService
 from src.web.services.monitor_service import MonitorService
 from src.utils.log import get_logger
 from src.utils.get_path import get_path_ins
@@ -35,22 +36,32 @@ async def lifespan(app: FastAPI):
     # 初始化数据库
     await init_db()
     
-    # 初始化告警管理器
+    # 初始化交易核心服务（不自动启动）
+    try:
+        trading_core = TradingCoreService.get_instance()
+        logger.info("交易核心服务已创建（未启动）")
+        logger.info("提示：通过控制台面板手动启动交易核心")
+    except Exception as e:
+        logger.error(f"交易核心服务创建失败: {e}", exc_info=True)
+        raise
+    
+    # 初始化Web层告警管理器（用于Web通知）
     from src.core.alarm_manager import AlarmManager
     from src.core.notifiers import EmailNotifier, WebSocketNotifier
     from src.web.api.alarm import broadcast_alarm
     
+    web_alarm_mgr = None
     try:
         loop = asyncio.get_running_loop()
         db_path = str(get_path_ins.join_path("data", "homalos_web.db"))
         
-        # 创建告警管理器
-        alarm_mgr = AlarmManager(db_path=db_path, loop=loop)
-        await alarm_mgr.startup()
+        # 创建Web层告警管理器
+        web_alarm_mgr = AlarmManager(db_path=db_path, loop=loop)
+        await web_alarm_mgr.startup()
         
         # 注册WebSocket通知器
         ws_notifier = WebSocketNotifier(broadcast_func=broadcast_alarm)
-        alarm_mgr.register_notifier(ws_notifier)
+        web_alarm_mgr.register_notifier(ws_notifier)
         
         # 注册邮件通知器
         async def get_email_config():
@@ -64,30 +75,32 @@ async def lifespan(app: FastAPI):
                 return {}
         
         email_notifier = EmailNotifier(config_getter=get_email_config)
-        alarm_mgr.register_notifier(email_notifier)
+        web_alarm_mgr.register_notifier(email_notifier)
         
         # 设置全局告警管理器实例
-        alarm.alarm_manager = alarm_mgr
+        alarm.alarm_manager = web_alarm_mgr
         
         # 关联告警管理器到监控服务
-        MonitorService.set_alarm_manager(alarm_mgr)
+        MonitorService.set_alarm_manager(web_alarm_mgr)
         
-        logger.info("告警管理器初始化成功")
+        logger.info("Web告警管理器初始化成功")
     except Exception as e:
-        logger.error(f"告警管理器初始化失败: {e}", exc_info=True)
+        logger.error(f"Web告警管理器初始化失败: {e}", exc_info=True)
     
-    # 初始化策略管理器
+    # 初始化策略服务（关联到交易核心）
     try:
         loop = asyncio.get_running_loop()
+        
+        # 将交易核心传递给策略服务
+        strategy_service.set_trading_core(trading_core)
+        
+        # 初始化策略管理器（即使核心未启动也可以初始化）
         await strategy_service.initialize_manager(loop)
         
-        # 关联告警管理器到策略管理器
-        manager = strategy_service.get_manager()
-        manager.alarm_manager = alarm_mgr
-        
-        logger.info("策略管理器初始化成功")
+        logger.info("策略服务已初始化")
+        logger.info("注意：启动策略前需要先启动交易核心")
     except Exception as e:
-        logger.error(f"策略管理器初始化失败: {e}", exc_info=True)
+        logger.error(f"策略服务初始化失败: {e}", exc_info=True)
     
     yield
     
@@ -96,23 +109,44 @@ async def lifespan(app: FastAPI):
     logger.info("Homalos Web应用关闭")
     logger.info("=" * 60)
     
-    # 关闭策略管理器
+    # 关闭策略服务
     try:
         await strategy_service.shutdown()
-        logger.info("策略管理器已关闭")
+        logger.info("策略服务已关闭")
     except Exception as e:
-        logger.error(f"关闭策略管理器失败: {e}", exc_info=True)
+        logger.error(f"关闭策略服务失败: {e}", exc_info=True)
     
-    # 关闭告警管理器
+    # 关闭交易核心（如果正在运行）
     try:
-        if alarm.alarm_manager:
-            await alarm.alarm_manager.shutdown()
-            logger.info("告警管理器已关闭")
+        trading_core = TradingCoreService.get_instance()
+        core_status = trading_core.get_status()
+        
+        if core_status['status'] in ['running', 'connecting', 'initializing']:
+            logger.info("正在停止交易核心...")
+            result = await trading_core.stop_core()
+            if result['success']:
+                logger.info("交易核心已停止")
+            else:
+                logger.warning(f"交易核心停止异常: {result['message']}")
+        else:
+            logger.info("交易核心未运行，跳过停止")
     except Exception as e:
-        logger.error(f"关闭告警管理器失败: {e}", exc_info=True)
+        logger.error(f"关闭交易核心失败: {e}", exc_info=True)
+    
+    # 关闭Web告警管理器
+    try:
+        if web_alarm_mgr:
+            await web_alarm_mgr.shutdown()
+            logger.info("Web告警管理器已关闭")
+    except Exception as e:
+        logger.error(f"关闭Web告警管理器失败: {e}", exc_info=True)
     
     # 关闭数据库连接
     await close_db()
+    
+    logger.info("=" * 60)
+    logger.info("Homalos Web应用已完全关闭")
+    logger.info("=" * 60)
 
 
 # 创建FastAPI应用
@@ -147,7 +181,8 @@ app.include_router(system_config.router, prefix="/api")
 app.include_router(trading_account.router, prefix="/api")
 app.include_router(strategy.router, prefix="/api")
 app.include_router(alarm.router, prefix="/api")
-app.include_router(trading_system.router, prefix="/api")
+app.include_router(trading_system.router, prefix="/api")  # 旧版（subprocess方式）
+app.include_router(trading_core.router, prefix="/api")   # 新版（内嵌核心方式）
 
 
 @app.get("/", tags=["根路径"])
