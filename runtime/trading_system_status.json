@@ -1,0 +1,16 @@
+{
+  "system_status": "running",
+  "startup_complete": true,
+  "data_flow_initialized": true,
+  "running": true,
+  "md_gateway_login": true,
+  "td_gateway_login": true,
+  "is_login": true,
+  "total_strategies": 2,
+  "total_instruments": 2,
+  "total_orders": 0,
+  "position_count": 0,
+  "active_signals": 0,
+  "module_count": 9,
+  "last_update": "2025-10-23T15:53:22.039671"
+}
