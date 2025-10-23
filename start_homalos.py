@@ -258,6 +258,9 @@ class StartIntegratedSystem(object):
             # 打印系统状态
             await self._print_system_status()
             
+            # 保存状态到文件（供Web查询）
+            self._save_status_to_file()
+            
         except Exception as e:
             self.logger.error(f"系统启动失败: {e}", exc_info=True)
             raise
@@ -372,6 +375,16 @@ class StartIntegratedSystem(object):
             # 使用系统协调器关闭所有模块
             await self.system_coordinator.shutdown_system()
             
+            # 删除状态文件
+            try:
+                from pathlib import Path
+                status_file = Path("runtime/trading_system_status.json")
+                if status_file.exists():
+                    status_file.unlink()
+                    self.logger.info("状态文件已删除")
+            except Exception as e:
+                self.logger.error(f"删除状态文件失败: {e}")
+            
             self.logger.info("集成交易系统已关闭")
             
         except Exception as e:
@@ -422,6 +435,9 @@ class StartIntegratedSystem(object):
                     await self._print_runtime_status()
                     last_status_time = current_time
                 
+                # 每5秒更新状态文件（供Web查询）
+                self._save_status_to_file()
+                
                 # 短暂休眠避免CPU占用过高
                 await asyncio.sleep(5)
                 
@@ -470,6 +486,58 @@ class StartIntegratedSystem(object):
             
         except Exception as e:
             self.logger.error(f"打印运行状态失败: {e}", exc_info=True)
+    
+    def _save_status_to_file(self) -> None:
+        """
+        保存系统状态到文件（供Web查询）
+        
+        Returns:
+            None
+        """
+        try:
+            from pathlib import Path
+            import json
+            from datetime import datetime
+            
+            status_file = Path("runtime/trading_system_status.json")
+            status_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            # 获取订阅统计
+            sub_stats = self.subscription_manager.get_subscription_stats()
+            
+            # 获取风控统计
+            risk_stats = self.risk_manager.get_risk_statistics()
+            
+            # 获取信号处理统计
+            signal_stats = self.trade_signal_handler.get_signal_statistics()
+            
+            # 获取系统协调器状态
+            sys_status = self.system_coordinator.get_system_status()
+            
+            # 组装状态数据
+            status_data = {
+                "system_status": sys_status.get('system_status', 'unknown'),
+                "startup_complete": sys_status.get('startup_complete', False),
+                "data_flow_initialized": sys_status.get('data_flow_initialized', False),
+                "running": self._running,
+                "md_gateway_login": self.md_login_status,
+                "td_gateway_login": self.td_login_status,
+                "is_login": self.is_login_status,
+                "total_strategies": sub_stats.get('total_strategies', 0),
+                "total_instruments": sub_stats.get('total_instruments', 0),
+                "total_orders": risk_stats.get('total_orders', 0),
+                "position_count": risk_stats.get('position_count', 0),
+                "active_signals": signal_stats.get('active_signals', 0),
+                "module_count": sys_status.get('module_count', 0),
+                "last_update": datetime.now().isoformat()
+            }
+            
+            # 写入文件
+            with open(status_file, 'w', encoding='utf-8') as f:
+                json.dump(status_data, f, indent=2, ensure_ascii=False)
+                
+        except Exception as e:
+            self.logger.error(f"保存状态文件失败: {e}", exc_info=True)
     
     # ===== 事件处理方法 =====
     

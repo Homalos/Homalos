@@ -233,6 +233,9 @@ class StrategyManager(object):
                                 states_to_save[sid] = cached
                                 meta["last_state"] = None  # 清除缓存
                                 break
+                    except (BrokenPipeError, EOFError):
+                        # 管道已关闭（策略进程已退出），静默处理
+                        pass
                     except Exception as e:
                         self.logger.warning(f"获取 {sid} 状态失败: {e}")
         
@@ -302,6 +305,9 @@ class StrategyManager(object):
                     # 清除缓存（从临时字典中移除）
                     if hasattr(self, '_cached_states') and sid in self._cached_states:
                         del self._cached_states[sid]
+                except (BrokenPipeError, EOFError):
+                    # 管道已关闭（策略进程启动失败），静默处理
+                    pass
                 except Exception as e:
                     self.logger.warning(f"注入状态失败: {e}")
 
@@ -335,12 +341,18 @@ class StrategyManager(object):
                             self._forward_to_ws(msg)
                     time.sleep(0.01)
                 meta["last_state"] = saved
+            except (BrokenPipeError, EOFError):
+                # 管道已关闭（策略进程已退出），静默处理
+                pass
             except Exception as e:
                 self.logger.exception(f"save_state request failed: {e}")
 
             # 发送停止
             try:
                 conn.send({"type": "command", "command": "stop"})
+            except (BrokenPipeError, EOFError):
+                # 管道已关闭（策略进程已退出），静默处理
+                pass
             except Exception as e:
                 self.logger.exception(f"stop send failed: {e}")
 
@@ -410,6 +422,9 @@ class StrategyManager(object):
                             
                             if saved is None:
                                 self.logger.debug(f"{sid} 没有状态需要保存（这是正常的）")
+                    except (BrokenPipeError, EOFError):
+                        # 管道已关闭（策略进程已退出），静默处理
+                        pass
                     except Exception as e:
                         self.logger.warning(f"重新加载时 save_state 失败：{e}")
                 
@@ -428,6 +443,9 @@ class StrategyManager(object):
                     self.logger.info(f"发送stop命令给 {sid}")
                     try:
                         conn.send({"type": "command", "command": "stop"})
+                    except (BrokenPipeError, EOFError):
+                        # 管道已关闭（策略进程已退出），静默处理
+                        pass
                     except Exception as e:
                         self.logger.warning(f"stop send failed: {e}")
                     
@@ -464,6 +482,9 @@ class StrategyManager(object):
                 try:
                     new_conn = self._meta[sid]["conn"]
                     new_conn.send({"type": "command", "command": "load_state", "state": saved})
+                except (BrokenPipeError, EOFError):
+                    # 管道已关闭（策略进程启动失败），静默处理
+                    pass
                 except Exception as e:
                     self.logger.warning(f"load_state send failed: {e}")
 
@@ -547,7 +568,8 @@ class StrategyManager(object):
                 if not conn.poll(1.0):
                     continue
                 msg = conn.recv()
-            except EOFError:
+            except (EOFError, BrokenPipeError):
+                # 管道已关闭（策略进程已退出），静默退出
                 break
             except Exception as e:
                 self.logger.exception(f"reader recv failed: {e}")

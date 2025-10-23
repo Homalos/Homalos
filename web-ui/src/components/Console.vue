@@ -14,8 +14,9 @@
             </div>
           </template>
           <div style="padding: 20px 0;">
+            <!-- 基础状态 -->
             <el-row :gutter="20" style="margin-bottom: 20px;">
-              <el-col :span="12">
+              <el-col :span="8">
                 <el-statistic title="系统状态">
                   <template #prefix>
                     <el-icon :color="consoleData.tradingSystem.status === 'running' ? '#67C23A' : '#909399'">
@@ -33,7 +34,14 @@
                   </template>
                 </el-statistic>
               </el-col>
-              <el-col :span="12">
+              <el-col :span="8">
+                <el-statistic title="进程ID" :value="consoleData.tradingSystem.pid || 0">
+                  <template #prefix>
+                    <el-icon color="#409EFF"><Document /></el-icon>
+                  </template>
+                </el-statistic>
+              </el-col>
+              <el-col :span="8">
                 <el-statistic title="运行时长" :value="consoleData.tradingSystem.runningTime">
                   <template #prefix>
                     <el-icon color="#409EFF"><Clock /></el-icon>
@@ -41,6 +49,26 @@
                 </el-statistic>
               </el-col>
             </el-row>
+            
+            <!-- 资源使用情况 -->
+            <el-row :gutter="20" style="margin-bottom: 20px;" v-if="consoleData.tradingSystem.status === 'running'">
+              <el-col :span="12">
+                <el-statistic title="CPU使用率" :value="consoleData.tradingSystem.cpu" suffix="%">
+                  <template #prefix>
+                    <el-icon color="#E6A23C"><Cpu /></el-icon>
+                  </template>
+                </el-statistic>
+              </el-col>
+              <el-col :span="12">
+                <el-statistic title="内存使用" :value="consoleData.tradingSystem.memory" suffix="MB">
+                  <template #prefix>
+                    <el-icon color="#F56C6C"><Memo /></el-icon>
+                  </template>
+                </el-statistic>
+              </el-col>
+            </el-row>
+            
+            <!-- 控制按钮 -->
             <el-row :gutter="10">
               <el-col :span="12">
                 <el-button 

@@ -90,14 +90,13 @@ class DataCenterService:
             else:
                 creationflags = 0
             
-            # 创建临时日志文件用于进程输出（stdout/stderr）
-            process_log_file = cls._LOG_DIR / "datacenter_process.log"
-            
             # 启动数据中心进程
+            # 注意：使用 DEVNULL 避免 Windows 上的管道关闭异常
+            # 数据中心的日志已经通过 logger 写入到 homalos_YYYYMMDD.log
             process = subprocess.Popen(
                 [python_exe, str(script_path)],
-                stdout=open(process_log_file, 'a', encoding='utf-8'),
-                stderr=subprocess.STDOUT,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 creationflags=creationflags,
                 cwd=str(Path.cwd()),  # 设置工作目录
                 env=env  # 传递环境变量
@@ -498,11 +497,11 @@ class DataCenterService:
             else:
                 # 优化3：只读取最后N行（使用deque提高效率）
                 from collections import deque
-                recent_lines = deque(maxlen=lines)
+                recent_lines_deque: deque[str] = deque(maxlen=lines)
                 with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
                     for line in f:
-                        recent_lines.append(line)
-                recent_lines = list(recent_lines)
+                        recent_lines_deque.append(line)
+                recent_lines = list(recent_lines_deque)
             
             # 过滤日志级别
             if level != "all":

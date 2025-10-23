@@ -24,6 +24,25 @@ def run_strategy_process(strategy_id: str, module_path: str, class_name: str, pa
     conn: multiprocessing.Connection (duplex=True)
     """
     try:
+        _run_strategy_process_impl(strategy_id, module_path, class_name, params, conn)
+    except KeyboardInterrupt:
+        # 优雅退出，不打印 Traceback
+        try:
+            conn.send({"type": "stopped", "sid": strategy_id})
+        except Exception:
+            pass
+    except Exception as e:
+        try:
+            conn.send({"type": "error", "sid": strategy_id, "payload": "unexpected error", "trace": traceback.format_exc()})
+            conn.send({"type": "stopped", "sid": strategy_id})
+        except Exception:
+            pass
+        _logger.exception(e)
+
+
+def _run_strategy_process_impl(strategy_id: str, module_path: str, class_name: str, params: dict, conn):
+    """策略进程实现（内部函数）"""
+    try:
         # import by module path like "src.strategy.strategies.example"
         components = module_path.split(".")
         mod = __import__(module_path, fromlist=[components[-1]])
@@ -88,6 +107,9 @@ def run_strategy_process(strategy_id: str, module_path: str, class_name: str, pa
     while running:
         try:
             msg = conn.recv()
+        except KeyboardInterrupt:
+            # 优雅退出，不打印 Traceback
+            break
         except EOFError:
             break
         except Exception as e:
