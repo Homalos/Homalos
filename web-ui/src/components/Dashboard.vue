@@ -9,21 +9,21 @@
       </template>
       <div class="account-overview-container">
         <div class="account-item">
-          <el-statistic title="总权益" :value="dashboardData.account.totalEquity" precision="2" prefix="¥">
+          <el-statistic title="总权益" :value="dashboardData.account.totalEquity" :precision="2" prefix="¥">
             <template #prefix>
               <el-icon color="#409EFF"><Wallet /></el-icon>
             </template>
           </el-statistic>
         </div>
         <div class="account-item">
-          <el-statistic title="可用资金" :value="dashboardData.account.availableFunds" precision="2" prefix="¥">
+          <el-statistic title="可用资金" :value="dashboardData.account.availableFunds" :precision="2" prefix="¥">
             <template #prefix>
               <el-icon color="#67C23A"><Money /></el-icon>
             </template>
           </el-statistic>
         </div>
         <div class="account-item">
-          <el-statistic title="保证金占用" :value="dashboardData.account.marginUsed" precision="2" prefix="¥">
+          <el-statistic title="保证金占用" :value="dashboardData.account.marginUsed" :precision="2" prefix="¥">
             <template #prefix>
               <el-icon color="#E6A23C"><Lock /></el-icon>
             </template>
@@ -33,7 +33,7 @@
           <el-statistic 
             title="浮动盈亏" 
             :value="dashboardData.account.floatingProfitLoss" 
-            precision="2" 
+            :precision="2" 
             prefix="¥"
             :value-style="{ color: dashboardData.account.floatingProfitLoss > 0 ? '#F56C6C' : dashboardData.account.floatingProfitLoss < 0 ? '#67C23A' : '#000000' }"
           >
@@ -48,7 +48,7 @@
           <el-statistic 
             title="资金使用率" 
             :value="dashboardData.account.fundUtilizationRate" 
-            precision="2" 
+            :precision="2" 
             suffix="%"
           >
             <template #prefix>
@@ -75,7 +75,7 @@
               <el-statistic 
                 title="当日收益率" 
                 :value="dashboardData.todayPerformance.returnRate" 
-                precision="2" 
+                :precision="2" 
                 suffix="%"
                 :value-style="{ color: dashboardData.todayPerformance.returnRate > 0 ? '#F56C6C' : dashboardData.todayPerformance.returnRate < 0 ? '#67C23A' : '#000000' }"
               >
@@ -90,7 +90,7 @@
               <el-statistic 
                 title="盈亏金额" 
                 :value="dashboardData.todayPerformance.profitLoss" 
-                precision="2" 
+                :precision="2" 
                 prefix="¥"
                 :value-style="{ color: dashboardData.todayPerformance.profitLoss > 0 ? '#F56C6C' : dashboardData.todayPerformance.profitLoss < 0 ? '#67C23A' : '#000000' }"
               >
@@ -124,16 +124,22 @@
           </template>
           <el-row :gutter="16">
             <el-col :span="6">
-              <el-statistic title="交易系统状态" value="运行中">
+              <el-statistic title="交易系统状态">
                 <template #prefix>
                   <el-icon color="#67C23A"><SuccessFilled /></el-icon>
+                </template>
+                <template #default>
+                  <span style="font-size: 24px; font-weight: 600; color: #67C23A;">运行中</span>
                 </template>
               </el-statistic>
             </el-col>
             <el-col :span="6">
-              <el-statistic title="数据中心状态" value="连接中">
+              <el-statistic title="数据中心状态">
                 <template #prefix>
                   <el-icon color="#409EFF"><Connection /></el-icon>
+                </template>
+                <template #default>
+                  <span style="font-size: 24px; font-weight: 600; color: #409EFF;">连接中</span>
                 </template>
               </el-statistic>
             </el-col>

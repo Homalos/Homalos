@@ -97,9 +97,7 @@ class MACrossStrategy(BaseStrategy):
             """收盘处理"""
             self.logger.info("=" * 60)
             self.logger.info(f"收盘处理 - 当前持仓: {self.positions}")
-            if self.positions[self.instrument_id] != 0:
-                self.logger.info(f"  {self.instrument_id}: 持仓 {self.positions[self.instrument_id]} 手")
-            self.logger.info("=" * 60)
+            
 
         def on_alarm(self) -> None:
             """闹钟处理"""

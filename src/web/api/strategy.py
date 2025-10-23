@@ -21,8 +21,9 @@
 """
 import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Query
-from typing import Optional
+from typing import Optional, Any
 
+from src.core.constants import Interval
 from src.web.services.strategy_service import strategy_service
 from src.web.schemas.strategy import (
     StrategyListResponse,
@@ -32,6 +33,30 @@ from src.web.schemas.strategy import (
 from src.utils.log import get_logger
 
 logger = get_logger(__name__)
+
+
+def serialize_message(msg: dict[str, Any]) -> dict[str, Any]:
+    """
+    序列化消息，将 Interval 枚举对象转换为字符串
+    
+    Args:
+        msg: 原始消息字典
+        
+    Returns:
+        序列化后的消息字典
+    """
+    def convert_value(value):
+        """递归转换值"""
+        if isinstance(value, Interval):
+            return value.value  # 枚举转为字符串值
+        elif isinstance(value, list):
+            return [convert_value(item) for item in value]
+        elif isinstance(value, dict):
+            return {k: convert_value(v) for k, v in value.items()}
+        else:
+            return value
+    
+    return {k: convert_value(v) for k, v in msg.items()}
 
 # 创建路由器
 router = APIRouter(prefix="/strategies", tags=["策略管理"])
@@ -168,6 +193,33 @@ async def disable_strategy(sid: str):
     except Exception as e:
         logger.error(f"禁用策略 {sid} 失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"禁用策略失败: {str(e)}")
+
+
+@router.post("/scan", summary="扫描并加载全部策略")
+async def scan_strategies():
+    """
+    扫描策略目录，自动发现并注册所有继承BaseStrategy的策略类
+    
+    功能：
+    - 扫描 src/strategy/strategies/ 目录下的所有.py文件
+    - 识别继承BaseStrategy的策略类
+    - 自动生成/更新 strategy_registry.json
+    - 使用策略实例的UUID作为策略ID（避免冲突）
+    
+    Returns:
+        dict: 扫描结果统计
+    """
+    try:
+        result = strategy_service.scan_and_load_strategies()
+        return {
+            "success": True,
+            "message": f"扫描完成: 发现 {result['total_discovered']} 个策略, "
+                      f"新增 {result['newly_added']} 个, 更新 {result['updated']} 个",
+            "data": result
+        }
+    except Exception as e:
+        logger.error(f"扫描策略失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"扫描策略失败: {str(e)}")
 
 
 @router.delete("/{sid}/unload", response_model=OperationResponse, summary="卸载策略")
@@ -398,8 +450,11 @@ async def websocket_endpoint(
             if filter and msg.get("sid") != filter:
                 continue
             
+            # 序列化消息（转换 Interval 枚举对象为字符串）
+            serialized_msg = serialize_message(msg)
+            
             # 发送消息
-            await websocket.send_json(msg)
+            await websocket.send_json(serialized_msg)
             
     except WebSocketDisconnect:
         logger.info(f"WebSocket连接已断开, filter={filter}")

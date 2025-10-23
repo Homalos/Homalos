@@ -18,6 +18,10 @@ class StrategyInfo(BaseModel):
     file: str = Field(..., description="策略文件路径")
     module: str = Field(..., description="策略模块路径")
     class_name: str = Field(default="Strategy", alias="class", description="策略类名")
+    name: Optional[str] = Field(None, description="策略名称")
+    description: Optional[str] = Field(None, description="策略描述")
+    author: Optional[str] = Field(None, description="策略作者")
+    instruments: list[str] = Field(default_factory=list, description="订阅的合约列表")
     enabled: bool = Field(..., description="是否启用")
     params: Dict[str, Any] = Field(default_factory=dict, description="策略参数")
     

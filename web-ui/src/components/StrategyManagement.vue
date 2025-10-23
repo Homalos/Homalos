@@ -7,10 +7,16 @@
           <span class="header-title">策略管理</span>
           <WebSocketStatus />
         </div>
-        <el-button type="primary" size="small" @click="handleRefresh">
-          <el-icon><Refresh /></el-icon>
-          刷新
-        </el-button>
+        <div class="header-right">
+          <el-button type="success" size="small" @click="handleScanStrategies">
+            <el-icon><FolderOpened /></el-icon>
+            加载全部
+          </el-button>
+          <el-button type="primary" size="small" @click="handleRefresh">
+            <el-icon><Refresh /></el-icon>
+            刷新
+          </el-button>
+        </div>
       </div>
     </template>
     
@@ -45,10 +51,14 @@
       style="width: 100%"
       v-loading="strategyStore.isLoading"
     >
-      <el-table-column prop="sid" label="策略ID" width="150" />
+      <el-table-column label="策略ID" width="200">
+        <template #default="scope">
+          {{ getShortStrategyId(scope.row.sid) }}
+        </template>
+      </el-table-column>
       <el-table-column label="策略名称" width="150">
         <template #default="scope">
-          {{ getStrategyName(scope.row.sid) || scope.row.sid }}
+          {{ scope.row.name || getStrategyName(scope.row.sid) || scope.row.class }}
         </template>
       </el-table-column>
       <el-table-column label="浮动盈亏" width="120" align="right">
@@ -212,10 +222,31 @@
           <span class="section-title">基础信息</span>
         </template>
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="策略ID">{{ currentStrategy.sid }}</el-descriptions-item>
-          <el-descriptions-item label="模块路径">{{ currentStrategy.module }}</el-descriptions-item>
+          <el-descriptions-item label="策略ID" :span="2">
+            <el-tag size="small" type="info">{{ getShortStrategyId(currentStrategy.sid) }}</el-tag>
+            <span style="margin-left: 10px; font-size: 12px; color: #909399;">
+              完整ID: {{ currentStrategy.sid }}
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item label="策略名称">{{ currentStrategy.name || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="作者">{{ currentStrategy.author || '-' }}</el-descriptions-item>
           <el-descriptions-item label="类名">{{ currentStrategy.class }}</el-descriptions-item>
-          <el-descriptions-item label="文件路径">{{ currentStrategy.file }}</el-descriptions-item>
+          <el-descriptions-item label="模块路径" :span="2">{{ currentStrategy.module }}</el-descriptions-item>
+          <el-descriptions-item label="文件路径" :span="2">{{ currentStrategy.file }}</el-descriptions-item>
+          <el-descriptions-item label="策略描述" :span="2">
+            {{ currentStrategy.description || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="订阅合约" :span="2">
+            <el-tag 
+              v-for="instrument in currentStrategy.instruments" 
+              :key="instrument" 
+              size="small" 
+              style="margin-right: 8px;"
+            >
+              {{ instrument }}
+            </el-tag>
+            <span v-if="!currentStrategy.instruments || currentStrategy.instruments.length === 0">-</span>
+          </el-descriptions-item>
           <el-descriptions-item label="是否启用" :span="2">
             <el-tag :type="currentStrategy.enabled ? 'success' : 'info'">
               {{ currentStrategy.enabled ? '已启用' : '已禁用' }}
@@ -260,7 +291,7 @@
 
 <script setup>
 import {
-  DataAnalysis, SuccessFilled, Setting, Refresh
+  DataAnalysis, SuccessFilled, Setting, Refresh, FolderOpened
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
@@ -306,7 +337,25 @@ function getStrategyPID(sid) {
   return status ? status.pid : null
 }
 
+function getShortStrategyId(sid) {
+  // 将长ID转换为短ID
+  // 例如: src.strategy.strategies.strategy1.Strategy1 -> strategy1.Strategy1
+  if (!sid) return '-'
+  const parts = sid.split('.')
+  if (parts.length >= 2) {
+    return parts.slice(-2).join('.')  // 取最后两部分
+  }
+  return sid
+}
+
 function getStrategyName(sid) {
+  // 优先从策略注册信息中获取name（扫描时从策略文件中提取）
+  const strategyInfo = strategyStore.strategies[sid]
+  if (strategyInfo && strategyInfo.name) {
+    return strategyInfo.name
+  }
+  
+  // 如果注册信息中没有，则从运行状态中获取
   const status = strategyStore.strategyStatus[sid]
   return status ? status.strategy_name : null
 }
@@ -352,12 +401,12 @@ function formatStartTime(timestamp) {
 
 function getLogTypeColor(type) {
   const colorMap = {
-    log: '',
+    log: 'info',
     error: 'danger',
     status: 'warning',
     stopped: 'info'
   }
-  return colorMap[type] || ''
+  return colorMap[type] || 'info'
 }
 
 // ========== 事件处理 ==========
@@ -367,6 +416,14 @@ async function handleRefresh() {
     strategyStore.fetchStatus()
   ])
   ElMessage.success('刷新成功')
+}
+
+async function handleScanStrategies() {
+  try {
+    await strategyStore.scanAndLoadStrategies()
+  } catch (error) {
+    console.error('扫描策略失败:', error)
+  }
 }
 
 async function handleStartStrategy(sid) {
@@ -443,7 +500,26 @@ function handleClearHistory() {
 }
 
 // ========== 生命周期 ==========
+// 定义清理资源（在 setup 同步阶段定义）
+let intervalId = null
+const handleBeforeUnload = () => {
+  strategyStore.forcePersistAllLogs()
+}
+
+// 在 setup 同步阶段注册 onUnmounted（必须在任何 await 之前）
+onUnmounted(() => {
+  if (intervalId) {
+    clearInterval(intervalId)
+  }
+  strategyStore.disconnectWebSocket()
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+// 组件挂载时初始化
 onMounted(async () => {
+  // 初始化系统时区（从后端配置获取）
+  await strategyStore.initializeSystemTimezone()
+  
   // 加载历史日志
   strategyStore.loadHistoryLogs()
   
@@ -457,24 +533,12 @@ onMounted(async () => {
   strategyStore.connectWebSocket()
   
   // 定时刷新状态（每5秒）
-  const intervalId = setInterval(() => {
+  intervalId = setInterval(() => {
     strategyStore.fetchStatus()
   }, 5000)
   
-  // 页面卸载时强制保存日志
-  const handleBeforeUnload = () => {
-    strategyStore.forcePersistAllLogs()
-  }
-  
   // 添加页面卸载监听器
   window.addEventListener('beforeunload', handleBeforeUnload)
-  
-  // 保存定时器ID用于清理
-  onUnmounted(() => {
-    clearInterval(intervalId)
-    strategyStore.disconnectWebSocket()
-    window.removeEventListener('beforeunload', handleBeforeUnload)
-  })
 })
 </script>
 
@@ -489,6 +553,12 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .header-title {

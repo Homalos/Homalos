@@ -9,8 +9,10 @@ import {
   enableStrategy,
   disableStrategy,
   unloadStrategy,
-  createStrategyWebSocket
+  createStrategyWebSocket,
+  scanStrategies
 } from '@/api/strategy'
+import { getSystemInfo } from '@/api/system'
 import { ElMessage } from 'element-plus'
 
 // 日志持久化常量
@@ -149,6 +151,7 @@ export const useStrategyStore = defineStore('strategy', () => {
   const messages = ref([])
   const isLoading = ref(false)
   const historyLogsLoaded = ref(false) // 标记历史日志是否已加载
+  const systemTimezone = ref('Asia/Shanghai') // 系统时区，默认为上海时区
   
   // ========== 计算属性 ==========
   const enabledStrategies = computed(() => {
@@ -191,6 +194,20 @@ export const useStrategyStore = defineStore('strategy', () => {
   const runningCount = computed(() => Object.keys(runningStrategies.value).length)
   const stoppedCount = computed(() => Object.keys(stoppedStrategies.value).length)
   
+  // ========== 方法：系统配置 ==========
+  async function initializeSystemTimezone() {
+    try {
+      const response = await getSystemInfo()
+      if (response && response.timezone) {
+        systemTimezone.value = response.timezone
+        console.log('系统时区已加载:', systemTimezone.value)
+      }
+    } catch (error) {
+      console.warn('获取系统时区失败，使用默认值 Asia/Shanghai:', error)
+      // 保持默认值 'Asia/Shanghai'
+    }
+  }
+  
   // ========== 方法：数据获取 ==========
   async function fetchStrategies() {
     isLoading.value = true
@@ -202,6 +219,31 @@ export const useStrategyStore = defineStore('strategy', () => {
     } catch (error) {
       console.error('获取策略列表失败:', error)
       ElMessage.error('获取策略列表失败')
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // 扫描并加载策略
+  async function scanAndLoadStrategies() {
+    isLoading.value = true
+    try {
+      const response = await scanStrategies()
+      if (response.success) {
+        const result = response.data
+        ElMessage.success({
+          message: `${response.message}`,
+          duration: 5000,
+          showClose: true
+        })
+        // 扫描成功后自动刷新策略列表
+        await fetchStrategies()
+      } else {
+        ElMessage.warning(response.message || '扫描策略失败')
+      }
+    } catch (error) {
+      console.error('扫描策略失败:', error)
+      ElMessage.error(error.response?.data?.detail || '扫描策略失败')
     } finally {
       isLoading.value = false
     }
@@ -325,8 +367,14 @@ export const useStrategyStore = defineStore('strategy', () => {
         )
         
         console.log(`已加载 ${historyLogs.length} 条历史日志，去重后共 ${messages.value.length} 条`)
-        console.log('历史日志详情:', historyLogs.map(log => `${log.sid}-${log.type}-${log.payload?.substring(0, 30)}`))
-        console.log('当前所有日志:', messages.value.map(log => `${log.sid}-${log.type}-${log.payload?.substring(0, 30)}`))
+        console.log('历史日志详情:', historyLogs.map(log => {
+          const payload = typeof log.payload === 'string' ? log.payload.substring(0, 30) : String(log.payload).substring(0, 30)
+          return `${log.sid}-${log.type}-${payload}`
+        }))
+        console.log('当前所有日志:', messages.value.map(log => {
+          const payload = typeof log.payload === 'string' ? log.payload.substring(0, 30) : String(log.payload).substring(0, 30)
+          return `${log.sid}-${log.type}-${payload}`
+        }))
       }
       
       // 标记历史日志已加载
@@ -375,7 +423,16 @@ export const useStrategyStore = defineStore('strategy', () => {
         const enrichedMessage = {
           ...message,
           timestamp: new Date().toISOString(),
-          displayTime: new Date().toLocaleTimeString('zh-CN'),
+          displayTime: new Date().toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+            timeZone: systemTimezone.value
+          }),
           isPersisted: false // 标记为实时消息
         }
         
@@ -396,7 +453,8 @@ export const useStrategyStore = defineStore('strategy', () => {
         if (!isDuplicate) {
           messages.value.push(enrichedMessage)
           if (DEBUG_LOGS) {
-            console.log('✅ 添加新消息:', `${enrichedMessage.sid}-${enrichedMessage.type}-${enrichedMessage.payload?.substring(0, 30)}`)
+            const payload = typeof enrichedMessage.payload === 'string' ? enrichedMessage.payload.substring(0, 30) : String(enrichedMessage.payload).substring(0, 30)
+            console.log('✅ 添加新消息:', `${enrichedMessage.sid}-${enrichedMessage.type}-${payload}`)
           }
         } else {
           if (DEBUG_LOGS) {
@@ -525,7 +583,10 @@ export const useStrategyStore = defineStore('strategy', () => {
         // 同步保存，确保在页面卸载前完成
         saveLogsToStorage(cleanedLogs)
         console.log(`页面卸载时强制保存了 ${unsavedLogs.length} 条日志`)
-        console.log('保存的日志详情:', unsavedLogs.map(log => `${log.sid}-${log.type}-${log.payload?.substring(0, 30)}`))
+        console.log('保存的日志详情:', unsavedLogs.map(log => {
+          const payload = typeof log.payload === 'string' ? log.payload.substring(0, 30) : String(log.payload).substring(0, 30)
+          return `${log.sid}-${log.type}-${payload}`
+        }))
       }
     } catch (error) {
       console.error('强制保存日志失败:', error)
@@ -539,6 +600,7 @@ export const useStrategyStore = defineStore('strategy', () => {
     strategyStatus,
     messages,
     isLoading,
+    systemTimezone,
     
     // 计算属性
     enabledStrategies,
@@ -550,7 +612,9 @@ export const useStrategyStore = defineStore('strategy', () => {
     stoppedCount,
     
     // 方法
+    initializeSystemTimezone,
     fetchStrategies,
+    scanAndLoadStrategies,
     fetchStatus,
     start,
     stop,

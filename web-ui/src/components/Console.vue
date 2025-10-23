@@ -16,15 +16,20 @@
           <div style="padding: 20px 0;">
             <el-row :gutter="20" style="margin-bottom: 20px;">
               <el-col :span="12">
-                <el-statistic 
-                  title="系统状态" 
-                  :value="consoleData.tradingSystem.status === 'running' ? '运行中' : '已停止'"
-                >
+                <el-statistic title="系统状态">
                   <template #prefix>
                     <el-icon :color="consoleData.tradingSystem.status === 'running' ? '#67C23A' : '#909399'">
                       <SuccessFilled v-if="consoleData.tradingSystem.status === 'running'" />
                       <VideoPause v-else />
                     </el-icon>
+                  </template>
+                  <template #default>
+                    <span 
+                      style="font-size: 24px; font-weight: 600;" 
+                      :style="{ color: consoleData.tradingSystem.status === 'running' ? '#67C23A' : '#909399' }"
+                    >
+                      {{ consoleData.tradingSystem.status === 'running' ? '运行中' : '已停止' }}
+                    </span>
                   </template>
                 </el-statistic>
               </el-col>
@@ -79,17 +84,25 @@
             <!-- 基础状态 -->
             <el-row :gutter="20" style="margin-bottom: 20px;">
               <el-col :span="8">
-                <el-statistic title="系统状态" :value="consoleData.dataCenter.status === 'running' ? '运行中' : '已停止'">
+                <el-statistic title="系统状态">
                   <template #prefix>
                     <el-icon :color="consoleData.dataCenter.status === 'running' ? '#67C23A' : '#909399'">
                       <SuccessFilled v-if="consoleData.dataCenter.status === 'running'" />
                       <VideoPause v-else />
                     </el-icon>
                   </template>
+                  <template #default>
+                    <span 
+                      style="font-size: 24px; font-weight: 600;" 
+                      :style="{ color: consoleData.dataCenter.status === 'running' ? '#67C23A' : '#909399' }"
+                    >
+                      {{ consoleData.dataCenter.status === 'running' ? '运行中' : '已停止' }}
+                    </span>
+                  </template>
                 </el-statistic>
               </el-col>
               <el-col :span="8">
-                <el-statistic title="进程ID" :value="consoleData.dataCenter.pid || '-'">
+                <el-statistic title="进程ID" :value="consoleData.dataCenter.pid || 0">
                   <template #prefix>
                     <el-icon color="#409EFF"><Document /></el-icon>
                   </template>

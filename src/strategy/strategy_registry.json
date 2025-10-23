@@ -1,15 +1,28 @@
 {
-  "simple_ma_cross": {
-    "file": "src/strategy/strategies/ma_cross.py",
-    "module": "src.strategy.strategies.ma_cross",
-    "class": "MACrossStrategy",
-    "enabled": false,
-    "params": {}
-  },
-  "strategy1": {
+  "src.strategy.strategies.strategy1.Strategy1": {
     "file": "src/strategy/strategies/strategy1.py",
     "module": "src.strategy.strategies.strategy1",
     "class": "Strategy1",
+    "name": "策略1",
+    "description": "策略1测试，用来测试从行情->交易信号->下单全流程",
+    "author": "Lumosylva",
+    "instruments": [
+      "SA601",
+      "FG601"
+    ],
+    "enabled": true,
+    "params": {}
+  },
+  "src.strategy.strategies.ma_cross.MACrossStrategy": {
+    "file": "src/strategy/strategies/ma_cross.py",
+    "module": "src.strategy.strategies.ma_cross",
+    "class": "MACrossStrategy",
+    "name": "ma_cross_strategy",
+    "description": "双均线交叉策略",
+    "author": "",
+    "instruments": [
+      "SA601"
+    ],
     "enabled": true,
     "params": {}
   }

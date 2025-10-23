@@ -75,17 +75,18 @@ class StrategyService:
             strategies_dir = get_path_ins.join_path("src", "strategy", "strategies")
             self._manager.start_watchdog(str(strategies_dir))
             
-            # 自动加载已启用的策略
-            enabled_strategies = self._manager.registry.list_enabled()
-            self.logger.info(f"发现 {len(enabled_strategies)} 个已启用的策略")
+            # 注释掉自动加载逻辑，由用户手动决定何时启动策略
+            # enabled_strategies = self._manager.registry.list_enabled()
+            # self.logger.info(f"发现 {len(enabled_strategies)} 个已启用的策略")
+            # 
+            # for sid, cfg in enabled_strategies.items():
+            #     try:
+            #         self.logger.info(f"自动加载策略: {sid}")
+            #         self._manager.load_strategy(sid)
+            #     except Exception as e:
+            #         self.logger.error(f"加载策略 {sid} 失败: {e}", exc_info=True)
             
-            for sid, cfg in enabled_strategies.items():
-                try:
-                    self.logger.info(f"自动加载策略: {sid}")
-                    self._manager.load_strategy(sid)
-                except Exception as e:
-                    self.logger.error(f"加载策略 {sid} 失败: {e}", exc_info=True)
-            
+            self.logger.info("策略管理器已就绪，等待用户手动启动策略")
             self._initialized = True
             self.logger.info("策略管理器初始化完成")
             
@@ -181,6 +182,64 @@ class StrategyService:
             manager.registry.strategies[sid]["enabled"] = False
             manager.registry.save()
         self.logger.info(f"策略 {sid} 已禁用")
+    
+    def scan_and_load_strategies(self) -> Dict[str, Any]:
+        """
+        扫描策略目录并加载全部策略到注册表
+        
+        Returns:
+            dict: 扫描结果统计
+            {
+                "total_discovered": 总共发现的策略数,
+                "newly_added": 新添加的策略数,
+                "updated": 更新的策略数,
+                "strategies": 所有策略列表
+            }
+        """
+        from pathlib import Path
+        from src.strategy.strategy_scanner import StrategyScanner
+        
+        try:
+            # 初始化扫描器
+            strategies_dir = Path.cwd() / "src" / "strategy" / "strategies"
+            scanner = StrategyScanner(strategies_dir)
+            
+            # 扫描策略
+            self.logger.info("开始扫描策略目录，加载全部策略...")
+            discovered = scanner.scan_strategies()
+            
+            # 获取现有配置
+            manager = self.get_manager()
+            existing = manager.registry.strategies.copy()
+            
+            # 合并配置
+            merged = scanner.merge_with_existing(discovered, existing)
+            
+            # 更新注册表
+            manager.registry.strategies = merged
+            manager.registry.save()
+            
+            # 统计结果
+            newly_added = len([sid for sid in discovered if sid not in existing])
+            updated = len([sid for sid in discovered if sid in existing])
+            
+            result = {
+                "total_discovered": len(discovered),
+                "newly_added": newly_added,
+                "updated": updated,
+                "strategies": list(discovered.keys())
+            }
+            
+            self.logger.info(
+                f"策略扫描完成: 发现 {result['total_discovered']} 个策略, "
+                f"新增 {result['newly_added']} 个, 更新 {result['updated']} 个"
+            )
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"扫描策略失败: {e}", exc_info=True)
+            raise
     
     def get_status(self) -> Dict[str, Any]:
         """获取所有策略运行状态"""

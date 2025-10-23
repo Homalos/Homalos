@@ -95,6 +95,18 @@ export function getStrategyStatus() {
 }
 
 /**
+ * 扫描并加载策略
+ * 自动发现 src/strategy/strategies/ 目录下继承BaseStrategy的策略类
+ * @returns {Promise} 扫描结果
+ */
+export function scanStrategies() {
+  return request({
+    url: '/api/strategies/scan',
+    method: 'post'
+  })
+}
+
+/**
  * 创建增强的策略WebSocket连接（支持自动重连、心跳检测）
  * @param {Function} onMessage - 消息回调函数
  * @param {Function} onError - 错误回调函数
