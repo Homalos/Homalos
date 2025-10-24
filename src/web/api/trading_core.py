@@ -93,6 +93,33 @@ async def start_trading_core(
         )
 
 
+@router.get("/running-strategies-count", summary="获取运行中的策略数量")
+async def get_running_strategies_count(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    获取运行中的策略数量
+    
+    用于停止核心前的检查，确保用户了解影响范围。
+    """
+    try:
+        core_service = TradingCoreService.get_instance()
+        count = core_service.get_running_strategies_count()
+        
+        return {
+            "success": True,
+            "count": count
+        }
+        
+    except Exception as e:
+        logger.error(f"获取运行中策略数量失败: {e}", exc_info=True)
+        return {
+            "success": False,
+            "count": 0,
+            "message": str(e)
+        }
+
+
 @router.post("/stop", response_model=StopCoreResponse, summary="停止交易核心")
 async def stop_trading_core(
     request: StopCoreRequest,
@@ -104,13 +131,17 @@ async def stop_trading_core(
     
     需要管理员权限。
     停止后会关闭所有核心模块并清理资源。
+    如果有运行中的策略，会自动停止所有策略。
     """
     check_admin_permission(current_user)
     
     try:
         core_service = TradingCoreService.get_instance()
         
-        # 停止核心
+        # 检查运行中的策略数量（用于前端警告提示）
+        running_count = core_service.get_running_strategies_count()
+        
+        # 停止核心（会自动停止所有运行中的策略）
         result = await core_service.stop_core(
             force=request.force,
             timeout=request.timeout
@@ -122,7 +153,7 @@ async def stop_trading_core(
             user_id=current_user.id,
             operation_type="stop_trading_core",
             target="trading_core",
-            details=f"停止结果: {result['message']}, force={request.force}",
+            details=f"停止结果: {result['message']}, force={request.force}, 停止策略数: {result.get('stopped_strategies_count', 0)}",
             success=result['success']
         )
         db.add(audit_log)
@@ -131,7 +162,8 @@ async def stop_trading_core(
         return StopCoreResponse(
             success=result['success'],
             message=result['message'],
-            shutdown_time=result.get('shutdown_time')
+            shutdown_time=result.get('shutdown_time'),
+            stopped_strategies_count=result.get('stopped_strategies_count', 0)
         )
         
     except Exception as e:

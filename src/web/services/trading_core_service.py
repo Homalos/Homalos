@@ -87,6 +87,9 @@ class TradingCoreService:
         self._startup_time: Optional[datetime] = None
         self._running_task: Optional[asyncio.Task] = None
         self._monitor_task: Optional[asyncio.Task] = None
+        
+        # 策略服务引用（用于停止核心时停止所有策略）
+        self._strategy_service = None
         self._config: Optional[Dict[str, Any]] = None
         
         self.logger.info("交易核心服务已创建（未启动）")
@@ -99,6 +102,34 @@ class TradingCoreService:
                 if cls._instance is None:
                     cls._instance = cls()
         return cls._instance
+    
+    def set_strategy_service(self, strategy_service):
+        """
+        设置策略服务引用
+        
+        Args:
+            strategy_service: StrategyService实例
+        """
+        self._strategy_service = strategy_service
+        self.logger.info("策略服务已关联到交易核心")
+    
+    def get_running_strategies_count(self) -> int:
+        """
+        获取运行中的策略数量
+        
+        Returns:
+            int: 运行中的策略数量
+        """
+        if not self._strategy_service:
+            return 0
+        
+        try:
+            manager = self._strategy_service.get_manager()
+            running_strategies = manager.get_running_strategies()
+            return len(running_strategies)
+        except Exception as e:
+            self.logger.error(f"获取运行中策略数量失败: {e}")
+            return 0
     
     # ========== 核心控制方法 ==========
     
@@ -174,7 +205,11 @@ class TradingCoreService:
                 else:
                     gateway_msg = f"，网关连接失败: {gateway_result['message']}"
             
-            # 9. 启动监控任务（在网关连接后，确保状态是RUNNING）
+            # 9. 更新策略服务的核心依赖（使策略能够订阅行情和交易）
+            if self._strategy_service and hasattr(self._strategy_service, 'update_core_dependencies'):
+                self._strategy_service.update_core_dependencies()
+            
+            # 10. 启动监控任务（在网关连接后，确保状态是RUNNING）
             self._monitor_task = asyncio.create_task(self._monitor_loop())
             
             startup_duration = time.time() - start_time
@@ -243,6 +278,16 @@ class TradingCoreService:
             self.logger.info("开始停止交易核心")
             self.logger.info("=" * 60)
             
+            # 0. 先停止所有运行中的策略（因为策略依赖交易核心）
+            stopped_strategies_count = 0
+            if self._strategy_service:
+                try:
+                    self.logger.info("正在停止所有运行中的策略...")
+                    stopped_strategies_count = await self._strategy_service.stop_all_strategies()
+                    self.logger.info(f"已停止 {stopped_strategies_count} 个策略")
+                except Exception as e:
+                    self.logger.error(f"停止策略时出错: {e}", exc_info=True)
+            
             # 1. 停止监控任务
             if self._monitor_task and not self._monitor_task.done():
                 self._monitor_task.cancel()
@@ -283,7 +328,8 @@ class TradingCoreService:
                 "success": True,
                 "message": "交易核心停止成功",
                 "status": self._status,
-                "shutdown_time": shutdown_duration
+                "shutdown_time": shutdown_duration,
+                "stopped_strategies_count": stopped_strategies_count
             }
             
         except Exception as e:
@@ -796,36 +842,63 @@ class TradingCoreService:
         """处理tick数据"""
         try:
             if not self._bar_generator:
+                self.logger.warning("BarGenerator 未初始化，跳过 tick 处理")
                 return
             
             payload = event.payload
             if not isinstance(payload, dict):
+                self.logger.warning(f"Tick payload 不是 dict: {type(payload)}")
                 return
             
             code = payload.get("code")
             tick_data = payload.get("data")
             
             if code != 0 or not tick_data:
+                self.logger.warning(f"Tick 数据无效: code={code}, tick_data={tick_data}")
                 return
             
             if not isinstance(tick_data, TickData):
+                self.logger.warning(f"Tick data 不是 TickData: {type(tick_data)}")
                 return
             
             instrument_id = tick_data.instrument_id
             if not instrument_id:
+                self.logger.warning("Tick data 缺少 instrument_id")
                 return
             
-            # 发送给K线合成器
-            if self._bar_generator.is_sub_kline(instrument_id):
-                self._bar_generator.tick_to_kline(tick_data)
+            # BarGenerator已通过EventBus订阅TICK事件，无需手动调用
+            # 避免重复处理和market线程阻塞
+            
+            # 通过 ZeroMQ 广播 tick 数据给策略进程
+            if self._strategy_service and hasattr(self._strategy_service, '_manager'):
+                strategy_manager = self._strategy_service._manager
+                if strategy_manager:
+                    strategy_manager.broadcast_market_data("tick", tick_data)
+            else:
+                self.logger.warning("StrategyService 或 StrategyManager 未初始化")
             
         except Exception as e:
             self.logger.error(f"处理tick数据失败: {e}", exc_info=True)
     
     def _handle_bar_data(self, event: Event):
         """处理K线数据"""
-        # K线数据会自动路由到策略
-        pass
+        try:
+            # 解析K线数据
+            if isinstance(event.payload, dict):
+                bar_data = event.payload.get("data")
+            else:
+                bar_data = event.payload
+            
+            if bar_data:
+                # K线数据已生成，策略可以通过EventBus订阅
+                
+                # 通过 ZeroMQ 广播 bar 数据给策略进程
+                if self._strategy_service and hasattr(self._strategy_service, '_manager'):
+                    strategy_manager = self._strategy_service._manager
+                    if strategy_manager:
+                        strategy_manager.broadcast_market_data("bar", bar_data)
+        except Exception as e:
+            self.logger.error(f"处理K线数据失败: {e}", exc_info=True)
     
     def _handle_subscription_request(self, event: Event):
         """处理订阅请求"""

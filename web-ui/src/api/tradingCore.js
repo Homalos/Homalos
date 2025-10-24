@@ -13,7 +13,8 @@ export function startTradingCore(config = null, autoConnectGateway = false) {
     data: { 
       config, 
       auto_connect_gateway: autoConnectGateway 
-    }
+    },
+    timeout: 30000  // 30秒超时（启动核心+连接网关需要较长时间）
   })
 }
 
@@ -27,7 +28,8 @@ export function stopTradingCore(force = false, timeout = 30) {
   return request({
     url: '/api/trading-core/stop',
     method: 'post',
-    data: { force, timeout }
+    data: { force, timeout },
+    timeout: 60000  // 60秒超时（后端停止操作可能需要30秒+缓冲时间）
   })
 }
 
@@ -38,7 +40,8 @@ export function stopTradingCore(force = false, timeout = 30) {
 export function restartTradingCore() {
   return request({
     url: '/api/trading-core/restart',
-    method: 'post'
+    method: 'post',
+    timeout: 90000  // 90秒超时（重启 = 停止 + 启动，需要更长时间）
   })
 }
 
@@ -62,7 +65,8 @@ export function connectGateway(brokerConfig = null) {
   return request({
     url: '/api/trading-core/gateway/connect',
     method: 'post',
-    data: { broker_config: brokerConfig }
+    data: { broker_config: brokerConfig },
+    timeout: 60000  // 60秒超时（CTP网关连接+登录可能需要较长时间）
   })
 }
 
@@ -84,6 +88,17 @@ export function disconnectGateway() {
 export function getCoreModules() {
   return request({
     url: '/api/trading-core/modules',
+    method: 'get'
+  })
+}
+
+/**
+ * 获取运行中的策略数量
+ * @returns {Promise} 策略数量
+ */
+export function getRunningStrategiesCount() {
+  return request({
+    url: '/api/trading-core/running-strategies-count',
     method: 'get'
   })
 }

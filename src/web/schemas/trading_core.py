@@ -104,6 +104,7 @@ class StartCoreResponse(BaseResponse):
 class StopCoreResponse(BaseResponse):
     """停止核心响应"""
     shutdown_time: Optional[float] = None  # 关闭耗时（秒）
+    stopped_strategies_count: int = 0  # 停止的策略数量
 
 
 class ConnectGatewayResponse(BaseResponse):
