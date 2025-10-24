@@ -202,8 +202,22 @@ class SubscriptionManager:
             return result
     
     def get_subscription_stats(self) -> dict[str, Any]:
-        """获取订阅统计信息"""
-        with self._lock:
+        """
+        获取订阅统计信息（非阻塞）
+        
+        使用trylock避免阻塞HTTP请求线程
+        """
+        # 尝试获取锁，如果失败则返回缓存数据
+        if not self._lock.acquire(blocking=False):
+            self.logger.debug("获取订阅统计信息时未能获取锁，返回默认值")
+            return {
+                "total_strategies": 0,
+                "total_instruments": 0,
+                "total_kline_subscriptions": 0,
+                "strategy_subscriptions": {}
+            }
+        
+        try:
             return {
                 "total_strategies": len(self._strategy_subscriptions),
                 "total_instruments": len(self._instrument_subscribers),
@@ -220,6 +234,8 @@ class SubscriptionManager:
                     } for sid, info in self._strategy_subscriptions.items()
                 }
             }
+        finally:
+            self._lock.release()
     
     def _publish_subscription_requests(self, instruments: list[str]):
         """
