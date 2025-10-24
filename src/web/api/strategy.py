@@ -507,7 +507,15 @@ async def websocket_endpoint(
                 try:
                     msg = await asyncio.wait_for(q.get(), timeout=1.0)
                 except asyncio.TimeoutError:
-                    # 超时是正常的，继续循环等待下一条消息
+                    # 超时后检查 WebSocket 连接状态，如果已断开则退出
+                    # 这确保在系统关闭时能快速检测到并退出循环
+                    try:
+                        # 尝试发送一个心跳 ping 来检测连接状态
+                        await asyncio.wait_for(websocket.send_json({"type": "ping"}), timeout=0.1)
+                    except Exception:
+                        # 连接已断开或发送失败，退出循环
+                        logger.info("WebSocket连接已断开，退出消息循环")
+                        break
                     continue
                 
                 # 可选过滤
