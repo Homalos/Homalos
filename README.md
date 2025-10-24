@@ -46,20 +46,25 @@ This project is a new development fork of Homalos, a Python-based event-driven f
 ### ✨ Recent Updates (v0.0.6.20251024)
 
 - 🚀 **Critical Performance & Stability Fixes**:
+  - Fixed `on_bar` callback not triggering due to payload key mismatch in `TradingCoreService`
+  - Fixed BarGenerator deadlock in subscription configuration updates
   - Fixed FastAPI blocking issue caused by synchronous locks in `subscription_manager`
   - Fixed ZeroMQ message corruption due to multi-threading race conditions
   - Implemented non-blocking lock (trylock) for HTTP request handlers
   - Added thread-safe ZeroMQ send operations with dedicated lock
+  - Optimized logging: Changed high-frequency `[VOLUME_UPDATE]` logs from INFO to DEBUG
   - System now handles high-frequency market data without blocking
 - 🏗️ **Architecture Improvements**:
   - ZeroMQ PUB-SUB pattern for strategy IPC (replacing `multiprocessing.Pipe`)
   - Thread-safe message broadcasting with atomic send operations
   - Improved strategy isolation with robust error handling
   - Enhanced EventBus performance under concurrent workload
+  - Fixed BarGenerator lock management with proper `try-finally` pattern
 - ✅ **Verified Stability**:
   - Web frontend: No timeout errors, all HTTP requests < 100ms
-  - Strategy callbacks: Successfully receiving tick/bar data via ZeroMQ
+  - Strategy callbacks: Successfully receiving both tick and bar data via ZeroMQ
   - Message format: 100% correct (2-part messages, no corruption)
+  - K-line generation: Working correctly with proper volume calculation
   - System performance: CPU < 5%, minimal overhead
 
 ### Previous Updates (v0.0.5.20251022)
