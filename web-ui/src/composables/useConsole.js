@@ -15,7 +15,8 @@ import {
   stopTradingCore,
   getTradingCoreStatus,
   connectGateway,
-  disconnectGateway
+  disconnectGateway,
+  getRunningStrategiesCount
 } from '@/api/tradingCore'
 import { getCurrentTime, addLog } from '@/utils'
 
@@ -125,9 +126,9 @@ export function useConsole() {
         consoleData.tradingCore.status = result.status || 'running'
         consoleData.tradingCore.startupTime = result.startup_time
         consoleData.tradingCore.message = result.message
-    
-    addConsoleLog(
-      'success',
+        
+        addConsoleLog(
+          'success',
           '核心启动',
           `交易核心启动成功: ${result.message}`,
           { startup_time: result.startup_time, component: 'tradingCore' }
@@ -168,6 +169,32 @@ export function useConsole() {
     }
     
     try {
+      // 1. 检查运行中的策略数量
+      let runningStrategiesCount = 0
+      try {
+        const countResult = await getRunningStrategiesCount()
+        if (countResult.success) {
+          runningStrategiesCount = countResult.count || 0
+        }
+      } catch (error) {
+        console.error('获取运行中策略数量失败:', error)
+      }
+      
+      // 2. 如果有运行中的策略，显示警告提示
+      if (runningStrategiesCount > 0) {
+        await ElMessageBox.confirm(
+          `当前有 ${runningStrategiesCount} 个策略正在运行。停止交易核心将自动停止所有运行中的策略，可能导致未平仓位风险。\n\n确定要停止交易核心吗？`,
+          '高风险操作警告',
+          {
+            confirmButtonText: '确定停止',
+            cancelButtonText: '取消',
+            type: 'warning',
+            dangerouslyUseHTMLString: false
+          }
+        )
+      }
+      
+      // 3. 如果是强制停止，再次确认
       if (force) {
         await ElMessageBox.confirm(
           '强制停止可能导致数据丢失，确定要强制停止吗？',
@@ -198,14 +225,19 @@ export function useConsole() {
         consoleData.tradingCore.modules = {}
         consoleData.tradingCore.message = result.message
     
-    addConsoleLog(
-      'warning',
+        const stoppedCount = result.stopped_strategies_count || 0
+        const logMessage = stoppedCount > 0 
+          ? `交易核心已停止，同时停止了 ${stoppedCount} 个策略` 
+          : (force ? '交易核心已强制停止' : result.message)
+    
+        addConsoleLog(
+          'warning',
           '核心停止',
-          force ? '交易核心已强制停止' : result.message,
-          { component: 'tradingCore' }
+          logMessage,
+          { component: 'tradingCore', stopped_strategies_count: stoppedCount }
         )
         
-        ElMessage.warning(result.message || '交易核心已停止')
+        ElMessage.warning(logMessage)
         
         // 停止状态轮询
         stopTradingCoreStatusPolling()
@@ -758,36 +790,38 @@ export function useConsole() {
     try {
       const status = await getTradingCoreStatus()
       
-      // 更新核心状态
-      consoleData.tradingCore.status = status.status
+      // 更新核心状态（确保是字符串）
+      consoleData.tradingCore.status = status.status || 'stopped'
       consoleData.tradingCore.message = status.message || ''
       
-      // 更新网关状态
-      if (status.gateway_status) {
+      // 更新网关状态（字段名：gateway，不是 gateway_status）
+      if (status.gateway) {
         consoleData.tradingCore.gateway = {
-          md_login: status.gateway_status.md_login || false,
-          td_login: status.gateway_status.td_login || false,
-          td_confirm: status.gateway_status.td_confirm || false,
-          instruments_loaded: status.gateway_status.instruments_loaded || false
+          md_login: status.gateway.md_login || false,
+          td_login: status.gateway.td_login || false,
+          td_confirm: status.gateway.td_confirm || false,
+          instruments_loaded: status.gateway.instruments_loaded || false
+        }
+      } else {
+        // 如果没有网关数据，重置为默认值
+        consoleData.tradingCore.gateway = {
+          md_login: false,
+          td_login: false,
+          td_confirm: false,
+          instruments_loaded: false
         }
       }
       
-      // 更新模块状态
-      if (status.module_statuses && Array.isArray(status.module_statuses)) {
-        const modules = {}
-        status.module_statuses.forEach(mod => {
-          modules[mod.name] = {
-            status: mod.status,
-            is_running: mod.is_running,
-            startup_order: mod.startup_order
-          }
-        })
-        consoleData.tradingCore.modules = modules
+      // 更新模块状态（字段名：modules，是对象不是数组）
+      if (status.modules && typeof status.modules === 'object') {
+        consoleData.tradingCore.modules = status.modules
+      } else {
+        consoleData.tradingCore.modules = {}
       }
       
-      // 计算运行时长
-      if (status.running_duration) {
-        consoleData.tradingCore.runningTime = status.running_duration
+      // 计算运行时长（字段名：running_time，不是 running_duration）
+      if (status.running_time) {
+        consoleData.tradingCore.runningTime = status.running_time
       } else if (status.status === 'running' && status.startup_time) {
         const startTime = new Date(status.startup_time)
         const now = new Date()
@@ -810,7 +844,15 @@ export function useConsole() {
       
     } catch (error) {
       console.error('获取交易核心状态失败:', error)
-      // 网络错误或其他错误，不改变当前状态
+      // 网络错误时，重置为默认状态
+      consoleData.tradingCore.status = 'stopped'
+      consoleData.tradingCore.message = '无法连接到服务器'
+      consoleData.tradingCore.gateway = {
+        md_login: false,
+        td_login: false,
+        td_confirm: false,
+        instruments_loaded: false
+      }
     }
   }
 
