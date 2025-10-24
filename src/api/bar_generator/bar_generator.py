@@ -516,11 +516,24 @@ class BarGenerator:
     def tick_to_kline_specific_process(self, tick: TickData):
         # 单一合约合成1分钟K线
         # 对tick进行加锁，防止2个tick同时更改同一根K线造成一些错误
-        self.kline_min1_lock_map[tick.instrument_id].acquire()
         instrument_id: str = tick.instrument_id
+        lock = self.kline_min1_lock_map[instrument_id]
+        
+        # 使用try-finally确保锁一定会被释放，防止死锁
+        lock.acquire()
+        try:
+            self._tick_to_kline_locked(tick, instrument_id)
+        finally:
+            lock.release()
+    
+    def _tick_to_kline_locked(self, tick: TickData, instrument_id: str):
+        """
+        在锁保护下执行tick转K线的核心逻辑
+        此方法由tick_to_kline_specific_process调用，确保异常安全
+        """
         
         # 🔍 调试：输出接收到的tick数据
-        if instrument_id in ['lu2604', 'sp2606', 'sc2608']:  # 选择几个代表性合约进行调试
+        if instrument_id in ['SA601', 'FG601', 'sc2601']:  # 选择几个代表性合约进行调试
             self.logger.debug(f"[TICK_DEBUG] {instrument_id} - 接收tick: volume={tick.volume}, time={tick.update_time}")
 
         st: list[str] = tick.update_time.split(':')
@@ -528,7 +541,7 @@ class BarGenerator:
         kline_min1_update_time = self.kline_min1_map[instrument_id].update_time.strftime('%H:%M:%S')
         # 剔除函数， 剔除一些有延迟的tick，比如K线时间是9：01，但是有一个9:00：59的延迟tick
         if tick.update_time < kline_min1_update_time and st[0] == self.kline_min1_map[instrument_id].update_time.strftime('%H'):
-            self.kline_min1_lock_map[tick.instrument_id].release()
+            # 锁会在外层finally中自动释放
             self.logger.info("合成K线剔除过期Tick：\n"
                              f'tick.update_time: {tick.update_time}'
                              f'kline_min1_update_time: {kline_min1_update_time}')
@@ -638,8 +651,8 @@ class BarGenerator:
                              f"{self.kline_min1_map[instrument_id].volume}, "
                              f"current_cumulative_volume={self.kline_min1_map[instrument_id].current_cumulative_volume} "
                              f"(tick.volume={tick.volume})")
-
-        self.kline_min1_lock_map[instrument_id].release()
+        
+        # 锁会在外层finally中自动释放
 
     def get_kline(self):
         # 获取所有类型分钟线，并进行分发
@@ -833,12 +846,12 @@ class BarGenerator:
         """
         # 新架构：使用事件总线发布BAR事件
         if self.event_bus:
-            from src.core.event import Event, EventType
-            bar_event = Event(
-                EventType.BAR,
-                payload=kline
+            from src.core.event import Event
+            self.event_bus.publish(
+                Event.bar(
+                    payload={"bar": kline}
+                )
             )
-            self.event_bus.publish(bar_event)
             self.logger.debug(f"发布K线事件: {kline.instrument_id} {kline.bar_type.value} {kline.update_time}")
         else:
             # 旧架构：向后兼容，直接调用策略
