@@ -188,18 +188,27 @@ class SubscriptionManager:
         with self._lock:
             return set(self._instrument_subscribers.keys())
     
+    def _get_kline_subscription_map_unlocked(self) -> dict[str, list[Interval]]:
+        """
+        获取K线订阅映射（内部方法，不加锁，假设调用者已持有锁）
+        
+        Returns:
+            dict[str, list[Interval]]: {instrument_id: [intervals]}
+        """
+        result = {}
+        for instrument, intervals_dict in self._kline_subscribers.items():
+            result[instrument] = list(intervals_dict.keys())
+        return result
+    
     def get_kline_subscription_map(self) -> dict[str, list[Interval]]:
         """
-        获取K线订阅映射
+        获取K线订阅映射（公开方法，加锁）
         
         Returns:
             dict[str, list[Interval]]: {instrument_id: [intervals]}
         """
         with self._lock:
-            result = {}
-            for instrument, intervals_dict in self._kline_subscribers.items():
-                result[instrument] = list(intervals_dict.keys())
-            return result
+            return self._get_kline_subscription_map_unlocked()
     
     def get_subscription_stats(self) -> dict[str, Any]:
         """
@@ -271,9 +280,14 @@ class SubscriptionManager:
     def _publish_kline_config_update(self):
         """
         发送K线配置更新事件（线程安全，同步方法）
+        
+        注意：此方法假设调用者已经持有 self._lock，因此内部使用不加锁的版本
         """
         try:
-            kline_config = self.get_kline_subscription_map()
+            self.logger.info("🔍 [DEBUG] 开始发送K线配置更新...")
+            # 使用不加锁的版本，因为调用者已经持有锁
+            kline_config = self._get_kline_subscription_map_unlocked()
+            self.logger.info(f"🔍 [DEBUG] K线配置: {kline_config}")
             
             # 发送配置更新事件给K线合成器
             event = Event(
@@ -284,7 +298,7 @@ class SubscriptionManager:
             )
             self.event_bus.publish(event)
             
-            self.logger.info(f"✓ 已发送K线配置更新: {len(kline_config)} 个合约")
+            self.logger.info(f"✓ 已发送K线配置更新: {len(kline_config)} 个合约, 配置: {kline_config}")
             
         except Exception as e:
             self.logger.error(f"✗ 发送K线配置更新失败: {e}", exc_info=True)

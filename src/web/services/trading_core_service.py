@@ -885,7 +885,7 @@ class TradingCoreService:
         try:
             # 解析K线数据
             if isinstance(event.payload, dict):
-                bar_data = event.payload.get("data")
+                bar_data = event.payload.get("bar")  # ← 修复：使用正确的键名 "bar"
             else:
                 bar_data = event.payload
             

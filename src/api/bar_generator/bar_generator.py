@@ -135,14 +135,16 @@ class BarGenerator:
                    {"subscription_map": {instrument_id: [Interval, ...]}}
         """
         try:
+            self.logger.info("🔍 [DEBUG] BarGenerator收到K线配置更新事件")
             payload = event.payload
+            self.logger.info(f"🔍 [DEBUG] Event payload: {payload}")
             subscription_map = payload.get('subscription_map', {})
             
             if not subscription_map:
                 self.logger.warning("收到空的K线配置更新")
                 return
             
-            self.logger.info(f"收到K线配置更新，共 {len(subscription_map)} 个合约")
+            self.logger.info(f"收到K线配置更新，共 {len(subscription_map)} 个合约: {subscription_map}")
             
             # 更新订阅的K线类型映射
             self.set_kline_type(subscription_map)
@@ -150,7 +152,7 @@ class BarGenerator:
             # 初始化K线字典
             self.init_min_kline_map()
             
-            self.logger.info(f"K线配置更新完成，订阅合约数: {len(self.sub_kline_type_map)}")
+            self.logger.info(f"✅ K线配置更新完成，订阅合约数: {len(self.sub_kline_type_map)}, sub_kline_type_map={self.sub_kline_type_map}")
             
         except Exception as e:
             self.logger.error(f"处理K线配置更新失败: {e}", exc_info=True)
@@ -663,7 +665,20 @@ class BarGenerator:
 
                 # 如果是无效数据，退出
                 if self.clean_kline(kline):
+                    self.logger.warning(
+                        f"[CLEAN_KLINE_QUEUE] {kline.instrument_id} - K线数据无效被过滤: "
+                        f"open={kline.open_price}, high={kline.high_price}, "
+                        f"low={kline.low_price}, close={kline.close_price}, "
+                        f"volume={kline.volume}, oi={kline.open_interest}, "
+                        f"time={kline.update_time}"
+                    )
                     continue
+
+                self.logger.info(
+                    f"[DISTRIBUTE_BAR_QUEUE] {kline.instrument_id} - 准备发布bar事件: "
+                    f"bar_type={kline.bar_type}, time={kline.update_time}, "
+                    f"open={kline.open_price}, close={kline.close_price}, volume={kline.volume}"
+                )
 
                 # 如果是1分钟K线，另需要分发到合成其他K线线程，合成其他K线
                 if kline.bar_type == Interval.MINUTE:
@@ -730,12 +745,24 @@ class BarGenerator:
     def distribute_kline_without_queue(self, kline):
         # 如果是无效数据，退出
         if BarGenerator.clean_kline(kline):
+            self.logger.warning(
+                f"[CLEAN_KLINE] {kline.instrument_id} - K线数据无效被过滤: "
+                f"open={kline.open_price}, high={kline.high_price}, "
+                f"low={kline.low_price}, close={kline.close_price}, "
+                f"volume={kline.volume}, oi={kline.open_interest}, "
+                f"time={kline.update_time}"
+            )
             return
 
         # 如果是1分钟K线，另需要分发到合成其他K线线程，合成其他K线
         if kline.bar_type == Interval.MINUTE:
             self.min1_to_other_kline(kline)
 
+        self.logger.info(
+            f"[DISTRIBUTE_BAR] {kline.instrument_id} - 准备发布bar事件: "
+            f"bar_type={kline.bar_type}, time={kline.update_time}, "
+            f"open={kline.open_price}, close={kline.close_price}, volume={kline.volume}"
+        )
         self.distribute_kline(kline)
 
     def min1_to_other_kline(self, kline: BarData):
