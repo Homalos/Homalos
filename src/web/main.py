@@ -25,6 +25,27 @@ import asyncio
 logger = get_logger(__name__)
 
 
+def ignore_windows_connection_reset(loop, context):
+    """
+    自定义事件循环异常处理器，用于抑制Windows下的ConnectionResetError
+    
+    这是一个已知的Windows + asyncio + ProactorEventLoop问题：
+    当浏览器在OPTIONS预检请求后立即关闭连接时，asyncio尝试优雅关闭会触发WinError 10054。
+    这个错误不影响功能，只是日志噪音。
+    
+    参考: https://github.com/encode/uvicorn/issues/1369
+    """
+    exception = context.get('exception')
+    
+    # 忽略Windows的ConnectionResetError (WinError 10054)
+    if isinstance(exception, ConnectionResetError):
+        # 这是预期行为，不需要记录
+        return
+    
+    # 其他异常仍然需要记录
+    loop.default_exception_handler(context)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
@@ -32,6 +53,13 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     logger.info("Homalos Web应用启动")
     logger.info("=" * 60)
+    
+    # 设置事件循环异常处理器（Windows专用）
+    import sys
+    if sys.platform == 'win32':
+        loop = asyncio.get_running_loop()
+        loop.set_exception_handler(ignore_windows_connection_reset)
+        logger.info("已配置Windows ConnectionResetError抑制器")
     
     # 初始化数据库
     await init_db()
@@ -93,6 +121,9 @@ async def lifespan(app: FastAPI):
         
         # 将交易核心传递给策略服务
         strategy_service.set_trading_core(trading_core)
+        
+        # 将策略服务传递给交易核心（用于停止核心时停止所有策略）
+        trading_core.set_strategy_service(strategy_service)
         
         # 初始化策略管理器（即使核心未启动也可以初始化）
         await strategy_service.initialize_manager(loop)
