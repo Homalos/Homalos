@@ -169,26 +169,102 @@ class StrategyService:
         except Exception as e:
             self.logger.error(f"关闭策略管理器失败: {e}", exc_info=True)
     
+    def update_core_dependencies(self):
+        """
+        更新策略管理器的核心依赖（在交易核心启动后调用）
+        
+        这个方法用于在交易核心启动后，将核心的EventBus、SubscriptionManager等
+        依赖注入到策略管理器中，使策略能够订阅行情和发送交易信号。
+        """
+        if not self._manager or not self._trading_core:
+            self.logger.warning("策略管理器或交易核心未初始化，无法更新依赖")
+            return
+        
+        try:
+            core_status = self._trading_core.get_status()
+            if core_status['status'] != 'running':
+                self.logger.warning("交易核心未运行，无法更新依赖")
+                return
+            
+            # 获取核心依赖
+            event_bus = self._trading_core.get_event_bus()
+            subscription_manager = self._trading_core.get_subscription_manager()
+            trade_signal_handler = self._trading_core.get_trade_signal_handler()
+            alarm_manager = self._trading_core.get_alarm_manager()
+            
+            # 更新策略管理器的依赖
+            self._manager.event_bus = event_bus
+            self._manager._subscription_manager = subscription_manager
+            self._manager._trade_signal_handler = trade_signal_handler
+            self._manager.alarm_manager = alarm_manager
+            
+            # 为已运行的策略重新注册订阅
+            running_strategies = self._manager.get_running_strategies()
+            for sid in running_strategies:
+                try:
+                    # 获取策略的订阅信息
+                    sub_info = self._manager._strategy_subscriptions.get(sid)
+                    if sub_info:
+                        instruments = list(sub_info.get('instruments', []))
+                        intervals = list(sub_info.get('intervals', []))
+                        
+                        if instruments and subscription_manager:
+                            # 重新注册订阅
+                            subscription_manager.register_strategy_subscription(sid, instruments, intervals)
+                            self.logger.info(f"已为策略 {sid} 重新注册订阅: {len(instruments)} 个合约")
+                except Exception as e:
+                    self.logger.error(f"为策略 {sid} 重新注册订阅失败: {e}", exc_info=True)
+            
+            self.logger.info("✓ 策略管理器核心依赖已更新")
+            
+        except Exception as e:
+            self.logger.error(f"更新核心依赖失败: {e}", exc_info=True)
+    
     def list_strategies(self) -> Dict[str, Any]:
         """列出所有策略"""
         manager = self.get_manager()
         return manager.registry.list_all()
     
-    def start_strategy(self, sid: str):
-        """启动策略"""
+    async def start_strategy(self, sid: str):
+        """启动策略（异步）"""
         manager = self.get_manager()
         
         if sid not in manager.registry.strategies:
             raise ValueError(f"策略 {sid} 不存在")
         
-        manager.load_strategy(sid)
+        # 在独立线程中执行同步操作，避免阻塞FastAPI事件循环
+        import asyncio
+        await asyncio.to_thread(manager.load_strategy, sid)
         self.logger.info(f"策略 {sid} 已启动")
     
-    def stop_strategy(self, sid: str):
-        """停止策略"""
+    async def stop_strategy(self, sid: str):
+        """停止策略（异步）"""
         manager = self.get_manager()
-        manager.unload_strategy(sid)
+        # 在独立线程中执行同步操作
+        import asyncio
+        await asyncio.to_thread(manager.unload_strategy, sid)
         self.logger.info(f"策略 {sid} 已停止")
+    
+    async def stop_all_strategies(self) -> int:
+        """
+        停止所有运行中的策略
+        
+        Returns:
+            int: 停止的策略数量
+        """
+        manager = self.get_manager()
+        running_strategies = manager.get_running_strategies()
+        
+        stopped_count = 0
+        for sid in running_strategies:
+            try:
+                manager.unload_strategy(sid)
+                self.logger.info(f"策略 {sid} 已停止（因交易核心停止）")
+                stopped_count += 1
+            except Exception as e:
+                self.logger.error(f"停止策略 {sid} 失败: {e}")
+        
+        return stopped_count
     
     async def reload_strategy(self, sid: str):
         """重载策略（异步执行）"""

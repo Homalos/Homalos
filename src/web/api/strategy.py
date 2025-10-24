@@ -96,7 +96,7 @@ async def start_strategy(sid: str):
         OperationResponse: 操作结果
     """
     try:
-        strategy_service.start_strategy(sid)
+        await strategy_service.start_strategy(sid)
         return {
             "status": "started",
             "sid": sid,
@@ -121,7 +121,7 @@ async def stop_strategy(sid: str):
         OperationResponse: 操作结果
     """
     try:
-        strategy_service.stop_strategy(sid)
+        await strategy_service.stop_strategy(sid)
         return {
             "status": "stopped",
             "sid": sid,
@@ -493,8 +493,8 @@ async def websocket_endpoint(
     await websocket.accept()
     logger.info(f"WebSocket连接已建立, filter={filter}")
     
-    # 创建消息队列
-    q: asyncio.Queue = asyncio.Queue(maxsize=200)
+    # 创建消息队列（增大队列容量，避免高频消息时阻塞）
+    q: asyncio.Queue = asyncio.Queue(maxsize=1000)
     
     try:
         # 注册队列到策略服务
@@ -502,17 +502,32 @@ async def websocket_endpoint(
         
         # 持续接收并转发消息
         while True:
-            msg = await q.get()
+            try:
+                msg = await q.get()
+                
+                # 可选过滤
+                if filter and msg.get("sid") != filter:
+                    continue
+                
+                # 序列化消息（转换 Interval 枚举对象为字符串）
+                serialized_msg = serialize_message(msg)
+                
+                # 发送消息（增加超时和错误处理）
+                try:
+                    await asyncio.wait_for(websocket.send_json(serialized_msg), timeout=5.0)
+                except asyncio.TimeoutError:
+                    logger.warning("WebSocket发送消息超时，跳过该消息")
+                    continue
+                except Exception as send_err:
+                    logger.error(f"WebSocket发送消息失败: {send_err}", exc_info=True)
+                    raise  # 连接已断开，退出循环
             
-            # 可选过滤
-            if filter and msg.get("sid") != filter:
-                continue
-            
-            # 序列化消息（转换 Interval 枚举对象为字符串）
-            serialized_msg = serialize_message(msg)
-            
-            # 发送消息
-            await websocket.send_json(serialized_msg)
+            except asyncio.CancelledError:
+                logger.info("WebSocket任务被取消")
+                raise
+            except Exception as loop_err:
+                logger.error(f"WebSocket消息处理循环错误: {loop_err}", exc_info=True)
+                raise
             
     except WebSocketDisconnect:
         logger.info(f"WebSocket连接已断开, filter={filter}")

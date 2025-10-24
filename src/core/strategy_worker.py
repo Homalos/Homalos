@@ -12,19 +12,23 @@
 负责数据分发到具体合约的策略实例
 """
 import traceback
+from threading import Thread
+
+import zmq
 
 from src.utils.log import get_logger
 
 _logger = get_logger("strategy_worker")
 
 
-def run_strategy_process(strategy_id: str, module_path: str, class_name: str, params: dict, conn):
+def run_strategy_process(strategy_id: str, module_path: str, class_name: str, params: dict, conn, zmq_port: int = 5555):
     """
     子进程入口：导入模块，实例化策略（class_name），并通过 conn 双向通信。
     conn: multiprocessing.Connection (duplex=True)
+    zmq_port: ZeroMQ 订阅端口
     """
     try:
-        _run_strategy_process_impl(strategy_id, module_path, class_name, params, conn)
+        _run_strategy_process_impl(strategy_id, module_path, class_name, params, conn, zmq_port)
     except KeyboardInterrupt:
         # 优雅退出，不打印 Traceback
         try:
@@ -40,7 +44,7 @@ def run_strategy_process(strategy_id: str, module_path: str, class_name: str, pa
         _logger.exception(e)
 
 
-def _run_strategy_process_impl(strategy_id: str, module_path: str, class_name: str, params: dict, conn):
+def _run_strategy_process_impl(strategy_id: str, module_path: str, class_name: str, params: dict, conn, zmq_port: int):
     """策略进程实现（内部函数）"""
     try:
         # import by module path like "src.strategy.strategies.example"
@@ -102,8 +106,35 @@ def _run_strategy_process_impl(strategy_id: str, module_path: str, class_name: s
         conn.send({"type": "error", "sid": strategy_id, "payload": "Missing specific_strategy_map, not a valid BaseStrategy"})
         conn.send({"type": "stopped", "sid": strategy_id})
         return
-
+    
+    # 调用所有SpecificStrategy的on_init()
+    conn.send({"type": "log", "sid": strategy_id, "payload": "Initializing specific strategies..."})
+    for inst_id, spec_strategy in specific_strategy_map.items():
+        try:
+            if hasattr(spec_strategy, 'on_init'):
+                spec_strategy.on_init()
+                conn.send({"type": "log", "sid": strategy_id, "payload": f"on_init() called for {inst_id}"})
+        except Exception as e:
+            conn.send({"type": "error", "sid": strategy_id, 
+                     "payload": f"on_init() failed for {inst_id}", 
+                     "trace": traceback.format_exc()})
+            _logger.exception(e)
+    
+    # 启动 ZeroMQ 订阅线程
     running = True
+    zmq_thread = Thread(
+        target=_zmq_subscriber_loop,
+        args=(strategy_id, zmq_port, subscribed_instruments, specific_strategy_map, conn, lambda: running),
+        daemon=True,
+        name=f"ZMQ-Sub-{strategy_id}"
+    )
+    zmq_thread.start()
+    conn.send({"type": "log", "sid": strategy_id, "payload": f"ZeroMQ subscriber thread started on port {zmq_port}"})
+    
+    # 给 ZMQ 一点时间建立连接 (ZMQ 使用异步连接)
+    import time as time_module
+    time_module.sleep(0.2)  # 200ms 足够 ZMQ 建立连接
+    conn.send({"type": "log", "sid": strategy_id, "payload": "ZMQ connection established, ready to receive data"})
     while running:
         try:
             msg = conn.recv()
@@ -236,3 +267,89 @@ def _run_strategy_process_impl(strategy_id: str, module_path: str, class_name: s
             conn.close()
     except Exception as e:
         _logger.exception(e)
+
+
+def _zmq_subscriber_loop(strategy_id: str, zmq_port: int, subscribed_instruments: list, specific_strategy_map: dict, conn, is_running_func):
+    """
+    ZeroMQ 订阅线程，接收主进程推送的行情数据
+    
+    Args:
+        strategy_id: 策略ID
+        zmq_port: ZeroMQ 端口
+        subscribed_instruments: 订阅的合约列表
+        specific_strategy_map: 合约 -> SpecificStrategy 映射
+        conn: 与主进程的 IPC 连接（仅用于检查，不要在线程中使用！）
+        is_running_func: 返回是否继续运行的函数
+    """
+    import pickle
+    
+    try:
+        # 创建 ZeroMQ Subscriber
+        context = zmq.Context()
+        subscriber = context.socket(zmq.SUB)
+        subscriber.connect(f"tcp://127.0.0.1:{zmq_port}")
+        
+        # 订阅所有策略关心的合约的 tick 和 bar 数据
+        for instrument_id in subscribed_instruments:
+            subscriber.setsockopt_string(zmq.SUBSCRIBE, f"tick:{instrument_id}")
+            subscriber.setsockopt_string(zmq.SUBSCRIBE, f"bar:{instrument_id}")
+        
+        # 设置接收超时（1秒），以便定期检查 running 状态
+        subscriber.setsockopt(zmq.RCVTIMEO, 1000)
+        
+        # 使用 logger 而不是 conn.send()，避免 Pipe 线程安全问题
+        _logger.info(f"[{strategy_id}] ZMQ subscribed to {len(subscribed_instruments)} instruments")
+        
+        while is_running_func():
+            try:
+                # 接收消息（topic + payload）
+                message_parts = subscriber.recv_multipart()
+                if len(message_parts) != 2:
+                    _logger.warning(
+                        f"[{strategy_id}] ZMQ 收到异常消息: {len(message_parts)} 个部分（期望2个），"
+                        f"各部分长度: {[len(p) for p in message_parts]}"
+                    )
+                    continue
+                
+                topic_bytes, payload_bytes = message_parts
+                topic = topic_bytes.decode('utf-8')
+                
+                # 解析 topic（格式: "tick:SA601" 或 "bar:SA601"）
+                parts = topic.split(':', 1)
+                if len(parts) != 2:
+                    continue
+                data_type, instrument_id = parts
+                
+                # 跳过未订阅的合约
+                if instrument_id not in subscribed_instruments:
+                    continue
+                
+                # 反序列化数据
+                data = pickle.loads(payload_bytes)
+                
+                # 找到对应的 SpecificStrategy
+                specific_strategy = specific_strategy_map.get(instrument_id)
+                if not specific_strategy:
+                    continue
+                
+                # 调用对应的回调
+                if data_type == "tick" and hasattr(specific_strategy, "on_tick"):
+                    specific_strategy.on_tick(data)
+                elif data_type == "bar" and hasattr(specific_strategy, "on_bar"):
+                    specific_strategy.on_bar(data)
+                    
+            except zmq.Again:
+                # 超时，继续循环检查 running 状态
+                continue
+            except Exception as e:
+                _logger.error(f"[{strategy_id}] ZMQ receive error: {e}", exc_info=True)
+                
+    except Exception as e:
+        _logger.error(f"[{strategy_id}] ZMQ subscriber failed: {e}", exc_info=True)
+    finally:
+        try:
+            subscriber.close()
+            context.term()
+            _logger.info(f"[{strategy_id}] ZMQ subscriber stopped")
+        except Exception as e:
+            _logger.error(f"[{strategy_id}] ZMQ cleanup error: {e}")

@@ -24,6 +24,50 @@
       </div>
     </template>
     
+    <!-- 核心状态横幅 -->
+    <el-alert
+      v-if="coreStatus.status !== 'running'"
+      title="交易核心未运行"
+      type="warning"
+      :closable="false"
+      style="margin-bottom: 20px;"
+    >
+      <template #default>
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span>策略将无法接收行情数据和执行交易，请先启动交易核心。</span>
+          <el-button type="primary" size="small" @click="gotoConsole">
+            前往控制台
+          </el-button>
+        </div>
+      </template>
+    </el-alert>
+
+    <el-alert
+      v-else
+      title="交易核心运行中"
+      type="success"
+      :closable="false"
+      style="margin-bottom: 20px;"
+    >
+      <template #default>
+        <el-space>
+          <el-tag :type="coreStatus.gateway.md_login ? 'success' : 'warning'" size="small">
+            行情: {{ coreStatus.gateway.md_login ? '✓' : '✗' }}
+          </el-tag>
+          <el-tag :type="coreStatus.gateway.td_login ? 'success' : 'warning'" size="small">
+            交易: {{ coreStatus.gateway.td_login ? '✓' : '✗' }}
+          </el-tag>
+          <el-tag :type="coreStatus.gateway.td_confirm ? 'success' : 'warning'" size="small">
+            结算: {{ coreStatus.gateway.td_confirm ? '✓' : '✗' }}
+          </el-tag>
+          <el-tag :type="coreStatus.gateway.instruments_loaded ? 'success' : 'warning'" size="small">
+            合约: {{ coreStatus.gateway.instruments_loaded ? '✓' : '✗' }}
+          </el-tag>
+          <span style="color: #67C23A;">运行时长: {{ coreStatus.runningTime }}</span>
+        </el-space>
+      </template>
+    </el-alert>
+    
     <!-- 策略统计 -->
     <el-row :gutter="20" style="margin-bottom: 20px;">
       <el-col :span="8">
@@ -338,12 +382,15 @@ import {
   DataAnalysis, SuccessFilled, Setting, Refresh, FolderOpened, DocumentAdd
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 import { useStrategyStore } from '@/stores/strategy'
+import { getTradingCoreStatus } from '@/api/tradingCore'
 import WebSocketStatus from './WebSocketStatus.vue'
 
 // ========== 初始化 ==========
 const strategyStore = useStrategyStore()
+const router = useRouter()
 
 // ========== 状态 ==========
 const detailDrawerVisible = ref(false)
@@ -352,6 +399,20 @@ const selectedLogType = ref('')
 const fileSelectDialogVisible = ref(false)
 const availableFiles = ref([])
 const selectedFile = ref('')
+
+// 核心状态
+const coreStatus = reactive({
+  status: 'stopped',  // stopped | initializing | connecting | running | stopping | error
+  runningTime: '-',
+  gateway: {
+    md_login: false,
+    td_login: false,
+    td_confirm: false,
+    instruments_loaded: false
+  }
+})
+
+let coreStatusTimer = null
 
 // ========== 计算属性 ==========
 const strategyList = computed(() => {
@@ -505,7 +566,113 @@ function handleFileSelectionChange(currentRow) {
   }
 }
 
+// ========== 核心状态管理 ==========
+/**
+ * 获取交易核心状态
+ */
+async function fetchCoreStatus() {
+  try {
+    const status = await getTradingCoreStatus()
+    
+    coreStatus.status = status.status || 'stopped'
+    coreStatus.runningTime = status.running_time || '-'
+    
+    if (status.gateway) {
+      coreStatus.gateway = {
+        md_login: status.gateway.md_login || false,
+        td_login: status.gateway.td_login || false,
+        td_confirm: status.gateway.td_confirm || false,
+        instruments_loaded: status.gateway.instruments_loaded || false
+      }
+    } else {
+      coreStatus.gateway = {
+        md_login: false,
+        td_login: false,
+        td_confirm: false,
+        instruments_loaded: false
+      }
+    }
+    
+    // 如果核心已停止，停止轮询
+    if (status.status === 'stopped' && coreStatusTimer) {
+      stopCoreStatusPolling()
+    }
+  } catch (error) {
+    console.error('获取交易核心状态失败:', error)
+    coreStatus.status = 'stopped'
+    coreStatus.runningTime = '-'
+    coreStatus.gateway = {
+      md_login: false,
+      td_login: false,
+      td_confirm: false,
+      instruments_loaded: false
+    }
+  }
+}
+
+/**
+ * 启动核心状态轮询
+ */
+function startCoreStatusPolling() {
+  if (coreStatusTimer) return
+  
+  fetchCoreStatus()
+  coreStatusTimer = setInterval(fetchCoreStatus, 10000)  // 每10秒刷新
+}
+
+/**
+ * 停止核心状态轮询
+ */
+function stopCoreStatusPolling() {
+  if (coreStatusTimer) {
+    clearInterval(coreStatusTimer)
+    coreStatusTimer = null
+  }
+}
+
+/**
+ * 跳转到控制台
+ */
+function gotoConsole() {
+  router.push('/console')
+}
+
+/**
+ * 启动策略（带核心状态检查）
+ */
 async function handleStartStrategy(sid) {
+  // 1. 检查核心状态
+  await fetchCoreStatus()
+  
+  if (coreStatus.status !== 'running') {
+    // 弹窗确认：只提供"前往控制台"选项
+    try {
+      await ElMessageBox.confirm(
+        '交易核心未运行，策略无法启动。请先前往控制台启动交易核心。',
+        '无法启动策略',
+        {
+          confirmButtonText: '前往控制台',
+          cancelButtonText: '取消',
+          type: 'error',
+          distinguishCancelAndClose: true
+        }
+      )
+      // 用户选择前往控制台
+      router.push('/console')
+      return
+    } catch (action) {
+      // 用户取消或关闭对话框
+      ElMessage.info('已取消启动')
+      return
+    }
+  }
+  
+  // 2. 检查网关状态
+  if (!coreStatus.gateway.md_login || !coreStatus.gateway.td_login) {
+    ElMessage.warning('CTP网关未完全连接，策略可能无法正常工作')
+  }
+  
+  // 3. 启动策略
   await strategyStore.start(sid)
 }
 
@@ -592,6 +759,7 @@ onUnmounted(() => {
   }
   strategyStore.disconnectWebSocket()
   window.removeEventListener('beforeunload', handleBeforeUnload)
+  stopCoreStatusPolling()  // 停止核心状态轮询
 })
 
 // 组件挂载时初始化
@@ -618,6 +786,9 @@ onMounted(async () => {
   
   // 添加页面卸载监听器
   window.addEventListener('beforeunload', handleBeforeUnload)
+  
+  // 启动核心状态轮询
+  startCoreStatusPolling()
 })
 </script>
 

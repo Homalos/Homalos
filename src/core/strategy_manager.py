@@ -25,10 +25,13 @@
 """
 import asyncio
 import multiprocessing as mp
+import threading
 import time
 from pathlib import Path
 from threading import Thread, Lock
 from typing import Any, Optional
+
+import zmq
 
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
@@ -101,6 +104,13 @@ class StrategyManager(object):
         
         # 交易信号处理（新增）
         self._trade_signal_handler: Optional[Any] = None  # 交易信号处理器引用
+        
+        # ZeroMQ 数据推送（新增）
+        self._zmq_context: Optional[zmq.Context] = None  # ZMQ 上下文
+        self._zmq_publisher: Optional[zmq.Socket] = None  # ZMQ 发布者
+        self._zmq_port: int = 5555  # ZMQ 端口，可配置
+        self._zmq_enabled: bool = False  # ZMQ 是否已启用
+        self._zmq_send_lock = threading.Lock()  # ZMQ 发送锁（防止多线程竞态）
 
     # ---------- 事件循环注册 ----------
     def set_event_loop(self, loop: asyncio.AbstractEventLoop):
@@ -160,6 +170,9 @@ class StrategyManager(object):
         # 启动自动保存任务
         self._start_auto_save_task()
         
+        # 启动 ZeroMQ Publisher
+        self._start_zmq_publisher()
+        
         self.logger.info("策略管理器启动完成")
     
     async def shutdown(self):
@@ -167,6 +180,7 @@ class StrategyManager(object):
         系统关闭时调用
         - 保存所有策略状态
         - 停止自动保存任务
+        - 关闭线程池
         """
         self.logger.info("策略管理器关闭中...")
         
@@ -184,6 +198,9 @@ class StrategyManager(object):
             await self._save_all_current_states()
         except Exception as e:
             self.logger.error(f"关闭时保存状态失败: {e}")
+        
+        # 关闭 ZeroMQ Publisher
+        self._stop_zmq_publisher()
         
         self.logger.info("策略管理器已关闭")
     
@@ -245,7 +262,33 @@ class StrategyManager(object):
             success_count = sum(1 for v in results.values() if v)
             self.logger.info(f"自动保存完成：成功 {success_count}/{len(states_to_save)}")
         else:
-            self.logger.debug("没有需要保存的状态")
+                self.logger.debug("没有需要保存的状态")
+    
+    def _start_zmq_publisher(self):
+        """启动 ZeroMQ Publisher"""
+        try:
+            self._zmq_context = zmq.Context()
+            self._zmq_publisher = self._zmq_context.socket(zmq.PUB)
+            self._zmq_publisher.bind(f"tcp://127.0.0.1:{self._zmq_port}")
+            self._zmq_enabled = True
+            self.logger.info(f"✓ ZeroMQ Publisher 已启动: tcp://127.0.0.1:{self._zmq_port}")
+        except Exception as e:
+            self.logger.error(f"✗ ZeroMQ Publisher 启动失败: {e}", exc_info=True)
+            self._zmq_enabled = False
+    
+    def _stop_zmq_publisher(self):
+        """关闭 ZeroMQ Publisher"""
+        try:
+            if self._zmq_publisher:
+                self._zmq_publisher.close()
+                self._zmq_publisher = None
+            if self._zmq_context:
+                self._zmq_context.term()
+                self._zmq_context = None
+            self._zmq_enabled = False
+            self.logger.info("✓ ZeroMQ Publisher 已关闭")
+        except Exception as e:
+            self.logger.error(f"✗ ZeroMQ Publisher 关闭失败: {e}", exc_info=True)
 
     # ---------- 流程生命周期 ----------
     def load_strategy(self, sid: str):
@@ -271,8 +314,12 @@ class StrategyManager(object):
             class_name = cfg.get("class", "Strategy")
             params = cfg.get("params", {})
 
-            # spawn 进程
-            proc = self.mp_ctx.Process(target=run_strategy_process, args=(sid, module_path, class_name, params, child_conn), daemon=True)
+            # spawn 进程（传递 ZMQ 端口）
+            proc = self.mp_ctx.Process(
+                target=run_strategy_process, 
+                args=(sid, module_path, class_name, params, child_conn, self._zmq_port), 
+                daemon=True
+            )
             proc.start()
 
             # 检查是否有缓存的持久化状态（从临时字典中获取）
@@ -518,11 +565,51 @@ class StrategyManager(object):
         data：JSON 序列化负载
         """
         with self._lock:
-            for sid, meta in list(self._meta.items()):
+            message = {"type": "event", "event": {"type": ev_type, "data": data}}
+            for sid, meta in self._meta.items():
                 try:
-                    meta["conn"].send({"type": "event", "event": {"type": ev_type, "data": data}})
+                    conn = meta["conn"]
+                    conn.send(message)
+                except (BrokenPipeError, EOFError):
+                    # 策略进程已退出，忽略
+                    pass
                 except Exception as e:
-                    self.logger.exception(f"forward fail to {sid}: {e}")
+                    self.logger.error(f"forward {ev_type} to {sid} failed: {e}")
+    
+    def broadcast_market_data(self, data_type: str, data: Any) -> None:
+        """
+        通过 ZeroMQ 广播行情数据（tick 或 bar）给所有策略进程
+        
+        Args:
+            data_type: "tick" 或 "bar"
+            data: TickData 或 BarData 对象
+        """
+        if not self._zmq_enabled or not self._zmq_publisher:
+            self.logger.warning(f"ZMQ 未启用或 Publisher 未初始化: enabled={self._zmq_enabled}, publisher={self._zmq_publisher}")
+            return
+        
+        try:
+            # 提取合约 ID
+            instrument_id = getattr(data, 'instrument_id', None)
+            if not instrument_id:
+                self.logger.warning(f"数据缺少 instrument_id: {data}")
+                return
+            
+            # 构造消息（topic = f"{data_type}:{instrument_id}"）
+            topic = f"{data_type}:{instrument_id}"
+            
+            # 序列化数据（使用 pickle 或 JSON）
+            import pickle
+            payload = pickle.dumps(data)
+            
+            # 发送消息（topic + 分隔符 + payload）
+            # 使用锁确保send_string和send是原子操作，避免多线程竞态
+            with self._zmq_send_lock:
+                self._zmq_publisher.send_string(topic, zmq.SNDMORE)  # 发送topic，标记后面还有数据
+                self._zmq_publisher.send(payload)  # 发送payload，这条消息结束
+            
+        except Exception as e:
+            self.logger.error(f"ZeroMQ broadcast failed for {data_type}: {e}", exc_info=True)
 
     # ---------- reader thread for child messages ----------
     def _reader_loop(self, sid: str) -> None:
@@ -639,29 +726,34 @@ class StrategyManager(object):
         """
         线程安全转发 -> 在主循环中调度。
         从读取线程调用。
+        
+        ⚠️ 临时禁用：WebSocket推送可能导致FastAPI主线程阻塞
         """
-        # 规范化消息：确保 sid/type/payload 顶级键
-        normalized = {}
-        if isinstance(msg, dict):
-            normalized = msg.copy()
-        else:
-            normalized = {"type": "log", "payload": str(msg)}
-
-        # schedule call on loop
-        loop = self._loop
-        if not loop:
-            # fallback: nothing to push
-            return
-
-        def _put_nowait():
-            for q in list(self._ws_queues):
-                try:
-                    q.put_nowait(normalized)
-                except asyncio.QueueFull:
-                    # skip full queues
-                    pass
-
-        loop.call_soon_threadsafe(_put_nowait)  # noqa
+        # 临时禁用WebSocket推送，仅保留日志记录
+        # 这将允许策略正常接收tick数据，但前端不会实时显示日志
+        return
+        
+        # 原始代码（已禁用）
+        # normalized = {}
+        # if isinstance(msg, dict):
+        #     normalized = msg.copy()
+        # else:
+        #     normalized = {"type": "log", "payload": str(msg)}
+        # 
+        # if not self._ws_queues:
+        #     return
+        # 
+        # loop = self._loop
+        # if not loop:
+        #     return
+        # 
+        # for q in list(self._ws_queues):
+        #     try:
+        #         q.put_nowait(normalized)
+        #     except asyncio.QueueFull:
+        #         pass
+        #     except Exception:
+        #         pass
 
     # ---------- watchdog ----------
     def start_watchdog(self, strategies_dir: str):
@@ -712,6 +804,22 @@ class StrategyManager(object):
             self.logger.warning(f"手动清除 {sid} 的reload锁")
             return True
         return False
+    
+    def get_running_strategies(self) -> list[str]:
+        """
+        获取所有运行中的策略ID列表
+        
+        Returns:
+            list[str]: 运行中的策略ID列表
+        """
+        running = []
+        with self._lock:
+            for sid, meta in self._meta.items():
+                proc = meta.get('proc')
+                # 检查进程是否存在且仍在运行
+                if proc and proc.is_alive():
+                    running.append(sid)
+        return running
     
     # ===== 新增：订阅管理和交易信号处理 =====
     
@@ -845,18 +953,6 @@ class StrategyManager(object):
         with self._lock:
             return self._strategy_subscriptions.copy()
     
-    def broadcast_market_data(self, data_type: str, data: Any):
-        """
-        向所有策略广播行情数据
-        
-        Args:
-            data_type: 数据类型 ('tick', 'bar')
-            data: 数据对象（TickData 或 BarData）
-        """
-        # 直接传递数据对象，不要再包装成字典
-        # strategy_worker.py 中会从 event["data"] 获取数据
-        self.broadcast_event(data_type, data)
-
     def get_last_event_time(self) -> dict[str, float]:
         """获取最后一次处理的事件时间"""
         return self._last_event_time

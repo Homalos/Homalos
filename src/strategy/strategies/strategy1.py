@@ -61,6 +61,7 @@ class Strategy1(BaseStrategy):
             self.strategy_id: str = strategy_id
             self.instrument_id: str = instrument_id
             self.bar_intervals: list[Interval] = bar_intervals
+            self.counter: int = 0
 
         def on_init(self) -> None:
             self.logger.info(f"{self.strategy_id} 策略开始运行")
@@ -72,11 +73,13 @@ class Strategy1(BaseStrategy):
             pass
 
         def on_tick(self, tick: TickData) -> None:
-            self.logger.info(f"{self.strategy_id} 策略收到行情数据: {tick}")
-            pass
+            self.counter += 1
+            # 降低日志频率，避免I/O阻塞FastAPI事件循环
+            if self.counter % 80 == 0:
+                self.logger.info(f"{self.strategy_id} 收到tick: {tick.instrument_id} @ {tick.last_price}, 累计: {self.counter}")
 
         def on_bar(self, bar: BarData) -> None:
-            self.logger.info(f"{self.strategy_id} 策略收到K线数据: {bar}")
+            self.logger.info(f"{self.strategy_id} 收到bar: {bar.instrument_id} close={bar.close_price} vol={bar.volume}")
 
         def on_trade(self, trade: TradeData) -> None:
             pass
