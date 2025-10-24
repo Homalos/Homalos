@@ -317,8 +317,8 @@ async def alarm_websocket(websocket: WebSocket):
         # 保持连接并处理心跳
         while True:
             try:
-                # 等待客户端消息（心跳或其他）
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+                # 等待客户端消息（心跳或其他），使用较短的超时以便快速响应关闭
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
                 msg = json.loads(data)
                 
                 # 处理心跳
@@ -326,9 +326,20 @@ async def alarm_websocket(websocket: WebSocket):
                     await websocket.send_json({"type": "pong"})
             except asyncio.TimeoutError:
                 # 发送心跳检测
-                await websocket.send_json({"type": "ping"})
+                try:
+                    await websocket.send_json({"type": "ping"})
+                except Exception:
+                    # 连接可能已断开，退出循环
+                    break
+            except asyncio.CancelledError:
+                # 优雅关闭：系统关闭时任务被取消
+                logger.info("告警WebSocket任务被取消（系统关闭中）")
+                break
     except WebSocketDisconnect:
         logger.info("告警WebSocket连接断开")
+    except asyncio.CancelledError:
+        # 优雅关闭：系统关闭时任务被取消
+        logger.info("告警WebSocket任务被取消（系统关闭中）")
     except Exception as e:
         logger.error(f"告警WebSocket错误: {e}", exc_info=True)
     finally:

@@ -503,7 +503,12 @@ async def websocket_endpoint(
         # 持续接收并转发消息
         while True:
             try:
-                msg = await q.get()
+                # 使用超时机制，避免无限等待导致关闭时被强制取消
+                try:
+                    msg = await asyncio.wait_for(q.get(), timeout=1.0)
+                except asyncio.TimeoutError:
+                    # 超时是正常的，继续循环等待下一条消息
+                    continue
                 
                 # 可选过滤
                 if filter and msg.get("sid") != filter:
