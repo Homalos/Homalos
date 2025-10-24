@@ -523,14 +523,18 @@ async def websocket_endpoint(
                     raise  # 连接已断开，退出循环
             
             except asyncio.CancelledError:
-                logger.info("WebSocket任务被取消")
-                raise
+                # 优雅关闭：记录日志并退出循环，不重新抛出异常
+                logger.info("WebSocket任务被取消（系统关闭中）")
+                break
             except Exception as loop_err:
                 logger.error(f"WebSocket消息处理循环错误: {loop_err}", exc_info=True)
                 raise
             
     except WebSocketDisconnect:
         logger.info(f"WebSocket连接已断开, filter={filter}")
+    except asyncio.CancelledError:
+        # 优雅关闭：系统关闭时 WebSocket 任务被取消是正常行为
+        logger.info("WebSocket任务被取消（系统关闭中）")
     except Exception as e:
         logger.error(f"WebSocket错误: {e}", exc_info=True)
     finally:

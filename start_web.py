@@ -11,16 +11,30 @@
 """
 import os
 import uvicorn
+import logging
+
+logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     # 启用SSE日志流
     os.environ['ENABLE_SSE_LOGS'] = 'true'
     
-    uvicorn.run(
-        "src.web.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=False,  # 禁用Uvicorn自动重载，使用策略管理器的Watchdog
-        log_level="info"
-    )
+    try:
+        # 直接使用 uvicorn.run()，配置优雅关闭超时
+        # 注意：在Windows上，第一次Ctrl+C会触发优雅关闭（最多10秒）
+        #      如果10秒内无法完成，需要第二次Ctrl+C强制退出
+        uvicorn.run(
+            "src.web.main:app",
+            host="0.0.0.0",
+            port=8000,
+            reload=False,  # 禁用Uvicorn自动重载，使用策略管理器的Watchdog
+            log_level="info",
+            timeout_graceful_shutdown=10,  # 优雅关闭超时10秒（Windows推荐设置）
+        )
+    except KeyboardInterrupt:
+        logger.info("检测到 KeyboardInterrupt，正在优雅关闭...")
+    except Exception as e:
+        logger.error(f"服务器异常: {e}", exc_info=True)
+    finally:
+        logger.info("Web服务已停止")
 

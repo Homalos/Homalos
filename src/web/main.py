@@ -140,14 +140,8 @@ async def lifespan(app: FastAPI):
     logger.info("Homalos Web应用关闭")
     logger.info("=" * 60)
     
-    # 关闭策略服务
-    try:
-        await strategy_service.shutdown()
-        logger.info("策略服务已关闭")
-    except Exception as e:
-        logger.error(f"关闭策略服务失败: {e}", exc_info=True)
-    
-    # 关闭交易核心（如果正在运行）
+    # 1. 先关闭交易核心（如果正在运行）
+    #    这会先停止所有策略，因此必须在 strategy_service.shutdown() 之前执行
     try:
         trading_core = TradingCoreService.get_instance()
         core_status = trading_core.get_status()
@@ -163,6 +157,14 @@ async def lifespan(app: FastAPI):
             logger.info("交易核心未运行，跳过停止")
     except Exception as e:
         logger.error(f"关闭交易核心失败: {e}", exc_info=True)
+    
+    # 2. 再关闭策略服务（清理管理器）
+    #    此时策略已被 trading_core.stop_core() 停止，这里只是清理资源
+    try:
+        await strategy_service.shutdown()
+        logger.info("策略服务已关闭")
+    except Exception as e:
+        logger.error(f"关闭策略服务失败: {e}", exc_info=True)
     
     # 关闭Web告警管理器
     try:
