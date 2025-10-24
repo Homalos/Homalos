@@ -17,58 +17,55 @@
             <!-- 基础状态 -->
             <el-row :gutter="20" style="margin-bottom: 20px;">
               <el-col :span="8">
-                <el-statistic title="核心状态">
-                  <template #prefix>
-                    <el-icon :color="getCoreStatusColor(consoleData.tradingCore.status)">
+                <div class="custom-statistic">
+                  <div class="statistic-title">核心状态</div>
+                  <div class="statistic-content">
+                    <el-icon :color="getCoreStatusColor(consoleData.tradingCore.status)" class="statistic-icon">
                       <SuccessFilled v-if="consoleData.tradingCore.status === 'running'" />
                       <Loading v-else-if="consoleData.tradingCore.status === 'initializing' || consoleData.tradingCore.status === 'connecting'" />
                       <VideoPause v-else />
                     </el-icon>
-                  </template>
-                  <template #default>
                     <span 
-                      style="font-size: 24px; font-weight: 600;" 
+                      class="statistic-value" 
                       :style="{ color: getCoreStatusColor(consoleData.tradingCore.status) }"
                     >
                       {{ getCoreStatusText(consoleData.tradingCore.status) }}
                     </span>
-                  </template>
-                </el-statistic>
+                  </div>
+                </div>
               </el-col>
               <el-col :span="8">
-                <el-statistic title="运行时长">
-                  <template #prefix>
-                    <el-icon color="#409EFF"><Clock /></el-icon>
-                  </template>
-                  <template #default>
-                    <span style="font-size: 20px; font-weight: 600;">
+                <div class="custom-statistic">
+                  <div class="statistic-title">运行时长</div>
+                  <div class="statistic-content">
+                    <el-icon color="#409EFF" class="statistic-icon"><Clock /></el-icon>
+                    <span class="statistic-value">
                       {{ consoleData.tradingCore.runningTime }}
                     </span>
-                  </template>
-                </el-statistic>
+                  </div>
+                </div>
               </el-col>
               <el-col :span="8">
-                <el-statistic title="网关状态">
-                  <template #prefix>
-                    <el-icon :color="isGatewayConnected ? '#67C23A' : '#909399'">
+                <div class="custom-statistic">
+                  <div class="statistic-title">网关状态</div>
+                  <div class="statistic-content">
+                    <el-icon :color="isGatewayConnected ? '#67C23A' : '#909399'" class="statistic-icon">
                       <Connection v-if="isGatewayConnected" />
                       <SwitchButton v-else />
                     </el-icon>
-                  </template>
-                  <template #default>
                     <span 
-                      style="font-size: 20px; font-weight: 600;" 
+                      class="statistic-value" 
                       :style="{ color: isGatewayConnected ? '#67C23A' : '#909399' }"
                     >
                       {{ isGatewayConnected ? '已连接' : '未连接' }}
                     </span>
-                  </template>
-                </el-statistic>
+                  </div>
+                </div>
               </el-col>
             </el-row>
             
-            <!-- 网关详细状态 -->
-            <el-row :gutter="10" style="margin-bottom: 20px;" v-if="consoleData.tradingCore.status === 'running'">
+            <!-- 网关详细状态（始终显示）-->
+            <el-row :gutter="10" style="margin-bottom: 20px;">
               <el-col :span="6">
                 <el-tag :type="consoleData.tradingCore.gateway.md_login ? 'success' : 'info'" size="small">
                   行情网关: {{ consoleData.tradingCore.gateway.md_login ? '✓' : '✗' }}
@@ -124,7 +121,6 @@
               <el-col :span="12">
                 <el-button 
                   type="primary" 
-                  size="small"
                   style="width: 100%;"
                   :disabled="isGatewayConnected"
                   @click="handleConnectGateway"
@@ -136,7 +132,6 @@
               <el-col :span="12">
                 <el-button 
                   type="warning" 
-                  size="small"
                   style="width: 100%;"
                   :disabled="!isGatewayConnected"
                   @click="handleDisconnectGateway"
@@ -174,36 +169,43 @@
             <!-- 基础状态 -->
             <el-row :gutter="20" style="margin-bottom: 20px;">
               <el-col :span="8">
-                <el-statistic title="系统状态">
-                  <template #prefix>
-                    <el-icon :color="consoleData.dataCenter.status === 'running' ? '#67C23A' : '#909399'">
+                <div class="custom-statistic">
+                  <div class="statistic-title">系统状态</div>
+                  <div class="statistic-content">
+                    <el-icon :color="consoleData.dataCenter.status === 'running' ? '#67C23A' : '#909399'" class="statistic-icon">
                       <SuccessFilled v-if="consoleData.dataCenter.status === 'running'" />
                       <VideoPause v-else />
                     </el-icon>
-                  </template>
-                  <template #default>
                     <span 
-                      style="font-size: 24px; font-weight: 600;" 
+                      class="statistic-value" 
                       :style="{ color: consoleData.dataCenter.status === 'running' ? '#67C23A' : '#909399' }"
                     >
                       {{ consoleData.dataCenter.status === 'running' ? '运行中' : '已停止' }}
                     </span>
-                  </template>
-                </el-statistic>
+                  </div>
+                </div>
               </el-col>
               <el-col :span="8">
-                <el-statistic title="进程ID" :value="consoleData.dataCenter.pid || 0">
-                  <template #prefix>
-                    <el-icon color="#409EFF"><Document /></el-icon>
-                  </template>
-                </el-statistic>
+                <div class="custom-statistic">
+                  <div class="statistic-title">进程ID</div>
+                  <div class="statistic-content">
+                    <el-icon color="#409EFF" class="statistic-icon"><Document /></el-icon>
+                    <span class="statistic-value">
+                      {{ consoleData.dataCenter.pid || 0 }}
+                    </span>
+                  </div>
+                </div>
               </el-col>
               <el-col :span="8">
-                <el-statistic title="运行时长" :value="consoleData.dataCenter.runningTime">
-                  <template #prefix>
-                    <el-icon color="#409EFF"><Clock /></el-icon>
-                  </template>
-                </el-statistic>
+                <div class="custom-statistic">
+                  <div class="statistic-title">运行时长</div>
+                  <div class="statistic-content">
+                    <el-icon color="#409EFF" class="statistic-icon"><Clock /></el-icon>
+                    <span class="statistic-value">
+                      {{ consoleData.dataCenter.runningTime }}
+                    </span>
+                  </div>
+                </div>
               </el-col>
             </el-row>
             
@@ -385,11 +387,15 @@ const {
 
 // 计算网关是否已连接
 const isGatewayConnected = computed(() => {
-  return consoleData.tradingCore.gateway.md_login && consoleData.tradingCore.gateway.td_login
+  const gateway = consoleData.tradingCore.gateway
+  return !!(gateway && gateway.md_login && gateway.td_login)
 })
 
 // 获取核心状态文本
 const getCoreStatusText = (status) => {
+  // 确保status是字符串
+  const statusStr = String(status || 'stopped')
+  
   const statusMap = {
     stopped: '已停止',
     initializing: '初始化中',
@@ -398,11 +404,23 @@ const getCoreStatusText = (status) => {
     stopping: '停止中',
     error: '错误'
   }
-  return statusMap[status] || status
+  
+  // 如果在映射中找到了，返回中文，否则返回原值（但不返回数字）
+  const result = statusMap[statusStr]
+  if (result) {
+    return result
+  }
+  // 如果是数字类型，返回默认值
+  if (!isNaN(statusStr) && statusStr !== '') {
+    console.warn('[警告] 核心状态是数字:', status, '使用默认值"已停止"')
+    return '已停止'
+  }
+  return statusStr
 }
 
 // 获取核心状态类型
 const getCoreStatusType = (status) => {
+  const statusStr = String(status || 'stopped')
   const typeMap = {
     stopped: 'info',
     initializing: 'warning',
@@ -411,11 +429,12 @@ const getCoreStatusType = (status) => {
     stopping: 'warning',
     error: 'danger'
   }
-  return typeMap[status] || 'info'
+  return typeMap[statusStr] || 'info'
 }
 
 // 获取核心状态颜色
 const getCoreStatusColor = (status) => {
+  const statusStr = String(status || 'stopped')
   const colorMap = {
     stopped: '#909399',
     initializing: '#E6A23C',
@@ -424,11 +443,12 @@ const getCoreStatusColor = (status) => {
     stopping: '#F56C6C',
     error: '#F56C6C'
   }
-  return colorMap[status] || '#909399'
+  return colorMap[statusStr] || '#909399'
 }
 
 // 获取警告框类型
 const getAlertType = (status) => {
+  const statusStr = String(status || 'stopped')
   const typeMap = {
     stopped: 'info',
     initializing: 'warning',
@@ -437,7 +457,7 @@ const getAlertType = (status) => {
     stopping: 'warning',
     error: 'error'
   }
-  return typeMap[status] || 'info'
+  return typeMap[statusStr] || 'info'
 }
 </script>
 
@@ -446,6 +466,36 @@ const getAlertType = (status) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* 自定义统计组件样式 */
+.custom-statistic {
+  text-align: center;
+  padding: 10px 0;
+}
+
+.statistic-title {
+  color: #909399;
+  font-size: 14px;
+  margin-bottom: 10px;
+  line-height: 22px;
+}
+
+.statistic-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.statistic-icon {
+  font-size: 24px;
+}
+
+.statistic-value {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 32px;
 }
 
 /* 日志容器样式 */
