@@ -648,11 +648,11 @@ class BarGenerator:
             # 【修复】同时更新当前累计成交量字段
             self.kline_min1_map[instrument_id].current_cumulative_volume = int(tick.volume)
             
-            # 调试：累计成交量更新
-            self.logger.info(f"[VOLUME_UPDATE] {instrument_id} - 累计成交量更新: {old_volume} -> "
-                             f"{self.kline_min1_map[instrument_id].volume}, "
-                             f"current_cumulative_volume={self.kline_min1_map[instrument_id].current_cumulative_volume} "
-                             f"(tick.volume={tick.volume})")
+            # 调试：累计成交量更新（DEBUG级别，避免日志过多）
+            self.logger.debug(f"[VOLUME_UPDATE] {instrument_id} - 累计成交量更新: {old_volume} -> "
+                              f"{self.kline_min1_map[instrument_id].volume}, "
+                              f"current_cumulative_volume={self.kline_min1_map[instrument_id].current_cumulative_volume} "
+                              f"(tick.volume={tick.volume})")
         
         # 锁会在外层finally中自动释放
 

@@ -4,6 +4,55 @@
 
 ### 🚀 关键性能与稳定性修复
 
+#### on_bar回调未触发问题修复
+- **问题**：策略无法接收K线数据，`on_bar`回调从未触发
+- **根本原因**：事件payload键名不匹配
+  - `BarGenerator`发布事件使用payload键名`"bar"`
+  - `TradingCoreService`尝试获取payload键名`"data"`
+  - 键名不匹配导致`bar_data`为`None`
+  - ZeroMQ广播从未执行
+- **数据流程**：
+  ```
+  BarGenerator → Event.bar(payload={"bar": kline})
+  ↓ EventBus
+  TradingCoreService._handle_bar_data()
+  ↓ bar_data = event.payload.get("data")  # ← 错误！
+  ↓ bar_data = None
+  ↓ ZeroMQ广播 ← 从未执行 ❌
+  ↓ 策略进程 ← 永远收不到bar ❌
+  ```
+- **解决方案**：
+  - 修正`_handle_bar_data`方法中的键名：`"data"` → `"bar"`
+  - 添加队列模式调试日志：`[DISTRIBUTE_BAR_QUEUE]`、`[CLEAN_KLINE_QUEUE]`
+  - 优化高频日志级别：`[VOLUME_UPDATE]` INFO → DEBUG
+- **效果**：
+  - ✅ 策略成功接收bar数据
+  - ✅ `on_bar`回调正常触发
+  - ✅ 数据内容准确（价格、成交量）
+  - ✅ 日志输出清晰简洁
+
+#### BarGenerator死锁问题修复
+- **问题**：K线配置更新时系统卡死，策略无法启动
+- **根本原因**：死锁（Deadlock）
+  - `register_strategy_subscription`持有`self._lock`
+  - 内部调用`_publish_kline_config_update`
+  - 再调用`get_kline_subscription_map`尝试再次获取`self._lock`
+  - Python的`threading.Lock`不是可重入锁，导致死锁
+- **调用链**：
+  ```python
+  register_strategy_subscription (持有 self._lock)
+    └─> _publish_kline_config_update
+         └─> get_kline_subscription_map (尝试获取 self._lock ❌)
+  ```
+- **解决方案**：
+  - 创建内部版本`_get_kline_subscription_map_unlocked()`（不加锁）
+  - 保留公开版本`get_kline_subscription_map()`（带锁）
+  - `_publish_kline_config_update`调用内部版本，避免重复加锁
+- **效果**：
+  - ✅ K线配置更新流程正常
+  - ✅ 策略订阅成功注册
+  - ✅ BarGenerator成功接收配置
+
 #### FastAPI阻塞问题修复
 - **问题**：HTTP请求超时，前端频繁出现`timeout of 10000ms exceeded`错误
 - **根本原因**：`subscription_manager.get_subscription_stats()`方法使用同步锁(`with self._lock:`)
@@ -81,16 +130,18 @@
 ### 🔧 修改文件
 
 **核心修复**：
-- ✅ `src/core/subscription_manager.py` - 非阻塞锁
-- ✅ `src/core/strategy_manager.py` - ZeroMQ发送锁，ZeroMQ Publisher
-- ✅ `src/core/strategy_worker.py` - ZeroMQ Subscriber，线程安全修复
+- ✅ `src/core/subscription_manager.py` - 非阻塞锁、死锁修复
+- ✅ `src/core/strategy_manager.py` - ZeroMQ发送锁、ZeroMQ Publisher
+- ✅ `src/core/strategy_worker.py` - ZeroMQ Subscriber、线程安全修复
+- ✅ `src/web/services/trading_core_service.py` - 修复bar数据payload键名
+- ✅ `src/api/bar_generator/bar_generator.py` - 添加调试日志、优化日志级别
 
 **支持文件**：
-- ✅ `src/web/services/trading_core_service.py` - ZeroMQ数据广播
 - ✅ `src/web/services/strategy_service.py` - 核心依赖更新
 
 **文档**：
-- ✅ `BUGFIX_FastAPI阻塞和ZeroMQ竞态条件修复总结.md` - 完整修复文档
+- ✅ `BUGFIX_FastAPI阻塞和ZeroMQ竞态条件修复总结.md` - FastAPI和ZeroMQ修复文档
+- ✅ `BUGFIX_on_bar回调未触发问题修复.md` - on_bar回调修复文档
 
 ### 🎯 技术亮点
 
