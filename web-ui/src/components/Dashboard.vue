@@ -290,7 +290,7 @@
 </template>
 
 <script setup>
-import { reactive, computed, onMounted, onUnmounted } from 'vue'
+import { reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import {
   Wallet,
   Money,
@@ -318,6 +318,34 @@ import ReturnRateChart from './charts/ReturnRateChart.vue'
 // 使用导入的仪表盘数据初始化
 const dashboardData = reactive(dashboardDataImport)
 
+// 初始化交易账户 Store
+const tradingAccountStore = useTradingAccountStore()
+
+// 监听实时账户数据，动态更新仪表盘
+watch(
+  () => tradingAccountStore.accountData,
+  (newAccountData) => {
+    if (newAccountData && newAccountData.balance > 0) {
+      dashboardData.account.totalEquity = newAccountData.balance || dashboardData.account.totalEquity
+      dashboardData.account.availableFunds = newAccountData.available || dashboardData.account.availableFunds
+      dashboardData.account.marginUsed = newAccountData.frozen || dashboardData.account.marginUsed
+      dashboardData.account.fundUtilizationRate = newAccountData.balance > 0
+        ? (newAccountData.frozen / newAccountData.balance) * 100
+        : dashboardData.account.fundUtilizationRate
+    }
+  },
+  { deep: true, immediate: true }
+)
+
+// 监听实时持仓数据，更新浮动盈亏
+watch(
+  () => tradingAccountStore.totalPnl,
+  (newPnl) => {
+    dashboardData.account.floatingProfitLoss = newPnl || dashboardData.account.floatingProfitLoss
+  },
+  { immediate: true }
+)
+
 // 图表周期选择状态
 const chartPeriods = reactive({
   equity: 'all',      // 权益曲线周期
@@ -331,9 +359,6 @@ const {
   startMonitoring,
   stopMonitoring
 } = useSystemMonitor()
-
-// 资金账户Store
-const tradingAccountStore = useTradingAccountStore()
 
 // 今日日期显示
 const todayDate = computed(() => {
@@ -446,11 +471,15 @@ const accountOverviewTitle = computed(() => {
 // 组件挂载时启动监控
 onMounted(() => {
   startMonitoring()
+  // 连接账户数据WebSocket
+  tradingAccountStore.connectAccountWs()
 })
 
 // 组件卸载时停止监控
 onUnmounted(() => {
   stopMonitoring()
+  // 断开账户数据WebSocket
+  tradingAccountStore.disconnectAccountWs()
 })
 </script>
 

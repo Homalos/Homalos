@@ -92,6 +92,12 @@ class TradingCoreService:
         self._strategy_service = None
         self._config: Optional[Dict[str, Any]] = None
         
+        # 账户数据推送
+        self._latest_account_data: Optional[dict] = None
+        self._latest_positions: list[dict] = []
+        self._account_ws_queue: Optional[asyncio.Queue] = None
+        self._loop: Optional[asyncio.AbstractEventLoop] = None  # 主事件循环引用
+        
         self.logger.info("交易核心服务已创建（未启动）")
     
     @classmethod
@@ -169,6 +175,9 @@ class TradingCoreService:
             self.logger.info("=" * 60)
             self.logger.info("开始启动交易核心")
             self.logger.info("=" * 60)
+            
+            # 0. 保存事件循环引用（用于线程安全的协程调度）
+            self._loop = asyncio.get_running_loop()
             
             # 1. 准备配置
             self._config = config or {}
@@ -659,6 +668,8 @@ class TradingCoreService:
         self._event_bus.subscribe(EventType.TD_GATEWAY_LOGIN, self._handle_td_login)
         self._event_bus.subscribe(EventType.TD_CONFIRM_SUCCESS, self._handle_td_confirm)
         self._event_bus.subscribe(EventType.TD_QRY_INS, self._handle_td_qry_ins)
+        self._event_bus.subscribe(EventType.ACCOUNT, self._handle_account_data)
+        self._event_bus.subscribe(EventType.POSITION, self._handle_position_data)
         
         self.logger.info("网关事件处理器已设置")
     
@@ -838,6 +849,91 @@ class TradingCoreService:
             self._instruments_loaded = False
             self.logger.error(f"查询合约失败: {data.get('message') if data else 'Unknown'}")
     
+    def _handle_account_data(self, event: Event):
+        """处理账户资金数据事件"""
+        try:
+            data = event.payload
+            if not data:
+                return
+            
+            # 从事件中提取AccountData对象
+            account_data = data.get("data")
+            if not account_data:
+                return
+            
+            # 转换为字典格式
+            if hasattr(account_data, 'to_dict'):
+                account_dict = account_data.to_dict()
+            else:
+                # 兼容旧格式
+                account_dict = {
+                    "account_id": getattr(account_data, 'account_id', ''),
+                    "balance": getattr(account_data, 'balance', 0.0),
+                    "frozen": getattr(account_data, 'frozen', 0.0),
+                    "available": getattr(account_data, 'available', 0.0)
+                }
+            
+            # 保存最新数据
+            self._latest_account_data = account_dict
+            
+            # 推送到WebSocket（线程安全）
+            if self._account_ws_queue and self._loop:
+                asyncio.run_coroutine_threadsafe(
+                    self._push_account_to_ws({
+                        "type": "account",
+                        "data": account_dict
+                    }),
+                    self._loop
+                )
+        
+        except Exception as e:
+            self.logger.error(f"处理账户数据失败: {e}", exc_info=True)
+    
+    def _handle_position_data(self, event: Event):
+        """处理持仓数据事件"""
+        try:
+            data = event.payload
+            if not data:
+                return
+            
+            # 从事件中提取PositionData对象
+            position_data = data.get("data")
+            if not position_data:
+                return
+            
+            # 转换为字典格式
+            if hasattr(position_data, 'to_dict'):
+                position_dict = position_data.to_dict()
+            else:
+                # 兼容旧格式
+                position_dict = {
+                    "instrument_id": getattr(position_data, 'instrument_id', ''),
+                    "exchange_id": getattr(position_data, 'exchange_id', ''),
+                    "direction": getattr(position_data, 'direction', ''),
+                    "volume": getattr(position_data, 'volume', 0),
+                    "frozen": getattr(position_data, 'frozen', 0.0),
+                    "price": getattr(position_data, 'price', 0.0),
+                    "pnl": getattr(position_data, 'pnl', 0.0),
+                    "yd_volume": getattr(position_data, 'yd_volume', 0)
+                }
+            
+            # 累积持仓数据
+            # 注意：持仓事件会分批到达，需要累积后再推送
+            self._latest_positions.append(position_dict)
+            
+            # 推送到WebSocket（线程安全）
+            if self._account_ws_queue and self._loop:
+                asyncio.run_coroutine_threadsafe(
+                    self._push_account_to_ws({
+                        "type": "positions",
+                        "data": self._latest_positions.copy()
+                    }),
+                    self._loop
+                )
+        
+        except Exception as e:
+            self.logger.error(f"处理持仓数据失败: {e}", exc_info=True)
+    
     def _handle_tick_data(self, event: Event):
         """处理tick数据"""
         try:
@@ -987,6 +1083,66 @@ class TradingCoreService:
             self.logger.warning(f"系统告警: {message}")
         else:
             self.logger.info(f"系统通知: {message}")
+    
+    # ========== WebSocket 账户数据推送方法 ==========
+    
+    async def register_account_ws(self, queue: asyncio.Queue):
+        """
+        注册账户数据 WebSocket 队列
+        
+        Args:
+            queue: WebSocket消息队列
+        """
+        self._account_ws_queue = queue
+        self.logger.info("账户数据WebSocket已注册")
+        
+        # 如果有缓存数据，立即推送
+        if self._latest_account_data:
+            await self._push_account_to_ws({
+                "type": "account",
+                "data": self._latest_account_data
+            })
+        if self._latest_positions:
+            await self._push_account_to_ws({
+                "type": "positions",
+                "data": self._latest_positions.copy()
+            })
+    
+    def unregister_account_ws(self):
+        """注销账户数据 WebSocket 队列"""
+        self._account_ws_queue = None
+        self.logger.info("账户数据WebSocket已注销")
+    
+    async def _push_account_to_ws(self, message: dict):
+        """
+        推送账户数据到 WebSocket
+        
+        Args:
+            message: 消息字典
+        """
+        if self._account_ws_queue:
+            try:
+                await self._account_ws_queue.put(message)
+            except Exception as e:
+                self.logger.error(f"推送账户数据到WebSocket失败: {e}")
+    
+    def get_latest_account_data(self) -> Optional[dict]:
+        """
+        获取最新账户数据
+        
+        Returns:
+            dict: 账户数据字典，如果没有则返回None
+        """
+        return self._latest_account_data
+    
+    def get_latest_positions(self) -> list[dict]:
+        """
+        获取最新持仓列表
+        
+        Returns:
+            list[dict]: 持仓数据列表
+        """
+        return self._latest_positions.copy()
 
 
 # 全局单例访问

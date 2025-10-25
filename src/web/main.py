@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from src.web.api import auth, monitor, datacenter, system_config, trading_account, strategy, alarm, trading_system, trading_core
+from src.web.api import auth, monitor, datacenter, system_config, trading_account, strategy, alarm, trading_system, trading_core, account
 from src.web.core.database import init_db, close_db
 from src.web.services.strategy_service import strategy_service
 from src.web.services.trading_core_service import TradingCoreService
@@ -214,6 +214,7 @@ app.include_router(system_config.router, prefix="/api")
 app.include_router(trading_account.router, prefix="/api")
 app.include_router(strategy.router, prefix="/api")
 app.include_router(alarm.router, prefix="/api")
+app.include_router(account.router, prefix="/api")
 app.include_router(trading_system.router, prefix="/api")  # 旧版（subprocess方式）
 app.include_router(trading_core.router, prefix="/api")   # 新版（内嵌核心方式）
 

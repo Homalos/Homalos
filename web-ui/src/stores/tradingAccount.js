@@ -6,6 +6,7 @@ import {
   getTradingAccountStatus,
   getTradingAccountList
 } from '@/api/tradingAccount'
+import { connectAccountWebSocket, getLatestAccountData } from '@/api/account'
 
 export const useTradingAccountStore = defineStore('tradingAccount', () => {
   // 状态
@@ -13,10 +14,28 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
   const isLoggedIn = ref(localStorage.getItem('trading_account_logged_in') === 'true')
   const accountInfo = ref(null)
   const accountList = ref([])
+  
+  // 实时账户数据（从交易网关获取）
+  const accountData = ref({
+    account_id: '',
+    balance: 0,
+    frozen: 0,
+    available: 0
+  })
+  const positions = ref([])
+  
+  // WebSocket连接状态
+  let accountWs = null
+  const isWsConnected = ref(false)
 
   // 计算属性
   const hasAccount = computed(() => accountList.value.length > 0)
   const defaultAccount = computed(() => accountList.value.find(acc => acc.is_default))
+  
+  // 计算总盈亏
+  const totalPnl = computed(() => {
+    return positions.value.reduce((sum, position) => sum + (position.pnl || 0), 0)
+  })
 
   /**
    * 登录资金账户
@@ -170,6 +189,76 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
     // 获取账户列表
     await fetchAccountList()
   }
+  
+  /**
+   * 连接账户数据WebSocket
+   */
+  function connectAccountWs() {
+    if (accountWs) {
+      console.log('[AccountWS] 已存在连接，先断开旧连接')
+      disconnectAccountWs()
+    }
+    
+    try {
+      accountWs = connectAccountWebSocket(handleAccountMessage, handleAccountError)
+      isWsConnected.value = true
+      console.log('[AccountWS] 连接已建立')
+    } catch (error) {
+      console.error('[AccountWS] 连接失败:', error)
+      isWsConnected.value = false
+    }
+  }
+  
+  /**
+   * 断开账户数据WebSocket
+   */
+  function disconnectAccountWs() {
+    if (accountWs) {
+      try {
+        accountWs.close()
+        accountWs = null
+        isWsConnected.value = false
+        console.log('[AccountWS] 连接已断开')
+      } catch (error) {
+        console.error('[AccountWS] 断开连接失败:', error)
+      }
+    }
+  }
+  
+  /**
+   * 处理账户数据WebSocket消息
+   */
+  function handleAccountMessage(message) {
+    try {
+      if (message.type === 'account') {
+        // 更新账户数据
+        accountData.value = message.data
+        console.log('[AccountWS] 账户数据更新:', message.data)
+      } else if (message.type === 'positions') {
+        // 更新持仓数据
+        positions.value = message.data || []
+        console.log('[AccountWS] 持仓数据更新:', message.data.length)
+      }
+    } catch (error) {
+      console.error('[AccountWS] 处理消息失败:', error)
+    }
+  }
+  
+  /**
+   * 处理WebSocket错误
+   */
+  function handleAccountError(error) {
+    console.error('[AccountWS] 错误:', error)
+    isWsConnected.value = false
+    
+    // 5秒后尝试重连
+    setTimeout(() => {
+      if (!accountWs) {
+        console.log('[AccountWS] 尝试重新连接...')
+        connectAccountWs()
+      }
+    }, 5000)
+  }
 
   return {
     // 状态
@@ -178,9 +267,15 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
     accountInfo,
     accountList,
     
+    // 实时账户数据
+    accountData,
+    positions,
+    isWsConnected,
+    
     // 计算属性
     hasAccount,
     defaultAccount,
+    totalPnl,
     
     // 方法
     login,
@@ -189,7 +284,11 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
     fetchAccountList,
     switchAccount,
     clearLoginState,
-    initialize
+    initialize,
+    
+    // WebSocket方法
+    connectAccountWs,
+    disconnectAccountWs
   }
 })
 

@@ -178,6 +178,19 @@ class PositionData(BaseData):
     pnl: float = 0.0
     yd_volume: int = 0  # 上日成交量
 
+    def to_dict(self) -> dict:
+        """转换为字典格式（用于 WebSocket 推送）"""
+        return {
+            "instrument_id": self.instrument_id,
+            "exchange_id": self.exchange_id.value if self.exchange_id else "",
+            "direction": self.direction.value if self.direction else "",
+            "volume": self.volume,
+            "frozen": self.frozen,
+            "price": self.price,
+            "pnl": self.pnl,
+            "yd_volume": self.yd_volume
+        }
+
 
 @dataclass
 class PositionDetailData(BaseData):
@@ -201,6 +214,15 @@ class AccountData(BaseData):
     def __post_init__(self) -> None:
         """在初始化之后执行的函数"""
         self.available: float = self.balance - self.frozen
+
+    def to_dict(self) -> dict:
+        """转换为字典格式（用于 WebSocket 推送）"""
+        return {
+            "account_id": self.account_id,
+            "balance": self.balance,
+            "frozen": self.frozen,
+            "available": self.available
+        }
 
 @dataclass
 class ContractData(BaseData):
