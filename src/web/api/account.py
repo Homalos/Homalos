@@ -47,7 +47,7 @@ async def account_websocket(websocket: WebSocket):
         while True:
             try:
                 # 等待消息，设置超时以便定期检查连接状态
-                message = await asyncio.wait_for(message_queue.get(), timeout=30.0)
+                message = await asyncio.wait_for(message_queue.get(), timeout=5.0)
                 
                 # 发送消息
                 await websocket.send_json(message)
@@ -60,6 +60,11 @@ async def account_websocket(websocket: WebSocket):
                     # WebSocket已断开
                     break
             
+            except asyncio.CancelledError:
+                # 服务关闭时的优雅退出
+                logger.info("账户WebSocket任务被取消（服务关闭）")
+                break
+            
             except WebSocketDisconnect:
                 logger.info("账户WebSocket连接断开")
                 break
@@ -67,6 +72,10 @@ async def account_websocket(websocket: WebSocket):
             except Exception as e:
                 logger.error(f"账户WebSocket消息处理异常: {e}", exc_info=True)
                 break
+    
+    except asyncio.CancelledError:
+        # 外层捕获，确保优雅关闭
+        logger.info("账户WebSocket外层任务被取消")
     
     finally:
         # 注销WebSocket
