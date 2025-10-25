@@ -456,6 +456,11 @@ export const useStrategyStore = defineStore('strategy', () => {
     wsConnection.value = createStrategyWebSocket(
       // onMessage
       (message) => {
+        // 过滤心跳消息（ping/pong），不显示在实时日志中
+        if (message.type === 'ping' || message.type === 'pong') {
+          return
+        }
+        
         // 添加时间戳和唯一ID
         const enrichedMessage = {
           ...message,
