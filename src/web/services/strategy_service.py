@@ -152,9 +152,6 @@ class StrategyService:
             # 调用管理器的shutdown（会保存状态并停止自动保存任务）
             await self._manager.shutdown()
             
-            # 停止文件监控
-            self._manager.stop_watchdog()
-            
             # 卸载所有策略
             for sid in list(self._manager._meta.keys()):
                 try:

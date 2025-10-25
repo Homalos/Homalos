@@ -43,45 +43,12 @@ function generateMessageId(message) {
   return Math.abs(hash).toString(36) + random
 }
 
-// 日志去重函数 - 基于内容和时间窗口的智能去重
-function deduplicateLogs(logs) {
-  const result = []
-  const recentLogs = new Map() // 存储最近的日志，key为内容哈希，value为时间戳
-  
-  // 按时间排序
-  const sortedLogs = [...logs].sort((a, b) => 
-    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  )
-  
-  for (const log of sortedLogs) {
-    // 生成内容哈希（不包含时间戳和随机因素）
-    const contentKey = `${log.sid}_${log.type}_${log.payload}`
-    const logTime = new Date(log.timestamp).getTime()
-    
-    // 检查是否在时间窗口内有相同内容的日志（5秒内）
-    const recentTime = recentLogs.get(contentKey)
-    const isDuplicate = recentTime && (logTime - recentTime) < 5000
-    
-    if (!isDuplicate) {
-      // 确保日志有ID
-      if (!log.id) {
-        log.id = generateMessageId(log)
-      }
-      result.push(log)
-      recentLogs.set(contentKey, logTime)
-    }
-  }
-  
-  return result
-}
-
 // 日志持久化工具函数
 function saveLogsToStorage(logs) {
   try {
-    // 去重后再保存
-    const deduplicatedLogs = deduplicateLogs(logs)
+    // 保存所有日志，不进行去重，确保日志完整性
     const dataToStore = {
-      logs: deduplicatedLogs,
+      logs: logs,
       timestamp: Date.now()
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToStore))
@@ -481,28 +448,8 @@ export const useStrategyStore = defineStore('strategy', () => {
         // 生成唯一ID
         enrichedMessage.id = generateMessageId(enrichedMessage)
         
-        // 简化的重复检查：只检查最近10条消息，避免过度过滤
-        const recentMessages = messages.value.slice(-10)
-        const contentKey = `${enrichedMessage.sid}_${enrichedMessage.type}_${enrichedMessage.payload}`
-        const currentTime = new Date(enrichedMessage.timestamp).getTime()
-        
-        const isDuplicate = recentMessages.some(msg => {
-          const msgContentKey = `${msg.sid}_${msg.type}_${msg.payload}`
-          const msgTime = new Date(msg.timestamp).getTime()
-          return msgContentKey === contentKey && (currentTime - msgTime) < 1000 // 1秒内的重复
-        })
-        
-        if (!isDuplicate) {
-          messages.value.push(enrichedMessage)
-          if (DEBUG_LOGS) {
-            const payload = typeof enrichedMessage.payload === 'string' ? enrichedMessage.payload.substring(0, 30) : String(enrichedMessage.payload).substring(0, 30)
-            console.log('✅ 添加新消息:', `${enrichedMessage.sid}-${enrichedMessage.type}-${payload}`)
-          }
-        } else {
-          if (DEBUG_LOGS) {
-            console.log('⚠️ 跳过重复消息:', enrichedMessage.payload)
-          }
-        }
+        // 不进行去重，保留所有日志完整性（用户需要看到所有事件）
+        messages.value.push(enrichedMessage)
         
         // 限制消息历史长度（保留最近1000条）
         if (messages.value.length > 1000) {

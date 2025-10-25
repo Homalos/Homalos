@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 策略demo
+@Description: 策略1demo
 """
 import datetime
 
@@ -24,7 +24,7 @@ class Strategy1(BaseStrategy):
         super().__init__()
         self.logger = get_logger(self.__class__.__name__)
         self.strategy_name: str = "策略1"
-        self.strategy_content: str = "策略1测试，用来测试从行情->交易信号->下单全流程"
+        self.strategy_content: str = "用来测试从行情->交易信号->下单全流程"
         self.author: str = "Lumosylva"
         self.instruments: list[str] = ["SA601", "FG601"]
         self.bar_intervals: dict[str, list[Interval]] = {
