@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 合成K线
+@Description: K线合成器
 """
 import ast
 import datetime

@@ -15,6 +15,7 @@ from src.core.constants import Interval
 from src.core.object import OrderData, TradeData, BarData, TickData
 from src.strategy.base_strategy import BaseStrategy, SpecificStrategy
 from src.utils.log import get_logger
+from src.utils.utility import write_csv
 
 
 class Strategy1(BaseStrategy):
@@ -58,10 +59,29 @@ class Strategy1(BaseStrategy):
         ) -> None:
             super().__init__(base_strategy, instrument_id, bar_intervals)
             self.logger = get_logger(self.__class__.__name__)
+            self.base_strategy: BaseStrategy = base_strategy
             self.strategy_id: str = strategy_id
             self.instrument_id: str = instrument_id
             self.bar_intervals: list[Interval] = bar_intervals
             self.counter: int = 0
+            write_csv(
+                f"{self.instrument_id}.csv",
+                "w",
+                [
+                    "bar_type",
+                    "update_time",
+                    "instrument_id",
+                    "exchange_id",
+                    "volume",
+                    "open_interest",
+                    "open_price",
+                    "high_price",
+                    "low_price",
+                    "close_price",
+                    "last_volume",
+                    "current_cumulative_volume"
+                ]
+            )
 
         def on_init(self) -> None:
             self.logger.info(f"{self.strategy_id} 策略开始运行")
@@ -79,7 +99,31 @@ class Strategy1(BaseStrategy):
                 self.logger.info(f"{self.strategy_id} 收到tick: {tick.instrument_id} @ {tick.last_price}, 累计: {self.counter}")
 
         def on_bar(self, bar: BarData) -> None:
-            self.logger.info(f"{self.strategy_id} 收到bar: {bar.instrument_id} close={bar.close_price} vol={bar.volume}")
+            self.logger.info(f"{self.base_strategy.strategy_name} 收到bar: "
+                             f"{bar.instrument_id} "
+                             f"open={bar.open_price} "
+                             f"high={bar.high_price} "
+                             f"low={bar.low_price} "
+                             f"close={bar.close_price} "
+                             f"vol={bar.volume}")
+            write_csv(f"{self.instrument_id}.csv",
+                      "a+",
+                      [
+                          bar.bar_type.value,
+                          bar.update_time,
+                          bar.instrument_id,
+                          bar.exchange_id.value,
+                          bar.volume,
+                          bar.open_interest,
+                          bar.open_price,
+                          bar.high_price,
+                          bar.low_price,
+                          bar.close_price,
+                          bar.last_volume,
+                          bar.current_cumulative_volume
+                        ]
+                      )
+
 
         def on_trade(self, trade: TradeData) -> None:
             pass
