@@ -395,11 +395,13 @@ class BarGenerator:
                     else:
                         # 保存前一分钟末的收盘价作为现在的开盘价，以及前一分钟的累计成交量，用于计算当前K线的成交量
                         # openPrice = self.kline_min1_map[instrument_id].close_price
-                        # 【修复】使用current_cumulative_volume字段获取最新的累计成交量
-                        volume = self.kline_min1_map[instrument_id].current_cumulative_volume
+                        volume = self.kline_min1_map[instrument_id].volume
                         # 🔍 调试：check_min1读取volume
-                        if instrument_id in ['SA601', 'cs2605', 'lu2604']:
-                            self.logger.info(f"[CHECK_MIN1_VOLUME] {instrument_id} - 读取current_cumulative_volume={volume}, last_volume={self.kline_min1_map[instrument_id].last_volume}, 时间={self.kline_min1_map[instrument_id].update_time.strftime('%H:%M:%S')}")
+                        if instrument_id in ['SA601', 'FG601']:
+                            self.logger.info(f"[CHECK_MIN1_VOLUME] {instrument_id} - "
+                                             f"读取volume={volume}, "
+                                             f"last_volume={self.kline_min1_map[instrument_id].last_volume}, "
+                                             f"时间={self.kline_min1_map[instrument_id].update_time.strftime('%H:%M:%S')}")
                 else:
                     if self.kline_min1_map[instrument_id].update_time.strftime('%H:%M:%S') in ['20:59:00', '08:59:00']:
                         # 如果是集合竞价，
@@ -408,11 +410,13 @@ class BarGenerator:
                     else:
                         # 保存前一分钟末的收盘价作为现在的开盘价，以及前一分钟的累计成交量，用于计算当前K线的成交量
                         # openPrice = self.kline_min1_map[instrument_id].close_price
-                        # 【修复】使用current_cumulative_volume字段获取最新的累计成交量
-                        volume = self.kline_min1_map[instrument_id].current_cumulative_volume
+                        volume = self.kline_min1_map[instrument_id].volume
                         # 🔍 调试：check_min1读取volume
-                        if instrument_id in ['SA601', 'cs2605', 'lu2604']:
-                            self.logger.info(f"[CHECK_MIN1_VOLUME] {instrument_id} - 读取current_cumulative_volume={volume}, last_volume={self.kline_min1_map[instrument_id].last_volume}, 时间={self.kline_min1_map[instrument_id].update_time.strftime('%H:%M:%S')}")
+                        if instrument_id in ['SA601', 'FG601']:
+                            self.logger.info(f"[CHECK_MIN1_VOLUME] {instrument_id} - "
+                                             f"读取volume={volume}, "
+                                             f"last_volume={self.kline_min1_map[instrument_id].last_volume}, "
+                                             f"时间={self.kline_min1_map[instrument_id].update_time.strftime('%H:%M:%S')}")
 
                 open_price = self.kline_min1_map[instrument_id].close_price
 
@@ -425,9 +429,9 @@ class BarGenerator:
                     self.kline_min1_map[instrument_id].volume = calculated_volume
 
                     # 🔍 调试：check_min1的成交量计算 - 扩展到更多合约
-                    if instrument_id in ['lu2604', 'sp2606', 'sc2608', 'SA601', 'cs2605']:
+                    if instrument_id in ['SA601', 'FG601']:
                         self.logger.info(f"[CHECK_MIN1_CALC] {instrument_id} - 推送前一分钟K线")
-                        self.logger.info(f"[CHECK_MIN1_CALC] {instrument_id} - 成交量计算: current_cumulative_volume({volume}) - last_volume({self.kline_min1_map[instrument_id].last_volume}) = 分钟成交量({calculated_volume})")
+                        self.logger.info(f"[CHECK_MIN1_CALC] {instrument_id} - 成交量计算: volume({volume}) - last_volume({self.kline_min1_map[instrument_id].last_volume}) = 分钟成交量({calculated_volume})")
                         self.logger.info(f"[CHECK_MIN1_CALC] {instrument_id} - K线时间: {self.kline_min1_map[instrument_id].update_time}")
 
                     bar = self.get_new_bar(self.kline_min1_map[instrument_id])
@@ -449,8 +453,6 @@ class BarGenerator:
                 self.kline_min1_map[instrument_id].low_price = min(open_price, kline.close_price)
                 self.kline_min1_map[instrument_id].close_price = kline.close_price
                 self.kline_min1_map[instrument_id].last_volume = volume
-                # 【修复】初始化当前累计成交量字段
-                self.kline_min1_map[instrument_id].current_cumulative_volume = volume
 
             self.kline_min1_lock_map[kline.instrument_id].release()
 
@@ -533,15 +535,9 @@ class BarGenerator:
         在锁保护下执行tick转K线的核心逻辑
         此方法由tick_to_kline_specific_process调用，确保异常安全
         """
-        
-        # 🔍 调试：输出接收到的tick数据
-        if instrument_id in ['SA601', 'FG601', 'sc2601']:  # 选择几个代表性合约进行调试
-            self.logger.debug(f"[TICK_DEBUG] {instrument_id} - 接收tick: volume={tick.volume}, time={tick.update_time}")
-
         st: list[str] = tick.update_time.split(':')
-        # 剔除一些有延迟的tick，比如K线时间是9：01，但是有一个9:00：59的延迟tick
+        # 剔除一些有延迟的tick，比如K线时间是9：01，但是有一个9:00:59的延迟tick
         kline_min1_update_time = self.kline_min1_map[instrument_id].update_time.strftime('%H:%M:%S')
-        # 剔除函数， 剔除一些有延迟的tick，比如K线时间是9：01，但是有一个9:00：59的延迟tick
         if tick.update_time < kline_min1_update_time and st[0] == self.kline_min1_map[instrument_id].update_time.strftime('%H'):
             # 锁会在外层finally中自动释放
             self.logger.info("合成K线剔除过期Tick：\n"
@@ -558,38 +554,24 @@ class BarGenerator:
 
         # 如果是新1分钟，生成一个新k线变量
         if new_minute:
-            # 🔍 调试：新分钟开始
-            if instrument_id in ['lu2604', 'sp2606', 'sc2608']:
-                self.logger.debug(f"[KLINE_DEBUG] {instrument_id} - 新分钟开始，当前K线: volume={self.kline_min1_map[instrument_id].volume}, last_volume={self.kline_min1_map[instrument_id].last_volume}")
-            
             if del_num(instrument_id) in ['TF', 'IF', 'T', 'TS', 'IC', 'IH']:
                 if self.kline_min1_map[instrument_id].update_time.strftime('%H:%M:%S') in ['09:29:00']:
                     # 如果是集合竞价，
                     # openPrice = self.kline_min1_map[instrumentID].close_price
                     volume = 0
-                    if instrument_id in ['lu2604', 'sp2606', 'sc2608', 'SA601']:
-                        self.logger.info(f"[TICK_VOLUME] {instrument_id} - 集合竞价时段，设置volume=0")
                 else:
                     # 保存前一分钟末的收盘价作为现在的开盘价，以及前一分钟的累计成交量，用于计算当前K线的成交量
                     # openPrice = self.kline_min1_map[instrumentID].close_price
-                    # 【修复】使用current_cumulative_volume字段获取最新的累计成交量
-                    volume = self.kline_min1_map[instrument_id].current_cumulative_volume
-                    if instrument_id in ['lu2604', 'sp2606', 'sc2608', 'SA601']:
-                        self.logger.info(f"[TICK_VOLUME] {instrument_id} - 正常时段，从当前K线获取current_cumulative_volume={volume}")
+                    volume = self.kline_min1_map[instrument_id].volume
             else:
                 if self.kline_min1_map[instrument_id].update_time.strftime('%H:%M:%S') in ['20:59:00', '08:59:00']:
                     # 如果是集合竞价，
                     # openPrice = self.kline_min1_map[instrumentID].close_price
                     volume = 0
-                    if instrument_id in ['lu2604', 'sp2606', 'sc2608', 'SA601', 'cs2605']:
-                        self.logger.info(f"[TICK_VOLUME] {instrument_id} - 夜盘集合竞价时段，设置volume=0")
                 else:
                     # 保存前一分钟末的收盘价作为现在的开盘价，以及前一分钟的累计成交量，用于计算当前K线的成交量
                     # openPrice = self.kline_min1_map[instrumentID].close_price
-                    # 【修复】使用current_cumulative_volume字段获取最新的累计成交量
-                    volume = self.kline_min1_map[instrument_id].current_cumulative_volume
-                    if instrument_id in ['lu2604', 'sp2606', 'sc2608', 'SA601', 'cs2605']:
-                        self.logger.info(f"[TICK_VOLUME] {instrument_id} - 正常时段，从当前K线获取current_cumulative_volume={volume}, last_volume={self.kline_min1_map[instrument_id].last_volume}")
+                    volume = self.kline_min1_map[instrument_id].volume
 
             open_price = self.kline_min1_map[instrument_id].close_price
             # 防止开盘前初始化后没有集合竞价导致开盘价为0，使得K线数据无效
@@ -605,9 +587,9 @@ class BarGenerator:
                 self.kline_min1_map[instrument_id].volume = calculated_volume
                 
                 # 🔍 调试：tick触发的K线成交量计算
-                if instrument_id in ['lu2604', 'sp2606', 'sc2608', 'SA601', 'cs2605']:
+                if instrument_id in ['SA601', 'FG601']:
                     self.logger.info(f"[TICK_CALC] {instrument_id} - 新分钟触发K线生成")
-                    self.logger.info(f"[TICK_CALC] {instrument_id} - 成交量计算: current_cumulative_volume({volume}) - last_volume({self.kline_min1_map[instrument_id].last_volume}) = 分钟成交量({calculated_volume})")
+                    self.logger.info(f"[TICK_CALC] {instrument_id} - 成交量计算: volume({volume}) - last_volume({self.kline_min1_map[instrument_id].last_volume}) = 分钟成交量({calculated_volume})")
                     self.logger.info(f"[TICK_CALC] {instrument_id} - K线时间: {self.kline_min1_map[instrument_id].update_time}, tick时间: {tick.update_time}")
 
                 bar = self.get_new_bar(self.kline_min1_map[instrument_id])
@@ -629,12 +611,14 @@ class BarGenerator:
             self.kline_min1_map[instrument_id].low_price = min(open_price, tick.last_price)
             self.kline_min1_map[instrument_id].close_price = tick.last_price
             self.kline_min1_map[instrument_id].last_volume = volume
-            # 【修复】初始化当前累计成交量字段
-            self.kline_min1_map[instrument_id].current_cumulative_volume = volume
-            
+
             # 🔍 调试：新K线初始化
-            if instrument_id in ['lu2604', 'sp2606', 'sc2608']:
-                self.logger.debug(f"[NEW_KLINE_DEBUG] {instrument_id} - 新K线初始化: volume={volume}, last_volume={volume}, open_price={open_price}, tick.volume={tick.volume}")
+            if instrument_id in ['SA601', 'FG601',]:
+                self.logger.debug(f"[NEW_KLINE_DEBUG] {instrument_id} - "
+                                  f"新K线初始化: volume={volume}, "
+                                  f"last_volume={volume}, "
+                                  f"open_price={open_price}, "
+                                  f"tick.volume={tick.volume}")
         else:
             # 如果不是新1分钟，更新相关数据
             old_volume = self.kline_min1_map[instrument_id].volume
@@ -645,13 +629,10 @@ class BarGenerator:
             self.kline_min1_map[instrument_id].open_interest = tick.open_interest
             # 累计成交量
             self.kline_min1_map[instrument_id].volume = int(tick.volume)
-            # 【修复】同时更新当前累计成交量字段
-            self.kline_min1_map[instrument_id].current_cumulative_volume = int(tick.volume)
-            
+
             # 调试：累计成交量更新（DEBUG级别，避免日志过多）
             self.logger.debug(f"[VOLUME_UPDATE] {instrument_id} - 累计成交量更新: {old_volume} -> "
                               f"{self.kline_min1_map[instrument_id].volume}, "
-                              f"current_cumulative_volume={self.kline_min1_map[instrument_id].current_cumulative_volume} "
                               f"(tick.volume={tick.volume})")
         
         # 锁会在外层finally中自动释放

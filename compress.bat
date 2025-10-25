@@ -39,7 +39,6 @@ if not exist "%filelist%" (
     echo. >> "%filelist%"
     
     :: 列出所有文件夹
-    echo [文件夹] >> "%filelist%"
     for /d %%i in (*) do (
         set "item=%%i"
         call :trim_spaces item
@@ -49,7 +48,6 @@ if not exist "%filelist%" (
     echo. >> "%filelist%"
     
     :: 列出所有文件
-    echo [文件] >> "%filelist%"
     for %%i in (*) do (
         if not "%%i"=="%~nx0" if not "%%i"=="%filelist%" (
             set "skip=no"

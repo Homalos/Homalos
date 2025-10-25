@@ -438,6 +438,7 @@ class StrategyManager(object):
         try:
             with self._lock:
                 meta = self._meta.get(sid)
+                was_running = meta is not None  # 记录策略在reload前是否正在运行
                 saved = None
                 if meta:
                     # 清除旧的缓存状态
@@ -521,21 +522,24 @@ class StrategyManager(object):
 
             time.sleep(0.1)
             
-            # 再次加载
-            self.load_strategy(sid)
+            # 只有之前正在运行的策略才重新加载
+            if was_running:
+                self.load_strategy(sid)
 
-            # 恢复状态
-            if saved is not None and sid in self._meta:
-                try:
-                    new_conn = self._meta[sid]["conn"]
-                    new_conn.send({"type": "command", "command": "load_state", "state": saved})
-                except (BrokenPipeError, EOFError):
-                    # 管道已关闭（策略进程启动失败），静默处理
-                    pass
-                except Exception as e:
-                    self.logger.warning(f"load_state send failed: {e}")
-
-            self.logger.info(f"Reloaded {sid}")
+                # 恢复状态
+                if saved is not None and sid in self._meta:
+                    try:
+                        new_conn = self._meta[sid]["conn"]
+                        new_conn.send({"type": "command", "command": "load_state", "state": saved})
+                    except (BrokenPipeError, EOFError):
+                        # 管道已关闭（策略进程启动失败），静默处理
+                        pass
+                    except Exception as e:
+                        self.logger.warning(f"load_state send failed: {e}")
+                
+                self.logger.info(f"Reloaded {sid}（已自动启动）")
+            else:
+                self.logger.info(f"Reloaded {sid}（策略在reload前未运行，跳过自动启动）")
         except Exception as e:
             # 重载失败，触发告警
             self.logger.error(f"重载策略 {sid} 失败: {e}", exc_info=True)

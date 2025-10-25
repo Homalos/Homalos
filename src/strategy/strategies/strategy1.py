@@ -48,7 +48,7 @@ class Strategy1(BaseStrategy):
 
     class Specific(SpecificStrategy):
         """
-        策略1的详细策略文件
+        策略的详细策略文件
         """
         def __init__(
                 self,
@@ -64,24 +64,25 @@ class Strategy1(BaseStrategy):
             self.instrument_id: str = instrument_id
             self.bar_intervals: list[Interval] = bar_intervals
             self.counter: int = 0
-            write_csv(
-                f"{self.instrument_id}.csv",
-                "w",
-                [
-                    "bar_type",
-                    "update_time",
-                    "instrument_id",
-                    "exchange_id",
-                    "volume",
-                    "open_interest",
-                    "open_price",
-                    "high_price",
-                    "low_price",
-                    "close_price",
-                    "last_volume",
-                    "current_cumulative_volume"
-                ]
-            )
+            # 创建csv文件
+            for bar_interval in bar_intervals:
+                write_csv(
+                    f"{self.instrument_id}_{bar_interval.value}.csv",
+                    "w",
+                    [
+                        "bar_type",
+                        "update_time",
+                        "instrument_id",
+                        "exchange_id",
+                        "volume",
+                        "open_interest",
+                        "open_price",
+                        "high_price",
+                        "low_price",
+                        "close_price",
+                        "last_volume"
+                    ]
+                )
 
         def on_init(self) -> None:
             self.logger.info(f"{self.strategy_id} 策略开始运行")
@@ -106,7 +107,8 @@ class Strategy1(BaseStrategy):
                              f"low={bar.low_price} "
                              f"close={bar.close_price} "
                              f"vol={bar.volume}")
-            write_csv(f"{self.instrument_id}.csv",
+
+            write_csv(f"{self.instrument_id}_{bar.bar_type.value}.csv",
                       "a+",
                       [
                           bar.bar_type.value,
@@ -119,8 +121,7 @@ class Strategy1(BaseStrategy):
                           bar.high_price,
                           bar.low_price,
                           bar.close_price,
-                          bar.last_volume,
-                          bar.current_cumulative_volume
+                          bar.last_volume
                         ]
                       )
 

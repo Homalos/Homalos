@@ -111,7 +111,7 @@ class BarData(BaseData):
     low_price: float = float('inf')
     close_price: float = 0.0
     last_volume: int = 0  # 上一根K线的成交量，用于计算当前K线的成交量
-    current_cumulative_volume: int = 0  # 当前累计成交量，用于记录最新tick的累计成交量
+    # current_cumulative_volume: int = 0  # 当前累计成交量，用于记录最新tick的累计成交量
 
 @dataclass
 class OrderData(BaseData):
