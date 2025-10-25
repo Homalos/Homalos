@@ -112,8 +112,35 @@ class MarketGateway(BaseGateway):
                     self.logger.info(f"所有合约订阅完成: 成功 {success_count}/{len(instruments)} 个")
                 
             elif action == SubscribeAction.UNSUBSCRIBE.value:
-                # CTP不支持取消订阅，只记录日志
-                self.logger.debug(f"收到取消订阅请求(CTP不支持): {len(instruments)} 个合约")
+                success_count = 0
+                failed_list = []
+                
+                for index, inst_id in enumerate(instruments, 1):
+                    try:
+                        # 验证合约代码格式
+                        if not inst_id or not isinstance(inst_id, str):
+                            self.logger.warning(f"无效的合约代码: {inst_id}")
+                            failed_list.append(inst_id)
+                            continue
+                        
+                        # 调用取消订阅方法
+                        self.md_api.unsubscribe_market_data(inst_id)
+                        success_count += 1
+                        
+                        # 每10个合约输出一次进度
+                        if index % 10 == 0:
+                            self.logger.info(f"取消订阅进度: {index}/{len(instruments)} 个合约...")
+                    
+                    except Exception as e:
+                        self.logger.error(f"✗ 取消订阅合约 {inst_id} 失败: {e}")
+                        failed_list.append(inst_id)
+                
+                # 输出取消订阅结果统计
+                if failed_list:
+                    self.logger.warning(f"取消订阅完成: 成功 {success_count}/{len(instruments)}, 失败 {len(failed_list)} 个")
+                    self.logger.warning(f"失败合约列表: {failed_list}")
+                else:
+                    self.logger.info(f"所有合约取消订阅完成: 成功 {success_count}/{len(instruments)} 个")
             else:
                 self.logger.warning(f"未知的订阅操作: {action}")
         
@@ -428,6 +455,30 @@ class CtpMdApi(MdApi):
                 source=self.__class__.__name__
             ))
 
+    def onRspUnSubMarketData(self, data: dict, error: dict, reqid: SupportsInt, last: bool) -> None:
+        """
+        取消订阅行情响应
+        取消订阅行情应答，调用UnSubscribeMarketData后，通过此接口返回。
+
+        :param data: 订阅行情请求
+        :param error: 响应信息
+        :param reqid: 响应用户操作请求的ID，该ID 由用户在操作请求时指定。
+        :param last: 指示该次返回是否为针对nRequestID的最后一次返回。
+        :return: None
+
+        Cancel subscription response
+        The response to cancel subscription to market information is returned through this interface
+        after calling UnSubscribeMarketData.
+        """
+        rsp_error_msg = extract_error_msg(error, "取消订阅行情响应失败")
+        if rsp_error_msg:
+            self.logger.exception(rsp_error_msg)
+            return
+
+        if last and data:
+            self.logger.info("取消订阅行情成功")
+            self.logger.info(f"取消订阅行情: {data.get('InstrumentID', 'UNKNOWN')}")
+
     def onRspUserLogout(self, data: dict, error: dict, reqid: SupportsInt, last: bool):
         """
         登出请求响应，当 ReqUserLogout 后，该方法被调用。
@@ -647,6 +698,41 @@ class CtpMdApi(MdApi):
         except Exception as e:
             self.logger.exception("初始化失败！错误：{}".format(e))
             self.logger.exception("初始化 backtrace: {}".format(traceback.format_exc()))
+
+    def unsubscribe_market_data(self, symbol: str) -> None:
+        """
+        取消订阅行情，调用unsubscribeMarketData
+        对应响应OnRspUnSubMarketData。
+
+        Cancel subscription
+        :return: None
+        """
+        if not self.connect_login_status():
+            return
+
+        if not symbol:
+            self.logger.warning("合约为空，跳过取消订阅")
+            return
+
+        self.logger.debug(f"发送取消订阅 {symbol} 请求...")
+        try:
+            ret_code = self.unSubscribeMarketData(symbol)
+            # 0，代表成功。
+            # -1，表示网络连接失败；
+            # -2，表示未处理请求超过许可数；
+            # -3，表示每秒发送请求数超过许可数。
+
+            # 0 indicates success.
+            # -1 indicates a network connection failure.
+            # -2 indicates the number of unprocessed requests exceeds the permitted number.
+            # -3 indicates the number of requests sent per second exceeds the permitted number.
+            if ret_code == 0:
+                self.logger.info(f"取消订阅 {symbol} 订阅请求已发送")
+            else:
+                self.logger.exception(f"取消订阅请求失败 {symbol}，返回代码={ret_code}")
+        except Exception as e:
+            self.logger.exception("取消订阅失败！错误：{}".format(e))
+            self.logger.exception("取消订阅 backtrace: {}".format(traceback.format_exc()))
 
     def logout(self):
         """

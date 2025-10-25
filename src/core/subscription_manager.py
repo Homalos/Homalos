@@ -9,7 +9,6 @@
 @Software   : PyCharm
 @Description: 订阅管理器 - 负责收集和管理所有策略的订阅信息
 """
-import asyncio
 from collections import defaultdict
 from threading import Lock
 from typing import Any
@@ -181,7 +180,7 @@ class SubscriptionManager:
             
             # 取消不再需要的合约订阅
             if instruments_to_unsubscribe:
-                asyncio.create_task(self._unsubscribe_instruments(instruments_to_unsubscribe))
+                self._unsubscribe_instruments(instruments_to_unsubscribe)
     
     def get_all_subscribed_instruments(self) -> set[str]:
         """获取所有订阅的合约"""
@@ -303,9 +302,9 @@ class SubscriptionManager:
         except Exception as e:
             self.logger.error(f"✗ 发送K线配置更新失败: {e}", exc_info=True)
     
-    async def _unsubscribe_instruments(self, instruments: list[str]):
+    def _unsubscribe_instruments(self, instruments: list[str]):
         """
-        取消合约订阅（异步方法，用于策略卸载）
+        取消合约订阅（同步方法，用于策略卸载）
         
         Args:
             instruments: 待取消订阅的合约列表
@@ -329,7 +328,7 @@ class SubscriptionManager:
             all_instruments = list(self._subscribed_instruments)
         
         if all_instruments:
-            await self._unsubscribe_instruments(all_instruments)
+            self._unsubscribe_instruments(all_instruments)
     
     def _handle_subscription_update(self, event: Event):
         """处理策略订阅更新事件"""

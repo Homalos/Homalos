@@ -407,6 +407,14 @@ class StrategyManager(object):
             except Exception as e:
                 self.logger.warning(f"close conn failed: {e}")
 
+            # 取消订阅
+            if self._subscription_manager:
+                try:
+                    self._subscription_manager.unregister_strategy_subscription(sid)
+                    self.logger.info(f"✓ 已取消策略 {sid} 的行情订阅")
+                except Exception as e:
+                    self.logger.error(f"取消策略 {sid} 订阅失败: {e}", exc_info=True)
+
             del self._meta[sid]
             # 清理预期停止标记（延迟清理，给_reader_loop时间处理）
             # 注意：不在这里立即清理，因为_reader_loop可能还在运行
