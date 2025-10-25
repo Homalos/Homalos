@@ -35,17 +35,9 @@ export function stopStrategy(sid) {
   })
 }
 
-/**
- * 重载策略
- * @param {string} sid - 策略ID
- * @returns {Promise} 操作结果
- */
-export function reloadStrategy(sid) {
-  return request({
-    url: `/api/strategies/${sid}/reload`,
-    method: 'post'
-  })
-}
+// 策略热重载功能已禁用（出于安全考虑）
+// export function reloadStrategy(sid) { ... }
+// 请使用"停止-修改-启动"流程
 
 /**
  * 启用策略

@@ -171,13 +171,7 @@
             >
               停止
             </el-button>
-            <el-button
-              size="small"
-              type="primary"
-              @click="handleReloadStrategy(scope.row.sid)"
-            >
-              重载
-            </el-button>
+            <!-- 热重载按钮已移除（功能已禁用） -->
           </template>
           
           <!-- 通用操作：详情 -->
@@ -693,22 +687,9 @@ async function handleStopStrategy(sid) {
   }
 }
 
-async function handleReloadStrategy(sid) {
-  try {
-    await ElMessageBox.confirm(
-      `确认重载策略 ${sid}？\n重载会保存状态、重启进程、恢复状态`,
-      '重载确认',
-      {
-        confirmButtonText: '确认',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    await strategyStore.reload(sid)
-  } catch {
-    ElMessage.info('已取消')
-  }
-}
+// 热重载功能已禁用（出于安全考虑）
+// async function handleReloadStrategy(sid) { ... }
+// 请使用"停止-修改-启动"流程
 
 async function handleToggleEnabled(sid, enabled) {
   if (enabled) {

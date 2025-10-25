@@ -127,9 +127,9 @@ class StrategyService:
             # 启动状态加载和自动保存任务
             await self._manager.startup()
             
-            # 启动文件监控
-            strategies_dir = get_path_ins.join_path("src", "strategy", "strategies")
-            self._manager.start_watchdog(str(strategies_dir))
+            # 策略热重载功能已禁用（出于安全考虑）
+            # strategies_dir = get_path_ins.join_path("src", "strategy", "strategies")
+            # self._manager.start_watchdog(str(strategies_dir))
             
             self._initialized = True
             self.logger.info("策略管理器初始化完成")
@@ -266,29 +266,13 @@ class StrategyService:
         
         return stopped_count
     
-    async def reload_strategy(self, sid: str):
-        """重载策略（异步执行）"""
-        import asyncio
-        from concurrent.futures import ThreadPoolExecutor
-        
-        manager = self.get_manager()
-        
-        # 先检查是否正在reload
-        if sid in manager._reloading:
-            raise ValueError(f"策略 {sid} 正在重载中，请稍后再试")
-        
-        # 在线程池中执行reload操作，避免阻塞
-        loop = asyncio.get_event_loop()
-        executor = ThreadPoolExecutor(max_workers=1)
-        
-        try:
-            await loop.run_in_executor(executor, manager.reload_strategy, sid)
-            self.logger.info(f"策略 {sid} 重载完成")
-        except Exception as e:
-            self.logger.error(f"策略 {sid} 重载失败: {e}")
-            raise
-        finally:
-            executor.shutdown(wait=False)
+    # 策略热重载功能已禁用（出于安全考虑）
+    # 原因：运行中策略的热重载可能导致持仓/订单状态丢失
+    # 请使用"停止-修改-启动"流程修改策略
+    # 
+    # async def reload_strategy(self, sid: str):
+    #     """重载策略（已禁用）"""
+    #     raise NotImplementedError("策略热重载功能已禁用。请停止策略，修改代码后重新启动。")
     
     def enable_strategy(self, sid: str):
         """启用策略"""
@@ -604,13 +588,9 @@ class StrategyService:
         manager = self.get_manager()
         manager.unregister_ws_queue(q)
     
-    def get_reloading_strategies(self) -> list:
-        """获取当前正在reload的策略列表"""
-        return self.get_manager().get_reloading_strategies()
-    
-    def clear_reload_lock(self, sid: str) -> bool:
-        """清除reload锁（用于恢复）"""
-        return self.get_manager().clear_reload_lock(sid)
+    # 以下方法已删除（与热重载功能相关）：
+    # - get_reloading_strategies()
+    # - clear_reload_lock(sid)
     
     # ========== 状态持久化相关方法 ==========
     

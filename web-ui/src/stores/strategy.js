@@ -5,7 +5,7 @@ import {
   getStrategyStatus, 
   startStrategy, 
   stopStrategy,
-  reloadStrategy,
+  // reloadStrategy, // 热重载功能已禁用
   enableStrategy,
   disableStrategy,
   unloadStrategy,
@@ -329,16 +329,9 @@ export const useStrategyStore = defineStore('strategy', () => {
     }
   }
   
-  async function reload(sid) {
-    try {
-      await reloadStrategy(sid)
-      ElMessage.success(`策略 ${sid} 重载成功`)
-      setTimeout(() => fetchStatus(), 500)
-    } catch (error) {
-      console.error(`重载策略 ${sid} 失败:`, error)
-      ElMessage.error(`重载策略失败: ${error.response?.data?.detail || error.message}`)
-    }
-  }
+  // 热重载功能已禁用（出于安全考虑）
+  // async function reload(sid) { ... }
+  // 请使用"停止-修改-启动"流程
   
   async function enable(sid) {
     try {
@@ -664,7 +657,7 @@ export const useStrategyStore = defineStore('strategy', () => {
     fetchStatus,
     start,
     stop,
-    reload,
+    // reload, // 热重载功能已禁用
     enable,
     disable,
     unload,

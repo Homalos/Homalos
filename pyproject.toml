@@ -25,7 +25,6 @@ dependencies = [
     "sqlalchemy>=2.0.43",
     "tzdata>=2025.2",
     "uvicorn[standard]>=0.37.0",
-    "watchdog>=6.0.0",
     "watchfiles>=1.1.0",
     "websocket-client>=1.9.0",
 ]

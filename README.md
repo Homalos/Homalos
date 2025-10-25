@@ -130,6 +130,34 @@ Homalos now includes a modern web management interface built with FastAPI and Vu
 
 See [Web System Guide](docs/Web系统使用指南.md) for detailed documentation.
 
+### Strategy Management
+
+**⚠️ Important: Strategy Hot Reload is Disabled**
+
+For safety reasons, strategy hot reload has been disabled in production environments. Modifying running strategies could lead to:
+
+- Loss of position state
+- Loss of order state  
+- Interrupted trading logic
+
+**Safe Strategy Modification Process:**
+
+1. Stop the strategy in the Strategy Management panel
+2. Confirm the strategy status is "Stopped"
+3. Edit your strategy code in `src/strategy/strategies/`
+4. Save the file (the strategy will NOT auto-start)
+5. (Optional) Run unit tests to verify your changes
+6. Click "Start" button to run the modified strategy
+
+**Why no hot reload?**
+
+- Current system lacks position/order synchronization with CTP Gateway
+- Missing order callback routing to strategy processes
+- State persistence doesn't include trading information
+- Risk of duplicate orders or position inconsistencies
+
+This follows industry best practices (vnpy, Zipline) where code changes require explicit restarts.
+
 ## Installation
 
 ```bash

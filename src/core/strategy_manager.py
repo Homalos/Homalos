@@ -33,9 +33,6 @@ from typing import Any, Optional
 
 import zmq
 
-from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
-
 from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.state_persistence import StatePersistenceManager
@@ -47,8 +44,6 @@ from src.utils.log.logger import get_logger
 
 # message delivered to WS clients will be JSON serializable dict:
 # {"sid":"...", "type":"log"/"order"/"error"/"status", "payload": ...}
-
-_DEBOUNCE = 2.0  # 增加到2秒，避免重复触发
 
 
 class StrategyManager(object):
@@ -70,17 +65,12 @@ class StrategyManager(object):
         # meta: sid -> {proc, conn, module, class_name, file_path, last_state, cached_state}
         self._meta: dict[str, dict[str, Any]] = {}
         self._lock = Lock()
-        self._reloading: set = set()  # 正在reload的策略ID集合
         self._expected_stops: set = set()  # 预期停止的策略ID集合，用于区分主动停止和意外崩溃
 
         # WebSocket integration:
         # we will store a set of asyncio.Queues (one per active websocket connection)
         self._ws_queues: list[asyncio.Queue] = []
         self._loop: Optional[asyncio.AbstractEventLoop] = None
-
-        # watchdog
-        self._watch_observer: Optional[Any] = None  # Observer类型
-        self._last_event_time: dict[str, float] = {}
 
         state_storage_dir = get_path_ins.get_data_dir() / Config.strategy_states_dir_name
         # 状态持久化管理器
@@ -422,146 +412,6 @@ class StrategyManager(object):
             # 注意：不在这里立即清理，因为_reader_loop可能还在运行
             self.logger.info(f"Unloaded {sid}")
 
-    def reload_strategy(self, sid: str):
-        """
-        保存状态、卸载、重新加载、恢复状态。
-        """
-        # 检查是否正在reload
-        if sid in self._reloading:
-            self.logger.warning(f"{sid} 已在重新加载，跳过重复重新加载")
-            raise RuntimeError(f"{sid} 已在重新加载")
-        
-        # 标记为正在reload
-        self._reloading.add(sid)
-        self.logger.info(f"开始重载 {sid}")
-        
-        try:
-            with self._lock:
-                meta = self._meta.get(sid)
-                was_running = meta is not None  # 记录策略在reload前是否正在运行
-                saved = None
-                if meta:
-                    # 清除旧的缓存状态
-                    meta["last_state"] = None
-                    
-                    try:
-                        conn = meta["conn"]
-                        proc = meta.get("proc")
-                        
-                        # 检查进程是否还活着
-                        if proc and not proc.is_alive():
-                            self.logger.warning(f"{sid} 进程已死亡，跳过 save_state")
-                        else:
-                            # 尝试保存状态 - 使用meta中缓存的last_state
-                            # 注意：save_state消息会被_reader_loop接收并缓存到meta["last_state"]
-                            conn.send({"type": "command", "command": "save_state"})
-                            
-                            # 等待_reader_loop接收并缓存状态
-                            start = time.time()
-                            while time.time() - start < 2.0:
-                                # 检查meta中是否已有缓存的状态（由_reader_loop更新）
-                                # 注意：_reader_loop在锁外更新meta，所以这里需要短暂等待
-                                time.sleep(0.05)  # 先等一下，让_reader_loop有机会更新
-                                cached_state = meta.get("last_state")
-                                if cached_state is not None:
-                                    saved = cached_state
-                                    self.logger.info(f"成功获取 {sid} 的状态数据")
-                                    break
-                            
-                            if saved is None:
-                                self.logger.debug(f"{sid} 没有状态需要保存（这是正常的）")
-                    except (BrokenPipeError, EOFError):
-                        # 管道已关闭（策略进程已退出），静默处理
-                        pass
-                    except Exception as e:
-                        self.logger.warning(f"重新加载时 save_state 失败：{e}")
-                
-                self.logger.info(f"save_state阶段完成，开始unload {sid}")
-                
-                # unload if loaded (内联逻辑，避免嵌套锁)
-                if sid in self._meta:
-                    # 标记为预期停止，避免在reload过程中触发崩溃告警
-                    self._expected_stops.add(sid)
-                    
-                    meta = self._meta[sid]
-                    conn = meta["conn"]
-                    proc = meta["proc"]
-                    
-                    # 发送停止命令
-                    self.logger.info(f"发送stop命令给 {sid}")
-                    try:
-                        conn.send({"type": "command", "command": "stop"})
-                    except (BrokenPipeError, EOFError):
-                        # 管道已关闭（策略进程已退出），静默处理
-                        pass
-                    except Exception as e:
-                        self.logger.warning(f"stop send failed: {e}")
-                    
-                    # 等待进程退出
-                    self.logger.info(f"等待 {sid} 进程退出")
-                    try:
-                        proc.join(timeout=1.0)
-                        if proc.is_alive():
-                            self.logger.info(f"{sid} 进程未响应，强制终止")
-                            proc.terminate()
-                            proc.join(timeout=0.5)
-                        self.logger.info(f"{sid} 进程已停止")
-                    except Exception as e:
-                        self.logger.warning(f"process termination failed: {e}")
-                    
-                    # 清理连接
-                    try:
-                        if conn:
-                            conn.close()
-                    except Exception as e:
-                        self.logger.warning(f"close conn failed: {e}")
-                    
-                    # remove from meta
-                    del self._meta[sid]
-                    self.logger.info(f"Unloaded {sid}")
-
-            time.sleep(0.1)
-            
-            # 只有之前正在运行的策略才重新加载
-            if was_running:
-                self.load_strategy(sid)
-
-                # 恢复状态
-                if saved is not None and sid in self._meta:
-                    try:
-                        new_conn = self._meta[sid]["conn"]
-                        new_conn.send({"type": "command", "command": "load_state", "state": saved})
-                    except (BrokenPipeError, EOFError):
-                        # 管道已关闭（策略进程启动失败），静默处理
-                        pass
-                    except Exception as e:
-                        self.logger.warning(f"load_state send failed: {e}")
-                
-                self.logger.info(f"Reloaded {sid}（已自动启动）")
-            else:
-                self.logger.info(f"Reloaded {sid}（策略在reload前未运行，跳过自动启动）")
-        except Exception as e:
-            # 重载失败，触发告警
-            self.logger.error(f"重载策略 {sid} 失败: {e}", exc_info=True)
-            
-            if self.alarm_manager and self._loop:
-                asyncio.run_coroutine_threadsafe(
-                    self.alarm_manager.trigger_alarm(
-                        alarm_type="reload_failed",
-                        severity="error",
-                        source="strategy_manager",
-                        target=sid,
-                        message=f"策略 {sid} 重载失败: {str(e)}",
-                        details={"error": str(e)}
-                    ),
-                    self._loop
-                )
-            
-            raise
-        finally:
-            # 移除reload标记
-            self._reloading.discard(sid)
-
     # ---------- broadcasting events to children ----------
     def broadcast_event(self, ev_type: str, data: dict) -> None:
         """
@@ -759,56 +609,7 @@ class StrategyManager(object):
         #     except Exception:
         #         pass
 
-    # ---------- watchdog ----------
-    def start_watchdog(self, strategies_dir: str):
-        try:
-            p = Path(strategies_dir)
-            if not p.exists():
-                self.logger.warning("strategies dir not found: " + str(p))
-                return
-            handler = _FileEventHandler(self)
-            observer = Observer()
-            observer.schedule(handler, str(p), recursive=False)
-            observer.start()
-            self._watch_observer = observer
-            self.logger.info("started watchdog on " + str(p))
-        except Exception as e:
-            self.logger.exception(f"start_watchdog failed: {e}")
-
-    def stop_watchdog(self):
-        if self._watch_observer:
-            try:
-                self._watch_observer.stop()
-                self._watch_observer.join(timeout=1.0)
-            except Exception as e:
-                self.logger.exception(f"stop_watchdog failed: {e}")
-    
     # ---------- 调试和管理方法 ----------
-    def get_reloading_strategies(self) -> list:
-        """
-        获取当前正在reload的策略列表
-
-        Returns:
-            list
-        """
-        return list(self._reloading)
-    
-    def clear_reload_lock(self, sid: str) -> bool:
-        """
-        清除reload锁（仅用于调试/恢复）
-
-        Args:
-            sid:
-
-        Returns:
-
-        """
-        if sid in self._reloading:
-            self._reloading.discard(sid)
-            self.logger.warning(f"手动清除 {sid} 的reload锁")
-            return True
-        return False
-    
     def get_running_strategies(self) -> list[str]:
         """
         获取所有运行中的策略ID列表
@@ -956,61 +757,3 @@ class StrategyManager(object):
         """获取所有策略的订阅信息"""
         with self._lock:
             return self._strategy_subscriptions.copy()
-    
-    def get_last_event_time(self) -> dict[str, float]:
-        """获取最后一次处理的事件时间"""
-        return self._last_event_time
-
-
-class _FileEventHandler(FileSystemEventHandler):
-    """
-    文件系统事件处理器
-    """
-    def __init__(self, manager: StrategyManager):
-        super().__init__()
-        self.manager = manager
-
-    @staticmethod
-    def _valid(path: str) -> bool:
-        """
-        判断文件是否有效
-
-        Args:
-            path:
-
-        Returns:
-
-        """
-        if not path.endswith(".py"):
-            return False
-        name = Path(path).stem
-        if name.startswith("__"):
-            return False
-        return True
-
-    def on_modified(self, event) -> None:
-        """
-        处理文件修改事件
-
-        Args:
-            event:
-
-        Returns:
-
-        """
-        if event.is_directory:
-            return
-        if not self._valid(event.src_path):
-            return
-        module_name = Path(event.src_path).stem
-        now = time.time()
-        last = self.manager.get_last_event_time().get(module_name, 0)
-        if now - last < _DEBOUNCE:
-            return
-        self.manager.get_last_event_time()[module_name] = now
-        # find which sid uses this file
-        for sid, cfg in list(self.manager.registry.strategies.items()):
-            f = cfg.get("file")
-            if f and Path(f).stem == module_name:
-                Thread(target=self.manager.reload_strategy, args=(sid,), daemon=True).start()
-                break

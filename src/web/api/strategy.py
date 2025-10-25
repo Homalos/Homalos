@@ -13,11 +13,12 @@
 - GET `/` - 列出所有注册策略
 - POST `/{sid}/start` - 启动策略
 - POST `/{sid}/stop` - 停止策略
-- POST `/{sid}/reload` - 重载策略
 - POST `/{sid}/enable` - 启用策略
 - POST `/{sid}/disable` - 禁用策略
 - GET `/status` - 查看策略运行状态
 - WebSocket `/ws` - 实时接收策略消息（支持 ?filter=sid 查询参数）
+
+注意：策略热重载功能已禁用（出于安全考虑）。请使用"停止-修改-启动"流程修改策略。
 """
 import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Query
@@ -132,27 +133,9 @@ async def stop_strategy(sid: str):
         raise HTTPException(status_code=500, detail=f"停止策略失败: {str(e)}")
 
 
-@router.post("/{sid}/reload", response_model=OperationResponse, summary="重载策略")
-async def reload_strategy(sid: str):
-    """
-    重载指定的策略（保存状态、重启、恢复状态）
-    
-    Args:
-        sid: 策略ID
-        
-    Returns:
-        OperationResponse: 操作结果
-    """
-    try:
-        await strategy_service.reload_strategy(sid)
-        return {
-            "status": "reloaded",
-            "sid": sid,
-            "message": f"策略 {sid} 已重载"
-        }
-    except Exception as e:
-        logger.error(f"重载策略 {sid} 失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"重载策略失败: {str(e)}")
+# 策略热重载端点已删除（出于安全考虑）
+# @router.post("/{sid}/reload", ...)
+# 请使用"停止-修改-启动"流程修改策略
 
 
 @router.post("/{sid}/enable", response_model=OperationResponse, summary="启用策略")
@@ -303,21 +286,9 @@ async def unload_strategy(sid: str):
         raise HTTPException(status_code=500, detail=f"卸载策略失败: {str(e)}")
 
 
-@router.get("/debug/reloading", summary="获取正在reload的策略（调试）")
-async def get_reloading_strategies():
-    """获取当前正在reload的策略列表（用于调试）"""
-    reloading = strategy_service.get_reloading_strategies()
-    return {"reloading": reloading}
-
-
-@router.post("/debug/clear-lock/{sid}", summary="清除reload锁（调试）")
-async def clear_reload_lock(sid: str):
-    """清除策略的reload锁（用于恢复卡住的状态）"""
-    result = strategy_service.clear_reload_lock(sid)
-    if result:
-        return {"status": "cleared", "sid": sid, "message": f"已清除 {sid} 的reload锁"}
-    else:
-        return {"status": "not_found", "sid": sid, "message": f"{sid} 没有reload锁"}
+# 以下调试端点已删除（与热重载功能相关）：
+# - GET /debug/reloading - 获取正在reload的策略
+# - POST /debug/clear-lock/{sid} - 清除reload锁
 
 
 # ========== 状态持久化相关端点 ==========
