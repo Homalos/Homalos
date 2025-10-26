@@ -14,7 +14,7 @@ const routes = [
     name: 'Home',
     component: () => import('@/views/Home.vue'),
     meta: { requiresAuth: true },
-    redirect: '/about',
+    redirect: '/dashboard',
     children: [
       {
         path: 'dashboard',
@@ -76,7 +76,9 @@ const routes = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/about'
+    name: 'NotFound',
+    component: () => import('@/views/NotFound.vue'),
+    meta: { requiresAuth: false }
   }
 ]
 

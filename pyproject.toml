@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "aiosqlite>=0.21.0",
+    "argon2-cffi>=23.1.0",
     "bypy>=1.8.9",
     "chinese-days>=0.0.1",
     "configparser>=7.2.0",

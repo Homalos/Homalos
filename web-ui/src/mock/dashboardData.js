@@ -1,5 +1,39 @@
 /**
- * 仪表盘数据（硬编码）
+ * 仪表盘归零数据（系统未启动时显示）
+ */
+export const emptyDashboardData = {
+  // 账户总览 - 全部归零
+  account: {
+    totalEquity: 0,           // 总权益
+    availableFunds: 0,        // 可用资金
+    marginUsed: 0,            // 保证金占用
+    floatingProfitLoss: 0,    // 浮动盈亏
+    fundUtilizationRate: 0    // 资金使用率(%)
+  },
+  // 今日表现 - 全部归零
+  todayPerformance: {
+    returnRate: 0,      // 当日收益率(%)
+    profitLoss: 0,      // 盈亏金额
+    tradeCount: 0       // 交易次数
+  },
+  // 策略运行状态 - 全部归零
+  strategyStatus: {
+    active: 0,    // 活跃策略
+    running: 0,   // 运行中
+    stopped: 0    // 已停止
+  },
+  // 持仓概览 - 空数组
+  positions: [],
+  // 图表数据 - 空数组
+  chartData: {
+    equityCurve: [],
+    profitLoss: [],
+    returnRate: []
+  }
+}
+
+/**
+ * 仪表盘模拟数据（系统启动但未连接实时数据时显示）
  */
 export const dashboardData = {
   // 账户总览

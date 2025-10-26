@@ -308,30 +308,42 @@ import {
   DataAnalysis,
   Connection
 } from '@element-plus/icons-vue'
-import { dashboardData as dashboardDataImport } from '@/mock'
+import { emptyDashboardData, dashboardData as dashboardDataImport } from '@/mock'
 import { useSystemMonitor } from '@/composables'
 import { useTradingAccountStore } from '@/stores/tradingAccount'
 import EquityCurveChart from './charts/EquityCurveChart.vue'
 import ProfitLossChart from './charts/ProfitLossChart.vue'
 import ReturnRateChart from './charts/ReturnRateChart.vue'
 
-// 使用导入的仪表盘数据初始化
-const dashboardData = reactive(dashboardDataImport)
-
 // 初始化交易账户 Store
 const tradingAccountStore = useTradingAccountStore()
+
+// 使用归零数据初始化（系统未启动时）
+const dashboardData = reactive(emptyDashboardData)
+
+// 监听 WebSocket 连接状态，决定显示归零数据还是实时数据
+watch(
+  () => tradingAccountStore.isWsConnected,
+  (isConnected) => {
+    if (!isConnected) {
+      // 未连接时，重置为归零数据
+      Object.assign(dashboardData, emptyDashboardData)
+    }
+  },
+  { immediate: true }
+)
 
 // 监听实时账户数据，动态更新仪表盘
 watch(
   () => tradingAccountStore.accountData,
   (newAccountData) => {
     if (newAccountData && newAccountData.balance > 0) {
-      dashboardData.account.totalEquity = newAccountData.balance || dashboardData.account.totalEquity
-      dashboardData.account.availableFunds = newAccountData.available || dashboardData.account.availableFunds
-      dashboardData.account.marginUsed = newAccountData.frozen || dashboardData.account.marginUsed
+      dashboardData.account.totalEquity = newAccountData.balance
+      dashboardData.account.availableFunds = newAccountData.available
+      dashboardData.account.marginUsed = newAccountData.frozen
       dashboardData.account.fundUtilizationRate = newAccountData.balance > 0
         ? (newAccountData.frozen / newAccountData.balance) * 100
-        : dashboardData.account.fundUtilizationRate
+        : 0
     }
   },
   { deep: true, immediate: true }
@@ -341,7 +353,7 @@ watch(
 watch(
   () => tradingAccountStore.totalPnl,
   (newPnl) => {
-    dashboardData.account.floatingProfitLoss = newPnl || dashboardData.account.floatingProfitLoss
+    dashboardData.account.floatingProfitLoss = newPnl
   },
   { immediate: true }
 )

@@ -8,5 +8,5 @@ export { scheduledTasksData } from './scheduledTasks'
 export { notificationsData } from './notifications'
 export { consoleLogsData } from './consoleLogs'
 export { strategiesData } from './strategies'
-export { dashboardData } from './dashboardData'
+export { dashboardData, emptyDashboardData } from './dashboardData'
 
