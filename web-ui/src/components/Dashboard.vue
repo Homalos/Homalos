@@ -351,7 +351,7 @@ import { useSystemMonitor } from '@/composables'
 import { useTradingAccountStore } from '@/stores/tradingAccount'
 import { getTradingCoreStatus } from '@/api/tradingCore'
 import { getDataCenterStatus } from '@/api/datacenter'
-import { getStrategyStatus } from '@/api/strategy'
+import { getStrategies, getStrategyStatus } from '@/api/strategy'
 import EquityCurveChart from './charts/EquityCurveChart.vue'
 import ProfitLossChart from './charts/ProfitLossChart.vue'
 import ReturnRateChart from './charts/ReturnRateChart.vue'
@@ -565,10 +565,37 @@ async function fetchDataCenterStatus() {
  */
 async function fetchStrategyStatus() {
   try {
-    const status = await getStrategyStatus()
-    strategyStatusData.active = status.total || 0
-    strategyStatusData.running = status.running || 0
-    strategyStatusData.stopped = status.stopped || 0
+    // 同时获取策略列表和运行状态
+    const [strategiesResponse, statusResponse] = await Promise.all([
+      getStrategies(),
+      getStrategyStatus()
+    ])
+    
+    console.log('[仪表盘] 策略列表原始数据:', strategiesResponse)
+    console.log('[仪表盘] 运行状态原始数据:', statusResponse)
+    
+    // 获取已加载的策略（对象格式）
+    const loadedStrategies = strategiesResponse.strategies || {}
+    const loadedCount = Object.keys(loadedStrategies).length
+    
+    // 获取运行状态（对象格式）
+    const runningStrategies = statusResponse.running || {}
+    
+    console.log('[仪表盘] 已加载策略数:', loadedCount)
+    console.log('[仪表盘] 运行状态对象:', runningStrategies)
+    
+    // 计算运行中的策略数量（alive === true）
+    const runningArray = Object.values(runningStrategies)
+    const runningCount = runningArray.filter(s => s.alive === true).length
+    
+    // 已停止 = 已加载 - 运行中
+    const stoppedCount = loadedCount - runningCount
+    
+    console.log('[仪表盘] 策略统计 - 总数:', loadedCount, '运行中:', runningCount, '已停止:', stoppedCount)
+    
+    strategyStatusData.active = loadedCount
+    strategyStatusData.running = runningCount
+    strategyStatusData.stopped = stoppedCount
   } catch (error) {
     console.error('获取策略状态失败:', error)
     strategyStatusData.active = 0
