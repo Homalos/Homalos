@@ -124,38 +124,56 @@
           </template>
           <el-row :gutter="16">
             <el-col :span="6">
-              <el-statistic title="交易系统状态">
-                <template #prefix>
-                  <el-icon color="#67C23A"><SuccessFilled /></el-icon>
-                </template>
-                <template #default>
-                  <span style="font-size: 24px; font-weight: 600; color: #67C23A;">运行中</span>
-                </template>
-              </el-statistic>
+              <div class="custom-statistic">
+                <div class="statistic-title">交易系统状态</div>
+                <div class="statistic-content">
+                  <el-icon :color="tradingCoreStatusInfo.color" class="statistic-icon">
+                    <component :is="tradingCoreStatusInfo.icon" />
+                  </el-icon>
+                  <span class="statistic-value" :style="{ color: tradingCoreStatusInfo.color }">
+                    {{ tradingCoreStatusInfo.text }}
+                  </span>
+                </div>
+              </div>
             </el-col>
             <el-col :span="6">
-              <el-statistic title="数据中心状态">
-                <template #prefix>
-                  <el-icon color="#409EFF"><Connection /></el-icon>
-                </template>
-                <template #default>
-                  <span style="font-size: 24px; font-weight: 600; color: #409EFF;">连接中</span>
-                </template>
-              </el-statistic>
+              <div class="custom-statistic">
+                <div class="statistic-title">数据中心状态</div>
+                <div class="statistic-content">
+                  <el-icon :color="dataCenterStatusInfo.color" class="statistic-icon">
+                    <component :is="dataCenterStatusInfo.icon" />
+                  </el-icon>
+                  <span class="statistic-value" :style="{ color: dataCenterStatusInfo.color }">
+                    {{ dataCenterStatusInfo.text }}
+                  </span>
+                </div>
+              </div>
             </el-col>
             <el-col :span="6">
-              <el-statistic title="CPU使用率" :value="systemInfo.cpu" suffix="%">
-                <template #prefix>
-                  <el-icon><Cpu /></el-icon>
-                </template>
-              </el-statistic>
+              <div class="custom-statistic">
+                <div class="statistic-title">CPU使用率</div>
+                <div class="statistic-content">
+                  <el-icon color="#409EFF" class="statistic-icon">
+                    <Cpu />
+                  </el-icon>
+                  <span class="statistic-value" style="color: #409EFF;">
+                    {{ systemInfo.cpu }}%
+                  </span>
+                </div>
+              </div>
             </el-col>
             <el-col :span="6">
-              <el-statistic title="内存使用率" :value="systemInfo.memory" suffix="%">
-                <template #prefix>
-                  <el-icon><Memo /></el-icon>
-                </template>
-              </el-statistic>
+              <div class="custom-statistic">
+                <div class="statistic-title">内存使用率</div>
+                <div class="statistic-content">
+                  <el-icon color="#409EFF" class="statistic-icon">
+                    <Memo />
+                  </el-icon>
+                  <span class="statistic-value" style="color: #409EFF;">
+                    {{ systemInfo.memory }}%
+                  </span>
+                </div>
+              </div>
             </el-col>
           </el-row>
         </el-card>
@@ -306,17 +324,27 @@ import {
   Cpu,
   Memo,
   DataAnalysis,
-  Connection
+  Connection,
+  Loading,
+  CircleCloseFilled
 } from '@element-plus/icons-vue'
 import { emptyDashboardData, dashboardData as dashboardDataImport } from '@/mock'
 import { useSystemMonitor } from '@/composables'
 import { useTradingAccountStore } from '@/stores/tradingAccount'
+import { getTradingCoreStatus } from '@/api/tradingCore'
+import { getDataCenterStatus } from '@/api/datacenter'
 import EquityCurveChart from './charts/EquityCurveChart.vue'
 import ProfitLossChart from './charts/ProfitLossChart.vue'
 import ReturnRateChart from './charts/ReturnRateChart.vue'
 
 // 初始化交易账户 Store
 const tradingAccountStore = useTradingAccountStore()
+
+// 系统状态（交易核心和数据中心）
+const systemStatus = reactive({
+  tradingCore: 'stopped',  // stopped | initializing | connecting | running | stopping | error
+  dataCenter: false        // running: true/false
+})
 
 // 使用归零数据初始化（系统未启动时）
 const dashboardData = reactive(emptyDashboardData)
@@ -480,9 +508,94 @@ const accountOverviewTitle = computed(() => {
   return `账户总览 - ${accountName} (${maskedAccount})`
 })
 
+/**
+ * 获取交易核心状态
+ */
+async function fetchTradingCoreStatus() {
+  try {
+    const status = await getTradingCoreStatus()
+    systemStatus.tradingCore = status.status || 'stopped'
+  } catch (error) {
+    console.error('获取交易核心状态失败:', error)
+    systemStatus.tradingCore = 'stopped'
+  }
+}
+
+/**
+ * 获取数据中心状态
+ */
+async function fetchDataCenterStatus() {
+  try {
+    const status = await getDataCenterStatus()
+    systemStatus.dataCenter = status.running || false
+  } catch (error) {
+    console.error('获取数据中心状态失败:', error)
+    systemStatus.dataCenter = false
+  }
+}
+
+/**
+ * 获取所有系统状态
+ */
+async function fetchSystemStatus() {
+  await Promise.all([
+    fetchTradingCoreStatus(),
+    fetchDataCenterStatus()
+  ])
+}
+
+/**
+ * 交易核心状态显示信息
+ */
+const tradingCoreStatusInfo = computed(() => {
+  const statusMap = {
+    stopped: { text: '已停止', color: '#909399', icon: 'VideoPause' },
+    initializing: { text: '初始化中', color: '#E6A23C', icon: 'Loading' },
+    connecting: { text: '连接中', color: '#E6A23C', icon: 'Loading' },
+    running: { text: '运行中', color: '#67C23A', icon: 'SuccessFilled' },
+    stopping: { text: '停止中', color: '#E6A23C', icon: 'Loading' },
+    error: { text: '错误', color: '#F56C6C', icon: 'CircleCloseFilled' }
+  }
+  return statusMap[systemStatus.tradingCore] || statusMap.stopped
+})
+
+/**
+ * 数据中心状态显示信息
+ */
+const dataCenterStatusInfo = computed(() => {
+  if (systemStatus.dataCenter) {
+    return { text: '运行中', color: '#67C23A', icon: 'SuccessFilled' }
+  } else {
+    return { text: '已停止', color: '#909399', icon: 'VideoPause' }
+  }
+})
+
+let systemStatusTimer = null
+
+/**
+ * 启动系统状态轮询
+ */
+function startSystemStatusPolling() {
+  if (systemStatusTimer) return
+  
+  fetchSystemStatus()  // 立即获取一次
+  systemStatusTimer = setInterval(fetchSystemStatus, 5000)  // 每5秒刷新
+}
+
+/**
+ * 停止系统状态轮询
+ */
+function stopSystemStatusPolling() {
+  if (systemStatusTimer) {
+    clearInterval(systemStatusTimer)
+    systemStatusTimer = null
+  }
+}
+
 // 组件挂载时启动监控
 onMounted(() => {
   startMonitoring()
+  startSystemStatusPolling()
   // 连接账户数据WebSocket
   tradingAccountStore.connectAccountWs()
 })
@@ -490,6 +603,7 @@ onMounted(() => {
 // 组件卸载时停止监控
 onUnmounted(() => {
   stopMonitoring()
+  stopSystemStatusPolling()
   // 断开账户数据WebSocket
   tradingAccountStore.disconnectAccountWs()
 })
@@ -603,6 +717,36 @@ onUnmounted(() => {
     font-size: 12px;
     margin-bottom: 6px;
   }
+}
+
+/* 自定义统计组件样式 */
+.custom-statistic {
+  text-align: center;
+  padding: 10px 0;
+}
+
+.statistic-title {
+  color: #909399;
+  font-size: 14px;
+  margin-bottom: 10px;
+  line-height: 22px;
+}
+
+.statistic-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.statistic-icon {
+  font-size: 20px;
+}
+
+.statistic-value {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 32px;
 }
 </style>
 
