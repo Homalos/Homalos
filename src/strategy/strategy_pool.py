@@ -35,14 +35,14 @@ class StrategyPool(object):
         """
         初始化策略池
         """
+        self.logger = get_logger(self.__class__.__name__)
         # 策略字典
         self.strategy_map: dict[str, BaseStrategy] = {}
         # 订阅了哪些合约，如：['au2208', 'FG209', 'SA209']
-        self.sub_ins_id: list[str] = []
+        self.instruments: list[str] = []
         # 订阅了哪些合约以及具体K线类型
         # 如：{'FG209': ['min'], 'SA209': ['min', 'min5'], 'au2208': ['min', 'min5']}
-        self.sub_kline_type: dict[str, list[Interval]] = {}
-        self.logger = get_logger(self.__class__.__name__)
+        self.bar_intervals: dict[str, list[Interval]] = {}
 
     def init_sub(self) -> None:
         """
@@ -51,8 +51,8 @@ class StrategyPool(object):
         Returns:
             None
         """
-        self.sub_ins_id: list[str] = []
-        self.sub_kline_type: dict[str, list[Interval]] = {}
+        self.instruments: list[str] = []
+        self.bar_intervals: dict[str, list[Interval]] = {}
 
     def add_strategy(self, strategy_id: str, strategy: BaseStrategy) -> None:
         """
@@ -86,8 +86,8 @@ class StrategyPool(object):
         # 遍历所有策略，将所有策略的合约进行合并
         ids = []
         for strategy in self.strategy_map.values():
-            ids.extend(strategy.sub_ins_id)
-        self.sub_ins_id = list(set(ids))
+            ids.extend(strategy.instruments)
+        self.instruments = list(set(ids))
 
     def init_kline_type(self) -> dict[str, list[Interval]]:
         """
@@ -97,27 +97,27 @@ class StrategyPool(object):
             订阅的K线类型
         """
         # 初始化一个空字典来存储订阅了哪些合约及其订阅的K线类型
-        self.sub_kline_type = {}
+        self.bar_intervals: dict[str, list[Interval]] = {}
         # 遍历策略映射中的值，即遍历所有子策略
         for strategy in self.strategy_map.values():
-            # 获取子策略的sub_id和sub_kline_type列表
-            sub_id = strategy.sub_ins_id
-            kline_types = strategy.sub_kline_type
+            # 获取子策略的sub_id和bar_intervals列表
+            instruments = strategy.instruments
+            kline_types = strategy.bar_intervals
             # 如果策略没有订阅K线，则过滤掉
             if not kline_types:
                 continue
-            # 遍历sub_id列表
-            for instrument_id in sub_id:
-                # 如果该合约还没有被记录在sub_kline_type字典中，创建一个空列表来记录其订阅的K线类型
-                if instrument_id not in self.sub_kline_type:
-                    self.sub_kline_type[instrument_id] = []
-                # 遍历该策略订阅的K线类型，将其记录在sub_kline_type字典中
-                for kline_type in kline_types:
+            # 遍历instruments列表
+            for instrument_id in instruments:
+                # 如果该合约还没有被记录在bar_intervals字典中，创建一个空列表来记录其订阅的K线类型
+                if instrument_id not in self.bar_intervals:
+                    self.bar_intervals[instrument_id] = []
+                # 遍历该策略订阅的K线类型，将其记录在bar_intervals字典中
+                for kline_type in kline_types[instrument_id]:
                     # 如果该合约还没有订阅这种K线类型，就添加到列表中
-                    if kline_type not in self.sub_kline_type[instrument_id]:
-                        self.sub_kline_type[instrument_id].append(kline_type)
+                    if kline_type not in self.bar_intervals[instrument_id]:
+                        self.bar_intervals[instrument_id].append(kline_type)
         # 返回包含订阅了哪些合约及其订阅的K线类型的字典
-        return self.sub_kline_type
+        return self.bar_intervals
 
     def create_trade_file(self) -> None:
         """
@@ -129,7 +129,7 @@ class StrategyPool(object):
         # 遍历所有策略，将所有策略的合约进行合并
         trading_flow_path = str(get_path_ins.get_data_dir() / TRADING_FLOW_DIR_NAME)
         for strategy in self.strategy_map.values():
-            for sub_id in strategy.sub_ins_id:
+            for sub_id in strategy.instruments:
                 file_name = f"strategy{strategy.strategy_id}_{sub_id}.csv"
                 if file_name not in get_file_name(trading_flow_path, '.csv'):
                     write_csv(f"{trading_flow_path}/{file_name}", 'w', trade_file_head)

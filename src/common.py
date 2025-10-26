@@ -60,7 +60,14 @@ def get_enable_broker(cfg: ConfigManager) -> dict[str, Any]:
         _logger.warning(f"启用的broker '{enable_broker_name}' 配置为空，请检查具体配置项")
         return {}
 
+    # 获取broker类型（从api_type字段）
+    broker_type = enable_broker_config.get("api_type", "")
+    if not broker_type:
+        _logger.warning(f"启用的broker '{enable_broker_name}' 缺少api_type配置")
+        return {}
+
     rsp_enable_broker["broker_name"] = enable_broker_name
+    rsp_enable_broker["broker_type"] = broker_type
     rsp_enable_broker["broker_config"] = enable_broker_config
 
     return rsp_enable_broker

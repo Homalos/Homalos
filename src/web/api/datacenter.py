@@ -55,9 +55,13 @@ async def start_datacenter(
     - 如果已在运行则返回错误
     - 返回进程PID
     """
+    from src.utils.log.logger import get_logger
+    logger = get_logger(__name__)
+    
     check_admin_permission(current_user)
     
     result = await DataCenterService.start(current_user.id, db)
+    logger.info(f"启动服务返回结果: {result}")
     
     if not result["success"]:
         raise HTTPException(
@@ -65,7 +69,17 @@ async def start_datacenter(
             detail=result["message"]
         )
     
-    return StartResponse(**result)
+    try:
+        response = StartResponse(**result)
+        logger.info(f"创建响应对象成功: {response}")
+        return response
+    except Exception as e:
+        logger.error(f"创建响应对象失败: {e}", exc_info=True)
+        logger.error(f"result内容: {result}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"创建响应失败: {str(e)}"
+        )
 
 
 @router.post("/stop", response_model=StopResponse, summary="停止数据中心")
@@ -206,9 +220,7 @@ async def get_logs(
 
 
 @router.get("/logs/stream", summary="SSE实时日志流")
-async def stream_logs(
-    current_user: User = Depends(get_current_user)
-):
+async def stream_logs():
     """
     SSE实时日志流
     
