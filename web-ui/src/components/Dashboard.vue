@@ -9,54 +9,75 @@
       </template>
       <div class="account-overview-container">
         <div class="account-item">
-          <el-statistic title="总权益" :value="dashboardData.account.totalEquity" :precision="2" prefix="¥">
-            <template #prefix>
-              <el-icon color="#409EFF"><Wallet /></el-icon>
-            </template>
-          </el-statistic>
+          <div class="custom-statistic">
+            <div class="statistic-title">总权益</div>
+            <div class="statistic-content">
+              <el-icon color="#409EFF" class="statistic-icon">
+                <Wallet />
+              </el-icon>
+              <span class="statistic-value" style="color: #409EFF;">
+                ¥{{ dashboardData.account.totalEquity.toFixed(2) }}
+              </span>
+            </div>
+          </div>
         </div>
         <div class="account-item">
-          <el-statistic title="可用资金" :value="dashboardData.account.availableFunds" :precision="2" prefix="¥">
-            <template #prefix>
-              <el-icon color="#67C23A"><Money /></el-icon>
-            </template>
-          </el-statistic>
+          <div class="custom-statistic">
+            <div class="statistic-title">可用资金</div>
+            <div class="statistic-content">
+              <el-icon color="#67C23A" class="statistic-icon">
+                <Money />
+              </el-icon>
+              <span class="statistic-value" style="color: #67C23A;">
+                ¥{{ dashboardData.account.availableFunds.toFixed(2) }}
+              </span>
+            </div>
+          </div>
         </div>
         <div class="account-item">
-          <el-statistic title="保证金占用" :value="dashboardData.account.marginUsed" :precision="2" prefix="¥">
-            <template #prefix>
-              <el-icon color="#E6A23C"><Lock /></el-icon>
-            </template>
-          </el-statistic>
+          <div class="custom-statistic">
+            <div class="statistic-title">保证金占用</div>
+            <div class="statistic-content">
+              <el-icon color="#E6A23C" class="statistic-icon">
+                <Lock />
+              </el-icon>
+              <span class="statistic-value" style="color: #E6A23C;">
+                ¥{{ dashboardData.account.marginUsed.toFixed(2) }}
+              </span>
+            </div>
+          </div>
         </div>
         <div class="account-item">
-          <el-statistic 
-            title="浮动盈亏" 
-            :value="dashboardData.account.floatingProfitLoss" 
-            :precision="2" 
-            prefix="¥"
-            :value-style="{ color: dashboardData.account.floatingProfitLoss > 0 ? '#F56C6C' : dashboardData.account.floatingProfitLoss < 0 ? '#67C23A' : '#000000' }"
-          >
-            <template #prefix>
-              <el-icon :color="dashboardData.account.floatingProfitLoss > 0 ? '#F56C6C' : dashboardData.account.floatingProfitLoss < 0 ? '#67C23A' : '#000000'">
+          <div class="custom-statistic">
+            <div class="statistic-title">浮动盈亏</div>
+            <div class="statistic-content">
+              <el-icon 
+                :color="dashboardData.account.floatingProfitLoss > 0 ? '#F56C6C' : dashboardData.account.floatingProfitLoss < 0 ? '#67C23A' : '#909399'" 
+                class="statistic-icon"
+              >
                 <TrendCharts />
               </el-icon>
-            </template>
-          </el-statistic>
+              <span 
+                class="statistic-value" 
+                :style="{ color: dashboardData.account.floatingProfitLoss > 0 ? '#F56C6C' : dashboardData.account.floatingProfitLoss < 0 ? '#67C23A' : '#909399' }"
+              >
+                ¥{{ dashboardData.account.floatingProfitLoss.toFixed(2) }}
+              </span>
+            </div>
+          </div>
         </div>
         <div class="account-item">
-          <el-statistic 
-            title="资金使用率" 
-            :value="dashboardData.account.fundUtilizationRate" 
-            :precision="2" 
-            suffix="%"
-          >
-            <template #prefix>
-              <el-icon color="#909399">
+          <div class="custom-statistic">
+            <div class="statistic-title">资金使用率</div>
+            <div class="statistic-content">
+              <el-icon color="#909399" class="statistic-icon">
                 <DataAnalysis />
               </el-icon>
-            </template>
-          </el-statistic>
+              <span class="statistic-value" style="color: #909399;">
+                {{ dashboardData.account.fundUtilizationRate.toFixed(2) }}%
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </el-card>
@@ -72,41 +93,55 @@
           </template>
           <el-row :gutter="20">
             <el-col :span="8">
-              <el-statistic 
-                title="当日收益率" 
-                :value="dashboardData.todayPerformance.returnRate" 
-                :precision="2" 
-                suffix="%"
-                :value-style="{ color: dashboardData.todayPerformance.returnRate > 0 ? '#F56C6C' : dashboardData.todayPerformance.returnRate < 0 ? '#67C23A' : '#000000' }"
-              >
-                <template #prefix>
-                  <el-icon :color="dashboardData.todayPerformance.returnRate > 0 ? '#F56C6C' : dashboardData.todayPerformance.returnRate < 0 ? '#67C23A' : '#000000'">
+              <div class="custom-statistic">
+                <div class="statistic-title">当日收益率</div>
+                <div class="statistic-content">
+                  <el-icon 
+                    :color="dashboardData.todayPerformance.returnRate > 0 ? '#F56C6C' : dashboardData.todayPerformance.returnRate < 0 ? '#67C23A' : '#909399'" 
+                    class="statistic-icon"
+                  >
                     <DataLine />
                   </el-icon>
-                </template>
-              </el-statistic>
+                  <span 
+                    class="statistic-value" 
+                    :style="{ color: dashboardData.todayPerformance.returnRate > 0 ? '#F56C6C' : dashboardData.todayPerformance.returnRate < 0 ? '#67C23A' : '#909399' }"
+                  >
+                    {{ dashboardData.todayPerformance.returnRate.toFixed(2) }}%
+                  </span>
+                </div>
+              </div>
             </el-col>
             <el-col :span="8">
-              <el-statistic 
-                title="盈亏金额" 
-                :value="dashboardData.todayPerformance.profitLoss" 
-                :precision="2" 
-                prefix="¥"
-                :value-style="{ color: dashboardData.todayPerformance.profitLoss > 0 ? '#F56C6C' : dashboardData.todayPerformance.profitLoss < 0 ? '#67C23A' : '#000000' }"
-              >
-                <template #prefix>
-                  <el-icon :color="dashboardData.todayPerformance.profitLoss > 0 ? '#F56C6C' : dashboardData.todayPerformance.profitLoss < 0 ? '#67C23A' : '#000000'">
+              <div class="custom-statistic">
+                <div class="statistic-title">盈亏金额</div>
+                <div class="statistic-content">
+                  <el-icon 
+                    :color="dashboardData.todayPerformance.profitLoss > 0 ? '#F56C6C' : dashboardData.todayPerformance.profitLoss < 0 ? '#67C23A' : '#909399'" 
+                    class="statistic-icon"
+                  >
                     <Coin />
                   </el-icon>
-                </template>
-              </el-statistic>
+                  <span 
+                    class="statistic-value" 
+                    :style="{ color: dashboardData.todayPerformance.profitLoss > 0 ? '#F56C6C' : dashboardData.todayPerformance.profitLoss < 0 ? '#67C23A' : '#909399' }"
+                  >
+                    ¥{{ dashboardData.todayPerformance.profitLoss.toFixed(2) }}
+                  </span>
+                </div>
+              </div>
             </el-col>
             <el-col :span="8">
-              <el-statistic title="交易次数" :value="dashboardData.todayPerformance.tradeCount">
-                <template #prefix>
-                  <el-icon color="#409EFF"><Operation /></el-icon>
-                </template>
-              </el-statistic>
+              <div class="custom-statistic">
+                <div class="statistic-title">交易次数</div>
+                <div class="statistic-content">
+                  <el-icon color="#409EFF" class="statistic-icon">
+                    <Operation />
+                  </el-icon>
+                  <span class="statistic-value" style="color: #409EFF;">
+                    {{ dashboardData.todayPerformance.tradeCount }}
+                  </span>
+                </div>
+              </div>
             </el-col>
           </el-row>
         </el-card>
@@ -571,9 +606,6 @@ async function fetchStrategyStatus() {
       getStrategyStatus()
     ])
     
-    console.log('[仪表盘] 策略列表原始数据:', strategiesResponse)
-    console.log('[仪表盘] 运行状态原始数据:', statusResponse)
-    
     // 获取已加载的策略（对象格式）
     const loadedStrategies = strategiesResponse.strategies || {}
     const loadedCount = Object.keys(loadedStrategies).length
@@ -581,17 +613,12 @@ async function fetchStrategyStatus() {
     // 获取运行状态（对象格式）
     const runningStrategies = statusResponse.running || {}
     
-    console.log('[仪表盘] 已加载策略数:', loadedCount)
-    console.log('[仪表盘] 运行状态对象:', runningStrategies)
-    
     // 计算运行中的策略数量（alive === true）
     const runningArray = Object.values(runningStrategies)
     const runningCount = runningArray.filter(s => s.alive === true).length
     
     // 已停止 = 已加载 - 运行中
     const stoppedCount = loadedCount - runningCount
-    
-    console.log('[仪表盘] 策略统计 - 总数:', loadedCount, '运行中:', runningCount, '已停止:', stoppedCount)
     
     strategyStatusData.active = loadedCount
     strategyStatusData.running = runningCount

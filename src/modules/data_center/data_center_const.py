@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: description
+@Description: 数据中心常量类
 """
 import datetime
 
@@ -16,9 +16,6 @@ from src.utils.get_path import get_path_ins
 from src.utils.utility import load_yaml
 
 
-"""
-数据中心常量类
-"""
 kline_times: list = []
 debug: bool = False
 
