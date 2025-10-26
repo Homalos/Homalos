@@ -187,25 +187,43 @@
           </template>
           <el-row :gutter="20">
             <el-col :span="8">
-              <el-statistic title="活跃策略" :value="dashboardData.strategyStatus.active">
-                <template #prefix>
-                  <el-icon color="#409EFF"><TrendCharts /></el-icon>
-                </template>
-              </el-statistic>
+              <div class="custom-statistic">
+                <div class="statistic-title">活跃策略</div>
+                <div class="statistic-content">
+                  <el-icon color="#409EFF" class="statistic-icon">
+                    <TrendCharts />
+                  </el-icon>
+                  <span class="statistic-value" style="color: #409EFF;">
+                    {{ strategyStatusData.active }}
+                  </span>
+                </div>
+              </div>
             </el-col>
             <el-col :span="8">
-              <el-statistic title="运行中" :value="dashboardData.strategyStatus.running">
-                <template #prefix>
-                  <el-icon color="#67C23A"><VideoPlay /></el-icon>
-                </template>
-              </el-statistic>
+              <div class="custom-statistic">
+                <div class="statistic-title">运行中</div>
+                <div class="statistic-content">
+                  <el-icon color="#67C23A" class="statistic-icon">
+                    <VideoPlay />
+                  </el-icon>
+                  <span class="statistic-value" style="color: #67C23A;">
+                    {{ strategyStatusData.running }}
+                  </span>
+                </div>
+              </div>
             </el-col>
             <el-col :span="8">
-              <el-statistic title="已停止" :value="dashboardData.strategyStatus.stopped">
-                <template #prefix>
-                  <el-icon color="#909399"><VideoPause /></el-icon>
-                </template>
-              </el-statistic>
+              <div class="custom-statistic">
+                <div class="statistic-title">已停止</div>
+                <div class="statistic-content">
+                  <el-icon color="#909399" class="statistic-icon">
+                    <VideoPause />
+                  </el-icon>
+                  <span class="statistic-value" style="color: #909399;">
+                    {{ strategyStatusData.stopped }}
+                  </span>
+                </div>
+              </div>
             </el-col>
           </el-row>
         </el-card>
@@ -333,6 +351,7 @@ import { useSystemMonitor } from '@/composables'
 import { useTradingAccountStore } from '@/stores/tradingAccount'
 import { getTradingCoreStatus } from '@/api/tradingCore'
 import { getDataCenterStatus } from '@/api/datacenter'
+import { getStrategyStatus } from '@/api/strategy'
 import EquityCurveChart from './charts/EquityCurveChart.vue'
 import ProfitLossChart from './charts/ProfitLossChart.vue'
 import ReturnRateChart from './charts/ReturnRateChart.vue'
@@ -344,6 +363,13 @@ const tradingAccountStore = useTradingAccountStore()
 const systemStatus = reactive({
   tradingCore: 'stopped',  // stopped | initializing | connecting | running | stopping | error
   dataCenter: false        // running: true/false
+})
+
+// 策略状态（真实数据）
+const strategyStatusData = reactive({
+  active: 0,    // 活跃策略数
+  running: 0,   // 运行中策略数
+  stopped: 0    // 已停止策略数
 })
 
 // 使用归零数据初始化（系统未启动时）
@@ -535,12 +561,30 @@ async function fetchDataCenterStatus() {
 }
 
 /**
+ * 获取策略状态
+ */
+async function fetchStrategyStatus() {
+  try {
+    const status = await getStrategyStatus()
+    strategyStatusData.active = status.total || 0
+    strategyStatusData.running = status.running || 0
+    strategyStatusData.stopped = status.stopped || 0
+  } catch (error) {
+    console.error('获取策略状态失败:', error)
+    strategyStatusData.active = 0
+    strategyStatusData.running = 0
+    strategyStatusData.stopped = 0
+  }
+}
+
+/**
  * 获取所有系统状态
  */
 async function fetchSystemStatus() {
   await Promise.all([
     fetchTradingCoreStatus(),
-    fetchDataCenterStatus()
+    fetchDataCenterStatus(),
+    fetchStrategyStatus()
   ])
 }
 
