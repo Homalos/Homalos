@@ -90,7 +90,7 @@ class TickData(BaseData):
     exchange_inst_id: str = None
     banding_upper_price: float = 0.0
     banding_lower_price: float = 0.0
-    # 时间戳，自定义的字段，在原始数据中不存在
+    # 时间戳，自定义的字段，在原始数据中不存在(trading_day+update_time+update_millisec转为datetime类型)
     timestamp: datetime = None
 
 

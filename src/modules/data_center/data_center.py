@@ -350,7 +350,7 @@ class DataCenter(object):
                 if strategy.bar_intervals:
                     # self.bar_generator.add_sub_kline_id(strategy.instruments)
                     # self.bar_generator.add_sub_kline_type(strategy.bar_intervals)
-                    self.bar_generator.set_kline_type(self.strategy_pool.sub_kline_type)
+                    self.bar_generator.set_kline_type(self.strategy_pool.bar_intervals)
 
             self.bar_generator.init_min_kline_map()
 

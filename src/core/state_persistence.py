@@ -17,9 +17,10 @@
 """
 import asyncio
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
+
 import msgpack
 
 from src.utils.log.logger import get_logger
@@ -108,8 +109,9 @@ class StatePersistenceManager:
     def _get_latest_file(self, sid: str) -> Path:
         """获取最新状态文件路径"""
         return self._get_strategy_dir(sid) / "state_latest.msgpack"
-    
-    def _get_snapshot_filename(self, timestamp: datetime = None) -> str:
+
+    @staticmethod
+    def _get_snapshot_filename(timestamp: datetime = None) -> str:
         """
         生成快照文件名
         
@@ -122,8 +124,9 @@ class StatePersistenceManager:
         if timestamp is None:
             timestamp = datetime.now()
         return f"state_{timestamp.strftime('%Y%m%d_%H%M%S')}.msgpack"
-    
-    async def _write_file_atomic(self, file_path: Path, data: bytes):
+
+    @staticmethod
+    async def _write_file_atomic(file_path: Path, data: bytes):
         """
         原子性写入文件（先写临时文件，再重命名）
         

@@ -137,8 +137,8 @@ class DataCenterStrategy(BaseStrategy):
         """
         ins_exchange_dict = load_json(str(get_path_ins.get_config_dir() / INSTRUMENT_EXCHANGE_FILENAME))
         # 加载所有合约代码
-        sub_ins_id = [ins for ins in list(ins_exchange_dict.keys())]
-        return sub_ins_id
+        instruments = [ins for ins in list(ins_exchange_dict.keys())]
+        return instruments
 
     class Specific(SpecificStrategy):
         """

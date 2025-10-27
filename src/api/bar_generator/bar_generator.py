@@ -864,7 +864,7 @@ class BarGenerator:
         else:
             # 旧架构：向后兼容，直接调用策略
             for strategy in constants.strategy_map.values():
-                if kline.instrument_id in strategy.sub_ins_id and kline.bar_type in strategy.sub_kline_type:
+                if kline.instrument_id in strategy.instruments and kline.bar_type in strategy.bar_intervals.get(kline.instrument_id, []):
                     self.save_kline(strategy, kline)
 
     @staticmethod

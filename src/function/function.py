@@ -47,7 +47,7 @@ class Function(object):
         if self.alarm_ins.time_in_alarm(time_now):
             strategy_id_list: list[str] = self.alarm_ins.get_strategy_ids(time_now)
             for strategy_id in strategy_id_list:
-                for ins_id in strategy_pool_ins.strategy_map[strategy_id].sub_ins_id:
+                for ins_id in strategy_pool_ins.strategy_map[strategy_id].instruments:
                     thread_pool_ins.submit(
                         strategy_pool_ins.strategy_map[strategy_id].specific_strategy_map[ins_id].on_alarm)
 
