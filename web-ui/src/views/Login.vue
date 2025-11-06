@@ -1,5 +1,12 @@
 <template>
   <div class="login-container">
+    <!-- 粒子背景效果 -->
+    <vue-particles
+      id="tsparticles"
+      :options="particlesOptions"
+    />
+    
+    <!-- 登录卡片 -->
     <el-card class="login-card">
       <!-- 标题 -->
       <div class="card-header">
@@ -131,6 +138,73 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const activeTab = ref('login')
+
+// 粒子效果配置（经典连线效果）
+const particlesOptions = {
+  background: {
+    color: {
+      value: 'transparent'
+    }
+  },
+  fpsLimit: 60,
+  particles: {
+    number: {
+      value: 80,
+      density: {
+        enable: true,
+        area: 800
+      }
+    },
+    color: {
+      value: ['#1d1d1f', '#86868b', '#515154']
+    },
+    links: {
+      enable: true,
+      color: '#86868b',
+      distance: 150,
+      opacity: 0.2,
+      width: 1
+    },
+    move: {
+      enable: true,
+      speed: 2,
+      direction: 'none',
+      random: false,
+      straight: false,
+      outModes: {
+        default: 'bounce'
+      }
+    },
+    opacity: {
+      value: 0.5
+    },
+    shape: {
+      type: 'circle'
+    },
+    size: {
+      value: { min: 2, max: 6 }
+    }
+  },
+  interactivity: {
+    detectsOn: 'canvas',
+    events: {
+      onHover: {
+        enable: true,
+        mode: 'grab'
+      },
+      resize: true
+    },
+    modes: {
+      grab: {
+        distance: 140,
+        links: {
+          opacity: 0.5
+        }
+      }
+    }
+  },
+  detectRetina: true
+}
 const loginFormRef = ref(null)
 const registerFormRef = ref(null)
 const loginLoading = ref(false)
@@ -245,16 +319,32 @@ const handleRegister = async () => {
 
 <style scoped>
 .login-container {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f5f5f7;
+  overflow: hidden;
+}
+
+/* 粒子背景层 */
+#tsparticles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
 }
 
 .login-card {
+  position: relative;
   width: 500px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  z-index: 1;
+  backdrop-filter: blur(5px);
+  background: rgba(255, 255, 255, 0.98);
 }
 
 .card-header {

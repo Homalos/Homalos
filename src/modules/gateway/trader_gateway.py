@@ -231,6 +231,7 @@ class TraderGateway(BaseGateway):
 
     def process_timer_event(self, event: Event) -> None:
         """定时事件处理 - 轮流查询账户和持仓"""
+        self.logger.debug(f"收到TIMER事件: {event.event_type}")
         if not self.td_api or not self.query_functions:
             return
 

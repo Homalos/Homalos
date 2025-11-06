@@ -90,7 +90,6 @@
     "SF609": "CZCE",
     "SF610": "CZCE",
     "ec2512": "INE",
-    "ec2510": "INE",
     "ec2602": "INE",
     "ec2604": "INE",
     "ec2606": "INE",
@@ -794,6 +793,7 @@
     "ps2607": "GFEX",
     "ps2608": "GFEX",
     "ps2609": "GFEX",
+    "ps2610": "GFEX",
     "lc2601": "GFEX",
     "lc2511": "GFEX",
     "lc2512": "GFEX",
@@ -805,6 +805,7 @@
     "lc2607": "GFEX",
     "lc2608": "GFEX",
     "lc2609": "GFEX",
+    "lc2610": "GFEX",
     "si2601": "GFEX",
     "si2511": "GFEX",
     "si2512": "GFEX",
@@ -816,7 +817,6 @@
     "si2607": "GFEX",
     "si2608": "GFEX",
     "si2609": "GFEX",
-    "lc2610": "GFEX",
-    "ps2610": "GFEX",
-    "si2610": "GFEX"
+    "si2610": "GFEX",
+    "ec2610": "INE"
 }
