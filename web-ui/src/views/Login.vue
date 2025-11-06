@@ -341,10 +341,12 @@ const handleRegister = async () => {
 .login-card {
   position: relative;
   width: 500px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   z-index: 1;
-  backdrop-filter: blur(5px);
-  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .card-header {
