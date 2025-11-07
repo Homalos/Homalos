@@ -135,3 +135,91 @@ class AuthService:
         logger.info(f"用户登录成功: {username}")
         return Token(access_token=access_token, token_type="bearer")
 
+    async def verify_reset_credentials(self, username: str, email: str) -> bool:
+        """
+        验证密码重置凭据（用户名和邮箱匹配）
+        
+        Args:
+            username: 用户名
+            email: 注册邮箱
+            
+        Returns:
+            bool: 验证是否成功
+            
+        Raises:
+            HTTPException: 验证失败
+        """
+        # 查询用户
+        result = await self.db.execute(
+            select(User).where(User.username == username)
+        )
+        user = result.scalar_one_or_none()
+
+        # 用户不存在或未绑定邮箱
+        if not user:
+            logger.warning(f"密码重置失败: 用户不存在 - {username}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="用户名或邮箱不匹配"
+            )
+        
+        if not user.email:
+            logger.warning(f"密码重置失败: 用户未绑定邮箱 - {username}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="该账户未绑定邮箱，请联系管理员重置密码"
+            )
+
+        # 验证邮箱是否匹配
+        if user.email.lower() != email.lower():
+            logger.warning(f"密码重置失败: 邮箱不匹配 - {username}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="用户名或邮箱不匹配"
+            )
+
+        # 检查用户是否被禁用
+        if not user.is_active:
+            logger.warning(f"密码重置失败: 用户已被禁用 - {username}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="用户已被禁用，无法重置密码"
+            )
+
+        logger.info(f"密码重置验证成功: {username}")
+        return True
+
+    async def reset_password(self, username: str, email: str, new_password: str) -> None:
+        """
+        重置用户密码
+        
+        Args:
+            username: 用户名
+            email: 注册邮箱
+            new_password: 新密码
+            
+        Raises:
+            HTTPException: 重置失败
+        """
+        # 再次验证凭据（安全考虑）
+        await self.verify_reset_credentials(username, email)
+
+        # 查询用户
+        result = await self.db.execute(
+            select(User).where(User.username == username)
+        )
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="用户名或邮箱不匹配"
+            )
+
+        # 更新密码
+        user.hashed_password = get_password_hash(new_password)
+        await self.db.commit()
+
+        logger.info(f"密码重置成功: {username}")
+
+

@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.web.core.database import get_db
 from src.web.core.security import get_current_user
-from src.web.schemas.user import UserCreate, UserResponse
+from src.web.schemas.user import UserCreate, UserResponse, PasswordResetRequest, PasswordResetConfirm
 from src.web.schemas.token import Token
 from src.web.services.auth_service import AuthService
 from src.web.models.user import User
@@ -81,4 +81,45 @@ async def logout(current_user: User = Depends(get_current_user)):
     前端需要删除本地存储的token
     """
     return {"message": "登出成功"}
+
+
+@router.post("/password-reset/verify", summary="验证密码重置凭据")
+async def verify_password_reset(
+    reset_request: PasswordResetRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    验证密码重置凭据（第一步：验证用户名和邮箱）
+    
+    - **username**: 用户名
+    - **email**: 注册邮箱
+    
+    验证成功后，前端可进入第二步设置新密码
+    """
+    auth_service = AuthService(db)
+    await auth_service.verify_reset_credentials(reset_request.username, reset_request.email)
+    return {"message": "验证成功，请设置新密码"}
+
+
+@router.post("/password-reset/confirm", summary="确认重置密码")
+async def confirm_password_reset(
+    reset_confirm: PasswordResetConfirm,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    确认重置密码（第二步：设置新密码）
+    
+    - **username**: 用户名
+    - **email**: 注册邮箱
+    - **new_password**: 新密码（6-50字符）
+    
+    重置成功后，用户可使用新密码登录
+    """
+    auth_service = AuthService(db)
+    await auth_service.reset_password(
+        reset_confirm.username,
+        reset_confirm.email,
+        reset_confirm.new_password
+    )
+    return {"message": "密码重置成功，请使用新密码登录"}
 

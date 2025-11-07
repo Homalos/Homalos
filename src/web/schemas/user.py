@@ -51,3 +51,15 @@ class UserResponse(UserBase):
     class Config:
         from_attributes = True  # Pydantic v2语法
 
+
+class PasswordResetRequest(BaseModel):
+    """密码重置请求（验证身份）"""
+    username: str = Field(..., description="用户名")
+    email: EmailStr = Field(..., description="注册邮箱")
+
+
+class PasswordResetConfirm(BaseModel):
+    """密码重置确认（设置新密码）"""
+    username: str = Field(..., description="用户名")
+    email: EmailStr = Field(..., description="注册邮箱")
+    new_password: str = Field(..., min_length=6, max_length=50, description="新密码")
