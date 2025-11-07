@@ -10,6 +10,12 @@
     <el-card class="login-card">
       <!-- 标题 -->
       <div class="card-header">
+        <!-- Logo图标 -->
+        <div class="logo-container">
+          <el-icon :size="48" class="logo-icon">
+            <TrendCharts />
+          </el-icon>
+        </div>
         <h2>Homalos 量化交易系统</h2>
         <p>{{ activeTab === 'login' ? '欢迎登录' : '注册新账号' }}</p>
       </div>
@@ -91,6 +97,7 @@
                 placeholder="请再次输入密码"
                 :prefix-icon="Lock"
                 show-password
+                @keyup.enter="handleRegister"
               />
             </el-form-item>
             
@@ -128,9 +135,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { User, Lock, Message, UserFilled } from '@element-plus/icons-vue'
+import { User, Lock, Message, UserFilled, TrendCharts } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 
@@ -138,6 +145,15 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const activeTab = ref('login')
+
+// 监听Tab切换，自动聚焦第一个输入框
+watch(activeTab, async (newTab) => {
+  await nextTick()
+  const firstInput = document.querySelector(`[name="${newTab}"] .el-input__inner`)
+  if (firstInput) {
+    firstInput.focus()
+  }
+})
 
 // 检测设备类型（移动端 vs 桌面端）
 const isMobile = computed(() => window.innerWidth < 768)
@@ -349,6 +365,8 @@ const handleRegister = async () => {
 .login-card {
   position: relative;
   width: 500px;
+  max-width: 95%;
+  margin: 20px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   z-index: 1;
   backdrop-filter: blur(20px) saturate(180%);
@@ -357,22 +375,72 @@ const handleRegister = async () => {
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
+@media (max-width: 768px) {
+  .login-card {
+    width: 100%;
+    max-width: 100%;
+    margin: 10px;
+  }
+  
+  .card-header h2 {
+    font-size: 20px;
+  }
+  
+  .login-tabs :deep(.el-form-item__label) {
+    font-size: 14px;
+  }
+}
+
 .card-header {
   text-align: center;
-  padding: 20px 0;
+  padding: 30px 0 20px 0;
+  border-bottom: 1px solid rgba(0, 191, 255, 0.1);
+  margin-bottom: 10px;
+}
+
+/* Logo容器样式 */
+.logo-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+/* Logo图标样式 */
+.logo-icon {
+  background: linear-gradient(135deg, #0066cc, #0090ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 4px 8px rgba(0, 102, 204, 0.4));
+  animation: logoFloat 3s ease-in-out infinite;
+}
+
+/* Logo浮动动画 */
+@keyframes logoFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 .card-header h2 {
   margin: 0 0 10px 0;
-  color: #303133;
+  color: #1a1a1a;
   font-size: 24px;
   font-weight: 600;
+  background: linear-gradient(135deg, #0090ff, #00d4ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .card-header p {
   margin: 0;
-  color: #909399;
+  color: #606266;
   font-size: 14px;
+  font-weight: 400;
 }
 
 .login-tabs {
@@ -386,6 +454,67 @@ const handleRegister = async () => {
 .login-tabs :deep(.el-tabs__item) {
   font-size: 16px;
   font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.login-tabs :deep(.el-tabs__item:hover) {
+  color: #409eff;
+}
+
+.login-tabs :deep(.el-tab-pane) {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 优化按钮视觉反馈 */
+.login-tabs :deep(.el-button) {
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+
+.login-tabs :deep(.el-button:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.3);
+}
+
+.login-tabs :deep(.el-button:active) {
+  transform: translateY(0);
+}
+
+.login-tabs :deep(.el-button.is-loading) {
+  opacity: 0.8;
+  transform: none;
+}
+
+/* 优化输入框聚焦效果 */
+.login-tabs :deep(.el-input__wrapper) {
+  transition: all 0.3s ease;
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
+}
+
+.login-tabs :deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px #c0c4cc inset;
+}
+
+.login-tabs :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #409eff inset, 0 0 8px rgba(64, 158, 255, 0.2);
+}
+
+.login-tabs :deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #606266;
 }
 </style>
 
