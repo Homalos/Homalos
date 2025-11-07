@@ -14,6 +14,7 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
   const isLoggedIn = ref(localStorage.getItem('trading_account_logged_in') === 'true')
   const accountInfo = ref(null)
   const accountList = ref([])
+  const hasBrokerConfig = ref(false) // 是否有完整的broker配置（用于连接网关）
   
   // 实时账户数据（从交易网关获取）
   const accountData = ref({
@@ -102,6 +103,7 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
     try {
       const response = await getTradingAccountStatus()
       isLoggedIn.value = response.is_logged_in
+      hasBrokerConfig.value = response.has_broker_config || false
       
       if (response.is_logged_in) {
         accountId.value = String(response.account_id)
@@ -164,6 +166,7 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
     accountId.value = null
     accountInfo.value = null
     isLoggedIn.value = false
+    hasBrokerConfig.value = false
     localStorage.removeItem('trading_account_id')
     localStorage.removeItem('trading_account_logged_in')
   }
@@ -266,6 +269,7 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
     isLoggedIn,
     accountInfo,
     accountList,
+    hasBrokerConfig,
     
     // 实时账户数据
     accountData,

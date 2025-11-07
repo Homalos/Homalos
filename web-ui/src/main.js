@@ -23,6 +23,7 @@ app.use(router)
 app.use(ElementPlus, {
   locale: zhCn,
 })
+// 注册粒子组件（需要全局注册才能正常工作）
 app.use(Particles, {
   init: async engine => {
     await loadSlim(engine)

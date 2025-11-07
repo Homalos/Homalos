@@ -19,8 +19,12 @@ import {
   getRunningStrategiesCount
 } from '@/api/tradingCore'
 import { getCurrentTime, addLog } from '@/utils'
+import { useTradingAccountStore } from '@/stores/tradingAccount'
 
 export function useConsole() {
+  // ===== 获取Store =====
+  const tradingAccountStore = useTradingAccountStore()
+  
   // ===== 状态管理 =====
   const consoleData = reactive({
     tradingCore: {
@@ -117,6 +121,58 @@ export function useConsole() {
    */
   const handleStartTradingCore = async (autoConnectGateway = true) => {
     try {
+      // 检查是否已登录资金账户
+      if (!tradingAccountStore.isLoggedIn && autoConnectGateway) {
+        const result = await ElMessageBox.confirm(
+          '启动交易核心并连接网关需要先登录资金账户（输入密码）。\n\n' +
+          '您可以选择：\n' +
+          '• 先登录资金账户，然后启动\n' +
+          '• 只启动核心，稍后手动连接网关',
+          '未登录资金账户',
+          {
+            confirmButtonText: '仅启动核心',
+            cancelButtonText: '取消',
+            type: 'warning',
+            distinguishCancelAndClose: true,
+            closeOnClickModal: false
+          }
+        ).catch(() => 'cancel')
+        
+        if (result === 'cancel') {
+          return
+        }
+        
+        // 用户选择仅启动核心，不自动连接网关
+        autoConnectGateway = false
+        ElMessage.info('将启动交易核心，但不连接网关。请登录账户后手动连接。')
+      }
+      
+      // 检查是否有完整的broker配置（免密登录时缺少密码）
+      if (tradingAccountStore.isLoggedIn && !tradingAccountStore.hasBrokerConfig && autoConnectGateway) {
+        const result = await ElMessageBox.confirm(
+          '您当前是通过免密登录，系统未获取到完整的账户配置（包括密码）。\n\n' +
+          '连接网关需要这些敏感信息。您可以选择：\n' +
+          '• 退出后重新登录并输入密码\n' +
+          '• 只启动核心，暂不连接网关',
+          '缺少完整账户配置',
+          {
+            confirmButtonText: '仅启动核心',
+            cancelButtonText: '取消',
+            type: 'warning',
+            distinguishCancelAndClose: true,
+            closeOnClickModal: false
+          }
+        ).catch(() => 'cancel')
+        
+        if (result === 'cancel') {
+          return
+        }
+        
+        // 用户选择仅启动核心，不自动连接网关
+        autoConnectGateway = false
+        ElMessage.info('将启动交易核心，但不连接网关。请重新登录（输入密码）后手动连接。')
+      }
+      
       consoleData.tradingCore.status = 'initializing'
       consoleData.tradingCore.message = '正在启动...'
       
@@ -705,6 +761,37 @@ export function useConsole() {
    */
   const handleConnectGateway = async () => {
     try {
+      // 检查是否已登录资金账户
+      if (!tradingAccountStore.isLoggedIn) {
+        ElMessageBox.alert(
+          '连接网关需要先登录资金账户（输入密码）。\n\n' +
+          '新的安全架构下，敏感的账户信息（用户名、密码等）存储在数据库中，\n' +
+          '只有登录资金账户时才会构建完整的broker配置。\n\n' +
+          '请前往"资金账户"面板登录后再尝试连接网关。',
+          '需要登录资金账户',
+          {
+            confirmButtonText: '知道了',
+            type: 'warning'
+          }
+        )
+        return
+      }
+      
+      // 检查是否有完整的broker配置（免密登录时缺少密码）
+      if (!tradingAccountStore.hasBrokerConfig) {
+        ElMessageBox.alert(
+          '您当前是通过免密登录，系统未获取到完整的账户配置（包括密码）。\n\n' +
+          '连接网关需要这些敏感信息。\n\n' +
+          '请退出资金账户后，重新登录并输入密码，然后再尝试连接网关。',
+          '缺少完整账户配置',
+          {
+            confirmButtonText: '知道了',
+            type: 'warning'
+          }
+        )
+        return
+      }
+      
       consoleData.tradingCore.status = 'connecting'
       consoleData.tradingCore.message = '正在连接网关...'
       
@@ -907,6 +994,7 @@ export function useConsole() {
     dataCenterLogs,
     selectedTradingCoreLogLevel,
     selectedDataCenterLogLevel,
+    tradingAccountStore,  // 暴露给组件使用
     
     // 计算属性
     filteredTradingCoreLogs,

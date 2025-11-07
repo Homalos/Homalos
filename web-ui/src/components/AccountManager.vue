@@ -69,10 +69,12 @@
             修改密码
           </el-button>
           <el-button
+            :disabled="isCurrentAccount(row)"
             link
             type="danger"
             size="small"
             @click="handleDelete(row)"
+            :title="isCurrentAccount(row) ? '无法删除当前登录的账户' : '删除账户'"
           >
             删除
           </el-button>
@@ -224,6 +226,7 @@ import {
   switchTradingAccount,
   changeTradingAccountPassword
 } from '@/api/tradingAccount'
+import { getTradingCoreStatus } from '@/api/tradingCore'
 
 const props = defineProps({
   modelValue: {
@@ -385,22 +388,47 @@ async function handleSaveEdit() {
  */
 async function handleDelete(row) {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除账户 "${row.display_name}" 吗？`,
-      '确认删除',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
+    // 1. 检查是否是当前账户
+    if (isCurrentAccount(row)) {
+      ElMessage.error('无法删除当前登录的账户，请先切换到其他账户或退出登录')
+      return
+    }
+    
+    // 2. 检查交易核心状态
+    let warningMessage = `确定要删除账户 "${row.display_name}" 吗？\n删除后将无法恢复。`
+    let confirmButtonText = '确定删除'
+    let type = 'warning'
+    
+    try {
+      const coreStatus = await getTradingCoreStatus()
+      if (coreStatus && coreStatus.status === 'RUNNING') {
+        warningMessage = `警告：交易核心正在运行！\n\n` +
+                        `删除账户 "${row.display_name}" 可能影响：\n` +
+                        `• 当前交易系统的稳定性\n` +
+                        `• 如需重新连接网关将无法使用此账户\n` +
+                        `• 无法通过该账户重新登录\n\n` +
+                        `强烈建议：先停止交易核心再删除账户。`
+        type = 'error'
+        confirmButtonText = '仍要删除'
       }
-    )
+    } catch (error) {
+      console.warn('获取交易核心状态失败:', error)
+    }
+    
+    await ElMessageBox.confirm(warningMessage, '确认删除账户', {
+      confirmButtonText,
+      cancelButtonText: '取消',
+      type,
+      distinguishCancelAndClose: true,
+      dangerouslyUseHTMLString: false
+    })
     
     await deleteTradingAccount(row.id)
     ElMessage.success('删除成功')
     await tradingAccountStore.fetchAccountList()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除失败')
+      ElMessage.error(error.response?.data?.detail || '删除失败')
     }
   }
 }

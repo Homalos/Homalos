@@ -21,6 +21,8 @@ class TradingAccountBase(BaseModel):
     account_id: str = Field(..., description="资金账户")
     app_id: Optional[str] = Field(None, description="应用ID")
     auth_code: Optional[str] = Field(None, description="授权码")
+    md_node_name: Optional[str] = Field(None, description="行情服务器节点名称")
+    td_node_name: Optional[str] = Field(None, description="交易服务器节点名称")
     display_name: Optional[str] = Field(None, description="显示名称")
 
 
@@ -73,6 +75,7 @@ class TradingAccountStatus(BaseModel):
     broker_id: Optional[str] = Field(None, description="券商ID")
     account_number: Optional[str] = Field(None, description="资金账号")
     display_name: Optional[str] = Field(None, description="显示名称")
+    has_broker_config: bool = Field(False, description="是否有完整的broker配置（用于连接网关）")
 
 
 class BrokerInfo(BaseModel):

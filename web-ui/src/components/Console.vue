@@ -14,6 +14,40 @@
             </div>
           </template>
           <div style="padding: 20px 0;">
+            <!-- 账户登录状态提示 -->
+            <el-alert 
+              v-if="!tradingAccountStore.isLoggedIn" 
+              type="warning" 
+              :closable="false"
+              style="margin-bottom: 20px;"
+            >
+              <template #title>
+                <span style="font-weight: 600;">⚠️ 未登录资金账户</span>
+              </template>
+              <div style="margin-top: 8px;">
+                启动交易核心并连接网关需要先登录资金账户（输入密码）。
+                <br />
+                请前往"资金账户"面板登录后再启动交易核心。
+              </div>
+            </el-alert>
+            
+            <!-- 免密登录警告（缺少完整配置） -->
+            <el-alert 
+              v-else-if="tradingAccountStore.isLoggedIn && !tradingAccountStore.hasBrokerConfig" 
+              type="warning" 
+              :closable="false"
+              style="margin-bottom: 20px;"
+            >
+              <template #title>
+                <span style="font-weight: 600;">⚠️ 缺少完整账户配置</span>
+              </template>
+              <div style="margin-top: 8px;">
+                您当前是通过<strong>免密登录</strong>，系统未获取到完整的账户配置（包括密码）。
+                <br />
+                连接网关需要这些敏感信息。请<strong>退出后重新登录并输入密码</strong>。
+              </div>
+            </el-alert>
+            
             <!-- 基础状态 -->
             <el-row :gutter="20" style="margin-bottom: 20px;">
               <el-col :span="8">
@@ -377,6 +411,7 @@ const {
   selectedDataCenterLogLevel,
   filteredTradingCoreLogs,
   filteredDataCenterLogs,
+  tradingAccountStore,
   handleStartTradingCore,
   handleStopTradingCore,
   handleConnectGateway,

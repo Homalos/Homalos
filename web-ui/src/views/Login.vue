@@ -128,7 +128,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { User, Lock, Message, UserFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -139,30 +139,37 @@ const userStore = useUserStore()
 
 const activeTab = ref('login')
 
-// 粒子效果配置（经典连线效果）
-const particlesOptions = {
+// 检测设备类型（移动端 vs 桌面端）
+const isMobile = computed(() => window.innerWidth < 768)
+
+// 根据设备类型动态设置粒子数量
+const particleCount = computed(() => isMobile.value ? 40 : 70)
+
+// 粒子效果配置（经典连线效果 + 性能优化）
+const particlesOptions = computed(() => ({
   background: {
     color: {
       value: 'transparent'
     }
   },
   fpsLimit: 60,
+  pauseOnBlur: true, // 页面失焦时暂停动画，节省资源
   particles: {
     number: {
-      value: 80,
+      value: particleCount.value, // 响应式粒子数量
       density: {
         enable: true,
         area: 800
       }
     },
     color: {
-      value: ['#1d1d1f', '#86868b', '#515154']
+      value: ['#00d4ff', '#0090ff', '#0066cc']
     },
     links: {
       enable: true,
-      color: '#86868b',
+      color: '#00bfff',
       distance: 150,
-      opacity: 0.2,
+      opacity: 0.3,
       width: 1
     },
     move: {
@@ -189,7 +196,7 @@ const particlesOptions = {
     detectsOn: 'canvas',
     events: {
       onHover: {
-        enable: true,
+        enable: !isMobile.value, // 移动端禁用鼠标交互以节省资源
         mode: 'grab'
       },
       resize: true
@@ -204,7 +211,7 @@ const particlesOptions = {
     }
   },
   detectRetina: true
-}
+}))
 const loginFormRef = ref(null)
 const registerFormRef = ref(null)
 const loginLoading = ref(false)

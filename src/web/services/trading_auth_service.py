@@ -283,13 +283,35 @@ class TradingAuthService:
         
         return account
     
-    async def delete_account(self, user_id: int, account_id: int) -> None:
-        """删除账户"""
+    async def delete_account(
+        self, 
+        user_id: int, 
+        account_id: int,
+        current_account_id: Optional[int] = None
+    ) -> None:
+        """
+        删除账户
+        
+        Args:
+            user_id: 用户ID
+            account_id: 要删除的账户ID
+            current_account_id: 当前登录的账户ID（可选）
+        
+        Raises:
+            HTTPException: 账户不存在或无法删除
+        """
         account = await self._get_account_by_id(user_id, account_id)
         if not account:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="账户不存在"
+            )
+        
+        # 检查是否是当前登录的账户
+        if current_account_id and account_id == current_account_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="无法删除当前登录的账户，请先切换到其他账户或退出登录"
             )
         
         await self.db.delete(account)

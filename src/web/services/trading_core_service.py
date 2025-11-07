@@ -357,7 +357,7 @@ class TradingCoreService:
         连接CTP网关
         
         Args:
-            broker_config: 经纪商配置（可选，使用默认配置）
+            broker_config: 经纪商配置（可选，优先使用账户设置的配置）
         
         Returns:
             dict: 连接结果
@@ -375,10 +375,23 @@ class TradingCoreService:
             start_time = time.time()
             
             # 获取经纪商配置
+            # 优先级：
+            # 1. 参数传入的配置
+            # 2. 账户登录时设置的配置（self._config）
+            # 3. 从brokers.yaml加载的默认配置（已弃用）
             if broker_config is None:
-                broker_data = load_broker_config()
-                broker_name = broker_data.get("broker_name", "")
-                broker_config = broker_data.get("broker_config", {})
+                if self._config:
+                    # 使用账户登录时设置的配置
+                    broker_data = self._config
+                    broker_name = broker_data.get("broker_name", "")
+                    broker_config = broker_data.get("broker_config", {})
+                    self.logger.info(f"使用账户broker配置连接网关: {broker_name}")
+                else:
+                    # 回退到旧的配置加载方式（向后兼容）
+                    self.logger.warning("未找到账户broker配置，使用brokers.yaml中的默认配置（不安全）")
+                    broker_data = load_broker_config()
+                    broker_name = broker_data.get("broker_name", "")
+                    broker_config = broker_data.get("broker_config", {})
             else:
                 # 如果传入了配置，检查是否是嵌套结构
                 if "broker_config" in broker_config:
@@ -389,7 +402,22 @@ class TradingCoreService:
             
             # 验证配置完整性
             if not broker_config:
-                raise ValueError("经纪商配置为空")
+                raise ValueError(
+                    "经纪商配置为空。\n"
+                    "请先登录资金账户（输入密码），系统将自动构建完整的broker配置。\n"
+                    "新的安全架构不再从brokers.yaml读取敏感信息。"
+                )
+            
+            # 验证配置中是否包含必需的敏感信息
+            required_fields = ["user_id", "password"]
+            missing_fields = [field for field in required_fields if not broker_config.get(field)]
+            
+            if missing_fields:
+                raise ValueError(
+                    f"broker配置缺少必需字段: {', '.join(missing_fields)}\n"
+                    f"请先登录资金账户（输入密码），系统将从数据库获取这些敏感信息。\n"
+                    f"如果您使用了免密登录，请重新输入密码后再启动交易核心。"
+                )
             
             # 连接行情网关
             if not self._market_gateway or not self._trader_gateway:
@@ -473,6 +501,25 @@ class TradingCoreService:
                 "success": False,
                 "message": error_msg
             }
+    
+    def set_account_broker_config(self, broker_config: Dict[str, Any]) -> None:
+        """
+        设置账户的broker配置（用于连接网关）
+        
+        Args:
+            broker_config: 完整的broker配置（包含敏感信息）
+        """
+        self._config = broker_config
+        self.logger.info(f"已设置账户broker配置: {broker_config.get('broker_name', 'unknown')}")
+    
+    def has_broker_config(self) -> bool:
+        """
+        检查是否有完整的broker配置
+        
+        Returns:
+            bool: 是否有完整的broker配置（包含敏感信息）
+        """
+        return self._config is not None and len(self._config) > 0
     
     def get_status(self) -> Dict[str, Any]:
         """
