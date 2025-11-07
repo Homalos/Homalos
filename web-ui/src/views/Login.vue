@@ -43,7 +43,6 @@
       <!-- 标题 -->
       <div class="card-header">
         <h2>Homalos 量化交易系统</h2>
-        <p>{{ activeTab === 'login' ? '欢迎登录' : '注册新账号' }}</p>
       </div>
       
       <!-- Tab切换 -->
@@ -144,17 +143,8 @@
             <el-form-item prop="email">
               <el-input
                 v-model="registerForm.email"
-                placeholder="邮箱（可选，用于找回密码）"
+                placeholder="邮箱（用于找回/修改密码）"
                 :prefix-icon="Message"
-                size="large"
-              />
-            </el-form-item>
-            
-            <el-form-item prop="full_name">
-              <el-input
-                v-model="registerForm.full_name"
-                placeholder="全名（可选）"
-                :prefix-icon="UserFilled"
                 size="large"
               />
             </el-form-item>
@@ -430,8 +420,7 @@ const registerForm = reactive({
   username: '',
   password: '',
   confirmPassword: '',
-  email: '',
-  full_name: ''
+  email: ''
 })
 
 const loginRules = {
@@ -467,6 +456,7 @@ const registerRules = {
     }
   ],
   email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
   ]
 }
