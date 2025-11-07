@@ -643,6 +643,13 @@ const resetResetForm = () => {
   
   .login-tabs :deep(.el-form-item__label) {
     font-size: 14px;
+    height: 28px;
+    line-height: 28px;
+  }
+  
+  .login-tabs :deep(.el-tabs__item) {
+    font-size: 15px;
+    padding: 0 15px;
   }
 }
 
@@ -700,6 +707,12 @@ const resetResetForm = () => {
 
 .login-tabs {
   margin-top: 20px;
+}
+
+/* Tab居中对齐 */
+.login-tabs :deep(.el-tabs__nav-wrap) {
+  display: flex;
+  justify-content: center;
 }
 
 .login-tabs :deep(.el-tabs__nav-wrap::after) {
@@ -770,6 +783,16 @@ const resetResetForm = () => {
 .login-tabs :deep(.el-form-item__label) {
   font-weight: 500;
   color: #606266;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  line-height: 32px;
+}
+
+/* 优化表单项整体对齐 */
+.login-tabs :deep(.el-form-item__content) {
+  display: flex;
+  align-items: center;
 }
 
 /* 优化"记住我"复选框样式 */
