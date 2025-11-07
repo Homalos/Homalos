@@ -28,24 +28,25 @@
             ref="loginFormRef"
             :model="loginForm"
             :rules="loginRules"
-            label-width="80px"
             @submit.prevent="handleLogin"
           >
-            <el-form-item label="用户名" prop="username">
+            <el-form-item prop="username">
               <el-input
                 v-model="loginForm.username"
-                placeholder="请输入用户名"
+                placeholder="账号名/邮箱/手机号"
                 :prefix-icon="User"
+                size="large"
               />
             </el-form-item>
             
-            <el-form-item label="密码" prop="password">
+            <el-form-item prop="password">
               <el-input
                 v-model="loginForm.password"
                 type="password"
-                placeholder="请输入密码"
+                placeholder="请输入登录密码"
                 :prefix-icon="Lock"
                 show-password
+                size="large"
                 @keyup.enter="handleLogin"
               />
             </el-form-item>
@@ -80,51 +81,55 @@
             ref="registerFormRef"
             :model="registerForm"
             :rules="registerRules"
-            label-width="100px"
             @submit.prevent="handleRegister"
           >
-            <el-form-item label="用户名" prop="username">
+            <el-form-item prop="username">
               <el-input
                 v-model="registerForm.username"
-                placeholder="请输入用户名（3-50字符）"
+                placeholder="用户名（3-50字符）"
                 :prefix-icon="User"
+                size="large"
               />
             </el-form-item>
             
-            <el-form-item label="密码" prop="password">
+            <el-form-item prop="password">
               <el-input
                 v-model="registerForm.password"
                 type="password"
-                placeholder="请输入密码（至少6位）"
+                placeholder="密码（至少6位）"
                 :prefix-icon="Lock"
                 show-password
+                size="large"
               />
             </el-form-item>
             
-            <el-form-item label="确认密码" prop="confirmPassword">
+            <el-form-item prop="confirmPassword">
               <el-input
                 v-model="registerForm.confirmPassword"
                 type="password"
-                placeholder="请再次输入密码"
+                placeholder="确认密码"
                 :prefix-icon="Lock"
                 show-password
+                size="large"
                 @keyup.enter="handleRegister"
               />
             </el-form-item>
             
-            <el-form-item label="邮箱" prop="email">
+            <el-form-item prop="email">
               <el-input
                 v-model="registerForm.email"
-                placeholder="请输入邮箱（可选）"
+                placeholder="邮箱（可选，用于找回密码）"
                 :prefix-icon="Message"
+                size="large"
               />
             </el-form-item>
             
-            <el-form-item label="全名" prop="full_name">
+            <el-form-item prop="full_name">
               <el-input
                 v-model="registerForm.full_name"
-                placeholder="请输入全名（可选）"
+                placeholder="全名（可选）"
                 :prefix-icon="UserFilled"
+                size="large"
               />
             </el-form-item>
             
@@ -157,7 +162,6 @@
         ref="resetFormRef"
         :model="resetForm"
         :rules="resetRules"
-        label-width="80px"
       >
         <el-alert
           type="info"
@@ -167,19 +171,21 @@
           请输入您的用户名和注册邮箱以验证身份
         </el-alert>
         
-        <el-form-item label="用户名" prop="username">
+        <el-form-item prop="username">
           <el-input
             v-model="resetForm.username"
-            placeholder="请输入用户名"
+            placeholder="用户名"
             :prefix-icon="User"
+            size="large"
           />
         </el-form-item>
         
-        <el-form-item label="邮箱" prop="email">
+        <el-form-item prop="email">
           <el-input
             v-model="resetForm.email"
-            placeholder="请输入注册邮箱"
+            placeholder="注册邮箱"
             :prefix-icon="Message"
+            size="large"
             @keyup.enter="handleResetPassword"
           />
         </el-form-item>
@@ -191,7 +197,6 @@
         ref="resetFormRef"
         :model="resetForm"
         :rules="resetRules"
-        label-width="90px"
       >
         <el-alert
           type="success"
@@ -201,23 +206,25 @@
           身份验证成功！请设置新密码
         </el-alert>
         
-        <el-form-item label="新密码" prop="newPassword">
+        <el-form-item prop="newPassword">
           <el-input
             v-model="resetForm.newPassword"
             type="password"
-            placeholder="请输入新密码（至少6位）"
+            placeholder="新密码（至少6位）"
             :prefix-icon="Lock"
             show-password
+            size="large"
           />
         </el-form-item>
         
-        <el-form-item label="确认密码" prop="confirmPassword">
+        <el-form-item prop="confirmPassword">
           <el-input
             v-model="resetForm.confirmPassword"
             type="password"
-            placeholder="请再次输入新密码"
+            placeholder="确认新密码"
             :prefix-icon="Lock"
             show-password
+            size="large"
             @keyup.enter="handleResetPassword"
           />
         </el-form-item>
@@ -641,15 +648,17 @@ const resetResetForm = () => {
     font-size: 20px;
   }
   
-  .login-tabs :deep(.el-form-item__label) {
-    font-size: 14px;
-    height: 28px;
-    line-height: 28px;
-  }
-  
   .login-tabs :deep(.el-tabs__item) {
     font-size: 15px;
     padding: 0 15px;
+  }
+  
+  .login-tabs :deep(.el-input--large .el-input__wrapper) {
+    padding: 10px 12px;
+  }
+  
+  .login-tabs :deep(.el-form-item) {
+    margin-bottom: 16px;
   }
 }
 
@@ -780,19 +789,34 @@ const resetResetForm = () => {
   box-shadow: 0 0 0 1px #409eff inset, 0 0 8px rgba(64, 158, 255, 0.2);
 }
 
+/* 保留label样式以防未来需要 */
 .login-tabs :deep(.el-form-item__label) {
   font-weight: 500;
   color: #606266;
-  display: flex;
-  align-items: center;
-  height: 32px;
-  line-height: 32px;
 }
 
-/* 优化表单项整体对齐 */
+/* 优化无标签表单项间距 */
+.login-tabs :deep(.el-form-item) {
+  margin-bottom: 20px;
+}
+
 .login-tabs :deep(.el-form-item__content) {
-  display: flex;
-  align-items: center;
+  line-height: normal;
+}
+
+/* 优化大尺寸输入框样式 */
+.login-tabs :deep(.el-input--large) {
+  font-size: 15px;
+}
+
+.login-tabs :deep(.el-input--large .el-input__wrapper) {
+  padding: 12px 15px;
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
+}
+
+.login-tabs :deep(.el-input--large .el-input__inner) {
+  height: 24px;
+  line-height: 24px;
 }
 
 /* 优化"记住我"复选框样式 */
@@ -843,6 +867,15 @@ const resetResetForm = () => {
 :deep(.el-dialog__footer) {
   border-top: 1px solid rgba(0, 191, 255, 0.1);
   padding: 15px 20px;
+}
+
+/* Dialog中的表单项样式 */
+:deep(.el-dialog .el-form-item) {
+  margin-bottom: 18px;
+}
+
+:deep(.el-dialog .el-input--large .el-input__wrapper) {
+  padding: 10px 12px;
 }
 </style>
 
