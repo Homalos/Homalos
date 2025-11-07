@@ -95,10 +95,14 @@
         <el-input
           v-model="formData.password"
           type="password"
-          placeholder="请输入交易密码"
+          :placeholder="isPasswordRemembered ? '已保存密码，可直接登录（或输入新密码更新）' : '请输入交易密码'"
           show-password
           @keyup.enter="handleLogin"
         />
+        <div v-if="isPasswordRemembered" style="color: #67C23A; font-size: 12px; margin-top: 4px;">
+          <el-icon><Check /></el-icon>
+          已记住密码，可直接登录
+        </div>
       </el-form-item>
 
       <!-- 记住账户 -->
@@ -123,8 +127,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Check } from '@element-plus/icons-vue'
 import { useTradingAccountStore } from '@/stores/tradingAccount'
 import { getBrokers } from '@/api/tradingAccount'
 
@@ -161,7 +166,16 @@ const formData = reactive({
   remember: false
 })
 
-const rules = {
+// 当前选中账户是否记住了密码
+const isPasswordRemembered = computed(() => {
+  if (loginMode.value === 'existing' && formData.account_id) {
+    const account = accountList.value.find(acc => acc.id === formData.account_id)
+    return account?.remember_password || false
+  }
+  return false
+})
+
+const rules = computed(() => ({
   account_id: [
     { required: true, message: '请选择账户', trigger: 'change' }
   ],
@@ -172,10 +186,25 @@ const rules = {
     { required: true, message: '请输入资金账号', trigger: 'blur' }
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度至少6位', trigger: 'blur' }
+    { 
+      required: !isPasswordRemembered.value, 
+      message: '请输入密码', 
+      trigger: 'blur' 
+    },
+    { 
+      min: 6, 
+      message: '密码长度至少6位', 
+      trigger: 'blur',
+      validator: (rule, value, callback) => {
+        if (value && value.length < 6) {
+          callback(new Error('密码长度至少6位'))
+        } else {
+          callback()
+        }
+      }
+    }
   ]
-}
+}))
 
 /**
  * 登录
@@ -206,6 +235,9 @@ async function handleLogin() {
       const result = await tradingAccountStore.login(loginData)
       
       if (result.success) {
+        // 保存上次登录的账户ID
+        localStorage.setItem('last_trading_account_id', String(result.account.id))
+        
         ElMessage.success('登录成功')
         emit('success', result.account)
         handleClose()
@@ -250,6 +282,29 @@ onMounted(() => {
   // 如果没有账户，默认使用新账户模式
   if (!hasAccounts.value) {
     loginMode.value = 'new'
+  } else {
+    // 自动选择上次登录的账户
+    const lastAccountId = localStorage.getItem('last_trading_account_id')
+    if (lastAccountId) {
+      const accountIdNum = parseInt(lastAccountId)
+      const account = accountList.value.find(acc => acc.id === accountIdNum)
+      if (account) {
+        formData.account_id = accountIdNum
+        loginMode.value = 'existing'
+      }
+    }
+  }
+})
+
+// 监听账户选择变化，自动设置remember状态
+watch(() => formData.account_id, (newAccountId) => {
+  if (newAccountId && loginMode.value === 'existing') {
+    const account = accountList.value.find(acc => acc.id === newAccountId)
+    if (account && account.remember_password) {
+      formData.remember = true
+      // 清空密码字段，因为已经记住了
+      formData.password = ''
+    }
   }
 })
 </script>

@@ -190,6 +190,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useTradingAccountStore } from '@/stores/tradingAccount'
 import { getSystemStats } from '@/api/monitor'
+import { getTradingCoreStatus } from '@/api/tradingCore'
 // Mock 数据导入
 // （控制台、任务调度器、通知中心、仪表盘的数据已在各自组件中导入）
 // 常量导入
@@ -287,13 +288,43 @@ const handleUserCommand = async (command) => {
  */
 async function handleLogoutTrading() {
   try {
+    // 检查交易核心状态
+    let coreStatus = null
+    try {
+      coreStatus = await getTradingCoreStatus()
+    } catch (error) {
+      console.warn('获取交易核心状态失败:', error)
+    }
+    
+    // 根据交易核心状态显示不同的提示
+    let message = '确定要退出资金账户吗？'
+    let type = 'info'
+    let confirmButtonText = '确定'
+    
+    if (coreStatus && coreStatus.status === 'RUNNING') {
+      message = '注意：交易核心正在运行！\n\n' +
+                '退出资金账户后：\n' +
+                '• 交易核心将继续运行\n' +
+                '• 运行中的策略将继续执行\n' +
+                '• 交易信号将继续发送\n\n' +
+                '建议：如需停止交易，请先在控制台面板停止交易核心。'
+      type = 'warning'
+      confirmButtonText = '仍要退出'
+    } else if (coreStatus && coreStatus.status !== 'STOPPED') {
+      // 交易核心在其他状态（INITIALIZING, CONNECTING等）
+      message = '退出资金账户后，交易核心将继续运行。\n' +
+                '如需停止交易，请在控制台面板手动停止交易核心。'
+      type = 'warning'
+    }
+    
     await ElMessageBox.confirm(
-      '确定要退出资金账户吗？',
-      '确认退出',
+      message,
+      '确认退出资金账户',
       {
-        confirmButtonText: '确定',
+        confirmButtonText: confirmButtonText,
         cancelButtonText: '取消',
-        type: 'warning'
+        type: type,
+        distinguishCancelAndClose: true
       }
     )
     
@@ -310,14 +341,45 @@ async function handleLogoutTrading() {
  */
 async function handleLogout() {
   try {
-    await ElMessageBox.confirm(
-      '确定要退出系统登录吗？',
-      '确认退出',
-      {
-        confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
+    // 检查交易核心状态
+    let coreStatus = null
+    try {
+      coreStatus = await getTradingCoreStatus()
+    } catch (error) {
+      console.warn('获取交易核心状态失败:', error)
     }
+    
+    // 根据交易核心状态显示不同的提示
+    let message = '确定要退出系统登录吗？'
+    let type = 'info'
+    let confirmButtonText = '确定'
+    
+    if (coreStatus && coreStatus.status === 'RUNNING') {
+      message = '警告：交易核心正在运行！\n\n' +
+                '退出系统登录后：\n' +
+                '• 交易核心将继续运行\n' +
+                '• 运行中的策略将继续执行\n' +
+                '• 交易信号将继续发送\n' +
+                '• 您将无法通过Web界面管理系统\n\n' +
+                '强烈建议：退出前先在控制台面板停止交易核心。'
+      type = 'error'  // 使用error类型更醒目
+      confirmButtonText = '仍要退出'
+    } else if (coreStatus && coreStatus.status !== 'STOPPED') {
+      // 交易核心在其他状态（INITIALIZING, CONNECTING等）
+      message = '退出系统登录后，交易核心将继续运行。\n' +
+                '如需停止交易，请在控制台面板手动停止交易核心。'
+      type = 'warning'
+    }
+    
+    await ElMessageBox.confirm(
+      message,
+      '确认退出系统登录',
+      {
+        confirmButtonText: confirmButtonText,
+        cancelButtonText: '取消',
+        type: type,
+        distinguishCancelAndClose: true
+      }
     )
     
     // 先退出资金账户

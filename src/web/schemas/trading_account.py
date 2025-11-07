@@ -48,7 +48,7 @@ class TradingAccountLogin(BaseModel):
     broker_key: Optional[str] = Field(None, description="券商配置key（新账户）")
     broker_id: Optional[str] = Field(None, description="券商ID（新账户，可选）")
     account_number: Optional[str] = Field(None, description="资金账号（新账户）")
-    password: str = Field(..., description="密码")
+    password: str = Field("", description="密码（使用已记住密码时可为空）")
     remember: bool = Field(False, description="记住账户")
 
 
@@ -58,6 +58,7 @@ class TradingAccountResponse(TradingAccountBase):
     user_id: int
     is_active: bool
     is_default: bool
+    remember_password: bool
     last_login: Optional[datetime]
     created_at: datetime
     

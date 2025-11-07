@@ -28,6 +28,7 @@ class TradingAccount(BaseModel):
     display_name = Column(String(100), comment="显示名称")
     is_active = Column(Boolean, default=True, nullable=False, comment="是否激活")
     is_default = Column(Boolean, default=False, nullable=False, comment="是否默认账户")
+    remember_password = Column(Boolean, default=False, nullable=False, comment="是否记住密码")
     failed_attempts = Column(Integer, default=0, nullable=False, comment="登录失败次数")
     locked_until = Column(DateTime, nullable=True, comment="锁定到期时间")
     last_login = Column(DateTime, nullable=True, comment="最后登录时间")

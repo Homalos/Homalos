@@ -66,7 +66,8 @@ async def login_trading_account(
             broker_key=login_data.broker_key,
             broker_id=login_data.broker_id,
             account_number=login_data.account_number,
-            password=login_data.password
+            password=login_data.password,
+            remember=login_data.remember
         )
         
         # 生成新Token（包含资金账户信息）

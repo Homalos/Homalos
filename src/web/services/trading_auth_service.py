@@ -9,7 +9,7 @@
 @Software   : PyCharm
 @Description: 资金账户认证服务
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,7 +40,8 @@ class TradingAuthService:
         broker_key: Optional[str],
         broker_id: Optional[str],
         account_number: Optional[str],
-        password: str
+        password: str,
+        remember: bool = False
     ) -> TradingAccount:
         """
         资金账户登录
@@ -122,7 +123,7 @@ class TradingAuthService:
                         if account:
                             logger.warning(f"账户已存在（并发创建）: account_id={account.id}")
                         else:
-                            logger.error(f"并发创建后仍无法找到账户")
+                            logger.error("并发创建后仍无法找到账户")
                             raise e
                     else:
                         logger.error(f"创建账户失败: {e.detail}")
@@ -136,44 +137,62 @@ class TradingAuthService:
             )
         
         # 检查锁定状态
-        if account.locked_until and account.locked_until > datetime.utcnow():
-            remaining = (account.locked_until - datetime.utcnow()).seconds // 60
+        if account.locked_until and account.locked_until > datetime.now(timezone.utc):
+            remaining = (account.locked_until - datetime.now(timezone.utc)).seconds // 60
             raise HTTPException(
                 status_code=status.HTTP_423_LOCKED,
                 detail=f"账户已锁定，请在 {remaining} 分钟后重试"
             )
         
         # 验证密码
-        if not verify_password(password, account.encrypted_password):
-            # 记录失败次数
-            account.failed_attempts += 1
-            
-            # 达到最大次数则锁定
-            if account.failed_attempts >= MAX_FAILED_ATTEMPTS:
-                account.locked_until = datetime.utcnow() + timedelta(minutes=LOCK_DURATION_MINUTES)
-                await self.db.commit()
-                logger.warning(f"账户已锁定: {account.account_id}, 失败次数: {account.failed_attempts}")
-                raise HTTPException(
-                    status_code=status.HTTP_423_LOCKED,
-                    detail=f"密码错误次数过多，账户已锁定 {LOCK_DURATION_MINUTES} 分钟"
-                )
-            
-            await self.db.commit()
-            remaining_attempts = MAX_FAILED_ATTEMPTS - account.failed_attempts
-            logger.warning(f"密码错误: {account.account_id}, 剩余尝试次数: {remaining_attempts}")
+        # 检查密码是否为空
+        password_is_empty = not password or password.strip() == ''
+        
+        # 如果密码为空但账户未记住密码，则报错
+        if password_is_empty and not account.remember_password:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"密码错误，剩余尝试次数: {remaining_attempts}"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="请输入密码"
             )
         
+        # 如果账户已记住密码且未提供新密码，则跳过验证（免密登录）
+        skip_password_verification = account.remember_password and password_is_empty
+        
+        if not skip_password_verification:
+            # 需要验证密码
+            if not verify_password(password, account.encrypted_password):  # type: ignore
+                # 记录失败次数
+                account.failed_attempts += 1  # type: ignore
+                
+                # 达到最大次数则锁定
+                if account.failed_attempts >= MAX_FAILED_ATTEMPTS:
+                    account.locked_until = datetime.now(timezone.utc) + timedelta(minutes=LOCK_DURATION_MINUTES)  # type: ignore
+                    await self.db.commit()
+                    logger.warning(f"账户已锁定: {account.account_id}, 失败次数: {account.failed_attempts}")
+                    raise HTTPException(
+                        status_code=status.HTTP_423_LOCKED,
+                        detail=f"密码错误次数过多，账户已锁定 {LOCK_DURATION_MINUTES} 分钟"
+                    )
+                
+                await self.db.commit()
+                remaining_attempts = MAX_FAILED_ATTEMPTS - account.failed_attempts
+                logger.warning(f"密码错误: {account.account_id}, 剩余尝试次数: {remaining_attempts}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"密码错误，剩余尝试次数: {remaining_attempts}"
+                )
+        else:
+            logger.info(f"使用已记住密码登录: user_id={user_id}, account_id={account.id}")
+        
         # 登录成功，重置失败次数
-        account.failed_attempts = 0
-        account.locked_until = None
-        account.last_login = datetime.utcnow()
+        account.failed_attempts = 0  # type: ignore
+        account.locked_until = None  # type: ignore
+        account.last_login = datetime.now(timezone.utc)  # type: ignore
+        account.remember_password = remember  # type: ignore
         await self.db.commit()
         await self.db.refresh(account)
         
-        logger.info(f"资金账户登录成功: user_id={user_id}, account_id={account.id}")
+        logger.info(f"资金账户登录成功: user_id={user_id}, account_id={account.id}, remember={remember}")
         return account
     
     async def add_account(
@@ -254,11 +273,11 @@ class TradingAuthService:
             )
         
         if display_name is not None:
-            account.display_name = display_name
+            account.display_name = display_name  # type: ignore
         if is_active is not None:
-            account.is_active = is_active
+            account.is_active = is_active  # type: ignore
         
-        account.updated_at = datetime.utcnow()
+        account.updated_at = datetime.now(timezone.utc)  # type: ignore
         await self.db.commit()
         await self.db.refresh(account)
         
@@ -290,7 +309,7 @@ class TradingAuthService:
                 detail="账户不存在"
             )
         
-        account.is_default = True
+        account.is_default = True  # type: ignore
         await self.db.commit()
         await self.db.refresh(account)
         
@@ -313,15 +332,15 @@ class TradingAuthService:
             )
         
         # 验证旧密码
-        if not verify_password(old_password, account.encrypted_password):
+        if not verify_password(old_password, account.encrypted_password):  # type: ignore
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="旧密码错误"
             )
         
         # 更新密码
-        account.encrypted_password = get_password_hash(new_password)
-        account.updated_at = datetime.utcnow()
+        account.encrypted_password = get_password_hash(new_password)  # type: ignore
+        account.updated_at = datetime.now(timezone.utc)  # type: ignore
         await self.db.commit()
         
         logger.info(f"修改账户密码: user_id={user_id}, account_id={account_id}")
@@ -364,12 +383,12 @@ class TradingAuthService:
             select(TradingAccount).where(
                 and_(
                     TradingAccount.user_id == user_id,
-                    TradingAccount.is_default == True
+                    TradingAccount.is_default.is_(True)
                 )
             )
         )
         accounts = result.scalars().all()
         for account in accounts:
-            account.is_default = False
+            account.is_default = False  # type: ignore
         await self.db.commit()
 
