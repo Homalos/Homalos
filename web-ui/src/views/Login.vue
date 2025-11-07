@@ -6,16 +6,42 @@
       :options="particlesOptions"
     />
     
+    <!-- 顶部导航栏 -->
+    <div class="top-nav">
+      <!-- 左侧Logo -->
+      <div class="nav-logo">
+        <el-icon :size="32" class="nav-logo-icon">
+          <TrendCharts />
+        </el-icon>
+      </div>
+      
+      <!-- 右侧语言切换 -->
+      <div class="nav-language">
+        <el-select
+          v-model="currentLanguage"
+          placeholder="语言"
+          size="default"
+          @change="handleLanguageChange"
+        >
+          <el-option
+            v-for="item in languageOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          >
+            <span class="language-option-content">
+              <span class="language-icon">{{ item.icon }}</span>
+              <span class="language-text">{{ item.label }}</span>
+            </span>
+          </el-option>
+        </el-select>
+      </div>
+    </div>
+    
     <!-- 登录卡片 -->
     <el-card class="login-card">
       <!-- 标题 -->
       <div class="card-header">
-        <!-- Logo图标 -->
-        <div class="logo-container">
-          <el-icon :size="48" class="logo-icon">
-            <TrendCharts />
-          </el-icon>
-        </div>
         <h2>Homalos 量化交易系统</h2>
         <p>{{ activeTab === 'login' ? '欢迎登录' : '注册新账号' }}</p>
       </div>
@@ -256,6 +282,20 @@ const userStore = useUserStore()
 
 const activeTab = ref('login')
 const rememberMe = ref(false)
+
+// 语言切换相关
+const currentLanguage = ref('zh-CN')
+const languageOptions = [
+  { value: 'zh-CN', label: '简体中文', icon: '🇨🇳' },
+  { value: 'en-US', label: 'English', icon: '🇺🇸' }
+]
+
+// 语言切换处理函数
+const handleLanguageChange = (value) => {
+  console.log('语言切换:', value)
+  ElMessage.success(`语言已切换为: ${languageOptions.find(item => item.value === value)?.label}`)
+  // TODO: 集成i18n后实现真实的语言切换逻辑
+}
 
 // 密码重置相关状态
 const showResetDialog = ref(false)
@@ -624,6 +664,84 @@ const resetResetForm = () => {
   z-index: 0;
 }
 
+/* 顶部导航栏 */
+.top-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 30px;
+  background: transparent;
+  z-index: 2;
+}
+
+/* 左侧Logo */
+.nav-logo {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.nav-logo-icon {
+  background: linear-gradient(135deg, #0066cc, #0090ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 4px rgba(0, 102, 204, 0.3));
+}
+
+/* 右侧语言切换 */
+.nav-language {
+  display: flex;
+  align-items: center;
+}
+
+.nav-language :deep(.el-select) {
+  width: 160px;
+}
+
+.nav-language :deep(.el-input__wrapper) {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.nav-language :deep(.el-input__wrapper:hover) {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.15);
+}
+
+.nav-language :deep(.el-input__wrapper.is-focus) {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 1px rgba(0, 102, 204, 0.3) inset, 0 4px 12px rgba(0, 102, 204, 0.15);
+}
+
+/* 下拉选项内容 */
+.language-option-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.language-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.language-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #606266;
+}
+
 .login-card {
   position: relative;
   width: 500px;
@@ -638,14 +756,41 @@ const resetResetForm = () => {
 }
 
 @media (max-width: 768px) {
+  /* 移动端顶部导航栏 */
+  .top-nav {
+    height: 50px;
+    padding: 0 15px;
+  }
+  
+  .nav-logo-icon {
+    font-size: 28px;
+  }
+  
+  .nav-language :deep(.el-select) {
+    width: 130px;
+  }
+  
+  .nav-language :deep(.el-input__inner) {
+    font-size: 13px;
+  }
+  
+  /* 移动端登录卡片 */
   .login-card {
     width: 100%;
     max-width: 100%;
     margin: 10px;
   }
   
+  .card-header {
+    padding: 25px 25px 15px 25px;
+  }
+  
   .card-header h2 {
     font-size: 20px;
+  }
+  
+  .login-tabs {
+    padding: 0 25px 25px 25px;
   }
   
   .login-tabs :deep(.el-tabs__item) {
@@ -664,36 +809,9 @@ const resetResetForm = () => {
 
 .card-header {
   text-align: center;
-  padding: 30px 0 20px 0;
+  padding: 30px 50px 20px 50px;
   border-bottom: 1px solid rgba(0, 191, 255, 0.1);
   margin-bottom: 10px;
-}
-
-/* Logo容器样式 */
-.logo-container {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-
-/* Logo图标样式 */
-.logo-icon {
-  background: linear-gradient(135deg, #0066cc, #0090ff);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 4px 8px rgba(0, 102, 204, 0.4));
-  animation: logoFloat 3s ease-in-out infinite;
-}
-
-/* Logo浮动动画 */
-@keyframes logoFloat {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
 }
 
 .card-header h2 {
@@ -701,7 +819,7 @@ const resetResetForm = () => {
   color: #1a1a1a;
   font-size: 24px;
   font-weight: 600;
-  background: linear-gradient(135deg, #0090ff, #00d4ff);
+  background: linear-gradient(135deg, #0066cc, #0090ff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -716,6 +834,7 @@ const resetResetForm = () => {
 
 .login-tabs {
   margin-top: 20px;
+  padding: 0 50px 30px 50px;
 }
 
 /* Tab居中对齐 */
@@ -878,4 +997,6 @@ const resetResetForm = () => {
   padding: 10px 12px;
 }
 </style>
+
+
 
