@@ -51,6 +51,12 @@
             </el-form-item>
             
             <el-form-item>
+              <el-checkbox v-model="rememberMe" size="default">
+                记住用户名
+              </el-checkbox>
+            </el-form-item>
+            
+            <el-form-item>
               <el-button
                 type="primary"
                 :loading="loginLoading"
@@ -135,7 +141,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, nextTick } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { User, Lock, Message, UserFilled, TrendCharts } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -145,6 +151,7 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const activeTab = ref('login')
+const rememberMe = ref(false)
 
 // 监听Tab切换，自动聚焦第一个输入框
 watch(activeTab, async (newTab) => {
@@ -152,6 +159,15 @@ watch(activeTab, async (newTab) => {
   const firstInput = document.querySelector(`[name="${newTab}"] .el-input__inner`)
   if (firstInput) {
     firstInput.focus()
+  }
+})
+
+// 组件挂载时，从localStorage加载保存的用户名
+onMounted(() => {
+  const savedUsername = localStorage.getItem('homalos_remember_username')
+  if (savedUsername) {
+    loginForm.username = savedUsername
+    rememberMe.value = true
   }
 })
 
@@ -294,6 +310,13 @@ const handleLogin = async () => {
     try {
       const success = await userStore.login(loginForm)
       if (success) {
+        // 根据"记住我"选项，保存或清除用户名
+        if (rememberMe.value) {
+          localStorage.setItem('homalos_remember_username', loginForm.username)
+        } else {
+          localStorage.removeItem('homalos_remember_username')
+        }
+        
         ElMessage.success('登录成功')
         router.push('/')
       }
@@ -515,6 +538,21 @@ const handleRegister = async () => {
 .login-tabs :deep(.el-form-item__label) {
   font-weight: 500;
   color: #606266;
+}
+
+/* 优化"记住我"复选框样式 */
+.login-tabs :deep(.el-checkbox) {
+  font-size: 14px;
+  user-select: none;
+}
+
+.login-tabs :deep(.el-checkbox__label) {
+  color: #606266;
+  transition: color 0.3s ease;
+}
+
+.login-tabs :deep(.el-checkbox:hover .el-checkbox__label) {
+  color: #409eff;
 }
 </style>
 
