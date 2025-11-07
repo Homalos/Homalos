@@ -212,6 +212,7 @@ const particlesOptions = computed(() => ({
   },
   detectRetina: true
 }))
+
 const loginFormRef = ref(null)
 const registerFormRef = ref(null)
 const loginLoading = ref(false)
