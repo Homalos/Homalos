@@ -351,14 +351,24 @@ const particlesOptions = computed(() => ({
       }
     },
     color: {
-      value: ['#00d4ff', '#0090ff', '#0066cc']
+      value: ['#00ff00', '#ff0000']
+    },
+    shadow: {
+      enable: true,
+      color: '#00ff00',
+      blur: 20
+    },
+    stroke: {
+      width: 0,
+      color: '#ffffff',
+      opacity: 0.2
     },
     links: {
       enable: true,
-      color: '#00bfff',
+      color: '#666666',
       distance: 150,
-      opacity: 0.3,
-      width: 1
+      opacity: 0.6,
+      width: 1.5
     },
     move: {
       enable: true,
@@ -371,7 +381,12 @@ const particlesOptions = computed(() => ({
       }
     },
     opacity: {
-      value: 0.5
+      value: { min: 0.1, max: 0.9 },
+      animation: {
+        enable: true,
+        speed: 1.5,
+        sync: false
+      }
     },
     shape: {
       type: 'circle'
@@ -662,6 +677,12 @@ const resetResetForm = () => {
   width: 100%;
   height: 100%;
   z-index: 0;
+  filter: brightness(1.1) contrast(1.05);
+}
+
+/* 粒子发光增强效果 */
+#tsparticles canvas {
+  filter: blur(0.5px) brightness(1.1);
 }
 
 /* 顶部导航栏 */
