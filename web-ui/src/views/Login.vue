@@ -18,6 +18,8 @@
         <rect x="80" y="90" width="1280" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
         <rect x="80" y="445" width="1280" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
         <rect x="80" y="800" width="1280" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
+        <polygon v-if="klineDrawPoints.length" :points="`${klineDrawPoints[0].x},${klineDrawPoints[0].y-15} ${klineDrawPoints[0].x-7},${klineDrawPoints[0].y-3} ${klineDrawPoints[0].x+7},${klineDrawPoints[0].y-3}`"
+          fill="#ff2c55" style="filter:drop-shadow(0 0 3px #f87b88);" />
         <polyline
           :points="drawLinePS"
           class="kline-draw-polyline"
@@ -26,17 +28,6 @@
           fill="none"
         />
       </svg>
-      <!-- 仅保留动态粒子 -->
-      <div class="particles">
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-      </div>
     </div>
     
     <!-- 顶部导航栏 -->
@@ -876,7 +867,7 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
 
 /* 下拉菜单容器 - 深色玻璃拟物效果 */
 .language-dropdown-menu {
-  background: #183564 !important;
+  background: rgba(18, 28, 48, 0.98) !important;
   /* 蓝色可选渐变风格：background: linear-gradient(135deg,#183564 0%,#253764 100%) !important; */
   backdrop-filter: blur(16px);
   border: 1.5px solid rgba(37,55,100,0.23) !important;
