@@ -2,30 +2,32 @@
   <div class="login-container">
     <!-- 深色主题动画背景 -->
     <div class="video-background">
-      <div class="data-stream-container">
-        <!-- 10条垂直数据流 -->
-        <div class="data-stream stream-1"></div>
-        <div class="data-stream stream-2"></div>
-        <div class="data-stream stream-3"></div>
-        <div class="data-stream stream-4"></div>
-        <div class="data-stream stream-5"></div>
-        <div class="data-stream stream-6"></div>
-        <div class="data-stream stream-7"></div>
-        <div class="data-stream stream-8"></div>
-        <div class="data-stream stream-9"></div>
-        <div class="data-stream stream-10"></div>
-        
-        <!-- 8个交易粒子 -->
-        <div class="particles">
-          <div class="particle"></div>
-          <div class="particle"></div>
-          <div class="particle"></div>
-          <div class="particle"></div>
-          <div class="particle"></div>
-          <div class="particle"></div>
-          <div class="particle"></div>
-          <div class="particle"></div>
-        </div>
+      <svg class="kline-draw-svg" width="100%" height="100%" viewBox="0 0 1440 900" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="klineUpGradient" x1="0" y1="900" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#2196f3"/>
+            <stop offset="55%" stop-color="#dbeafe"/>
+            <stop offset="100%" stop-color="#3794ff"/>
+          </linearGradient>
+        </defs>
+        <polyline
+          :points="drawLinePS"
+          class="kline-draw-polyline"
+          stroke="url(#klineUpGradient)"
+          stroke-width="8"
+          fill="none"
+        />
+      </svg>
+      <!-- 仅保留动态粒子 -->
+      <div class="particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
       </div>
     </div>
     
@@ -591,6 +593,55 @@ const resetResetForm = () => {
     resetFormRef.value.clearValidate()
   }
 }
+
+// 登录K线动态延展折线 - 上升趋势、延展动画
+const KLINE_PCOUNT = 38
+const SVG_WIDTH = 1440
+const SVG_HEIGHT = 900
+const BASE_START_X = 60
+const BASE_START_Y = SVG_HEIGHT * 0.7
+const BASE_END_X = SVG_WIDTH - 100
+const BASE_END_Y = SVG_HEIGHT * 0.22
+function makeBigVolatileKLinePoints() {
+  const arr = []
+  let lastX = BASE_START_X, lastY = BASE_START_Y
+  for (let i = 0; i < KLINE_PCOUNT; i++) {
+    const frac = i / (KLINE_PCOUNT - 1)
+    const x = BASE_START_X + frac * (BASE_END_X - BASE_START_X) + Math.random() * 16 * Math.pow(frac, 2)
+    let yBase = BASE_START_Y + frac * (BASE_END_Y - BASE_START_Y)
+    // 波动更大：拉升与回调加倍
+    if (i && (i % 10 === 5 || i % 17 === 3)) yBase += 45 + Math.random() * 40  // 回调放大
+    if (i && (i % 7 === 2 || i % 11 === 6)) yBase -= 60 + Math.random() * 30   // 拉升放大
+    // y扰动放大
+    const y = yBase + (Math.random() - 0.5) * 40
+    arr.push({ x, y })
+    lastX = x; lastY = y
+  }
+  return arr
+}
+const klineDrawPoints = ref(makeBigVolatileKLinePoints())
+const revealCount = ref(1)
+const drawLinePS = computed(() => klineDrawPoints.value.slice(0,revealCount.value).map(p=>`${p.x},${p.y}`).join(' '))
+let drawTimer = null
+onMounted(() => {
+  const drawNext = () => {
+    revealCount.value = 1
+    klineDrawPoints.value = makeBigVolatileKLinePoints()
+    drawTimer = setInterval(() => {
+      if (revealCount.value < klineDrawPoints.value.length) {
+        revealCount.value++
+      } else if (drawTimer) {
+        clearInterval(drawTimer)
+        drawTimer = null
+        // 动画停留3秒再循环
+        setTimeout(() => {
+          drawNext()
+        }, 3000)
+      }
+    }, 100)
+  }
+  drawNext()
+})
 </script>
 
 <style scoped>
@@ -613,8 +664,23 @@ const resetResetForm = () => {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: #05080A; /* 深黑色背景 */
+  background: linear-gradient(135deg, #070e19 0%, #10192c 55%, #15203a 100%);
   overflow: hidden;
+  height: 100vh; width: 100vw; position: relative;
+}
+.login-container::before {
+  content: '';
+  position: absolute; left: 0; top:0; width: 100vw; height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 70% 60%, rgba(120,145,240,0.14) 0%, rgba(100,220,245,0.05) 49%, rgba(40,30,80,0.18) 100%),
+    radial-gradient(circle at 30% 40%, rgba(22,28,120,0.11) 0%, rgba(100,120,180,0.09) 57%, rgba(0,0,0,0.14) 100%);
+  filter: blur(6px);
+}
+.video-background{
+  height:100vh; width:100vw; position:relative;
+  background: linear-gradient(120deg, #0a101a 0%, #151e2c 90%, #111b2d 100%);
+  background: transparent !important;
 }
 
 /* 深色主题动画背景 */
@@ -628,82 +694,6 @@ const resetResetForm = () => {
   background: linear-gradient(135deg, #05080A 0%, #0A0F14 50%, #05080A 100%);
   overflow: hidden;
   pointer-events: none; /* 允许点击穿透 */
-}
-
-.data-stream-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  animation: backgroundShift 20s ease-in-out infinite;
-}
-
-@keyframes backgroundShift {
-  0%, 100% { 
-    background: linear-gradient(135deg, #05080A 0%, #0A0F14 50%, #05080A 100%); 
-  }
-  33% { 
-    background: linear-gradient(135deg, #060A0F 0%, #0B1016 50%, #060A0F 100%); 
-  }
-  66% { 
-    background: linear-gradient(135deg, #04070B 0%, #090E14 50%, #04070B 100%); 
-  }
-}
-
-/* 垂直数据流动画 */
-.data-stream {
-  position: absolute;
-  width: 2px;
-  height: 200%;
-  background: linear-gradient(to bottom, 
-    transparent 0%, 
-    rgba(0, 123, 255, 0.2) 10%, 
-    #007BFF 50%, 
-    rgba(0, 123, 255, 0.2) 90%, 
-    transparent 100%);
-  opacity: 0.6; /* 增加可见度 */
-  animation: dataFlow 6s infinite linear;
-}
-
-.stream-1 { left: 10%; animation-delay: 0s; }
-.stream-2 { left: 25%; animation-delay: 0.5s; }
-.stream-3 { left: 50%; animation-delay: 1s; }
-.stream-4 { left: 75%; animation-delay: 1.5s; }
-.stream-5 { left: 90%; animation-delay: 2s; }
-.stream-6 { left: 5%; animation-delay: 2.5s; width: 1px; }
-.stream-7 { left: 35%; animation-delay: 3s; width: 3px; }
-.stream-8 { left: 60%; animation-delay: 3.5s; width: 1px; }
-.stream-9 { left: 80%; animation-delay: 4s; width: 2px; }
-.stream-10 { left: 95%; animation-delay: 4.5s; width: 1px; }
-
-@keyframes dataFlow {
-  0% { 
-    transform: translateY(-100vh) translateX(0) scaleY(1); 
-    opacity: 0; 
-  }
-  5% { 
-    opacity: 0.2; 
-    transform: translateY(-90vh) translateX(2px) scaleY(1.2);
-  }
-  20% { 
-    opacity: 0.4; 
-    transform: translateY(-60vh) translateX(-1px) scaleY(0.8);
-  }
-  50% { 
-    opacity: 0.6; 
-    transform: translateY(0vh) translateX(1px) scaleY(1.1);
-  }
-  80% { 
-    opacity: 0.4; 
-    transform: translateY(60vh) translateX(-2px) scaleY(0.9);
-  }
-  95% { 
-    opacity: 0.2; 
-    transform: translateY(90vh) translateX(0) scaleY(1.2);
-  }
-  100% { 
-    transform: translateY(100vh) translateX(0) scaleY(1); 
-    opacity: 0; 
-  }
 }
 
 /* 粒子效果 */
@@ -828,11 +818,14 @@ const resetResetForm = () => {
 }
 
 .nav-logo-icon {
-  background: linear-gradient(135deg, #33eaff 40%, #5db0ff 80%, #fff 100%);
+  background: linear-gradient(135deg, #eaf6ff 20%, #b1dcff 55%, #83aaff 80%, #deebff 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  filter: drop-shadow(0 2px 8px #22ffff) drop-shadow(0 0 16px #0af) drop-shadow(0 0 2px #fff); /* 多层亮色发光 */
+  text-shadow: 1px -1px 10px #eaf6ff, 0 0 6px #83aaff, 0 0 14px #b1dcff;
+}
+.nav-logo-icon svg {
+  filter: drop-shadow(0 1px 10px #fff) drop-shadow(0 2px 20px #dbeafe);
 }
 
 @media (max-width: 768px) {
@@ -867,33 +860,22 @@ const resetResetForm = () => {
 
 /* 下拉菜单容器 - 深色玻璃拟物效果 */
 .language-dropdown-menu {
-  background: rgba(16, 22, 28, 0.85) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
-  border-radius: 8px;
-  padding: 8px 0;
-  min-width: 160px;
+  background: #183564 !important;
+  /* 蓝色可选渐变风格：background: linear-gradient(135deg,#183564 0%,#253764 100%) !important; */
+  backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(37,55,100,0.23) !important;
+  color: var(--text-primary) !important;
 }
-
-/* 下拉菜单项样式 */
-:deep(.language-dropdown-menu .el-dropdown-menu__item) {
-  padding: 10px 20px;
-  color: var(--text-primary);
-  transition: all 0.3s ease;
-  border-radius: 4px;
-  margin: 0 6px;
+.language-dropdown-menu .el-dropdown-menu__item {
+  color: var(--text-primary) !important;
 }
-
-:deep(.language-dropdown-menu .el-dropdown-menu__item:hover) {
-  background: rgba(64, 158, 255, 0.15) !important;
-  color: #409eff;
+.language-dropdown-menu .el-dropdown-menu__item:hover {
+  background: rgba(55, 133, 255, 0.13) !important;
+  color: #fff !important;
 }
-
-:deep(.language-dropdown-menu .el-dropdown-menu__item.is-active) {
-  background: rgba(64, 158, 255, 0.2) !important;
-  color: #409eff;
+.language-dropdown-menu .el-dropdown-menu__item.is-active {
+  background: rgba(49, 139, 255, 0.20) !important;
+  color: #fff !important;
   font-weight: 600;
 }
 
@@ -921,12 +903,12 @@ const resetResetForm = () => {
   width: 500px;
   max-width: 95%;
   margin: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  z-index: 1;
-  backdrop-filter: blur(20px); /* 强化毛玻璃效果 */
-  -webkit-backdrop-filter: blur(20px);
-  background: var(--surface-glass) !important; /* 深色半透明玻璃效果 */
-  border: 1px solid var(--border-default);
+  box-shadow: 0 10px 40px 0 rgba(19, 64, 160, 0.17), 0 0 0 8px rgba(66,139,255,0.06) inset;
+  border: 1.5px solid;
+  border-image: linear-gradient(135deg,#233562 20%,#111b2e 100%) 1;
+  background: rgba(19, 32, 58, 0.92); /* 深科技蓝，接近黑色 */
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
 }
 
 @media (max-width: 768px) {
@@ -1248,16 +1230,6 @@ const resetResetForm = () => {
 /* 可用JS/按钮切换 .theme-high-contrast/.theme-color-blind 应用对应主题 */
 
 /* 5. 动效节奏统一 */
-.data-stream {
-  animation: dataFlow 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
-@keyframes dataFlow {
-  0%   { transform: translateY(-100vh) scaleY(1); opacity: 0; }
-  5%   { opacity: 0.2; }
-  15%  { opacity: 0.7; }
-  70%  { opacity: 0.8; }
-  100% { transform: translateY(100vh) scaleY(1); opacity: 0; }
-}
 .particles { z-index: 1; }
 .particle {
   animation: particleFloat 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
@@ -1267,6 +1239,25 @@ const resetResetForm = () => {
   10% { transform: translateY(-10px) scale(0.8); opacity: 0.3; }
   25% { transform: translateY(-20px) scale(1); opacity: 1; }
   80% { opacity: 0.6; }
+}
+.kline-draw-svg{
+  width:100vw; height:100vh;
+  background: transparent !important;
+  pointer-events: none;
+  z-index: 0;
+}
+.kline-draw-polyline{
+  stroke-width:8;
+  filter:drop-shadow(0 0 16px #307efd);
+  opacity:1;
+}
+.particles {
+  position:relative;
+  z-index:1;
+}
+.login-card {
+  position:relative;
+  z-index:2;
 }
 </style>
 
