@@ -9,7 +9,15 @@
             <stop offset="55%" stop-color="#dbeafe"/>
             <stop offset="100%" stop-color="#3794ff"/>
           </linearGradient>
+          <linearGradient id="lineFlowGrad" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#42aaff"/>
+            <stop offset="58%" stop-color="#dbeafe"/>
+            <stop offset="100%" stop-color="#2345b7"/>
+          </linearGradient>
         </defs>
+        <rect x="80" y="90" width="1280" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
+        <rect x="80" y="445" width="1280" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
+        <rect x="80" y="800" width="1280" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
         <polyline
           :points="drawLinePS"
           class="kline-draw-polyline"
@@ -598,9 +606,9 @@ const resetResetForm = () => {
 const KLINE_PCOUNT = 38
 const SVG_WIDTH = 1440
 const SVG_HEIGHT = 900
-const BASE_START_X = 60
+const BASE_START_X = 80
+const BASE_END_X = 1360
 const BASE_START_Y = SVG_HEIGHT * 0.7
-const BASE_END_X = SVG_WIDTH - 100
 const BASE_END_Y = SVG_HEIGHT * 0.22
 function makeBigVolatileKLinePoints() {
   const arr = []
@@ -614,7 +622,8 @@ function makeBigVolatileKLinePoints() {
     if (i && (i % 7 === 2 || i % 11 === 6)) yBase -= 60 + Math.random() * 30   // 拉升放大
     // y扰动放大
     const y = yBase + (Math.random() - 0.5) * 40
-    arr.push({ x, y })
+    // x范围绝不越界
+    arr.push({ x: Math.max(BASE_START_X, Math.min(BASE_END_X, x)), y })
     lastX = x; lastY = y
   }
   return arr
@@ -638,10 +647,17 @@ onMounted(() => {
           drawNext()
         }, 3000)
       }
-    }, 100)
+    }, 300)
   }
   drawNext()
 })
+
+const drawLineMinY = computed(() => Math.max(...klineDrawPoints.value.map(p => p.y)) + 40)
+const drawLineMaxY = computed(() => Math.min(...klineDrawPoints.value.map(p => p.y)) - 40)
+const drawLineMinX = computed(() => Math.min(...klineDrawPoints.value.map(p => p.x)))
+const drawLineMaxX = computed(() => Math.max(...klineDrawPoints.value.map(p => p.x)))
+const lineRectX = computed(() => Math.max(0, drawLineMinX.value-30))
+const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+60, 50))
 </script>
 
 <style scoped>
@@ -664,7 +680,7 @@ onMounted(() => {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #070e19 0%, #10192c 55%, #15203a 100%);
+  background: linear-gradient(135deg, #05090f 0%, #0b1120 58%, #101725 100%);
   overflow: hidden;
   height: 100vh; width: 100vw; position: relative;
 }
@@ -679,7 +695,7 @@ onMounted(() => {
 }
 .video-background{
   height:100vh; width:100vw; position:relative;
-  background: linear-gradient(120deg, #0a101a 0%, #151e2c 90%, #111b2d 100%);
+  background: linear-gradient(120deg, #070a12 0%, #0c1422 95%, #0f1523 100%);
   background: transparent !important;
 }
 
@@ -903,12 +919,19 @@ onMounted(() => {
   width: 500px;
   max-width: 95%;
   margin: 20px;
-  box-shadow: 0 10px 40px 0 rgba(19, 64, 160, 0.17), 0 0 0 8px rgba(66,139,255,0.06) inset;
-  border: 1.5px solid;
-  border-image: linear-gradient(135deg,#233562 20%,#111b2e 100%) 1;
-  background: rgba(19, 32, 58, 0.92); /* 深科技蓝，接近黑色 */
+  /* box-shadow、background等保持不变 */
+  background: rgba(18, 28, 48, 0.98) !important;
   backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
+  z-index: 5;
+  /* 完全无边框、无渐变描边 */
+  border: none !important;
+  border-image: none !important;
+}
+.kline-draw-svg, .video-background {
+  z-index: 0 !important;
+  background: transparent !important;
+  pointer-events: none !important;
 }
 
 @media (max-width: 768px) {
