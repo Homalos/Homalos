@@ -20,6 +20,9 @@
         <rect x="80" y="800" width="1280" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
         <polygon v-if="klineDrawPoints.length" :points="`${klineDrawPoints[0].x},${klineDrawPoints[0].y-15} ${klineDrawPoints[0].x-7},${klineDrawPoints[0].y-3} ${klineDrawPoints[0].x+7},${klineDrawPoints[0].y-3}`"
           fill="#ff2c55" style="filter:drop-shadow(0 0 3px #f87b88);" />
+        <polygon v-if="klineDrawPoints.length && revealCount===klineDrawPoints.length"
+          :points="`${klineDrawPoints[revealCount-1].x},${klineDrawPoints[revealCount-1].y+15} ${klineDrawPoints[revealCount-1].x-7},${klineDrawPoints[revealCount-1].y+3} ${klineDrawPoints[revealCount-1].x+7},${klineDrawPoints[revealCount-1].y+3}`"
+          fill="#00e349" style="filter:drop-shadow(0 0 3px #47ff8c);" />
         <polyline
           :points="drawLinePS"
           class="kline-draw-polyline"
