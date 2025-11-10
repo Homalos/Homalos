@@ -486,9 +486,11 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #409eff;
+  background: linear-gradient(135deg, #223d80df 0%, #2a53a0df 55%, #3062badf 100%);
   color: white;
   padding: 0 20px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .header-left h2 {

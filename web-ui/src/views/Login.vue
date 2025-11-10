@@ -15,9 +15,9 @@
             <stop offset="100%" stop-color="#2345b7"/>
           </linearGradient>
         </defs>
-        <rect x="80" y="90" width="1280" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
-        <rect x="80" y="445" width="1280" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
-        <rect x="80" y="800" width="1280" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
+        <rect x="170" y="90" width="1100" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
+        <rect x="170" y="445" width="1100" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
+        <rect x="170" y="800" width="1100" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
         <polygon v-if="klineDrawPoints.length" :points="`${klineDrawPoints[0].x},${klineDrawPoints[0].y-15} ${klineDrawPoints[0].x-7},${klineDrawPoints[0].y-3} ${klineDrawPoints[0].x+7},${klineDrawPoints[0].y-3}`"
           fill="#ff2c55" style="filter:drop-shadow(0 0 3px #f87b88);" />
         <polygon v-if="klineDrawPoints.length && revealCount===klineDrawPoints.length"
@@ -27,7 +27,7 @@
           :points="drawLinePS"
           class="kline-draw-polyline"
           stroke="url(#klineUpGradient)"
-          stroke-width="8"
+          stroke-width="5"
           fill="none"
         />
       </svg>
@@ -600,10 +600,11 @@ const resetResetForm = () => {
 const KLINE_PCOUNT = 38
 const SVG_WIDTH = 1440
 const SVG_HEIGHT = 900
-const BASE_START_X = 80
-const BASE_END_X = 1360
 const BASE_START_Y = SVG_HEIGHT * 0.7
 const BASE_END_Y = SVG_HEIGHT * 0.22
+// 常量区调整：
+const BASE_START_X = 200
+const BASE_END_X = SVG_WIDTH - BASE_START_X
 function makeBigVolatileKLinePoints() {
   const arr = []
   let lastX = BASE_START_X, lastY = BASE_START_Y
