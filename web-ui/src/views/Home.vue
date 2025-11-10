@@ -9,9 +9,11 @@
         <!-- 资金账户登录按钮（未登录时显示） -->
         <el-button
           v-if="!tradingAccountStore.isLoggedIn"
-          type="success"
+          class="login-account-transparent-btn"
+          type="primary"
           size="small"
           @click="showTradingLogin = true"
+          plain
         >
           <el-icon><Unlock /></el-icon>
           登录资金账户
@@ -552,6 +554,20 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   padding: 4px 0;
+}
+
+.login-account-transparent-btn {
+  background: transparent !important;
+  border: none !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  transition: background 0.2s, border 0.2s, box-shadow 0.2s;
+}
+.login-account-transparent-btn:hover {
+  border: 1.3px solid #409EFF !important;
+  background: rgba(64,158,255,0.09) !important;
+  color: #409EFF !important;
+  box-shadow: 0 0 8px #409eff33;
 }
 </style>
 
