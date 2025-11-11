@@ -4,30 +4,35 @@
     <div class="video-background">
       <svg class="kline-draw-svg" width="100%" height="100%" viewBox="0 0 1440 900" preserveAspectRatio="none">
         <defs>
+          <!-- K线上涨渐变 - 优化：增强对比度和科技感 -->
           <linearGradient id="klineUpGradient" x1="0" y1="900" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#2196f3"/>
-            <stop offset="55%" stop-color="#dbeafe"/>
-            <stop offset="100%" stop-color="#3794ff"/>
+            <stop offset="0%" stop-color="#1e88e5"/>
+            <stop offset="50%" stop-color="#64b5f6"/>
+            <stop offset="100%" stop-color="#2196f3"/>
           </linearGradient>
+          <!-- 水平线渐变 - 优化：更明显的流动感 -->
           <linearGradient id="lineFlowGrad" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stop-color="#42aaff"/>
-            <stop offset="58%" stop-color="#dbeafe"/>
-            <stop offset="100%" stop-color="#2345b7"/>
+            <stop offset="50%" stop-color="#90caf9"/>
+            <stop offset="100%" stop-color="#2196f3"/>
           </linearGradient>
         </defs>
-        <rect x="170" y="90" width="1100" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 2px #76c3fa);opacity:0.2" />
-        <rect x="170" y="445" width="1100" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 2px #76c3fa);opacity:0.2" />
-        <rect x="170" y="800" width="1100" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 2px #76c3fa);opacity:0.2" />
+        <!-- 水平参考线 - 优化：增强透明度和发光效果 -->
+        <rect x="170" y="90" width="1100" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 4px #76c3fa);opacity:0.3" class="reference-line" />
+        <rect x="170" y="445" width="1100" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 4px #76c3fa);opacity:0.3" class="reference-line" />
+        <rect x="170" y="800" width="1100" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 4px #76c3fa);opacity:0.3" class="reference-line" />
+        <!-- 起点标记（红色下跌箭头） - 优化：增强发光效果 -->
         <polygon v-if="klineDrawPoints.length" :points="`${klineDrawPoints[0].x},${klineDrawPoints[0].y-15} ${klineDrawPoints[0].x-7},${klineDrawPoints[0].y-3} ${klineDrawPoints[0].x+7},${klineDrawPoints[0].y-3}`"
-          fill="#ff2c55" style="filter:drop-shadow(0 0 3px #f87b88);" />
+          fill="#ff2c55" style="filter:drop-shadow(0 0 5px #f87b88) drop-shadow(0 0 10px rgba(255, 44, 85, 0.4));" class="start-marker" />
+        <!-- 终点标记（绿色上涨箭头） - 优化：增强发光效果 -->
         <polygon v-if="klineDrawPoints.length && revealCount===klineDrawPoints.length"
           :points="`${klineDrawPoints[revealCount-1].x},${klineDrawPoints[revealCount-1].y+15} ${klineDrawPoints[revealCount-1].x-7},${klineDrawPoints[revealCount-1].y+3} ${klineDrawPoints[revealCount-1].x+7},${klineDrawPoints[revealCount-1].y+3}`"
-          fill="#00e349" style="filter:drop-shadow(0 0 3px #47ff8c);" />
+          fill="#00e349" style="filter:drop-shadow(0 0 5px #47ff8c) drop-shadow(0 0 10px rgba(0, 227, 73, 0.4));" class="end-marker" />
         <polyline
           :points="drawLinePS"
           class="kline-draw-polyline"
           stroke="url(#klineUpGradient)"
-          stroke-width="5"
+          stroke-width="6"
           fill="none"
         />
       </svg>
@@ -647,10 +652,10 @@ onMounted(() => {
       } else if (drawTimer) {
         clearInterval(drawTimer)
         drawTimer = null
-        // 动画停留3秒再循环
+        // 动画停留5秒再循环（优化：让用户更好地欣赏完整动画）
         setTimeout(() => {
           drawNext()
-        }, 3000)
+        }, 5000)
       }
     }, 300)
   }
@@ -954,7 +959,7 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
 }
 
 .language-dropdown-menu .el-dropdown-menu__item {
-  color: rgba(255, 255, 255, 0.85) !important;
+  color: #f0f2f5 !important; /* 改为亮白色，从rgba(255, 255, 255, 0.85)提升 */
   padding: 10px 14px !important;
   border-radius: 6px !important;
   margin: 2px 0 !important;
@@ -969,7 +974,7 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
 .language-dropdown-menu .el-dropdown-menu__item.is-active {
   background: rgba(64, 158, 255, 0.25) !important;
   color: #ffffff !important;
-  font-weight: 500;
+  font-weight: 600; /* 从500增加到600，更醒目 */
 }
 
 /* 下拉选项内容 */
@@ -1083,7 +1088,29 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
   }
   
   .login-tabs :deep(.el-form-item) {
-    margin-bottom: 16px;
+    margin-bottom: 20px; /* 从16px增加到20px，避免误触 */
+  }
+  
+  /* 移动端输入框触摸优化 */
+  .login-tabs :deep(.el-input--large .el-input__wrapper) {
+    min-height: 48px; /* 符合移动端最小触摸区域标准 */
+    padding: 14px 15px; /* 增加内边距，触摸更舒适 */
+  }
+  
+  /* 移动端禁用输入框hover效果（触摸设备不需要） */
+  .login-tabs :deep(.el-input__wrapper:hover) {
+    transform: none;
+  }
+  
+  /* 移动端focus状态不上浮（避免内容跳动） */
+  .login-tabs :deep(.el-input__wrapper.is-focus) {
+    transform: none;
+  }
+  
+  /* 移动端按钮触摸优化 */
+  .login-tabs :deep(.el-button) {
+    min-height: 48px; /* 符合移动端最小触摸区域标准 */
+    font-size: 16px; /* 防止iOS自动缩放 */
   }
 }
 
@@ -1157,45 +1184,152 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
   }
 }
 
-/* 优化按钮视觉反馈 */
+/* 优化按钮视觉反馈 - 渐变背景增强 */
 .login-tabs :deep(.el-button) {
   font-weight: 500;
   letter-spacing: 0.5px;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
 }
 
-.login-tabs :deep(.el-button:hover) {
+/* 主要按钮（登录）- 蓝色科技渐变 */
+.login-tabs :deep(.el-button--primary) {
+  background: linear-gradient(135deg, #409eff 0%, #2d7bdb 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.35) !important;
+}
+
+.login-tabs :deep(.el-button--primary:hover) {
+  background: linear-gradient(135deg, #53a8ff 0%, #409eff 100%) !important;
+  transform: translateY(-3px) !important;
+  box-shadow: 0 6px 20px rgba(64, 158, 255, 0.45) !important;
+}
+
+.login-tabs :deep(.el-button--primary:active) {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 10px rgba(64, 158, 255, 0.4) !important;
+}
+
+.login-tabs :deep(.el-button--primary.is-loading) {
+  background: linear-gradient(135deg, #409eff 0%, #2d7bdb 100%) !important;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.35) !important;
+  opacity: 0.9 !important;
+  transform: none !important;
+}
+
+/* 成功按钮（注册）- 绿色渐变 */
+.login-tabs :deep(.el-button--success) {
+  background: linear-gradient(135deg, #67c23a 0%, #4a9e2b 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(103, 194, 58, 0.35) !important;
+}
+
+.login-tabs :deep(.el-button--success:hover) {
+  background: linear-gradient(135deg, #85ce61 0%, #67c23a 100%) !important;
+  transform: translateY(-3px) !important;
+  box-shadow: 0 6px 20px rgba(103, 194, 58, 0.45) !important;
+}
+
+.login-tabs :deep(.el-button--success:active) {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 10px rgba(103, 194, 58, 0.4) !important;
+}
+
+.login-tabs :deep(.el-button--success.is-loading) {
+  background: linear-gradient(135deg, #67c23a 0%, #4a9e2b 100%) !important;
+  box-shadow: 0 4px 12px rgba(103, 194, 58, 0.35) !important;
+  opacity: 0.9 !important;
+  transform: none !important;
+}
+
+/* 默认按钮（取消等）- 深色玻璃质感 */
+.login-tabs :deep(.el-button--default) {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.05) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.login-tabs :deep(.el-button--default:hover) {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.08) 100%);
+  border-color: rgba(64, 158, 255, 0.3);
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.2);
 }
 
-.login-tabs :deep(.el-button:active) {
+.login-tabs :deep(.el-button--default:active) {
   transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
-.login-tabs :deep(.el-button.is-loading) {
-  opacity: 0.8;
-  transform: none;
-}
-
-/* 优化输入框聚焦效果 - 深色主题 */
+/* 优化输入框聚焦效果 - 深色主题增强版 */
 .login-tabs :deep(.el-input__wrapper) {
   background: var(--input-bg); /* 深色半透明背景 */
   border: 1px solid var(--border-default);
-  transition: all 0.3s ease;
-  box-shadow: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  position: relative;
 }
 
 .login-tabs :deep(.el-input__wrapper:hover) {
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(0, 123, 255, 0.3);
+  border-color: rgba(64, 158, 255, 0.4);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
 }
 
 .login-tabs :deep(.el-input__wrapper.is-focus) {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   border-color: #409eff;
-  box-shadow: 0 0 8px rgba(64, 158, 255, 0.3);
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.15),
+              0 0 12px rgba(64, 158, 255, 0.4),
+              0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Focus状态下的脉冲动画 */
+.login-tabs :deep(.el-input__wrapper.is-focus)::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  border-radius: inherit;
+  border: 1px solid #409eff;
+  opacity: 0;
+  animation: focusPulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes focusPulse {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(1.02);
+  }
+}
+
+/* 前缀图标（用户名、密码、邮箱图标）增强 */
+.login-tabs :deep(.el-input__prefix) {
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover状态时前缀图标变亮 */
+.login-tabs :deep(.el-input__wrapper:hover .el-input__prefix) {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Focus状态时前缀图标高亮并发光 */
+.login-tabs :deep(.el-input__wrapper.is-focus .el-input__prefix) {
+  color: #409eff;
+  filter: drop-shadow(0 0 4px rgba(64, 158, 255, 0.6));
+  transform: scale(1.1);
 }
 
 /* 输入框文字颜色 */
@@ -1298,6 +1432,56 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
   padding: 10px 12px;
 }
 
+/* Dialog中输入框的focus状态增强 */
+:deep(.el-dialog .el-input__wrapper) {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+:deep(.el-dialog .el-input__wrapper:hover) {
+  border-color: rgba(64, 158, 255, 0.4);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+}
+
+:deep(.el-dialog .el-input__wrapper.is-focus) {
+  border-color: #409eff;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.15),
+              0 0 12px rgba(64, 158, 255, 0.3),
+              0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Dialog中前缀图标的focus状态 */
+:deep(.el-dialog .el-input__wrapper.is-focus .el-input__prefix) {
+  color: #409eff;
+  filter: drop-shadow(0 0 4px rgba(64, 158, 255, 0.6));
+}
+
+/* Dialog中的按钮渐变优化 */
+:deep(.el-dialog .el-button--primary) {
+  background: linear-gradient(135deg, #409eff 0%, #2d7bdb 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-dialog .el-button--primary:hover) {
+  background: linear-gradient(135deg, #53a8ff 0%, #409eff 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.45) !important;
+}
+
+:deep(.el-dialog .el-button--default) {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.05) 100%);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-dialog .el-button--default:hover) {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.08) 100%);
+  border-color: rgba(64, 158, 255, 0.2);
+  transform: translateY(-2px);
+}
+
 /* 1. 输入框和密码icon间距 */
 .login-tabs :deep(.el-input--large .el-input__wrapper) {
   padding-left: 18px;
@@ -1308,13 +1492,22 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
   margin-right: 8px;
 }
 
-/* 2. 密码可见icon hover发光高亮 */
+/* 2. 密码可见icon hover发光高亮 - 增强版 */
 .login-tabs :deep(.el-input__suffix .el-icon) {
-  transition: color 0.3s, filter 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px;
 }
 .login-tabs :deep(.el-input__suffix .el-icon:hover) {
   color: #40a9ff !important;
   filter: drop-shadow(0 0 8px #40a9ff) drop-shadow(0 0 12px #2cecfa);
+  transform: scale(1.15);
+  background: rgba(64, 158, 255, 0.1);
+}
+.login-tabs :deep(.el-input__suffix .el-icon:active) {
+  transform: scale(1.05);
+  filter: drop-shadow(0 0 6px #40a9ff);
 }
 
 /* 3. 玻璃卡片增强，层次发光和渐变框 */
@@ -1364,10 +1557,72 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
   pointer-events: none;
   z-index: 0;
 }
+/* K线折线动画优化 - 增强视觉效果 */
 .kline-draw-polyline{
-  stroke-width:8;
-  filter:drop-shadow(0 0 4px #307efd);
-  opacity:0.3;
+  stroke-width:6; /* 从8减少到6，线条更精致 */
+  filter:drop-shadow(0 0 6px #307efd) drop-shadow(0 0 12px rgba(48, 126, 253, 0.4)); /* 双层发光，科技感更强 */
+  opacity:0.5; /* 从0.3提升到0.5，更清晰可见 */
+  animation: klineGlow 3s ease-in-out infinite; /* 添加呼吸灯效果 */
+}
+
+/* K线呼吸灯动画 - 微妙的明暗变化 */
+@keyframes klineGlow {
+  0%, 100% {
+    opacity: 0.5;
+    filter: drop-shadow(0 0 6px #307efd) drop-shadow(0 0 12px rgba(48, 126, 253, 0.4));
+  }
+  50% {
+    opacity: 0.65;
+    filter: drop-shadow(0 0 8px #307efd) drop-shadow(0 0 16px rgba(48, 126, 253, 0.5));
+  }
+}
+
+/* 水平参考线呼吸效果 */
+.reference-line {
+  animation: referenceGlow 4s ease-in-out infinite;
+}
+
+@keyframes referenceGlow {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* 起点标记动画 - 红色下跌箭头从上往下移动 */
+.start-marker {
+  animation: startMarkerMove 2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes startMarkerMove {
+  0%, 100% {
+    opacity: 0.9;
+    transform: translateY(-3px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(3px); /* 向下移动 */
+  }
+}
+
+/* 终点标记动画 - 绿色上涨箭头从下往上移动 */
+.end-marker {
+  animation: endMarkerMove 2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes endMarkerMove {
+  0%, 100% {
+    opacity: 0.9;
+    transform: translateY(3px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px); /* 向上移动 */
+  }
 }
 .particles {
   position:relative;
