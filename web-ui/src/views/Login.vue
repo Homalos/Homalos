@@ -958,23 +958,27 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
   min-width: 160px !important;
 }
 
-.language-dropdown-menu .el-dropdown-menu__item {
-  color: #f0f2f5 !important; /* 改为亮白色，从rgba(255, 255, 255, 0.85)提升 */
+/* 下拉菜单项 - 增强选择器优先级 */
+.el-dropdown-menu.language-dropdown-menu .el-dropdown-menu__item,
+.language-dropdown-menu.el-dropdown-menu .el-dropdown-menu__item {
+  color: #f0f2f5 !important; /* 亮白色 */
   padding: 10px 14px !important;
   border-radius: 6px !important;
   margin: 2px 0 !important;
   transition: all 0.2s ease !important;
 }
 
-.language-dropdown-menu .el-dropdown-menu__item:hover {
+.el-dropdown-menu.language-dropdown-menu .el-dropdown-menu__item:hover,
+.language-dropdown-menu.el-dropdown-menu .el-dropdown-menu__item:hover {
   background: rgba(64, 158, 255, 0.15) !important;
   color: #ffffff !important;
 }
 
-.language-dropdown-menu .el-dropdown-menu__item.is-active {
+.el-dropdown-menu.language-dropdown-menu .el-dropdown-menu__item.is-active,
+.language-dropdown-menu.el-dropdown-menu .el-dropdown-menu__item.is-active {
   background: rgba(64, 158, 255, 0.25) !important;
   color: #ffffff !important;
-  font-weight: 600; /* 从500增加到600，更醒目 */
+  font-weight: 600; /* 更醒目 */
 }
 
 /* 下拉选项内容 */
@@ -991,9 +995,20 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
   line-height: 1;
 }
 
-.language-label {
+/* 语言标签文字 - 确保亮白色 */
+.language-dropdown-menu .language-label,
+.el-dropdown-menu.language-dropdown-menu .language-label {
   flex: 1;
   font-size: 14px;
+  color: #f0f2f5 !important; /* 强制亮白色 */
+  font-weight: 500; /* 增加字重，更清晰 */
+}
+
+/* Hover和激活状态下的文字颜色 */
+.language-dropdown-menu .el-dropdown-menu__item:hover .language-label,
+.language-dropdown-menu .el-dropdown-menu__item.is-active .language-label {
+  color: #ffffff !important; /* 纯白色 */
+  font-weight: 600 !important;
 }
 
 .check-icon {
