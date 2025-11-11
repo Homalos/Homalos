@@ -157,8 +157,9 @@
               <span>系统监控</span>
             </div>
           </template>
-          <el-row :gutter="16">
-            <el-col :span="6">
+          <!-- 1x3网格布局 -->
+          <el-row :gutter="20">
+            <el-col :span="8">
               <div class="custom-statistic">
                 <div class="statistic-title">交易系统状态</div>
                 <div class="statistic-content">
@@ -171,20 +172,7 @@
                 </div>
               </div>
             </el-col>
-            <el-col :span="6">
-              <div class="custom-statistic">
-                <div class="statistic-title">数据中心状态</div>
-                <div class="statistic-content">
-                  <el-icon :color="dataCenterStatusInfo.color" class="statistic-icon">
-                    <component :is="dataCenterStatusInfo.icon" />
-                  </el-icon>
-                  <span class="statistic-value" :style="{ color: dataCenterStatusInfo.color }">
-                    {{ dataCenterStatusInfo.text }}
-                  </span>
-                </div>
-              </div>
-            </el-col>
-            <el-col :span="6">
+            <el-col :span="8">
               <div class="custom-statistic">
                 <div class="statistic-title">CPU使用率</div>
                 <div class="statistic-content">
@@ -197,7 +185,7 @@
                 </div>
               </div>
             </el-col>
-            <el-col :span="6">
+            <el-col :span="8">
               <div class="custom-statistic">
                 <div class="statistic-title">内存使用率</div>
                 <div class="statistic-content">
@@ -385,7 +373,6 @@ import { emptyDashboardData, dashboardData as dashboardDataImport } from '@/mock
 import { useSystemMonitor } from '@/composables'
 import { useTradingAccountStore } from '@/stores/tradingAccount'
 import { getTradingCoreStatus } from '@/api/tradingCore'
-import { getDataCenterStatus } from '@/api/datacenter'
 import { getStrategies, getStrategyStatus } from '@/api/strategy'
 import EquityCurveChart from './charts/EquityCurveChart.vue'
 import ProfitLossChart from './charts/ProfitLossChart.vue'
@@ -394,10 +381,9 @@ import ReturnRateChart from './charts/ReturnRateChart.vue'
 // 初始化交易账户 Store
 const tradingAccountStore = useTradingAccountStore()
 
-// 系统状态（交易核心和数据中心）
+// 系统状态（交易核心）
 const systemStatus = reactive({
-  tradingCore: 'stopped',  // stopped | initializing | connecting | running | stopping | error
-  dataCenter: false        // running: true/false
+  tradingCore: 'stopped'  // stopped | initializing | connecting | running | stopping | error
 })
 
 // 策略状态（真实数据）
@@ -582,18 +568,6 @@ async function fetchTradingCoreStatus() {
   }
 }
 
-/**
- * 获取数据中心状态
- */
-async function fetchDataCenterStatus() {
-  try {
-    const status = await getDataCenterStatus()
-    systemStatus.dataCenter = status.running || false
-  } catch (error) {
-    console.error('获取数据中心状态失败:', error)
-    systemStatus.dataCenter = false
-  }
-}
 
 /**
  * 获取策略状态
@@ -637,7 +611,6 @@ async function fetchStrategyStatus() {
 async function fetchSystemStatus() {
   await Promise.all([
     fetchTradingCoreStatus(),
-    fetchDataCenterStatus(),
     fetchStrategyStatus()
   ])
 }
@@ -657,16 +630,6 @@ const tradingCoreStatusInfo = computed(() => {
   return statusMap[systemStatus.tradingCore] || statusMap.stopped
 })
 
-/**
- * 数据中心状态显示信息
- */
-const dataCenterStatusInfo = computed(() => {
-  if (systemStatus.dataCenter) {
-    return { text: '运行中', color: '#67C23A', icon: 'SuccessFilled' }
-  } else {
-    return { text: '已停止', color: '#909399', icon: 'VideoPause' }
-  }
-})
 
 let systemStatusTimer = null
 
@@ -708,27 +671,131 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 全局卡片优化 - 增强视觉效果 */
+:deep(.el-card) {
+  border-radius: 12px;
+  border: 1px solid rgba(64, 158, 255, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-card.is-hover-shadow:hover),
+:deep(.el-card.is-always-shadow) {
+  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.12) !important;
+}
+
+/* 进度条美化 - 添加渐变和发光效果 */
+:deep(.el-progress-bar__outer) {
+  background-color: rgba(64, 158, 255, 0.08) !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+}
+
+:deep(.el-progress-bar__inner) {
+  border-radius: 10px !important;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 进度条发光效果 */
+:deep(.el-progress-bar__inner)::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.3) 50%, 
+    transparent 100%);
+  animation: progressGlow 2s ease-in-out infinite;
+}
+
+@keyframes progressGlow {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* 卡片header优化 - 增加渐变边框和视觉层次 */
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative;
 }
 
-/* 账户总览容器 - flexbox布局 */
+.card-header span {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  position: relative;
+  padding-left: 12px;
+}
+
+/* header左侧渐变装饰条 */
+.card-header span::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  border-radius: 2px;
+}
+
+/* 账户总览容器 - flexbox布局优化 */
 .account-overview-container {
   display: flex;
   justify-content: space-between;
   align-items: stretch;
-  gap: 16px;
+  gap: 20px; /* 从16px增加到20px */
   flex-wrap: wrap;
 }
 
-/* 账户统计项 */
+/* 账户统计项 - 增加卡片内嵌套效果 */
 .account-item {
   flex: 1;
   min-width: 180px;
   max-width: 240px;
   text-align: center;
+  background: linear-gradient(135deg, rgba(64, 158, 255, 0.03) 0%, rgba(103, 194, 58, 0.03) 100%);
+  border-radius: 12px;
+  padding: 8px;
+  border: 1px solid rgba(64, 158, 255, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* hover效果 - 微妙上浮 */
+.account-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.1);
+  border-color: rgba(64, 158, 255, 0.15);
+}
+
+/* 账户项背景装饰 */
+.account-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #409eff 0%, #67c23a 50%, #e6a23c 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.account-item:hover::before {
+  opacity: 1;
 }
 
 /* 响应式设计 */
@@ -768,27 +835,51 @@ onUnmounted(() => {
   }
 }
 
-/* 图表容器样式 */
+/* 图表容器样式 - 优化版 */
 .chart-container {
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  padding: 16px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #f9f9f9 100%); /* 渐变背景 */
+  border-radius: 12px; /* 从8px增加到12px */
+  padding: 20px; /* 从16px增加到20px */
   height: 240px;
   display: flex;
   flex-direction: column;
+  border: 1px solid rgba(64, 158, 255, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02); /* 添加轻微阴影 */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chart-container:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.08);
+  border-color: rgba(64, 158, 255, 0.1);
 }
 
 .chart-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px; /* 从12px增加到16px */
 }
 
 .chart-title {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px; /* 从14px增加到15px */
+  font-weight: 600; /* 从500增加到600 */
   color: #303133;
+  position: relative;
+  padding-left: 10px;
+}
+
+/* 图表标题左侧装饰条 */
+.chart-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 14px;
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  border-radius: 2px;
 }
 
 /* 响应式图表设计 */
@@ -817,34 +908,41 @@ onUnmounted(() => {
   }
 }
 
-/* 自定义统计组件样式 */
+/* 自定义统计组件样式 - 优化版 */
 .custom-statistic {
   text-align: center;
-  padding: 10px 0;
+  padding: 16px 0; /* 从10px增加到16px，更透气 */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .statistic-title {
   color: #909399;
   font-size: 14px;
-  margin-bottom: 10px;
+  margin-bottom: 12px; /* 从10px增加到12px */
   line-height: 22px;
+  font-weight: 500;
 }
 
 .statistic-content {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 12px; /* 从8px增加到12px，图标和数字间距更大 */
 }
 
+/* 图标增强 - 更大更醒目 */
 .statistic-icon {
-  font-size: 20px;
+  font-size: 28px; /* 从20px增加到28px，提升视觉冲击力 */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
+/* 数字增强 - 更大更醒目 */
 .statistic-value {
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 32px;
+  font-size: 32px; /* 从24px增加到32px，提升可读性 */
+  font-weight: 700; /* 从600增加到700，更粗 */
+  line-height: 40px; /* 从32px增加到40px */
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* 添加文字阴影 */
 }
 </style>
 
