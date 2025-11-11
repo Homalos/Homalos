@@ -774,10 +774,38 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* 全局卡片优化 - 与Dashboard/Console风格一致 */
+:deep(.el-card),
+.el-card {
+  border-radius: 12px !important;
+  border: 1px solid rgba(64, 158, 255, 0.08) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  overflow: hidden !important;
+}
+
+:deep(.el-card__header),
+.el-card__header {
+  border-radius: 12px 12px 0 0 !important;
+}
+
+:deep(.el-card__body),
+.el-card__body {
+  border-radius: 0 0 12px 12px !important;
+}
+
+:deep(.el-card.is-hover-shadow:hover),
+:deep(.el-card.is-always-shadow),
+.el-card.is-hover-shadow:hover,
+.el-card.is-always-shadow {
+  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.12) !important;
+}
+
+/* 卡片header优化 */
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative;
 }
 
 .header-left {
@@ -789,46 +817,254 @@ onMounted(async () => {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .header-title {
   font-size: 16px;
   font-weight: 600;
+  color: #303133;
+  position: relative;
+  padding-left: 12px;
 }
 
+/* header左侧渐变装饰条 */
+.header-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  border-radius: 2px;
+}
+
+/* 按钮渐变优化 - 与Console一致 */
+:deep(.el-button--primary) {
+  background: linear-gradient(135deg, #409eff 0%, #2d7bdb 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-button--primary:hover) {
+  background: linear-gradient(135deg, #53a8ff 0%, #409eff 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.45) !important;
+}
+
+:deep(.el-button--success) {
+  background: linear-gradient(135deg, #67c23a 0%, #4a9e2b 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(103, 194, 58, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-button--success:hover) {
+  background: linear-gradient(135deg, #85ce61 0%, #67c23a 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(103, 194, 58, 0.45) !important;
+}
+
+:deep(.el-button--danger) {
+  background: linear-gradient(135deg, #f56c6c 0%, #e13f3f 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(245, 108, 108, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-button--danger:hover) {
+  background: linear-gradient(135deg, #f78989 0%, #f56c6c 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(245, 108, 108, 0.45) !important;
+}
+
+:deep(.el-button--warning) {
+  background: linear-gradient(135deg, #e6a23c 0%, #d18b2a 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(230, 162, 60, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-button--warning:hover) {
+  background: linear-gradient(135deg, #ebb563 0%, #e6a23c 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(230, 162, 60, 0.45) !important;
+}
+
+/* Tag美化 */
+:deep(.el-tag) {
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-weight: 500;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-tag:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+}
+
+:deep(.el-tag--success) {
+  background: linear-gradient(135deg, #67c23a 0%, #5daf34 100%);
+  color: #ffffff;
+}
+
+:deep(.el-tag--warning) {
+  background: linear-gradient(135deg, #e6a23c 0%, #cf9236 100%);
+  color: #ffffff;
+}
+
+:deep(.el-tag--danger) {
+  background: linear-gradient(135deg, #f56c6c 0%, #dd5a5a 100%);
+  color: #ffffff;
+}
+
+:deep(.el-tag--info) {
+  background: linear-gradient(135deg, rgba(144, 147, 153, 0.9) 0%, rgba(144, 147, 153, 0.8) 100%);
+  color: #ffffff;
+}
+
+/* Alert美化 */
+:deep(.el-alert) {
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+:deep(.el-alert--warning) {
+  border-left-color: #e6a23c;
+  background: linear-gradient(135deg, rgba(230, 162, 60, 0.05) 0%, rgba(230, 162, 60, 0.02) 100%);
+}
+
+:deep(.el-alert--success) {
+  border-left-color: #67c23a;
+  background: linear-gradient(135deg, rgba(103, 194, 58, 0.05) 0%, rgba(103, 194, 58, 0.02) 100%);
+}
+
+/* 统计组件优化 */
+:deep(.el-statistic) {
+  text-align: center;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(64, 158, 255, 0.03) 0%, rgba(103, 194, 58, 0.03) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(64, 158, 255, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-statistic:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.1);
+  border-color: rgba(64, 158, 255, 0.15);
+}
+
+:deep(.el-statistic__head) {
+  color: #909399;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+:deep(.el-statistic__content) {
+  font-size: 32px;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* 表格优化 */
+:deep(.el-table) {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+:deep(.el-table th.el-table__cell) {
+  background: linear-gradient(135deg, #f5f7fa 0%, #f9f9f9 100%);
+  color: #303133;
+  font-weight: 600;
+  border-bottom: 2px solid rgba(64, 158, 255, 0.1);
+}
+
+:deep(.el-table tbody tr:hover > td) {
+  background: rgba(64, 158, 255, 0.03) !important;
+}
+
+/* Switch开关美化 */
+:deep(.el-switch.is-checked .el-switch__core) {
+  background: linear-gradient(135deg, #67c23a 0%, #5daf34 100%) !important;
+  border-color: transparent !important;
+}
+
+/* 日志容器优化 */
 .log-container {
   max-height: 500px;
   overflow-y: auto;
+  padding: 10px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #f9f9f9 100%);
+  border-radius: 8px;
+  border: 1px solid rgba(64, 158, 255, 0.05);
+}
+
+/* 自定义滚动条 */
+.log-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.log-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+}
+
+.log-container::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  border-radius: 4px;
+}
+
+.log-container::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #53a8ff 0%, #85ce61 100%);
 }
 
 .log-item {
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
+  padding: 4px 0;
 }
 
 .log-message {
   color: #606266;
   font-size: 14px;
   flex: 1;
+  line-height: 1.6;
 }
 
 .log-trace {
   width: 100%;
   margin-top: 8px;
-  padding: 8px;
-  background: #f5f5f5;
-  border-radius: 4px;
+  padding: 12px;
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+  border-radius: 6px;
   overflow-x: auto;
+  border-left: 3px solid #f56c6c;
 }
 
 .log-trace pre {
   margin: 0;
   font-size: 12px;
   color: #e74c3c;
+  line-height: 1.5;
 }
 
+/* Timeline优化 */
+:deep(.el-timeline-item__timestamp) {
+  color: #909399;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* 策略详情抽屉优化 */
 .strategy-detail {
   padding: 0 20px 20px;
 }
@@ -841,5 +1077,67 @@ onMounted(async () => {
   font-size: 16px;
   font-weight: 600;
   color: #303133;
+  position: relative;
+  padding-left: 12px;
+}
+
+/* section标题左侧装饰条 */
+.section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  border-radius: 2px;
+}
+
+/* Drawer内的卡片优化 */
+:deep(.el-drawer .el-card) {
+  border-radius: 12px;
+  border: 1px solid rgba(64, 158, 255, 0.08);
+}
+
+:deep(.el-drawer .el-card.is-never-shadow) {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Descriptions优化 */
+:deep(.el-descriptions__label) {
+  font-weight: 600;
+  color: #606266;
+  background: linear-gradient(135deg, #f5f7fa 0%, #f9f9f9 100%);
+}
+
+:deep(.el-descriptions__content) {
+  color: #303133;
+}
+
+/* Dialog中的按钮 */
+:deep(.el-dialog .el-button--primary) {
+  background: linear-gradient(135deg, #409eff 0%, #2d7bdb 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-dialog .el-button--primary:hover) {
+  background: linear-gradient(135deg, #53a8ff 0%, #409eff 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.45) !important;
+}
+
+:deep(.el-dialog .el-button--default) {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.05) 100%);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-dialog .el-button--default:hover) {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.08) 100%);
+  border-color: rgba(64, 158, 255, 0.2);
+  transform: translateY(-2px);
 }
 </style>

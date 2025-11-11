@@ -405,7 +405,31 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 告警设置页面样式 - 使用主内容区域的统一边距 */
+/* 全局卡片优化 - 与所有页面风格一致 */
+:deep(.el-card),
+.el-card {
+  border-radius: 12px !important;
+  border: 1px solid rgba(64, 158, 255, 0.08) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  overflow: hidden !important;
+}
+
+:deep(.el-card__header),
+.el-card__header {
+  border-radius: 12px 12px 0 0 !important;
+}
+
+:deep(.el-card__body),
+.el-card__body {
+  border-radius: 0 0 12px 12px !important;
+}
+
+:deep(.el-card.is-hover-shadow:hover),
+:deep(.el-card.is-always-shadow),
+.el-card.is-hover-shadow:hover,
+.el-card.is-always-shadow {
+  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.12) !important;
+}
 
 .header-card {
   margin-bottom: 20px;
@@ -415,12 +439,29 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 10px 0;
 }
 
 .page-header h2 {
   margin: 0;
   font-size: 24px;
   font-weight: 600;
+  color: #303133;
+  position: relative;
+  padding-left: 12px;
+}
+
+/* h2左侧渐变装饰条 */
+.page-header h2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 22px;
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  border-radius: 2px;
 }
 
 .config-card {
@@ -440,6 +481,22 @@ onMounted(() => {
 .card-title {
   font-size: 16px;
   font-weight: 600;
+  color: #303133;
+  position: relative;
+  padding-left: 12px;
+}
+
+/* card-title左侧渐变装饰条 */
+.card-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  border-radius: 2px;
 }
 
 .preview-card {
@@ -540,6 +597,126 @@ onMounted(() => {
 :deep(.el-form-item:last-child .el-form-item__content) {
   flex-direction: row;
   gap: 12px;
+}
+
+/* 按钮渐变优化 - 与其他页面一致 */
+:deep(.el-button--primary) {
+  background: linear-gradient(135deg, #409eff 0%, #2d7bdb 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-button--primary:hover) {
+  background: linear-gradient(135deg, #53a8ff 0%, #409eff 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.45) !important;
+}
+
+:deep(.el-button--success) {
+  background: linear-gradient(135deg, #67c23a 0%, #4a9e2b 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(103, 194, 58, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-button--success:hover) {
+  background: linear-gradient(135deg, #85ce61 0%, #67c23a 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(103, 194, 58, 0.45) !important;
+}
+
+:deep(.el-button--warning) {
+  background: linear-gradient(135deg, #e6a23c 0%, #d18b2a 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(230, 162, 60, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-button--warning:hover) {
+  background: linear-gradient(135deg, #ebb563 0%, #e6a23c 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(230, 162, 60, 0.45) !important;
+}
+
+:deep(.el-button--default) {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-button--default:hover) {
+  transform: translateY(-2px);
+}
+
+/* Tag美化 */
+:deep(.el-tag) {
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-weight: 500;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-tag:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+}
+
+:deep(.el-tag--success) {
+  background: linear-gradient(135deg, #67c23a 0%, #5daf34 100%);
+  color: #ffffff;
+}
+
+:deep(.el-tag--warning) {
+  background: linear-gradient(135deg, #e6a23c 0%, #cf9236 100%);
+  color: #ffffff;
+}
+
+:deep(.el-tag--danger) {
+  background: linear-gradient(135deg, #f56c6c 0%, #dd5a5a 100%);
+  color: #ffffff;
+}
+
+:deep(.el-tag--info) {
+  background: linear-gradient(135deg, rgba(144, 147, 153, 0.9) 0%, rgba(144, 147, 153, 0.8) 100%);
+  color: #ffffff;
+}
+
+/* Descriptions优化 */
+:deep(.el-descriptions__label) {
+  font-weight: 600;
+  color: #606266;
+  background: linear-gradient(135deg, #f5f7fa 0%, #f9f9f9 100%);
+}
+
+:deep(.el-descriptions__content) {
+  color: #303133;
+}
+
+/* Switch开关美化 */
+:deep(.el-switch.is-checked .el-switch__core) {
+  background: linear-gradient(135deg, #67c23a 0%, #5daf34 100%) !important;
+  border-color: transparent !important;
+}
+
+/* Slider滑块美化 */
+:deep(.el-slider__runway) {
+  background: rgba(64, 158, 255, 0.08);
+}
+
+:deep(.el-slider__bar) {
+  background: linear-gradient(90deg, #409eff 0%, #67c23a 100%);
+}
+
+:deep(.el-slider__button) {
+  border: 2px solid #409eff;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+}
+
+:deep(.el-slider__button:hover) {
+  transform: scale(1.2);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4);
 }
 </style>
 

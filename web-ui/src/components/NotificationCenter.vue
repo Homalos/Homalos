@@ -348,12 +348,13 @@ onUnmounted(() => {
 
 .header-icon {
   cursor: pointer;
-  transition: opacity 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   color: white;
 }
 
 .header-icon:hover {
   opacity: 0.8;
+  transform: scale(1.1);
 }
 
 .notification-badge :deep(.el-badge__content) {
@@ -374,6 +375,7 @@ onUnmounted(() => {
   }
 }
 
+/* Drawer header优化 */
 .drawer-header {
   display: flex;
   align-items: center;
@@ -383,15 +385,32 @@ onUnmounted(() => {
 .drawer-header .title {
   font-size: 18px;
   font-weight: 600;
+  position: relative;
+  padding-left: 12px;
 }
 
+/* title左侧渐变装饰条 */
+.drawer-header .title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  border-radius: 2px;
+}
+
+/* 统计卡片优化 */
 .stats-card {
   display: flex;
   gap: 16px;
   margin-bottom: 20px;
   padding: 16px;
-  background: var(--el-fill-color-light);
-  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(64, 158, 255, 0.05) 0%, rgba(103, 194, 58, 0.05) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(64, 158, 255, 0.1);
 }
 
 .stat-item {
@@ -403,99 +422,161 @@ onUnmounted(() => {
 }
 
 .stat-item .label {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  color: #909399;
+  font-weight: 500;
 }
 
 .stat-item .value {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
+  font-size: 28px;
+  font-weight: 700;
+  color: #303133;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .stat-item .value.danger {
-  color: var(--el-color-danger);
+  color: #f56c6c;
 }
 
+/* 告警列表 */
 .alarm-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
+/* 告警项优化 - 增强圆角和视觉效果 */
 .alarm-item {
-  padding: 12px;
-  border: 1px solid var(--el-border-color);
-  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid rgba(64, 158, 255, 0.1);
+  border-radius: 12px !important;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 1) 100%);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  position: relative;
 }
 
 .alarm-item:hover {
-  border-color: var(--el-color-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: #409eff;
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.18);
+  transform: translateY(-3px);
+}
+
+/* 告警项顶部装饰条（hover显示） */
+.alarm-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #409eff 0%, #67c23a 50%, #e6a23c 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.alarm-item:hover::before {
+  opacity: 1;
 }
 
 .alarm-item.severity-critical {
-  border-left: 4px solid var(--el-color-danger);
+  border-left: 4px solid #f56c6c;
 }
 
 .alarm-item.severity-error {
-  border-left: 4px solid var(--el-color-warning);
+  border-left: 4px solid #e6a23c;
 }
 
 .alarm-item.severity-warning {
-  border-left: 4px solid var(--el-color-warning);
+  border-left: 4px solid #e6a23c;
 }
 
 .alarm-item.severity-info {
-  border-left: 4px solid var(--el-color-info);
+  border-left: 4px solid #909399;
 }
 
 .alarm-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .alarm-time {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: #909399;
+  font-weight: 500;
 }
 
 .alarm-content {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .alarm-type {
   font-size: 14px;
   font-weight: 600;
-  margin-bottom: 4px;
-  color: var(--el-text-color-primary);
+  margin-bottom: 6px;
+  color: #303133;
 }
 
 .alarm-message {
   font-size: 13px;
-  color: var(--el-text-color-regular);
-  line-height: 1.5;
+  color: #606266;
+  line-height: 1.6;
 }
 
 .alarm-target {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: #909399;
 }
 
+/* 告警操作按钮 - 白色字体+渐变背景 */
 .alarm-actions {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
 }
 
+:deep(.alarm-actions .el-button.is-link) {
+  font-weight: 600;
+  padding: 6px 14px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 6px;
+  min-width: 56px;
+  font-size: 13px;
+}
+
+:deep(.alarm-actions .el-button.is-link.el-button--primary) {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #409eff 0%, #2d7bdb 100%);
+  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.25);
+}
+
+:deep(.alarm-actions .el-button.is-link.el-button--primary:hover) {
+  background: linear-gradient(135deg, #53a8ff 0%, #409eff 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(64, 158, 255, 0.35);
+}
+
+:deep(.alarm-actions .el-button.is-link.el-button--success) {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #67c23a 0%, #4a9e2b 100%);
+  box-shadow: 0 2px 6px rgba(103, 194, 58, 0.25);
+}
+
+:deep(.alarm-actions .el-button.is-link.el-button--success:hover) {
+  background: linear-gradient(135deg, #85ce61 0%, #67c23a 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(103, 194, 58, 0.35);
+}
+
+/* Drawer footer按钮 */
 .drawer-footer {
   display: flex;
   gap: 12px;
@@ -505,13 +586,117 @@ onUnmounted(() => {
   flex: 1;
 }
 
+:deep(.drawer-footer .el-button--primary) {
+  background: linear-gradient(135deg, #409eff 0%, #2d7bdb 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.drawer-footer .el-button--primary:hover) {
+  background: linear-gradient(135deg, #53a8ff 0%, #409eff 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.45) !important;
+}
+
+:deep(.drawer-footer .el-button--default) {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.drawer-footer .el-button--default:hover) {
+  transform: translateY(-2px);
+}
+
+/* Tag美化 */
+:deep(.el-tag) {
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-weight: 500;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-tag:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+}
+
+:deep(.el-tag--success) {
+  background: linear-gradient(135deg, #67c23a 0%, #5daf34 100%);
+  color: #ffffff;
+}
+
+:deep(.el-tag--warning) {
+  background: linear-gradient(135deg, #e6a23c 0%, #cf9236 100%);
+  color: #ffffff;
+}
+
+:deep(.el-tag--danger) {
+  background: linear-gradient(135deg, #f56c6c 0%, #dd5a5a 100%);
+  color: #ffffff;
+}
+
+:deep(.el-tag--info) {
+  background: linear-gradient(135deg, rgba(144, 147, 153, 0.9) 0%, rgba(144, 147, 153, 0.8) 100%);
+  color: #ffffff;
+}
+
+/* Dialog中的按钮 */
+:deep(.el-dialog .el-button--primary) {
+  background: linear-gradient(135deg, #409eff 0%, #2d7bdb 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-dialog .el-button--primary:hover) {
+  background: linear-gradient(135deg, #53a8ff 0%, #409eff 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.45) !important;
+}
+
+:deep(.el-dialog .el-button--success) {
+  background: linear-gradient(135deg, #67c23a 0%, #4a9e2b 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(103, 194, 58, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-dialog .el-button--success:hover) {
+  background: linear-gradient(135deg, #85ce61 0%, #67c23a 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(103, 194, 58, 0.45) !important;
+}
+
+:deep(.el-dialog .el-button--default) {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-dialog .el-button--default:hover) {
+  transform: translateY(-2px);
+}
+
+/* Descriptions优化 */
+:deep(.el-descriptions__label) {
+  font-weight: 600;
+  color: #606266;
+  background: linear-gradient(135deg, #f5f7fa 0%, #f9f9f9 100%);
+}
+
+:deep(.el-descriptions__content) {
+  color: #303133;
+}
+
+/* 详情JSON */
 .alarm-detail .detail-json {
-  background: var(--el-fill-color-light);
-  padding: 12px;
-  border-radius: 4px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #f9f9f9 100%);
+  padding: 16px;
+  border-radius: 8px;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.6;
   overflow-x: auto;
+  border: 1px solid rgba(64, 158, 255, 0.08);
 }
 </style>
 

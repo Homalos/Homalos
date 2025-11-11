@@ -1,9 +1,9 @@
 <template>
   <div>
     <!-- 1. 系统控制 -->
-    <el-row :gutter="20" style="margin-bottom: 20px;">
-      <!-- 交易核心 -->
-      <el-col :span="12">
+    <el-row style="margin-bottom: 20px;">
+      <!-- 交易核心（全宽显示） -->
+      <el-col :span="24">
         <el-card shadow="hover">
           <template #header>
             <div class="card-header">
@@ -99,35 +99,28 @@
             </el-row>
             
             <!-- 网关详细状态（始终显示）-->
-            <el-row :gutter="10" style="margin-bottom: 20px;">
-              <el-col :span="6">
-                <el-tag :type="consoleData.tradingCore.gateway.md_login ? 'success' : 'info'" size="small">
-                  行情网关: {{ consoleData.tradingCore.gateway.md_login ? '✓' : '✗' }}
-                </el-tag>
-              </el-col>
-              <el-col :span="6">
-                <el-tag :type="consoleData.tradingCore.gateway.td_login ? 'success' : 'info'" size="small">
-                  交易网关: {{ consoleData.tradingCore.gateway.td_login ? '✓' : '✗' }}
-                </el-tag>
-              </el-col>
-              <el-col :span="6">
-                <el-tag :type="consoleData.tradingCore.gateway.td_confirm ? 'success' : 'info'" size="small">
-                  结算确认: {{ consoleData.tradingCore.gateway.td_confirm ? '✓' : '✗' }}
-                </el-tag>
-              </el-col>
-              <el-col :span="6">
-                <el-tag :type="consoleData.tradingCore.gateway.instruments_loaded ? 'success' : 'info'" size="small">
-                  合约加载: {{ consoleData.tradingCore.gateway.instruments_loaded ? '✓' : '✗' }}
-                </el-tag>
-              </el-col>
-            </el-row>
+            <div class="gateway-status-container" style="margin-bottom: 20px;">
+              <el-tag :type="consoleData.tradingCore.gateway.md_login ? 'success' : 'info'" class="gateway-tag">
+                行情网关: {{ consoleData.tradingCore.gateway.md_login ? '✓' : '✗' }}
+              </el-tag>
+              <el-tag :type="consoleData.tradingCore.gateway.td_login ? 'success' : 'info'" class="gateway-tag">
+                交易网关: {{ consoleData.tradingCore.gateway.td_login ? '✓' : '✗' }}
+              </el-tag>
+              <el-tag :type="consoleData.tradingCore.gateway.td_confirm ? 'success' : 'info'" class="gateway-tag">
+                结算确认: {{ consoleData.tradingCore.gateway.td_confirm ? '✓' : '✗' }}
+              </el-tag>
+              <el-tag :type="consoleData.tradingCore.gateway.instruments_loaded ? 'success' : 'info'" class="gateway-tag">
+                合约加载: {{ consoleData.tradingCore.gateway.instruments_loaded ? '✓' : '✗' }}
+              </el-tag>
+            </div>
             
-            <!-- 控制按钮 -->
-            <el-row :gutter="10" style="margin-bottom: 10px;">
-              <el-col :span="12">
+            <!-- 控制按钮区域 -->
+            <div class="control-buttons-container">
+              <!-- 核心控制按钮 -->
+              <div class="button-group">
                 <el-button 
                   type="success" 
-                  style="width: 100%;"
+                  size="large"
                   :disabled="consoleData.tradingCore.status !== 'stopped'"
                   :loading="consoleData.tradingCore.status === 'initializing'"
                   @click="handleStartTradingCore(true)"
@@ -135,11 +128,9 @@
                   <el-icon><VideoPlay /></el-icon>
                   启动核心(自动连接)
                 </el-button>
-              </el-col>
-              <el-col :span="12">
                 <el-button 
                   type="danger" 
-                  style="width: 100%;"
+                  size="large"
                   :disabled="consoleData.tradingCore.status === 'stopped'"
                   :loading="consoleData.tradingCore.status === 'stopping'"
                   @click="handleStopTradingCore"
@@ -147,34 +138,30 @@
                   <el-icon><VideoPause /></el-icon>
                   停止核心
                 </el-button>
-              </el-col>
-            </el-row>
-            
-            <!-- 网关控制按钮 -->
-            <el-row :gutter="10" v-if="consoleData.tradingCore.status === 'running'">
-              <el-col :span="12">
+              </div>
+              
+              <!-- 网关控制按钮（运行时显示） -->
+              <div class="button-group" v-if="consoleData.tradingCore.status === 'running'">
                 <el-button 
                   type="primary" 
-                  style="width: 100%;"
+                  size="large"
                   :disabled="isGatewayConnected"
                   @click="handleConnectGateway"
                 >
                   <el-icon><Connection /></el-icon>
                   连接网关
                 </el-button>
-              </el-col>
-              <el-col :span="12">
                 <el-button 
                   type="warning" 
-                  style="width: 100%;"
+                  size="large"
                   :disabled="!isGatewayConnected"
                   @click="handleDisconnectGateway"
                 >
                   <el-icon><SwitchButton /></el-icon>
                   断开网关
                 </el-button>
-              </el-col>
-            </el-row>
+              </div>
+            </div>
             
             <!-- 状态消息 -->
             <el-alert 
@@ -188,113 +175,12 @@
         </el-card>
       </el-col>
 
-      <!-- 数据中心 -->
-      <el-col :span="12">
-        <el-card shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <span>数据中心</span>
-              <el-tag :type="consoleData.dataCenter.status === 'running' ? 'success' : 'info'">
-                {{ consoleData.dataCenter.status === 'running' ? '运行中' : '已停止' }}
-              </el-tag>
-            </div>
-          </template>
-          <div style="padding: 20px 0;">
-            <!-- 基础状态 -->
-            <el-row :gutter="20" style="margin-bottom: 20px;">
-              <el-col :span="8">
-                <div class="custom-statistic">
-                  <div class="statistic-title">系统状态</div>
-                  <div class="statistic-content">
-                    <el-icon :color="consoleData.dataCenter.status === 'running' ? '#67C23A' : '#909399'" class="statistic-icon">
-                      <SuccessFilled v-if="consoleData.dataCenter.status === 'running'" />
-                      <VideoPause v-else />
-                    </el-icon>
-                    <span 
-                      class="statistic-value" 
-                      :style="{ color: consoleData.dataCenter.status === 'running' ? '#67C23A' : '#909399' }"
-                    >
-                      {{ consoleData.dataCenter.status === 'running' ? '运行中' : '已停止' }}
-                    </span>
-                  </div>
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="custom-statistic">
-                  <div class="statistic-title">进程ID</div>
-                  <div class="statistic-content">
-                    <el-icon color="#409EFF" class="statistic-icon"><Document /></el-icon>
-                    <span class="statistic-value">
-                      {{ consoleData.dataCenter.pid || 0 }}
-                    </span>
-                  </div>
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="custom-statistic">
-                  <div class="statistic-title">运行时长</div>
-                  <div class="statistic-content">
-                    <el-icon color="#409EFF" class="statistic-icon"><Clock /></el-icon>
-                    <span class="statistic-value">
-                      {{ consoleData.dataCenter.runningTime }}
-                    </span>
-                  </div>
-                </div>
-              </el-col>
-            </el-row>
-            
-            <!-- 资源使用情况 -->
-            <el-row :gutter="20" style="margin-bottom: 20px;" v-if="consoleData.dataCenter.status === 'running'">
-              <el-col :span="12">
-                <el-statistic title="CPU使用率" :value="consoleData.dataCenter.cpu" :precision="2" suffix="%">
-                  <template #prefix>
-                    <el-icon color="#E6A23C"><Cpu /></el-icon>
-                  </template>
-                </el-statistic>
-              </el-col>
-              <el-col :span="12">
-                <el-statistic title="内存使用" :value="consoleData.dataCenter.memory" :precision="2" suffix="MB">
-                  <template #prefix>
-                    <el-icon color="#F56C6C"><Memo /></el-icon>
-                  </template>
-                </el-statistic>
-              </el-col>
-            </el-row>
-            
-            <!-- 控制按钮 -->
-            <el-row :gutter="10">
-              <el-col :span="12">
-                <el-button 
-                  type="success" 
-                  style="width: 100%;"
-                  :disabled="consoleData.dataCenter.status === 'running'"
-                  @click="handleStartDataCenter"
-                >
-                  <el-icon><VideoPlay /></el-icon>
-                  启动数据中心
-                </el-button>
-              </el-col>
-              <el-col :span="12">
-                <el-button 
-                  type="danger" 
-                  style="width: 100%;"
-                  :disabled="consoleData.dataCenter.status === 'stopped'"
-                  @click="handleStopDataCenter"
-                >
-                  <el-icon><VideoPause /></el-icon>
-                  停止数据中心
-                </el-button>
-              </el-col>
-            </el-row>
-          </div>
-        </el-card>
-      </el-col>
     </el-row>
 
     <!-- 2. 控制台日志 -->
-    <el-row :gutter="20">
-      <!-- 交易核心日志 -->
-      <el-col :span="12">
+    <el-row>
+      <!-- 交易核心日志（全宽显示） -->
+      <el-col :span="24">
         <el-card shadow="hover">
           <template #header>
             <div class="card-header">
@@ -317,51 +203,6 @@
             <el-timeline v-if="filteredTradingCoreLogs.length > 0">
               <el-timeline-item 
                 v-for="log in filteredTradingCoreLogs" 
-                :key="log.id"
-                :timestamp="log.timestamp"
-                placement="top"
-              >
-                <div class="log-item">
-                  <el-tag 
-                    :type="logLevelMap[log.level].color" 
-                    size="small" 
-                    style="margin-right: 8px;"
-                  >
-                    {{ log.category }}
-                  </el-tag>
-                  <span class="log-message">{{ log.message }}</span>
-                </div>
-              </el-timeline-item>
-            </el-timeline>
-            <el-empty v-else description="暂无日志记录" />
-          </div>
-        </el-card>
-      </el-col>
-      
-      <!-- 数据中心日志 -->
-      <el-col :span="12">
-        <el-card shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <span>数据中心日志</span>
-              <el-select 
-                v-model="selectedDataCenterLogLevel" 
-                placeholder="选择日志级别" 
-                size="small" 
-                style="width: 120px;"
-              >
-                <el-option label="全部" value="all" />
-                <el-option label="信息" value="info" />
-                <el-option label="成功" value="success" />
-                <el-option label="警告" value="warning" />
-                <el-option label="错误" value="error" />
-              </el-select>
-            </div>
-          </template>
-          <div class="log-container">
-            <el-timeline v-if="filteredDataCenterLogs.length > 0">
-              <el-timeline-item 
-                v-for="log in filteredDataCenterLogs" 
                 :key="log.id"
                 :timestamp="log.timestamp"
                 placement="top"
@@ -406,18 +247,13 @@ import { useConsole } from '@/composables'
 const {
   consoleData,
   tradingCoreLogs,
-  dataCenterLogs,
   selectedTradingCoreLogLevel,
-  selectedDataCenterLogLevel,
   filteredTradingCoreLogs,
-  filteredDataCenterLogs,
   tradingAccountStore,
   handleStartTradingCore,
   handleStopTradingCore,
   handleConnectGateway,
-  handleDisconnectGateway,
-  handleStartDataCenter,
-  handleStopDataCenter
+  handleDisconnectGateway
 } = useConsole()
 
 // 计算网关是否已连接
@@ -497,55 +333,277 @@ const getAlertType = (status) => {
 </script>
 
 <style scoped>
+/* 全局卡片优化 - 与Dashboard风格一致 */
+:deep(.el-card),
+.el-card {
+  border-radius: 12px !important;
+  border: 1px solid rgba(64, 158, 255, 0.08) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  overflow: hidden !important;
+}
+
+:deep(.el-card__header),
+.el-card__header {
+  border-radius: 12px 12px 0 0 !important;
+}
+
+:deep(.el-card__body),
+.el-card__body {
+  border-radius: 0 0 12px 12px !important;
+}
+
+:deep(.el-card.is-hover-shadow:hover),
+:deep(.el-card.is-always-shadow),
+.el-card.is-hover-shadow:hover,
+.el-card.is-always-shadow {
+  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.12) !important;
+}
+
+/* 卡片header优化 - 增加渐变装饰条 */
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative;
 }
 
-/* 自定义统计组件样式 */
+.card-header span {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  position: relative;
+  padding-left: 12px;
+}
+
+/* header左侧渐变装饰条 */
+.card-header span::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  border-radius: 2px;
+}
+
+/* 自定义统计组件样式 - 与Dashboard一致 */
 .custom-statistic {
   text-align: center;
-  padding: 10px 0;
+  padding: 16px 0; /* 从10px增加到16px */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .statistic-title {
   color: #909399;
   font-size: 14px;
-  margin-bottom: 10px;
+  margin-bottom: 12px; /* 从10px增加到12px */
   line-height: 22px;
+  font-weight: 500;
 }
 
 .statistic-content {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 12px; /* 从8px增加到12px */
 }
 
+/* 图标增强 - 与Dashboard一致 */
 .statistic-icon {
-  font-size: 24px;
+  font-size: 28px; /* 从24px增加到28px */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
+/* 数字增强 - 与Dashboard一致 */
 .statistic-value {
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 32px;
+  font-size: 32px; /* 从24px增加到32px */
+  font-weight: 700; /* 从600增加到700 */
+  line-height: 40px; /* 从32px增加到40px */
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-/* 日志容器样式 */
+/* 按钮渐变优化 - 与Login页面一致 */
+:deep(.el-button--primary) {
+  background: linear-gradient(135deg, #409eff 0%, #2d7bdb 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-button--primary:hover) {
+  background: linear-gradient(135deg, #53a8ff 0%, #409eff 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.45) !important;
+}
+
+:deep(.el-button--success) {
+  background: linear-gradient(135deg, #67c23a 0%, #4a9e2b 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(103, 194, 58, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-button--success:hover) {
+  background: linear-gradient(135deg, #85ce61 0%, #67c23a 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(103, 194, 58, 0.45) !important;
+}
+
+:deep(.el-button--danger) {
+  background: linear-gradient(135deg, #f56c6c 0%, #e13f3f 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(245, 108, 108, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-button--danger:hover) {
+  background: linear-gradient(135deg, #f78989 0%, #f56c6c 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(245, 108, 108, 0.45) !important;
+}
+
+:deep(.el-button--warning) {
+  background: linear-gradient(135deg, #e6a23c 0%, #d18b2a 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(230, 162, 60, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-button--warning:hover) {
+  background: linear-gradient(135deg, #ebb563 0%, #e6a23c 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(230, 162, 60, 0.45) !important;
+}
+
+/* 网关状态容器 - 居中对齐 */
+.gateway-status-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.gateway-tag {
+  min-width: 140px;
+  text-align: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gateway-tag:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* 控制按钮容器 */
+.control-buttons-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.button-group {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.button-group .el-button {
+  min-width: 200px;
+  font-size: 15px;
+  padding: 12px 24px;
+}
+
+/* Tag美化 */
+:deep(.el-tag) {
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-weight: 500;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+:deep(.el-tag--success) {
+  background: linear-gradient(135deg, #67c23a 0%, #5daf34 100%);
+  color: #ffffff;
+}
+
+:deep(.el-tag--warning) {
+  background: linear-gradient(135deg, #e6a23c 0%, #cf9236 100%);
+  color: #ffffff;
+}
+
+:deep(.el-tag--danger) {
+  background: linear-gradient(135deg, #f56c6c 0%, #dd5a5a 100%);
+  color: #ffffff;
+}
+
+:deep(.el-tag--info) {
+  background: linear-gradient(135deg, rgba(144, 147, 153, 0.9) 0%, rgba(144, 147, 153, 0.8) 100%);
+  color: #ffffff;
+}
+
+/* Alert美化 */
+:deep(.el-alert) {
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+:deep(.el-alert--warning) {
+  border-left-color: #e6a23c;
+  background: linear-gradient(135deg, rgba(230, 162, 60, 0.05) 0%, rgba(230, 162, 60, 0.02) 100%);
+}
+
+/* 日志容器样式优化 */
 .log-container {
-  max-height: 400px;
+  max-height: 500px; /* 从400px增加到500px，更多内容 */
   overflow-y: auto;
+  padding: 10px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #f9f9f9 100%);
+  border-radius: 8px;
+  border: 1px solid rgba(64, 158, 255, 0.05);
+}
+
+/* 自定义滚动条 */
+.log-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.log-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+}
+
+.log-container::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  border-radius: 4px;
+}
+
+.log-container::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #53a8ff 0%, #85ce61 100%);
 }
 
 .log-item {
   display: flex;
   align-items: center;
+  padding: 4px 0;
 }
 
 .log-message {
   color: #606266;
   font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Timeline优化 */
+:deep(.el-timeline-item__timestamp) {
+  color: #909399;
+  font-size: 12px;
+  font-weight: 500;
 }
 </style>

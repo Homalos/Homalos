@@ -778,6 +778,32 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* 全局卡片优化 - 与所有页面风格一致 */
+:deep(.el-card),
+.el-card {
+  border-radius: 12px !important;
+  border: 1px solid rgba(64, 158, 255, 0.08) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  overflow: hidden !important;
+}
+
+:deep(.el-card__header),
+.el-card__header {
+  border-radius: 12px 12px 0 0 !important;
+}
+
+:deep(.el-card__body),
+.el-card__body {
+  border-radius: 0 0 12px 12px !important;
+}
+
+:deep(.el-card.is-hover-shadow:hover),
+:deep(.el-card.is-always-shadow),
+.el-card.is-hover-shadow:hover,
+.el-card.is-always-shadow {
+  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.12) !important;
+}
+
 /* 页面布局 */
 .settings-page {
   padding: 0;
@@ -792,6 +818,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 10px 0;
 }
 
 .page-header h2 {
@@ -799,6 +826,21 @@ onMounted(() => {
   font-size: 24px;
   font-weight: 600;
   color: #303133;
+  position: relative;
+  padding-left: 12px;
+}
+
+/* h2左侧渐变装饰条 */
+.page-header h2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 22px;
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  border-radius: 2px;
 }
 
 /* 配置卡片 */
@@ -816,13 +858,28 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 600;
   color: #303133;
+  position: relative;
+  padding-left: 12px;
 }
 
-/* 卡片底部按钮区 */
+/* card-title左侧渐变装饰条 */
+.card-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  border-radius: 2px;
+}
+
+/* 卡片底部按钮区优化 */
 .card-footer {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid #EBEEF5;
+  border-top: 2px solid rgba(64, 158, 255, 0.1);
   display: flex;
   gap: 12px;
 }
@@ -841,7 +898,7 @@ onMounted(() => {
 }
 
 .unit-text {
-  font-weight: 500;
+  font-weight: 600;
   color: #606266;
   min-width: 30px;
 }
@@ -849,28 +906,105 @@ onMounted(() => {
 .hint-text {
   color: #909399;
   font-size: 13px;
+  line-height: 1.5;
 }
 
 /* 禁用输入框样式 */
 .disabled-inputs {
-  opacity: 0.6;
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
 }
 
 /* 表单样式微调 */
 :deep(.el-form-item) {
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 :deep(.el-form-item__label) {
-  font-weight: 500;
+  font-weight: 600;
+  color: #606266;
 }
 
 :deep(.el-input-number) {
   width: 150px;
 }
 
-/* 开关样式 */
-:deep(.el-switch) {
-  --el-switch-on-color: #409eff;
+/* 按钮渐变优化 - 与其他页面一致 */
+:deep(.el-button--primary) {
+  background: linear-gradient(135deg, #409eff 0%, #2d7bdb 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:deep(.el-button--primary:hover) {
+  background: linear-gradient(135deg, #53a8ff 0%, #409eff 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.45) !important;
+}
+
+:deep(.el-button--default) {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-button--default:hover) {
+  transform: translateY(-2px);
+}
+
+/* Switch开关美化 */
+:deep(.el-switch.is-checked .el-switch__core) {
+  background: linear-gradient(135deg, #67c23a 0%, #5daf34 100%) !important;
+  border-color: transparent !important;
+}
+
+/* Tag美化 */
+:deep(.el-tag) {
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-weight: 500;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-tag:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+}
+
+:deep(.el-tag--success) {
+  background: linear-gradient(135deg, #67c23a 0%, #5daf34 100%);
+  color: #ffffff;
+}
+
+:deep(.el-tag--info) {
+  background: linear-gradient(135deg, rgba(144, 147, 153, 0.9) 0%, rgba(144, 147, 153, 0.8) 100%);
+  color: #ffffff;
+}
+
+/* Select下拉框优化 */
+:deep(.el-select .el-input__wrapper) {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-select .el-input__wrapper:hover) {
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15);
+}
+
+:deep(.el-select .el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.15);
+}
+
+/* Input输入框优化 */
+:deep(.el-input__wrapper) {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-input__wrapper:hover) {
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
+}
+
+:deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.15);
 }
 </style>

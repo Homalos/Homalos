@@ -672,14 +672,28 @@ onUnmounted(() => {
 
 <style scoped>
 /* 全局卡片优化 - 增强视觉效果 */
-:deep(.el-card) {
-  border-radius: 12px;
-  border: 1px solid rgba(64, 158, 255, 0.08);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+:deep(.el-card),
+.el-card {
+  border-radius: 12px !important;
+  border: 1px solid rgba(64, 158, 255, 0.08) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  overflow: hidden !important;
+}
+
+:deep(.el-card__header),
+.el-card__header {
+  border-radius: 12px 12px 0 0 !important;
+}
+
+:deep(.el-card__body),
+.el-card__body {
+  border-radius: 0 0 12px 12px !important;
 }
 
 :deep(.el-card.is-hover-shadow:hover),
-:deep(.el-card.is-always-shadow) {
+:deep(.el-card.is-always-shadow),
+.el-card.is-hover-shadow:hover,
+.el-card.is-always-shadow {
   box-shadow: 0 4px 20px rgba(64, 158, 255, 0.12) !important;
 }
 

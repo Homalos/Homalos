@@ -100,10 +100,137 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* 全局卡片优化 - 与所有页面风格一致 */
+:deep(.el-card),
+.el-card {
+  border-radius: 12px !important;
+  border: 1px solid rgba(64, 158, 255, 0.08) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  overflow: hidden !important;
+}
+
+:deep(.el-card__header),
+.el-card__header {
+  border-radius: 12px 12px 0 0 !important;
+}
+
+:deep(.el-card__body),
+.el-card__body {
+  border-radius: 0 0 12px 12px !important;
+}
+
+:deep(.el-card.is-hover-shadow:hover),
+:deep(.el-card.is-always-shadow),
+.el-card.is-hover-shadow:hover,
+.el-card.is-always-shadow {
+  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.12) !important;
+}
+
+/* 卡片header优化 */
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative;
+}
+
+.card-header span {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  position: relative;
+  padding-left: 12px;
+}
+
+/* header左侧渐变装饰条 */
+.card-header span::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  border-radius: 2px;
+}
+
+/* Descriptions优化 */
+:deep(.el-descriptions__label) {
+  font-weight: 600;
+  color: #606266;
+  background: linear-gradient(135deg, #f5f7fa 0%, #f9f9f9 100%);
+  width: 140px;
+}
+
+:deep(.el-descriptions__content) {
+  color: #303133;
+  font-size: 14px;
+}
+
+/* 系统名称样式增强 */
+:deep(.el-descriptions__content) span {
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Tag美化 */
+:deep(.el-tag) {
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-weight: 500;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 14px;
+}
+
+:deep(.el-tag:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+}
+
+:deep(.el-tag--success) {
+  background: linear-gradient(135deg, #67c23a 0%, #5daf34 100%);
+  color: #ffffff;
+}
+
+/* Link链接美化 */
+:deep(.el-link) {
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+:deep(.el-link:hover) {
+  background: rgba(64, 158, 255, 0.08);
+  transform: translateX(2px);
+}
+
+:deep(.el-link.el-link--primary) {
+  color: #409eff;
+}
+
+:deep(.el-link.el-link--primary:hover) {
+  color: #53a8ff;
+}
+
+/* 技术栈列表优化 */
+:deep(.el-descriptions__content) > div > div {
+  padding: 4px 0;
+  position: relative;
+  padding-left: 16px;
+}
+
+:deep(.el-descriptions__content) > div > div::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: #409eff;
+  font-weight: bold;
 }
 </style>
 
