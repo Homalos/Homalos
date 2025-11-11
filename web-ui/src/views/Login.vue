@@ -15,9 +15,9 @@
             <stop offset="100%" stop-color="#2345b7"/>
           </linearGradient>
         </defs>
-        <rect x="170" y="90" width="1100" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
-        <rect x="170" y="445" width="1100" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
-        <rect x="170" y="800" width="1100" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 5px #76c3fa);opacity:0.67" />
+        <rect x="170" y="90" width="1100" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 2px #76c3fa);opacity:0.2" />
+        <rect x="170" y="445" width="1100" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 2px #76c3fa);opacity:0.2" />
+        <rect x="170" y="800" width="1100" height="2.5" rx="1" fill="url(#lineFlowGrad)" style="filter:drop-shadow(0 0 2px #76c3fa);opacity:0.2" />
         <polygon v-if="klineDrawPoints.length" :points="`${klineDrawPoints[0].x},${klineDrawPoints[0].y-15} ${klineDrawPoints[0].x-7},${klineDrawPoints[0].y-3} ${klineDrawPoints[0].x+7},${klineDrawPoints[0].y-3}`"
           fill="#ff2c55" style="filter:drop-shadow(0 0 3px #f87b88);" />
         <polygon v-if="klineDrawPoints.length && revealCount===klineDrawPoints.length"
@@ -37,19 +37,25 @@
     <div class="top-nav">
       <!-- 左侧Logo -->
       <div class="nav-logo">
-        <el-icon :size="32" class="nav-logo-icon">
+        <el-icon :size="28" class="nav-logo-icon">
           <TrendCharts />
         </el-icon>
+        <span class="nav-logo-text">Homalos</span>
+        <span class="nav-logo-subtitle">量化交易系统</span>
       </div>
       
       <!-- 右侧语言切换 -->
       <div class="nav-language">
         <el-dropdown @command="handleLanguageChange" trigger="hover" placement="bottom-end">
-          <div class="language-icon-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <div class="language-selector">
+            <svg class="language-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"/>
               <line x1="2" y1="12" x2="22" y2="12"/>
               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            <span class="language-text">{{ languageOptions.find(item => item.value === currentLanguage)?.label || '简体中文' }}</span>
+            <svg class="arrow-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
             </svg>
           </div>
           <template #dropdown>
@@ -61,8 +67,11 @@
                 :class="{ 'is-active': currentLanguage === item.value }"
               >
                 <span class="language-option-content">
-                  <span class="language-icon">{{ item.icon }}</span>
-                  <span class="language-text">{{ item.label }}</span>
+                  <span class="language-emoji">{{ item.icon }}</span>
+                  <span class="language-label">{{ item.label }}</span>
+                  <svg v-if="currentLanguage === item.value" class="check-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
                 </span>
               </el-dropdown-item>
             </el-dropdown-menu>
@@ -75,7 +84,8 @@
     <el-card class="login-card">
       <!-- 标题 -->
       <div class="card-header">
-        <h2>Homalos 量化交易系统</h2>
+        <h2>{{ activeTab === 'login' ? '欢迎登录' : '创建账户' }}</h2>
+        <p class="card-subtitle">{{ activeTab === 'login' ? '登录您的 Homalos 账户' : '注册新的 Homalos 账户' }}</p>
       </div>
       
       <!-- Tab切换 -->
@@ -811,83 +821,155 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
   top: 0;
   left: 0;
   right: 0;
-  height: 60px;
+  height: 70px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 30px;
-  background: transparent;
-  z-index: 2;
+  padding: 0 40px;
+  background: rgba(12, 18, 35, 0.6);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(64, 158, 255, 0.1);
+  z-index: 10;
 }
 
 /* 左侧Logo */
 .nav-logo {
   display: flex;
   align-items: center;
+  gap: 12px;
   cursor: pointer;
   user-select: none;
+  transition: all 0.3s ease;
+}
+
+.nav-logo:hover {
+  transform: translateX(2px);
 }
 
 .nav-logo-icon {
-  background: linear-gradient(135deg, #eaf6ff 20%, #b1dcff 55%, #83aaff 80%, #deebff 100%);
+  background: linear-gradient(135deg, #4a9eff 0%, #67b5ff 50%, #409eff 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  text-shadow: 1px -1px 10px #eaf6ff, 0 0 6px #83aaff, 0 0 14px #b1dcff;
+  transition: all 0.3s ease;
 }
+
 .nav-logo-icon svg {
-  filter: drop-shadow(0 1px 10px #fff) drop-shadow(0 2px 20px #dbeafe);
+  filter: drop-shadow(0 0 8px rgba(64, 158, 255, 0.4));
+}
+
+.nav-logo:hover .nav-logo-icon svg {
+  filter: drop-shadow(0 0 12px rgba(64, 158, 255, 0.6));
+}
+
+.nav-logo-text {
+  font-size: 22px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #ffffff 0%, #b3d9ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 0.5px;
+}
+
+.nav-logo-subtitle {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 400;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 @media (max-width: 768px) {
   .nav-logo-icon {
-    font-size: 28px;
-    filter: drop-shadow(0 4px 16px #55f6ff) drop-shadow(0 0 18px #66ccff) drop-shadow(0 0 4px #fff);
+    font-size: 24px;
+  }
+  
+  .nav-logo-subtitle {
+    display: none;
   }
 }
 
-/* 右侧语言切换 - 图标按钮式 */
+/* 右侧语言切换 */
 .nav-language {
   display: flex;
   align-items: center;
 }
 
-/* 语言切换图标按钮 */
-.language-icon-btn {
-  color: rgba(255, 255, 255, 0.7);
+/* 语言切换选择器 */
+.language-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(64, 158, 255, 0.2);
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
-  padding: 6px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
 }
 
-.language-icon-btn:hover {
-  color: #409eff;
+.language-selector:hover {
   background: rgba(64, 158, 255, 0.1);
-  box-shadow: 0 0 12px rgba(64, 158, 255, 0.4);
-  transform: scale(1.1);
+  border-color: rgba(64, 158, 255, 0.4);
+  box-shadow: 0 0 16px rgba(64, 158, 255, 0.2);
 }
 
-/* 下拉菜单容器 - 深色玻璃拟物效果 */
+.language-selector .language-icon {
+  color: rgba(255, 255, 255, 0.7);
+  transition: color 0.3s ease;
+}
+
+.language-selector:hover .language-icon {
+  color: #409eff;
+}
+
+.language-selector .language-text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+  min-width: 70px;
+}
+
+.language-selector .arrow-icon {
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s ease;
+}
+
+.language-selector:hover .arrow-icon {
+  color: #409eff;
+  transform: translateY(1px);
+}
+
+/* 下拉菜单容器 */
 .language-dropdown-menu {
-  background: rgba(18, 28, 48, 0.98) !important;
-  /* 蓝色可选渐变风格：background: linear-gradient(135deg,#183564 0%,#253764 100%) !important; */
-  backdrop-filter: blur(16px);
-  border: 1.5px solid rgba(37,55,100,0.23) !important;
-  color: var(--text-primary) !important;
+  background: rgba(18, 28, 48, 0.96) !important;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(64, 158, 255, 0.25) !important;
+  border-radius: 8px !important;
+  padding: 6px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(64, 158, 255, 0.1) inset !important;
+  min-width: 160px !important;
 }
+
 .language-dropdown-menu .el-dropdown-menu__item {
-  color: var(--text-primary) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  padding: 10px 14px !important;
+  border-radius: 6px !important;
+  margin: 2px 0 !important;
+  transition: all 0.2s ease !important;
 }
+
 .language-dropdown-menu .el-dropdown-menu__item:hover {
-  background: rgba(55, 133, 255, 0.13) !important;
-  color: #fff !important;
+  background: rgba(64, 158, 255, 0.15) !important;
+  color: #ffffff !important;
 }
+
 .language-dropdown-menu .el-dropdown-menu__item.is-active {
-  background: rgba(49, 139, 255, 0.20) !important;
-  color: #fff !important;
-  font-weight: 600;
+  background: rgba(64, 158, 255, 0.25) !important;
+  color: #ffffff !important;
+  font-weight: 500;
 }
 
 /* 下拉选项内容 */
@@ -895,18 +977,23 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
   display: flex;
   align-items: center;
   gap: 10px;
+  justify-content: space-between;
+  width: 100%;
 }
 
-.language-icon {
-  font-size: 20px;
+.language-emoji {
+  font-size: 18px;
   line-height: 1;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
-.language-text {
+.language-label {
+  flex: 1;
   font-size: 14px;
-  font-weight: 500;
-  color: inherit;
+}
+
+.check-icon {
+  color: #409eff;
+  flex-shrink: 0;
 }
 
 .login-card {
@@ -942,19 +1029,24 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
   
   /* 移动端顶部导航栏 */
   .top-nav {
-    height: 50px;
-    padding: 0 15px;
+    height: 60px;
+    padding: 0 20px;
   }
   
-  .nav-logo-icon {
-    font-size: 28px;
+  .nav-logo-text {
+    font-size: 18px;
   }
   
-  .nav-language :deep(.el-select) {
-    width: 130px;
+  .nav-logo-subtitle {
+    display: none;
   }
   
-  .nav-language :deep(.el-input__inner) {
+  .language-selector {
+    padding: 6px 12px;
+  }
+  
+  .language-selector .language-text {
+    min-width: 50px;
     font-size: 13px;
   }
   
@@ -966,11 +1058,15 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
   }
   
   .card-header {
-    padding: 25px 25px 15px 25px;
+    padding: 25px 25px 18px 25px;
   }
   
   .card-header h2 {
-    font-size: 20px;
+    font-size: 22px;
+  }
+  
+  .card-subtitle {
+    font-size: 13px;
   }
   
   .login-tabs {
@@ -994,20 +1090,24 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
 .card-header {
   text-align: center;
   padding: 30px 50px 20px 50px;
-  border-bottom: 1px solid rgba(0, 191, 255, 0.1);
+  border-bottom: 1px solid rgba(64, 158, 255, 0.08);
   margin-bottom: 10px;
 }
 
 .card-header h2 {
-  margin: 0 0 10px 0;
-  color: var(--text-primary); /* 亮白色 */
-  font-size: 24px;
+  margin: 0 0 8px 0;
+  color: var(--text-primary);
+  font-size: 26px;
   font-weight: 600;
+  background: linear-gradient(135deg, #ffffff 0%, #b3d9ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.card-header p {
+.card-subtitle {
   margin: 0;
-  color: var(--text-secondary); /* 灰白色 */
+  color: rgba(255, 255, 255, 0.5);
   font-size: 14px;
   font-weight: 400;
 }
@@ -1266,8 +1366,8 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
 }
 .kline-draw-polyline{
   stroke-width:8;
-  filter:drop-shadow(0 0 16px #307efd);
-  opacity:1;
+  filter:drop-shadow(0 0 4px #307efd);
+  opacity:0.3;
 }
 .particles {
   position:relative;
