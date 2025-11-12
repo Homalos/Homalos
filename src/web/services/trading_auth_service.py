@@ -237,6 +237,8 @@ class TradingAuthService:
             encrypted_password=get_password_hash(password),
             app_id=app_id,
             auth_code=auth_code,
+            md_node_name=broker_key,  # 使用broker_key作为节点名称
+            td_node_name=broker_key,  # 使用broker_key作为节点名称
             display_name=display_name or f"{broker_key}_{broker_id}",
             is_default=is_default
         )

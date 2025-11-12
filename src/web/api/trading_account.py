@@ -65,6 +65,9 @@ async def login_trading_account(
     """
     service = TradingAuthService(db)
     
+    # 记录登录请求数据
+    logger.info(f"登录请求数据: account_id={login_data.account_id}, broker_key={login_data.broker_key}, broker_id={login_data.broker_id}, account_number={login_data.account_number}")
+    
     try:
         account = await service.login(
             user_id=current_user.id,  # type: ignore
