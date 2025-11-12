@@ -15,9 +15,14 @@
               <el-icon color="#409EFF" class="statistic-icon">
                 <Wallet />
               </el-icon>
-              <span class="statistic-value" style="color: #409EFF;">
-                ¥{{ dashboardData.account.totalEquity.toFixed(2) }}
-              </span>
+              <el-tooltip 
+                :content="`精确值: ¥${dashboardData.account.totalEquity.toFixed(2)}`" 
+                placement="top"
+              >
+                <span class="statistic-value" style="color: #409EFF;">
+                  {{ formatCurrency(dashboardData.account.totalEquity) }}
+                </span>
+              </el-tooltip>
             </div>
           </div>
         </div>
@@ -28,9 +33,14 @@
               <el-icon color="#67C23A" class="statistic-icon">
                 <Money />
               </el-icon>
-              <span class="statistic-value" style="color: #67C23A;">
-                ¥{{ dashboardData.account.availableFunds.toFixed(2) }}
-              </span>
+              <el-tooltip 
+                :content="`精确值: ¥${dashboardData.account.availableFunds.toFixed(2)}`" 
+                placement="top"
+              >
+                <span class="statistic-value" style="color: #67C23A;">
+                  {{ formatCurrency(dashboardData.account.availableFunds) }}
+                </span>
+              </el-tooltip>
             </div>
           </div>
         </div>
@@ -41,9 +51,14 @@
               <el-icon color="#E6A23C" class="statistic-icon">
                 <Lock />
               </el-icon>
-              <span class="statistic-value" style="color: #E6A23C;">
-                ¥{{ dashboardData.account.marginUsed.toFixed(2) }}
-              </span>
+              <el-tooltip 
+                :content="`精确值: ¥${dashboardData.account.marginUsed.toFixed(2)}`" 
+                placement="top"
+              >
+                <span class="statistic-value" style="color: #E6A23C;">
+                  {{ formatCurrency(dashboardData.account.marginUsed) }}
+                </span>
+              </el-tooltip>
             </div>
           </div>
         </div>
@@ -57,12 +72,17 @@
               >
                 <TrendCharts />
               </el-icon>
-              <span 
-                class="statistic-value" 
-                :style="{ color: dashboardData.account.floatingProfitLoss > 0 ? '#F56C6C' : dashboardData.account.floatingProfitLoss < 0 ? '#67C23A' : '#909399' }"
+              <el-tooltip 
+                :content="`精确值: ¥${dashboardData.account.floatingProfitLoss.toFixed(2)}`" 
+                placement="top"
               >
-                ¥{{ dashboardData.account.floatingProfitLoss.toFixed(2) }}
-              </span>
+                <span 
+                  class="statistic-value" 
+                  :style="{ color: dashboardData.account.floatingProfitLoss > 0 ? '#F56C6C' : dashboardData.account.floatingProfitLoss < 0 ? '#67C23A' : '#909399' }"
+                >
+                  {{ formatCurrency(dashboardData.account.floatingProfitLoss) }}
+                </span>
+              </el-tooltip>
             </div>
           </div>
         </div>
@@ -74,7 +94,7 @@
                 <DataAnalysis />
               </el-icon>
               <span class="statistic-value" style="color: #909399;">
-                {{ dashboardData.account.fundUtilizationRate.toFixed(2) }}%
+                {{ formatPercentage(dashboardData.account.fundUtilizationRate) }}
               </span>
             </div>
           </div>
@@ -106,7 +126,7 @@
                     class="statistic-value" 
                     :style="{ color: dashboardData.todayPerformance.returnRate > 0 ? '#F56C6C' : dashboardData.todayPerformance.returnRate < 0 ? '#67C23A' : '#909399' }"
                   >
-                    {{ dashboardData.todayPerformance.returnRate.toFixed(2) }}%
+                    {{ formatPercentage(dashboardData.todayPerformance.returnRate) }}
                   </span>
                 </div>
               </div>
@@ -121,12 +141,17 @@
                   >
                     <Coin />
                   </el-icon>
-                  <span 
-                    class="statistic-value" 
-                    :style="{ color: dashboardData.todayPerformance.profitLoss > 0 ? '#F56C6C' : dashboardData.todayPerformance.profitLoss < 0 ? '#67C23A' : '#909399' }"
+                  <el-tooltip 
+                    :content="`精确值: ¥${dashboardData.todayPerformance.profitLoss.toFixed(2)}`" 
+                    placement="top"
                   >
-                    ¥{{ dashboardData.todayPerformance.profitLoss.toFixed(2) }}
-                  </span>
+                    <span 
+                      class="statistic-value" 
+                      :style="{ color: dashboardData.todayPerformance.profitLoss > 0 ? '#F56C6C' : dashboardData.todayPerformance.profitLoss < 0 ? '#67C23A' : '#909399' }"
+                    >
+                      {{ formatCurrency(dashboardData.todayPerformance.profitLoss) }}
+                    </span>
+                  </el-tooltip>
                 </div>
               </div>
             </el-col>
@@ -377,6 +402,7 @@ import { getStrategies, getStrategyStatus } from '@/api/strategy'
 import EquityCurveChart from './charts/EquityCurveChart.vue'
 import ProfitLossChart from './charts/ProfitLossChart.vue'
 import ReturnRateChart from './charts/ReturnRateChart.vue'
+import { formatCurrency, formatPercentage, formatLargeNumber } from '@/utils/formatNumber'
 
 // 初始化交易账户 Store
 const tradingAccountStore = useTradingAccountStore()
@@ -776,16 +802,19 @@ onUnmounted(() => {
 /* 账户统计项 - 增加卡片内嵌套效果 */
 .account-item {
   flex: 1;
-  min-width: 180px;
-  max-width: 240px;
+  min-width: 200px; /* 从180px增加到200px，给数字更多空间 */
+  max-width: 260px; /* 从240px增加到260px */
   text-align: center;
   background: linear-gradient(135deg, rgba(64, 158, 255, 0.03) 0%, rgba(103, 194, 58, 0.03) 100%);
   border-radius: 12px;
-  padding: 8px;
+  padding: 12px 8px; /* 增加上下内边距 */
   border: 1px solid rgba(64, 158, 255, 0.08);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  display: flex; /* 添加flex布局 */
+  flex-direction: column; /* 垂直排列 */
+  justify-content: center; /* 垂直居中 */
 }
 
 /* hover效果 - 微妙上浮 */
@@ -942,6 +971,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 12px; /* 从8px增加到12px，图标和数字间距更大 */
+  flex-wrap: wrap; /* 允许换行 */
+  min-height: 60px; /* 设置最小高度，保持一致性 */
 }
 
 /* 图标增强 - 更大更醒目 */
@@ -951,12 +982,16 @@ onUnmounted(() => {
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
-/* 数字增强 - 更大更醒目 */
+/* 数字增强 - 更大更醒目，支持自动换行 */
 .statistic-value {
-  font-size: 32px; /* 从24px增加到32px，提升可读性 */
+  font-size: 28px; /* 从32px调整到28px，避免过大 */
   font-weight: 700; /* 从600增加到700，更粗 */
-  line-height: 40px; /* 从32px增加到40px */
+  line-height: 36px; /* 从40px调整到36px */
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* 添加文字阴影 */
+  word-break: break-all; /* 允许在任意字符间换行 */
+  hyphens: auto; /* 自动断字 */
+  max-width: 100%; /* 确保不超出容器 */
+  text-align: center; /* 居中对齐 */
 }
 </style>
 

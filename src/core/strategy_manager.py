@@ -589,33 +589,52 @@ class StrategyManager(object):
         线程安全转发 -> 在主循环中调度。
         从读取线程调用。
         
-        ⚠️ 临时禁用：WebSocket推送可能导致FastAPI主线程阻塞
+        优化版本：使用call_soon_threadsafe避免阻塞，增加错误处理
         """
-        # 临时禁用WebSocket推送，仅保留日志记录
-        # 这将允许策略正常接收tick数据，但前端不会实时显示日志
-        return
+        # 标准化消息格式
+        normalized = {}
+        if isinstance(msg, dict):
+            normalized = msg.copy()
+        else:
+            normalized = {"type": "log", "payload": str(msg)}
         
-        # 原始代码（已禁用）
-        # normalized = {}
-        # if isinstance(msg, dict):
-        #     normalized = msg.copy()
-        # else:
-        #     normalized = {"type": "log", "payload": str(msg)}
-        # 
-        # if not self._ws_queues:
-        #     return
-        # 
-        # loop = self._loop
-        # if not loop:
-        #     return
-        # 
-        # for q in list(self._ws_queues):
-        #     try:
-        #         q.put_nowait(normalized)
-        #     except asyncio.QueueFull:
-        #         pass
-        #     except Exception:
-        #         pass
+        # 确保消息有必要的字段
+        if "sid" not in normalized and "strategy_id" in normalized:
+            normalized["sid"] = normalized["strategy_id"]
+        
+        # 如果没有WebSocket连接，直接返回
+        if not self._ws_queues:
+            return
+        
+        # 获取事件循环
+        loop = self._loop
+        if not loop or loop.is_closed():
+            return
+        
+        # 使用call_soon_threadsafe异步转发消息，避免阻塞
+        def _put_message():
+            """在主事件循环中执行的回调函数"""
+            for q in list(self._ws_queues):  # 创建副本避免并发修改
+                try:
+                    q.put_nowait(normalized)
+                except asyncio.QueueFull:
+                    # 队列满了，跳过这个连接
+                    self.logger.warning(f"WebSocket队列已满，跳过消息: {normalized.get('type', 'unknown')}")
+                except Exception as e:
+                    # 队列可能已经被关闭，从列表中移除
+                    self.logger.debug(f"WebSocket队列错误，将被移除: {e}")
+                    try:
+                        self._ws_queues.remove(q)
+                    except ValueError:
+                        pass  # 已经被其他线程移除
+        
+        try:
+            loop.call_soon_threadsafe(_put_message)
+        except RuntimeError as e:
+            # 事件循环可能已经关闭
+            self.logger.debug(f"无法转发WebSocket消息，事件循环不可用: {e}")
+        except Exception as e:
+            self.logger.error(f"转发WebSocket消息时发生未知错误: {e}", exc_info=True)
 
     # ---------- 调试和管理方法 ----------
     def get_running_strategies(self) -> list[str]:

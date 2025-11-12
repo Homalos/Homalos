@@ -77,8 +77,12 @@ async def login_trading_account(
         )
         
         # 如果用户提供了密码，构建broker配置并设置到TradingCoreService
+        logger.info(f"检查密码状态: password={'有密码' if login_data.password and login_data.password.strip() else '无密码或空密码'}")
+        
         if login_data.password and login_data.password.strip():
             try:
+                logger.info("开始构建broker配置...")
+                
                 account_data = {
                     "broker_id": account.broker_id,
                     "account_id": account.account_id,
@@ -89,19 +93,26 @@ async def login_trading_account(
                     "broker_key": account.broker_key
                 }
                 
+                logger.info(f"账户数据: broker_id={account.broker_id}, account_id={account.account_id}, broker_key={account.broker_key}, app_id='{account.app_id}', auth_code='{account.auth_code}'")
+                
                 broker_config = build_broker_config_from_account(
                     account_data=account_data,
                     decrypted_password=login_data.password
                 )
                 
+                logger.info(f"broker配置构建成功: broker_name={broker_config.get('broker_name')}")
+                
                 # 设置到TradingCoreService（用于后续连接网关）
                 core_service = TradingCoreService.get_instance()
                 core_service.set_account_broker_config(broker_config)
                 
-                logger.info(f"已设置账户broker配置到TradingCoreService: account_id={account.id}")
+                # 验证设置结果
+                has_config = core_service.has_broker_config()
+                logger.info(f"已设置账户broker配置到TradingCoreService: account_id={account.id}, 验证结果={has_config}")
+                
             except Exception as e:
                 # 构建配置失败不影响登录，只记录警告
-                logger.warning(f"构建broker配置失败（不影响登录）: {e}")
+                logger.warning(f"构建broker配置失败（不影响登录）: {e}", exc_info=True)
         else:
             logger.info("免密登录，未构建broker配置（需要时用户需重新输入密码）")
         

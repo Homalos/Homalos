@@ -151,7 +151,8 @@ class TraderGateway(BaseGateway):
         auth_code: str = setting.get("auth_code", "")  # 授权编码
 
         # 验证必需字段
-        if not all([td_address, broker_id, user_id, password, app_id, auth_code]):
+        required_fields = [td_address, broker_id, user_id, password]
+        if not all(required_fields):
             missing_fields = []
             if not td_address:
                 missing_fields.append("td_address")
@@ -161,12 +162,16 @@ class TraderGateway(BaseGateway):
                 missing_fields.append("user_id")
             if not password: 
                 missing_fields.append("password")
-            if not app_id:
-                missing_fields.append("app_id")
-            if not auth_code:
-                missing_fields.append("auth_code")
 
             self.logger.error(f"CTP交易网关连接参数不完整，缺少字段: {missing_fields}")
+            return
+        
+        # 记录app_id和auth_code状态（某些环境可以为空）
+        self.logger.info(f"连接参数: broker_id={broker_id}, user_id={user_id}, app_id='{app_id}', auth_code='{auth_code}'")
+        if not app_id:
+            self.logger.info("app_id为空，某些CTP环境（如simnow）可以使用空值")
+        if not auth_code:
+            self.logger.info("auth_code为空，某些CTP环境（如simnow）可以使用空值")
 
         td_address = prepare_address(td_address)
         try:

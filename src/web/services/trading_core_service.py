@@ -180,7 +180,15 @@ class TradingCoreService:
             self._loop = asyncio.get_running_loop()
             
             # 1. 准备配置
-            self._config = config or {}
+            # 注意：保留已设置的broker配置，只有在明确传入config时才覆盖
+            if config is not None:
+                self._config = config
+                self.logger.info("使用传入的启动配置")
+            elif not self._config:
+                self._config = {}
+                self.logger.info("使用默认空配置")
+            else:
+                self.logger.info(f"保留现有broker配置: {self._config.get('broker_name', 'unknown')}")
             
             # 2. 初始化核心模块
             await self._initialize_modules()
