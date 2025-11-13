@@ -11,20 +11,30 @@
 """
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, validator
 
 
 class UserBase(BaseModel):
     """用户基础模式"""
     username: str = Field(..., min_length=3, max_length=50, description="用户名")
-    email: Optional[EmailStr] = Field(None, description="邮箱")
+    email: EmailStr = Field(..., description="邮箱地址")
+    phone: Optional[str] = Field(None, max_length=20, description="手机号")
     full_name: Optional[str] = Field(None, max_length=100, description="全名")
+    timezone: str = Field(default="Asia/Shanghai", max_length=50, description="时区")
+    locale: str = Field(default="zh-CN", max_length=10, description="语言偏好")
 
 
 class UserCreate(UserBase):
     """用户创建模式"""
     password: str = Field(..., min_length=6, max_length=50, description="密码")
-    role: str = Field(default="admin", description="角色：admin/user")
+    confirm_password: str = Field(..., description="确认密码")
+    avatar_url: Optional[str] = Field(None, max_length=500, description="头像URL")
+    
+    @validator('confirm_password')
+    def passwords_match(cls, v, values):
+        if 'password' in values and v != values['password']:
+            raise ValueError('两次输入的密码不一致')
+        return v
 
 
 class UserUpdate(BaseModel):
@@ -42,11 +52,14 @@ class UserLogin(BaseModel):
 
 class UserResponse(UserBase):
     """用户响应模式"""
-    id: int
-    role: str
-    is_active: bool
+    user_id: int
+    status: str
+    email_verified: bool
+    phone_verified: bool
+    mfa_enabled: bool
+    avatar_url: Optional[str] = None
     created_at: datetime
-    last_login: Optional[datetime] = None
+    last_login_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True  # Pydantic v2语法

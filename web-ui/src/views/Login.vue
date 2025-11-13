@@ -49,9 +49,29 @@
         <span class="nav-logo-subtitle">量化交易系统</span>
       </div>
       
-      <!-- 右侧语言切换 -->
-      <div class="nav-language">
-        <el-dropdown @command="handleLanguageChange" trigger="hover" placement="bottom-end">
+      <!-- 右侧操作区 -->
+      <div class="nav-actions">
+        <!-- 管理员注册按钮 -->
+        <el-tooltip content="管理员注册" placement="bottom">
+          <el-button
+            type="primary"
+            plain
+            size="small"
+            @click="$router.push('/admin/register')"
+            class="admin-register-btn"
+          >
+            <el-icon>
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V11.4C14.8,12.8 13.4,14.4 12,14.4C10.6,14.4 9.2,12.8 9.2,11.4V10C9.2,8.6 10.6,7 12,7M18,11C18,15.1 15.1,18 12,18C8.9,18 6,15.1 6,11V6.3L12,3.7L18,6.3V11Z"/>
+              </svg>
+            </el-icon>
+            管理员注册
+          </el-button>
+        </el-tooltip>
+        
+        <!-- 语言切换 -->
+        <div class="nav-language">
+          <el-dropdown @command="handleLanguageChange" trigger="hover" placement="bottom-end">
           <div class="language-selector">
             <svg class="language-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"/>
@@ -82,6 +102,7 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
+        </div>
       </div>
     </div>
     
@@ -305,21 +326,24 @@
         </el-button>
       </template>
     </el-dialog>
+    
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { User, Lock, Message, UserFilled, TrendCharts } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 const activeTab = ref('login')
 const rememberMe = ref(false)
+
 
 // 语言切换相关
 const currentLanguage = ref('zh-CN')
@@ -358,12 +382,20 @@ watch(activeTab, async (newTab) => {
   }
 })
 
-// 组件挂载时，从localStorage加载保存的用户名
+// 组件挂载时，从URL参数或localStorage加载用户名
 onMounted(() => {
-  const savedUsername = localStorage.getItem('homalos_remember_username')
-  if (savedUsername) {
-    loginForm.username = savedUsername
-    rememberMe.value = true
+  // 优先检查URL参数中的username
+  const urlUsername = route.query.username
+  if (urlUsername) {
+    loginForm.username = urlUsername
+    ElMessage.success('已为您自动填充用户名，请输入密码登录')
+  } else {
+    // 如果URL中没有username，则从localStorage加载保存的用户名
+    const savedUsername = localStorage.getItem('homalos_remember_username')
+    if (savedUsername) {
+      loginForm.username = savedUsername
+      rememberMe.value = true
+    }
   }
 })
 
@@ -611,6 +643,7 @@ const resetResetForm = () => {
   }
 }
 
+
 // 登录K线动态延展折线 - 上升趋势、延展动画
 const KLINE_PCOUNT = 38
 const SVG_WIDTH = 1440
@@ -722,103 +755,6 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
   pointer-events: none; /* 允许点击穿透 */
 }
 
-/* 粒子效果 */
-.particles {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  top: 0;
-  left: 0;
-  z-index: 1; /* 确保在数据流之上 */
-}
-
-.particle {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  opacity: 0;
-  animation: particleFloat 8s infinite ease-in-out;
-}
-
-.particle:nth-child(1) { 
-  left: 15%; top: 20%; 
-  background: #28A745;
-  animation-delay: 0s; 
-  box-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
-}
-.particle:nth-child(2) { 
-  left: 35%; top: 60%; 
-  background: #DC3545;
-  animation-delay: 1s; 
-  box-shadow: 0 0 8px rgba(220, 53, 69, 0.6);
-}
-.particle:nth-child(3) { 
-  left: 65%; top: 40%; 
-  background: #28A745;
-  animation-delay: 2s; 
-  box-shadow: 0 0 6px rgba(40, 167, 69, 0.5);
-}
-.particle:nth-child(4) { 
-  left: 80%; top: 80%; 
-  background: #DC3545;
-  animation-delay: 3s; 
-  box-shadow: 0 0 10px rgba(220, 53, 69, 0.7);
-}
-.particle:nth-child(5) { 
-  left: 45%; top: 10%; 
-  background: #28A745;
-  animation-delay: 4s; 
-  box-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
-}
-.particle:nth-child(6) { 
-  left: 25%; top: 30%; 
-  background: #DC3545;
-  animation-delay: 5s; 
-  width: 3px; height: 3px;
-  box-shadow: 0 0 6px rgba(220, 53, 69, 0.5);
-}
-.particle:nth-child(7) { 
-  left: 70%; top: 70%; 
-  background: #28A745;
-  animation-delay: 6s; 
-  width: 5px; height: 5px;
-  box-shadow: 0 0 10px rgba(40, 167, 69, 0.8);
-}
-.particle:nth-child(8) { 
-  left: 55%; top: 25%; 
-  background: #DC3545;
-  animation-delay: 7s; 
-  width: 2px; height: 2px;
-  box-shadow: 0 0 4px rgba(220, 53, 69, 0.4);
-}
-
-@keyframes particleFloat {
-  0%, 100% { 
-    transform: translateY(0) translateX(0) scale(0); 
-    opacity: 0; 
-  }
-  10% { 
-    transform: translateY(-10px) translateX(2px) scale(0.8); 
-    opacity: 0.3; 
-  }
-  25% { 
-    transform: translateY(-25px) translateX(-1px) scale(1.1); 
-    opacity: 0.7; 
-  }
-  50% { 
-    transform: translateY(-45px) translateX(3px) scale(1.3); 
-    opacity: 1; 
-  }
-  75% { 
-    transform: translateY(-60px) translateX(-2px) scale(1.1); 
-    opacity: 0.8; 
-  }
-  90% { 
-    transform: translateY(-70px) translateX(1px) scale(0.9); 
-    opacity: 0.4; 
-  }
-}
 
 /* 顶部导航栏 */
 .top-nav {
@@ -893,6 +829,33 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
   .nav-logo-subtitle {
     display: none;
   }
+}
+
+/* 右侧操作区 */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* 管理员注册按钮 */
+.admin-register-btn {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(64, 158, 255, 0.3) !important;
+  color: #ffffff !important;
+  transition: all 0.3s ease !important;
+  backdrop-filter: blur(8px);
+}
+
+.admin-register-btn:hover {
+  background: rgba(64, 158, 255, 0.15) !important;
+  border-color: rgba(64, 158, 255, 0.5) !important;
+  box-shadow: 0 0 16px rgba(64, 158, 255, 0.3) !important;
+  transform: translateY(-1px);
+}
+
+.admin-register-btn .el-icon {
+  margin-right: 6px;
 }
 
 /* 右侧语言切换 */
@@ -1556,24 +1519,7 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
 /* 可用JS/按钮切换 .theme-high-contrast/.theme-color-blind 应用对应主题 */
 
 /* 5. 动效节奏统一 */
-.particles { z-index: 1; }
-.particle {
-  animation: particleFloat 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
-@keyframes particleFloat {
-  0%, 100% { transform: translateY(0) scale(0); opacity: 0; }
-  10% { transform: translateY(-10px) scale(0.8); opacity: 0.3; }
-  25% { transform: translateY(-20px) scale(1); opacity: 1; }
-  80% { opacity: 0.6; }
-}
-.kline-draw-svg{
-  width:100vw; height:100vh;
-  background: transparent !important;
-  pointer-events: none;
-  z-index: 0;
-}
-/* K线折线动画优化 - 增强视觉效果 */
-.kline-draw-polyline{
+.kline-draw-polyline {
   stroke-width:6; /* 从8减少到6，线条更精致 */
   filter:drop-shadow(0 0 6px #307efd) drop-shadow(0 0 12px rgba(48, 126, 253, 0.4)); /* 双层发光，科技感更强 */
   opacity:0.5; /* 从0.3提升到0.5，更清晰可见 */
@@ -1638,10 +1584,6 @@ const lineRectW = computed(() => Math.max(drawLineMaxX.value-drawLineMinX.value+
     opacity: 1;
     transform: translateY(-3px); /* 向上移动 */
   }
-}
-.particles {
-  position:relative;
-  z-index:1;
 }
 .login-card {
   position:relative;

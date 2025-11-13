@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from src.web.api import auth, monitor, datacenter, system_config, trading_account, strategy, alarm, trading_system, trading_core, account
+from src.web.api import auth, monitor, datacenter, system_config, trading_account, strategy, alarm, trading_system, trading_core, account, admin_auth
 from src.web.core.database import init_db, close_db
 from src.web.services.strategy_service import strategy_service
 from src.web.services.trading_core_service import TradingCoreService
@@ -208,6 +208,7 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(auth.router, prefix="/api")
+app.include_router(admin_auth.router, prefix="/api")      # 管理员认证路由
 app.include_router(monitor.router, prefix="/api")
 app.include_router(datacenter.router, prefix="/api")
 app.include_router(system_config.router, prefix="/api")

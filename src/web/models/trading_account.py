@@ -9,7 +9,7 @@
 @Software   : PyCharm
 @Description: 资金账户数据模型
 """
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, String, Integer, BigInteger, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from .base import BaseModel
 
@@ -18,7 +18,7 @@ class TradingAccount(BaseModel):
     """资金账户模型"""
     __tablename__ = "trading_accounts"
 
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True, comment="用户ID")
+    user_id = Column(BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True, comment="用户ID")
     broker_key = Column(String(50), nullable=False, comment="券商配置key（如simnow、tts等）")
     broker_id = Column(String(50), nullable=False, comment="券商ID")
     account_id = Column(String(100), nullable=False, comment="资金账号")
