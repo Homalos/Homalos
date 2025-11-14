@@ -73,6 +73,12 @@ const routes = [
         meta: { requiresAuth: true, requiresTradingAuth: true }
       },
       {
+        path: 'brokerages',
+        name: 'Brokerages',
+        component: () => import('@/components/BrokerageManager.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
         path: 'settings',
         name: 'Settings',
         component: () => import('@/components/Settings.vue'),

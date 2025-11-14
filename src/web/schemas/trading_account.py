@@ -91,3 +91,54 @@ class TradingAccountListResponse(BaseModel):
     accounts: list[TradingAccountResponse]
     total: int
 
+
+# ============================================================================
+# UserBrokerage Schema (新的券商账户模型)
+# ============================================================================
+
+class UserBrokerageBase(BaseModel):
+    """用户券商账户基础模型"""
+    account_name: str = Field(..., description="账户别名", min_length=1, max_length=100)
+    broker_code: str = Field(..., description="券商代码", max_length=50)
+    broker_name: str = Field(..., description="券商名称", max_length=100)
+    account_id: str = Field(..., description="资金账号", max_length=50)
+    investor_id: str = Field(..., description="投资者ID", max_length=50)
+    broker_id: str = Field(..., description="券商ID", max_length=50)
+    account_type: str = Field("production", description="账户类型：simulation/production")
+    status: str = Field("inactive", description="账户状态：active/inactive/error")
+    is_default: bool = Field(False, description="是否为默认账户")
+
+
+class UserBrokerageCreate(UserBrokerageBase):
+    """创建用户券商账户"""
+    password_encrypted: str = Field(..., description="加密后的密码")
+    auth_code: Optional[str] = Field(None, description="授权码")
+    app_id: Optional[str] = Field(None, description="应用ID")
+
+
+class UserBrokerageUpdate(BaseModel):
+    """更新用户券商账户"""
+    account_name: Optional[str] = Field(None, description="账户别名")
+    status: Optional[str] = Field(None, description="账户状态")
+    is_default: Optional[bool] = Field(None, description="是否为默认账户")
+
+
+class UserBrokerageResponse(UserBrokerageBase):
+    """用户券商账户响应"""
+    id: int
+    user_id: int
+    created_at: datetime
+    updated_at: datetime
+    connection_status: Optional[str] = Field(None, description="连接状态")
+    last_connected_at: Optional[datetime] = Field(None, description="最后连接时间")
+    last_error: Optional[str] = Field(None, description="最后错误信息")
+    
+    class Config:
+        from_attributes = True
+
+
+class UserBrokerageListResponse(BaseModel):
+    """用户券商账户列表响应"""
+    accounts: list[UserBrokerageResponse]
+    total: int
+

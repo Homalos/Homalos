@@ -230,8 +230,7 @@ import {
   updateTradingAccount,
   deleteTradingAccount,
   switchTradingAccount,
-  changeTradingAccountPassword,
-  addTradingAccount
+  changeTradingAccountPassword
 } from '@/api/tradingAccount'
 import { getTradingCoreStatus } from '@/api/tradingCore'
 import AddTradingAccountDialog from './AddTradingAccountDialog.vue'
@@ -451,16 +450,14 @@ function handleAdd() {
 
 /**
  * 添加账户成功处理
+ * 注意：API调用已在AddTradingAccountDialog中完成，这里只需要刷新列表
  */
-async function handleAddSuccess(accountData) {
-  try {
-    await addTradingAccount(accountData)
-    ElMessage.success('账户添加成功')
-    addDialogVisible.value = false
-    await tradingAccountStore.fetchAccountList()
-  } catch (error) {
-    ElMessage.error(error.response?.data?.detail || '添加账户失败')
-  }
+async function handleAddSuccess() {
+  // 关闭对话框
+  addDialogVisible.value = false
+  
+  // 刷新账户列表
+  await tradingAccountStore.fetchAccountList()
 }
 
 /**

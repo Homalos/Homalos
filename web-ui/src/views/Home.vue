@@ -121,6 +121,10 @@
             <el-icon><Bell /></el-icon>
             <span>通知中心</span>
           </el-menu-item>
+          <el-menu-item index="/brokerages">
+            <el-icon><Wallet /></el-icon>
+            <span>券商账户</span>
+          </el-menu-item>
           <el-menu-item index="/settings">
             <el-icon><Setting /></el-icon>
             <span>系统设置</span>
@@ -186,7 +190,8 @@ import {
   Lock,
   CircleCheckFilled,
   SwitchButton,
-  Close
+  Close,
+  Wallet
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
