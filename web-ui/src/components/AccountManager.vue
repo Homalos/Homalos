@@ -6,17 +6,32 @@
     :close-on-click-modal="false"
   >
     <el-table :data="accountList" stripe>
-      <el-table-column prop="display_name" label="账户名称" />
-      <el-table-column prop="broker_key" label="账户类型" width="120" />
-      <el-table-column prop="broker_id" label="券商ID" width="100" />
+      <el-table-column prop="account_name" label="账户名称" />
+      <el-table-column prop="broker_name" label="券商名称" width="120" />
+      <el-table-column prop="account_type" label="账户类型" width="100">
+        <template #default="{ row }">
+          <el-tag v-if="row.account_type?.toUpperCase() === 'SIMULATION'" type="warning" size="small">
+            模拟
+          </el-tag>
+          <el-tag v-else-if="row.account_type?.toUpperCase() === 'PRODUCTION'" type="primary" size="small">
+            实盘
+          </el-tag>
+          <el-tag v-else type="info" size="small">
+            {{ row.account_type || '未知' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="account_id" label="资金账号" width="120" />
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
-          <el-tag v-if="row.is_active" type="success" size="small">
+          <el-tag v-if="row.status?.toUpperCase() === 'ACTIVE'" type="success" size="small">
             激活
           </el-tag>
-          <el-tag v-else type="info" size="small">
-            禁用
+          <el-tag v-else-if="row.status?.toUpperCase() === 'INACTIVE'" type="info" size="small">
+            未激活
+          </el-tag>
+          <el-tag v-else type="danger" size="small">
+            错误
           </el-tag>
         </template>
       </el-table-column>
@@ -35,13 +50,31 @@
       <el-table-column label="操作" width="320" fixed="right">
         <template #default="{ row }">
           <el-button
-            v-if="!isCurrentAccount(row) && row.is_active"
+            v-if="!isCurrentAccount(row) && row.status?.toUpperCase() === 'ACTIVE'"
             link
             type="success"
             size="small"
             @click="handleSwitch(row)"
           >
             切换
+          </el-button>
+          <el-button
+            v-if="row.status?.toUpperCase() === 'INACTIVE'"
+            link
+            type="success"
+            size="small"
+            @click="handleActivate(row)"
+          >
+            激活
+          </el-button>
+          <el-button
+            v-if="row.status?.toUpperCase() === 'ACTIVE'"
+            link
+            type="warning"
+            size="small"
+            @click="handleDeactivate(row)"
+          >
+            停用
           </el-button>
           <el-button
             v-if="!row.is_default"
@@ -102,8 +135,8 @@
         :model="editFormData"
         label-width="100px"
       >
-        <el-form-item label="显示名称">
-          <el-input v-model="editFormData.display_name" />
+        <el-form-item label="账户名称">
+          <el-input v-model="editFormData.account_name" />
         </el-form-item>
         <el-form-item label="状态">
           <el-switch
@@ -134,7 +167,7 @@
       >
         <el-form-item label="账户信息">
           <div class="account-info">
-            <div>{{ currentAccount?.display_name }}</div>
+            <div>{{ currentAccount?.account_name }}</div>
             <div class="account-detail">
               {{ currentAccount?.broker_id }} - {{ currentAccount?.account_id }}
             </div>
@@ -189,7 +222,7 @@
       >
         <el-form-item label="账户信息">
           <div class="account-info">
-            <div>{{ switchAccount?.display_name }}</div>
+            <div>{{ switchAccount?.account_name }}</div>
             <div class="account-detail">
               {{ maskAccountId(switchAccount?.account_id) }}
             </div>
@@ -222,10 +255,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Plus } from '@element-plus/icons-vue'
 import { useBrokerageStore } from '@/stores/brokerage'
+import { useTradingAccountStore } from '@/stores/tradingAccount'
 import {
   updateBrokerage,
   deleteBrokerage,
@@ -246,6 +280,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const brokerageStore = useBrokerageStore()
+const tradingAccountStore = useTradingAccountStore()
 
 const visible = computed({
   get: () => props.modelValue,
@@ -259,7 +294,7 @@ const editDialogVisible = ref(false)
 const editFormRef = ref(null)
 const editFormData = reactive({
   id: null,
-  display_name: '',
+  account_name: '',
   is_active: true
 })
 
@@ -370,7 +405,7 @@ async function handleSetDefault(row) {
  */
 function handleEdit(row) {
   editFormData.id = row.id
-  editFormData.display_name = row.display_name
+  editFormData.account_name = row.account_name
   editFormData.is_active = row.is_active
   editDialogVisible.value = true
 }
@@ -380,9 +415,8 @@ function handleEdit(row) {
  */
 async function handleSaveEdit() {
   try {
-    await updateTradingAccount(editFormData.id, {
-      display_name: editFormData.display_name,
-      is_active: editFormData.is_active
+    await updateBrokerage(editFormData.id, {
+      account_name: editFormData.account_name
     })
     ElMessage.success('保存成功')
     editDialogVisible.value = false
@@ -404,7 +438,7 @@ async function handleDelete(row) {
     }
     
     // 2. 检查交易核心状态
-    let warningMessage = `确定要删除账户 "${row.display_name}" 吗？\n删除后将无法恢复。`
+    let warningMessage = `确定要删除账户 "${row.account_name}" 吗？\n删除后将无法恢复。`
     let confirmButtonText = '确定删除'
     let type = 'warning'
     
@@ -412,7 +446,7 @@ async function handleDelete(row) {
       const coreStatus = await getTradingCoreStatus()
       if (coreStatus && coreStatus.status === 'RUNNING') {
         warningMessage = `警告：交易核心正在运行！\n\n` +
-                        `删除账户 "${row.display_name}" 可能影响：\n` +
+                        `删除账户 "${row.account_name}" 可能影响：\n` +
                         `• 当前交易系统的稳定性\n` +
                         `• 如需重新连接网关将无法使用此账户\n` +
                         `• 无法通过该账户重新登录\n\n` +
@@ -459,6 +493,60 @@ async function handleAddSuccess() {
   
   // 刷新账户列表
   await brokerageStore.fetchBrokerages(true)
+}
+
+/**
+ * 激活账户
+ */
+async function handleActivate(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要激活账户 "${row.account_name}" 吗？`,
+      '激活账户',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'info'
+      }
+    )
+    
+    await brokerageStore.activate(row.id)
+    ElMessage.success('账户已激活')
+    
+    // 刷新列表
+    await brokerageStore.fetchBrokerages(true)
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.response?.data?.detail || '激活失败')
+    }
+  }
+}
+
+/**
+ * 停用账户
+ */
+async function handleDeactivate(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要停用账户 "${row.account_name}" 吗？\n停用后需要重新激活才能使用。`,
+      '停用账户',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    await brokerageStore.deactivate(row.id)
+    ElMessage.success('账户已停用')
+    
+    // 刷新列表
+    await brokerageStore.fetchBrokerages(true)
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.response?.data?.detail || '停用失败')
+    }
+  }
 }
 
 /**
@@ -532,7 +620,7 @@ async function handleConfirmSwitch() {
       })
       
       if (result.success) {
-        ElMessage.success(`已切换到账户：${switchAccount.value.display_name}`)
+        ElMessage.success(`已切换到账户：${switchAccount.value.account_name}`)
         switchDialogVisible.value = false
         
         // 清空表单
@@ -547,6 +635,14 @@ async function handleConfirmSwitch() {
     }
   })
 }
+
+// 监听对话框打开，自动获取最新的券商账户列表
+watch(visible, (newVal) => {
+  if (newVal) {
+    // 对话框打开时获取数据
+    brokerageStore.fetchBrokerages(true)
+  }
+})
 </script>
 
 <style scoped>

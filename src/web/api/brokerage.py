@@ -118,10 +118,10 @@ async def get_user_brokerages(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取券商账户列表失败: {str(e)}")
+        logger.error(f"获取券商账户列表失败: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取券商账户列表失败"
+            detail="获取券商账户失败"
         )
 
 
@@ -211,6 +211,13 @@ async def update_user_brokerage(
         
         # 更新字段
         update_dict = update_data.model_dump(exclude_unset=True)
+        
+        # 转换枚举字段为大写
+        if 'account_type' in update_dict and update_dict['account_type']:
+            update_dict['account_type'] = update_dict['account_type'].upper()
+        if 'status' in update_dict and update_dict['status']:
+            update_dict['status'] = update_dict['status'].upper()
+        
         for key, value in update_dict.items():
             setattr(brokerage, key, value)
         

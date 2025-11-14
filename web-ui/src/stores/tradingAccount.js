@@ -143,8 +143,13 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
    */
   async function fetchAccountList() {
     try {
-      const response = await getTradingAccountList()
+      // 使用新的 brokerage API
+      console.log('===== 开始获取券商账户列表 =====')
+      const response = await getBrokerageList({ include_inactive: true })
+      console.log('===== API响应:', response)
+      console.log('===== accounts数据:', response.accounts)
       accountList.value = response.accounts || []
+      console.log('===== accountList已更新:', accountList.value)
       return true
     } catch (error) {
       console.error('获取账户列表失败:', error)
