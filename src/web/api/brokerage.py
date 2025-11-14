@@ -63,7 +63,7 @@ async def create_user_brokerage(
         # 使用服务层创建账户
         brokerage = await service.create_brokerage_account(
             user_id=current_user.id,
-            user_type="user",
+            user_type="USER",
             account_data=account_data
         )
         
@@ -106,7 +106,7 @@ async def get_user_brokerages(
         
         brokerages = await service.get_user_brokerages(
             user_id=current_user.id,
-            user_type="user",
+            user_type="USER",
             include_inactive=include_inactive
         )
         
@@ -216,7 +216,7 @@ async def update_user_brokerage(
         
         # 如果设置为默认账户，使用服务层方法
         if update_data.is_default is True:
-            await service.set_default_account(brokerage_id, current_user.id, "user")
+            await service.set_default_account(brokerage_id, current_user.id, "USER")
         
         await db.commit()
         await db.refresh(brokerage)

@@ -208,8 +208,17 @@ class TradingAuthService:
         is_default: bool = False
     ) -> TradingAccount:
         """添加新账户"""
+        # 添加详细日志
+        logger.info(f"检查账户是否存在: user_id={user_id}, broker_id={broker_id}, account_id={account_id}")
+        
         # 检查是否已存在
         existing = await self._get_account_by_credentials(user_id, broker_id, account_id)
+        
+        if existing:
+            logger.warning(f"账户已存在: id={existing.id}, user_id={existing.user_id}, broker_id={existing.broker_id}, account_id={existing.account_id}")
+        else:
+            logger.info(f"账户不存在，可以创建")
+        
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

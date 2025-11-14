@@ -214,7 +214,7 @@
     </el-dialog>
 
     <!-- 添加账户对话框 -->
-    <AddTradingAccountDialog
+    <AddBrokerageAccountDialog
       v-model="addDialogVisible"
       @success="handleAddSuccess"
     />
@@ -225,15 +225,16 @@
 import { ref, reactive, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Plus } from '@element-plus/icons-vue'
-import { useTradingAccountStore } from '@/stores/tradingAccount'
+import { useBrokerageStore } from '@/stores/brokerage'
 import {
-  updateTradingAccount,
-  deleteTradingAccount,
-  switchTradingAccount,
-  changeTradingAccountPassword
-} from '@/api/tradingAccount'
+  updateBrokerage,
+  deleteBrokerage,
+  setDefaultBrokerage,
+  activateBrokerage,
+  deactivateBrokerage
+} from '@/api/brokerage'
 import { getTradingCoreStatus } from '@/api/tradingCore'
-import AddTradingAccountDialog from './AddTradingAccountDialog.vue'
+import AddBrokerageAccountDialog from './AddBrokerageAccountDialog.vue'
 
 const props = defineProps({
   modelValue: {
@@ -244,14 +245,14 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const tradingAccountStore = useTradingAccountStore()
+const brokerageStore = useBrokerageStore()
 
 const visible = computed({
   get: () => props.modelValue,
   set: (val) => emit('update:modelValue', val)
 })
 
-const accountList = computed(() => tradingAccountStore.accountList)
+const accountList = computed(() => brokerageStore.brokerages)
 
 const addDialogVisible = ref(false)
 const editDialogVisible = ref(false)
@@ -457,7 +458,7 @@ async function handleAddSuccess() {
   addDialogVisible.value = false
   
   // 刷新账户列表
-  await tradingAccountStore.fetchAccountList()
+  await brokerageStore.fetchBrokerages(true)
 }
 
 /**

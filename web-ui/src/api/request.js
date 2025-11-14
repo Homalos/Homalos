@@ -70,6 +70,10 @@ request.interceptors.response.use(
         case 403:
           ElMessage.error('权限不足')
           break
+        case 409:
+          // 409 Conflict - 业务冲突错误（如账户已存在）
+          // 不在这里显示错误，让组件自己处理
+          break
         case 422:
           // FastAPI验证错误
           const errorMsg = data.detail?.[0]?.msg || data.detail || '请求参数错误'

@@ -10,15 +10,9 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
-    path: '/admin/register',
+    path: '/admin-register',
     name: 'AdminRegister',
     component: () => import('@/views/AdminRegisterPage.vue'),
-    meta: { requiresAuth: false }
-  },
-  {
-    path: '/test-login',
-    name: 'TestLogin',
-    component: () => import('@/views/TestLogin.vue'),
     meta: { requiresAuth: false }
   },
   {

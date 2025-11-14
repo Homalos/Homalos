@@ -6,6 +6,7 @@ import {
   getTradingAccountStatus,
   getTradingAccountList
 } from '@/api/tradingAccount'
+import { getBrokerageList } from '@/api/brokerage'
 import { connectAccountWebSocket, getLatestAccountData } from '@/api/account'
 
 export const useTradingAccountStore = defineStore('tradingAccount', () => {

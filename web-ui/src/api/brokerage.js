@@ -30,7 +30,7 @@ export function createBrokerage(data) {
   delete requestData.password
   
   return request({
-    url: '/user-brokerages',
+    url: '/api/user-brokerages',
     method: 'post',
     data: requestData
   })
@@ -44,7 +44,7 @@ export function createBrokerage(data) {
  */
 export function getBrokerageList(params = {}) {
   return request({
-    url: '/user-brokerages',
+    url: '/api/user-brokerages',
     method: 'get',
     params
   })
@@ -57,7 +57,7 @@ export function getBrokerageList(params = {}) {
  */
 export function getBrokerageDetail(brokerageId) {
   return request({
-    url: `/user-brokerages/${brokerageId}`,
+    url: `/api/user-brokerages/${brokerageId}`,
     method: 'get'
   })
 }
@@ -73,7 +73,7 @@ export function getBrokerageDetail(brokerageId) {
  */
 export function updateBrokerage(brokerageId, data) {
   return request({
-    url: `/user-brokerages/${brokerageId}`,
+    url: `/api/user-brokerages/${brokerageId}`,
     method: 'put',
     data
   })
@@ -86,7 +86,7 @@ export function updateBrokerage(brokerageId, data) {
  */
 export function deleteBrokerage(brokerageId) {
   return request({
-    url: `/user-brokerages/${brokerageId}`,
+    url: `/api/user-brokerages/${brokerageId}`,
     method: 'delete'
   })
 }

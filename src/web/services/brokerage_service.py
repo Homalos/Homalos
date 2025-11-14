@@ -124,9 +124,14 @@ class BrokerageService:
             account_data: 账户数据
             
         Returns:
-            创建的券商账户对象
+            UserBrokerage: 创建的券商账户
         """
+        # 验证文件已加载
+        logger.info(f"===== CREATE BROKERAGE START ===== user_type={user_type}")
+        logger.info(f"===== account_data keys: {list(account_data.keys())}")
+        
         try:
+            logger.info("===== STEP 1: 检查账户是否存在")
             # 检查是否已存在相同的账户
             existing = await self.db.execute(
                 select(UserBrokerage).where(
@@ -138,15 +143,24 @@ class BrokerageService:
                 )
             )
             
+            logger.info("===== STEP 2: 检查结果")
             if existing.scalar_one_or_none():
                 raise ValueError("该券商账户已存在")
             
+            logger.info("===== STEP 3: 处理默认账户")
             # 如果设置为默认账户，先取消其他默认账户
             if account_data.get('is_default', False):
                 await self._clear_default_accounts(user_id, user_type)
             
+            # 调试：打印 account_data
+            logger.info(f"DEBUG - account_data keys: {account_data.keys()}")
+            logger.info(f"DEBUG - account_data.get('user_type'): {account_data.get('user_type')}")
+            
             # 加密敏感信息
             encrypted_data = account_data.copy()
+            
+            # 强制移除可能存在的 user_type（防止前端或Schema传递）
+            encrypted_data.pop('user_type', None)
             encrypted_data['password_encrypted'] = self.cipher.encrypt(account_data['password'])
             
             if account_data.get('auth_code'):
@@ -162,8 +176,21 @@ class BrokerageService:
             encrypted_data['user_id'] = user_id
             encrypted_data['user_type'] = user_type
             
+            # 转换枚举字段为大写（匹配数据库枚举定义）
+            if 'account_type' in encrypted_data and encrypted_data['account_type']:
+                encrypted_data['account_type'] = encrypted_data['account_type'].upper()
+            if 'status' in encrypted_data and encrypted_data['status']:
+                encrypted_data['status'] = encrypted_data['status'].upper()
+            
+            # 调试：打印最终的 encrypted_data
+            logger.info(f"DEBUG - Final user_type: {encrypted_data['user_type']}")
+            logger.info(f"DEBUG - user_type parameter: {user_type}")
+            logger.info("===== STEP 4: 准备创建 UserBrokerage 对象")
+            
             # 创建账户
+            logger.info(f"===== CREATING UserBrokerage with user_type={encrypted_data.get('user_type')}")
             brokerage = UserBrokerage(**encrypted_data)
+            logger.info("===== UserBrokerage 对象创建成功")
             self.db.add(brokerage)
             await self.db.commit()
             await self.db.refresh(brokerage)
@@ -185,7 +212,7 @@ class BrokerageService:
     async def get_user_brokerages(
         self,
         user_id: int,
-        user_type: str = "user",
+        user_type: str = "USER",
         include_inactive: bool = False
     ) -> List[UserBrokerage]:
         """
