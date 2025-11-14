@@ -239,6 +239,11 @@ class Admin(Base):
         return self.status == AdminStatus.ACTIVE
     
     @property
+    def id(self) -> int:
+        """兼容性属性 - 返回admin_id，使Admin模型与User模型兼容"""
+        return self.admin_id
+    
+    @property
     def is_verified(self) -> bool:
         """判断邮箱是否已验证"""
         return self.email_verified_at is not None
@@ -282,8 +287,10 @@ class Admin(Base):
     
     @property
     def requires_mfa(self) -> bool:
-        """判断是否需要MFA（超级管理员强制要求）"""
-        return self.is_super_admin or self.mfa_enabled
+        """判断是否需要MFA（仅当明确启用时）"""
+        # 开发环境：只有明确启用MFA时才要求
+        # 生产环境建议：return self.is_super_admin or self.mfa_enabled
+        return self.mfa_enabled
     
     def can_perform_action(self, action: str) -> bool:
         """

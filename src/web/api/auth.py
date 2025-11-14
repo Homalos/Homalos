@@ -58,10 +58,10 @@ async def login(
     return await auth_service.login(form_data.username, form_data.password)
 
 
-@router.get("/me", response_model=UserResponse, summary="获取当前用户信息")
+@router.get("/me", summary="获取当前用户信息")
 async def get_current_user_info(
     current_user: User = Depends(get_current_user)
-) -> UserResponse:
+):
     """
     获取当前登录用户的信息
     
@@ -69,7 +69,19 @@ async def get_current_user_info(
     ```
     Authorization: Bearer <access_token>
     ```
+    
+    返回值根据用户类型而不同：
+    - 普通用户: UserResponse
+    - 管理员: AdminResponse
     """
+    from src.web.models.admin import Admin
+    from src.web.schemas.admin import AdminResponse
+    
+    # 如果是管理员，返回AdminResponse
+    if isinstance(current_user, Admin):
+        return AdminResponse.from_admin_model(current_user)
+    
+    # 否则返回UserResponse
     return UserResponse.model_validate(current_user)
 
 

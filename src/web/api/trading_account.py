@@ -120,9 +120,15 @@ async def login_trading_account(
             logger.info("免密登录，未构建broker配置（需要时用户需重新输入密码）")
         
         # 生成新Token（包含资金账户信息）
+        # 处理role字段 - 可能是枚举或字符串
+        role_value = current_user.role
+        if hasattr(role_value, 'value'):
+            # 如果是枚举，获取其值
+            role_value = role_value.value
+        
         token_data = {
             "sub": current_user.username,
-            "role": current_user.role,
+            "role": role_value,
             "trading_account": {
                 "id": account.id,
                 "broker_key": account.broker_key,
@@ -257,6 +263,14 @@ async def get_account_list(
     """
     获取当前用户的所有资金账户
     """
+    # 处理管理员用户 - 管理员没有资金账户
+    from src.web.models.admin import Admin
+    if isinstance(current_user, Admin):
+        return TradingAccountListResponse(
+            accounts=[],
+            total=0
+        )
+    
     service = TradingAuthService(db)
     accounts = await service.get_account_list(current_user.id)  # type: ignore
     

@@ -11,14 +11,16 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import timedelta
 
 from src.web.core.database import get_db
+from src.web.core.security import create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from src.web.services.admin_auth_service import AdminAuthService
 from src.web.schemas.admin import (
     AdminCreate, AdminResponse, AdminLogin, AdminPasswordChange,
     AdminProfileUpdate, AdminVerificationRequest
 )
 from src.web.schemas.token import Token
-from src.web.services.admin_auth_service import AdminAuthService
 from src.web.models.admin import Admin
 
 router = APIRouter(prefix="/admin/auth", tags=["管理员认证"])
@@ -92,11 +94,16 @@ async def login_admin(
     )
     
     if result["success"]:
-        # TODO: 生成JWT token
+        # 生成JWT token
+        admin_data = result["admin"]
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": admin_data["username"], "admin_id": admin_data["admin_id"]},
+            expires_delta=access_token_expires
+        )
         return Token(
-            access_token="admin_jwt_token_here",
-            token_type="bearer",
-            expires_in=28800  # 8小时
+            access_token=access_token,
+            token_type="bearer"
         )
     else:
         raise HTTPException(

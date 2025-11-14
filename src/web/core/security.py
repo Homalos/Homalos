@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.web.core.database import get_db
 from src.web.models.user import User
+from src.web.models.admin import Admin
 
 # JWT配置
 SECRET_KEY = "homalos-secret-key-change-in-production-2025"  # 生产环境必须更改
@@ -87,16 +88,16 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db)
-) -> User:
+) -> User | Admin:
     """
-    获取当前用户（依赖注入）
+    获取当前用户或管理员（支持两种认证）
     
     Args:
         token: JWT令牌
         db: 数据库会话
         
     Returns:
-        User: 当前用户对象
+        User | Admin: 当前用户或管理员对象
         
     Raises:
         HTTPException: 认证失败
@@ -111,6 +112,7 @@ async def get_current_user(
         # 解码JWT令牌
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
+        admin_id: int = payload.get("admin_id")
         
         if username is None:
             raise credentials_exception
@@ -118,7 +120,25 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
     
-    # 从数据库查询用户
+    # 如果token中包含admin_id，则查询管理员
+    if admin_id:
+        result = await db.execute(
+            select(Admin).where(Admin.admin_id == admin_id)
+        )
+        admin = result.scalar_one_or_none()
+        
+        if admin is None:
+            raise credentials_exception
+        
+        if not admin.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="管理员账户已被禁用"
+            )
+        
+        return admin
+    
+    # 否则查询普通用户
     result = await db.execute(
         select(User).where(User.username == username)
     )

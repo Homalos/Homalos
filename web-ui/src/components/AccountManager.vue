@@ -212,6 +212,12 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 添加账户对话框 -->
+    <AddTradingAccountDialog
+      v-model="addDialogVisible"
+      @success="handleAddSuccess"
+    />
   </el-dialog>
 </template>
 
@@ -224,9 +230,11 @@ import {
   updateTradingAccount,
   deleteTradingAccount,
   switchTradingAccount,
-  changeTradingAccountPassword
+  changeTradingAccountPassword,
+  addTradingAccount
 } from '@/api/tradingAccount'
 import { getTradingCoreStatus } from '@/api/tradingCore'
+import AddTradingAccountDialog from './AddTradingAccountDialog.vue'
 
 const props = defineProps({
   modelValue: {
@@ -235,7 +243,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'add'])
+const emit = defineEmits(['update:modelValue'])
 
 const tradingAccountStore = useTradingAccountStore()
 
@@ -246,6 +254,7 @@ const visible = computed({
 
 const accountList = computed(() => tradingAccountStore.accountList)
 
+const addDialogVisible = ref(false)
 const editDialogVisible = ref(false)
 const editFormRef = ref(null)
 const editFormData = reactive({
@@ -437,8 +446,21 @@ async function handleDelete(row) {
  * 添加账户
  */
 function handleAdd() {
-  visible.value = false
-  emit('add')
+  addDialogVisible.value = true
+}
+
+/**
+ * 添加账户成功处理
+ */
+async function handleAddSuccess(accountData) {
+  try {
+    await addTradingAccount(accountData)
+    ElMessage.success('账户添加成功')
+    addDialogVisible.value = false
+    await tradingAccountStore.fetchAccountList()
+  } catch (error) {
+    ElMessage.error(error.response?.data?.detail || '添加账户失败')
+  }
 }
 
 /**
