@@ -96,10 +96,14 @@ async def lifespan(app: FastAPI):
             """获取邮件配置的回调函数"""
             from src.web.services.system_config_service import SystemConfigService
             try:
-                config = await SystemConfigService.get_email_config()
-                return config
+                # 使用 get_notification_config 获取通知配置，包含邮件配置
+                result = SystemConfigService.get_notification_config()
+                if result.get('success'):
+                    # 返回邮件配置部分
+                    return result.get('config', {}).get('email', {})
+                return {}
             except Exception as err:
-                logger.exception(f"获取邮件配置失败: {err}", exc_info=True)
+                logger.error(f"获取邮件配置失败: {err}")
                 return {}
         
         email_notifier = EmailNotifier(config_getter=get_email_config)

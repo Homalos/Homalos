@@ -466,7 +466,8 @@ async function handleDelete(row) {
       dangerouslyUseHTMLString: false
     })
     
-    await deleteTradingAccount(row.id)
+    // 使用新的 brokerage API
+    await deleteBrokerage(row.id)
     ElMessage.success('删除成功')
     await tradingAccountStore.fetchAccountList()
   } catch (error) {

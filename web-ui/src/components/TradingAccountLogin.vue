@@ -231,6 +231,14 @@ onMounted(() => {
   }
 })
 
+// 监听对话框打开，刷新账户列表
+watch(() => visible.value, async (newVisible) => {
+  if (newVisible) {
+    // 对话框打开时刷新账户列表
+    await tradingAccountStore.fetchAccountList()
+  }
+})
+
 // 监听账户选择变化，自动设置remember状态
 watch(() => formData.account_id, (newAccountId) => {
   if (newAccountId) {

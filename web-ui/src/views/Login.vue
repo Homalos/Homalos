@@ -57,7 +57,7 @@
             type="primary"
             plain
             size="small"
-            @click="$router.push('/admin/register')"
+            @click="$router.push('/admin-register')"
             class="admin-register-btn"
           >
             <el-icon>

@@ -38,7 +38,7 @@ router = APIRouter(prefix="/user-brokerages", tags=["用户券商账户"])
 @router.post("", response_model=UserBrokerageResponse, summary="创建用户券商账户")
 async def create_user_brokerage(
     brokerage_data: UserBrokerageCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User | Admin = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> UserBrokerageResponse:
     """
@@ -63,10 +63,19 @@ async def create_user_brokerage(
         if 'password_encrypted' in account_data:
             account_data['password'] = account_data.pop('password_encrypted')
         
+        # 根据用户类型设置user_type
+        from src.web.models.admin import Admin
+        if isinstance(current_user, Admin):
+            user_type = "ADMIN"
+            user_id = current_user.admin_id
+        else:
+            user_type = "USER"
+            user_id = current_user.user_id
+        
         # 使用服务层创建账户
         brokerage = await service.create_brokerage_account(
-            user_id=current_user.id,
-            user_type="USER",
+            user_id=user_id,
+            user_type=user_type,
             account_data=account_data
         )
         
@@ -90,7 +99,7 @@ async def create_user_brokerage(
 @router.get("", response_model=UserBrokerageListResponse, summary="获取用户券商账户列表")
 async def get_user_brokerages(
     include_inactive: bool = False,
-    current_user: User = Depends(get_current_user),
+    current_user: User | Admin = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> UserBrokerageListResponse:
     """
@@ -107,9 +116,18 @@ async def get_user_brokerages(
     try:
         service = BrokerageService(db)
         
+        # 根据用户类型设置参数
+        from src.web.models.admin import Admin
+        if isinstance(current_user, Admin):
+            user_type = "ADMIN"
+            user_id = current_user.admin_id
+        else:
+            user_type = "USER"
+            user_id = current_user.user_id
+        
         brokerages = await service.get_user_brokerages(
-            user_id=current_user.id,
-            user_type="USER",
+            user_id=user_id,
+            user_type=user_type,
             include_inactive=include_inactive
         )
         
@@ -131,7 +149,7 @@ async def get_user_brokerages(
 @router.get("/{brokerage_id}", response_model=UserBrokerageResponse, summary="获取单个券商账户")
 async def get_user_brokerage(
     brokerage_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User | Admin = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> UserBrokerageResponse:
     """
@@ -156,8 +174,16 @@ async def get_user_brokerage(
                 detail="券商账户不存在"
             )
         
-        # 验证账户所有权
-        if brokerage.user_id != current_user.id:
+        # 验证账户所有权（支持Admin和User）
+        from src.web.models.admin import Admin
+        if isinstance(current_user, Admin):
+            user_id = current_user.admin_id
+            user_type = "ADMIN"
+        else:
+            user_id = current_user.user_id
+            user_type = "USER"
+        
+        if brokerage.user_id != user_id or brokerage.user_type != user_type:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="无权访问此账户"
@@ -179,7 +205,7 @@ async def get_user_brokerage(
 async def update_user_brokerage(
     brokerage_id: int,
     update_data: UserBrokerageUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User | Admin = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> UserBrokerageResponse:
     """
@@ -205,8 +231,16 @@ async def update_user_brokerage(
                 detail="券商账户不存在"
             )
         
-        # 验证账户所有权
-        if brokerage.user_id != current_user.id:
+        # 验证账户所有权（支持Admin和User）
+        from src.web.models.admin import Admin
+        if isinstance(current_user, Admin):
+            user_id = current_user.admin_id
+            user_type = "ADMIN"
+        else:
+            user_id = current_user.user_id
+            user_type = "USER"
+        
+        if brokerage.user_id != user_id or brokerage.user_type != user_type:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="无权访问此账户"
@@ -226,12 +260,12 @@ async def update_user_brokerage(
         
         # 如果设置为默认账户，使用服务层方法
         if update_data.is_default is True:
-            await service.set_default_account(brokerage_id, current_user.id, "USER")
+            await service.set_default_account(brokerage_id, user_id, user_type)
         
         await db.commit()
         await db.refresh(brokerage)
         
-        logger.info(f"用户 {current_user.id} 更新了券商账户: {brokerage_id}")
+        logger.info(f"用户 {user_id} ({user_type}) 更新了券商账户: {brokerage_id}")
         
         return UserBrokerageResponse.from_orm(brokerage)
         
@@ -248,7 +282,7 @@ async def update_user_brokerage(
 @router.delete("/{brokerage_id}", summary="删除券商账户")
 async def delete_user_brokerage(
     brokerage_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User | Admin = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> dict:
     """
@@ -273,8 +307,16 @@ async def delete_user_brokerage(
                 detail="券商账户不存在"
             )
         
-        # 验证账户所有权
-        if brokerage.user_id != current_user.id:
+        # 验证账户所有权（支持Admin和User）
+        from src.web.models.admin import Admin
+        if isinstance(current_user, Admin):
+            user_id = current_user.admin_id
+            user_type = "ADMIN"
+        else:
+            user_id = current_user.user_id
+            user_type = "USER"
+        
+        if brokerage.user_id != user_id or brokerage.user_type != user_type:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="无权访问此账户"
@@ -283,7 +325,7 @@ async def delete_user_brokerage(
         await db.delete(brokerage)
         await db.commit()
         
-        logger.info(f"用户 {current_user.id} 删除了券商账户: {brokerage_id}")
+        logger.info(f"用户 {user_id} ({user_type}) 删除了券商账户: {brokerage_id}")
         
         return {
             "success": True,

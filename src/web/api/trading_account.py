@@ -19,6 +19,7 @@ from src.web.core.security import (
     create_access_token
 )
 from src.web.models.user import User
+from src.web.models.admin import Admin
 from src.web.schemas.trading_account import (
     TradingAccountCreate,
     TradingAccountUpdate,
@@ -162,18 +163,30 @@ async def login_trading_account(
 
 @router.post("/logout", summary="登出资金账户")
 async def logout_trading_account(
-    current_user: User = Depends(get_current_user)
+    current_user: User | Admin = Depends(get_current_user)
 ) -> dict:
     """
     登出资金账户
     
     清除Token中的资金账户信息，返回新Token
     """
+    # 处理role字段（可能是枚举对象）
+    role_value = current_user.role
+    if hasattr(role_value, 'value'):
+        role_value = role_value.value
+    
     # 生成新Token（不包含资金账户信息）
     token_data = {
         "sub": current_user.username,
-        "role": current_user.role
+        "role": role_value
     }
+    
+    # 根据用户类型添加对应的ID字段
+    from src.web.models.admin import Admin
+    if isinstance(current_user, Admin):
+        token_data["admin_id"] = current_user.admin_id
+    else:
+        token_data["user_id"] = current_user.user_id
     
     access_token = create_access_token(
         data=token_data,
