@@ -126,12 +126,8 @@ class BrokerageService:
         Returns:
             UserBrokerage: 创建的券商账户
         """
-        # 验证文件已加载
-        logger.info(f"===== CREATE BROKERAGE START ===== user_type={user_type}")
-        logger.info(f"===== account_data keys: {list(account_data.keys())}")
-        
         try:
-            logger.info("===== STEP 1: 检查账户是否存在")
+            logger.info(f"创建券商账户: user_type={user_type}, broker_code={account_data.get('broker_code')}")
             # 检查是否已存在相同的资金账号
             existing_account = await self.db.execute(
                 select(UserBrokerage).where(
@@ -157,18 +153,11 @@ class BrokerageService:
                 )
             )
             
-            logger.info("===== STEP 2: 检查结果")
             if existing_investor.scalar_one_or_none():
                 raise ValueError(f"该券商的投资者ID {account_data['investor_id']} 已存在")
-            
-            logger.info("===== STEP 3: 处理默认账户")
             # 如果设置为默认账户，先取消其他默认账户
             if account_data.get('is_default', False):
                 await self._clear_default_accounts(user_id, user_type)
-            
-            # 调试：打印 account_data
-            logger.info(f"DEBUG - account_data keys: {account_data.keys()}")
-            logger.info(f"DEBUG - account_data.get('user_type'): {account_data.get('user_type')}")
             
             # 加密敏感信息
             encrypted_data = account_data.copy()
@@ -196,15 +185,8 @@ class BrokerageService:
             if 'status' in encrypted_data and encrypted_data['status']:
                 encrypted_data['status'] = encrypted_data['status'].upper()
             
-            # 调试：打印最终的 encrypted_data
-            logger.info(f"DEBUG - Final user_type: {encrypted_data['user_type']}")
-            logger.info(f"DEBUG - user_type parameter: {user_type}")
-            logger.info("===== STEP 4: 准备创建 UserBrokerage 对象")
-            
             # 创建账户
-            logger.info(f"===== CREATING UserBrokerage with user_type={encrypted_data.get('user_type')}")
             brokerage = UserBrokerage(**encrypted_data)
-            logger.info("===== UserBrokerage 对象创建成功")
             self.db.add(brokerage)
             await self.db.commit()
             await self.db.refresh(brokerage)
