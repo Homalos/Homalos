@@ -17,12 +17,15 @@ from typing import List
 from src.web.core.database import get_db
 from src.web.core.security import get_current_user
 from src.web.models.user import User
+from src.web.models.admin import Admin
 from src.web.models.brokerage import UserBrokerage
 from src.web.schemas.trading_account import (
     UserBrokerageCreate,
     UserBrokerageUpdate,
     UserBrokerageResponse,
-    UserBrokerageListResponse
+    UserBrokerageListResponse,
+    UserBrokerageLogin,
+    UserBrokerageLoginResponse
 )
 from src.web.services.brokerage_service import BrokerageService
 from src.utils.log import get_logger
@@ -294,4 +297,91 @@ async def delete_user_brokerage(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="删除券商账户失败"
+        )
+
+
+@router.post("/login", response_model=UserBrokerageLoginResponse, summary="登录券商账户")
+async def login_brokerage_account(
+    login_data: UserBrokerageLogin,
+    current_user: User | Admin = Depends(get_current_user),  # 支持User和Admin
+    db: AsyncSession = Depends(get_db)
+) -> UserBrokerageLoginResponse:
+    """
+    券商账户登录
+    
+    Args:
+        login_data: 登录数据
+        current_user: 当前用户
+        db: 数据库会话
+    
+    Returns:
+        UserBrokerageLoginResponse: 登录响应（包含账户信息和新token）
+    """
+    try:
+        service = BrokerageService(db)
+        
+        # 调用登录服务
+        account = await service.login_brokerage_account(
+            user_id=current_user.id,
+            account_id=login_data.account_id,
+            password=login_data.password,
+            remember=login_data.remember
+        )
+        
+        # 解密密码用于构建broker配置
+        decrypted_password = None
+        if account.password_encrypted:
+            try:
+                decrypted_password = service.cipher.decrypt(account.password_encrypted)
+            except Exception as e:
+                logger.warning(f"解密密码失败（不影响登录）: {e}")
+        
+        # 生成新的JWT token（包含账户信息）
+        from src.web.core.security import create_access_token
+        from src.web.models.admin import Admin
+        
+        # 处理role字段
+        role_value = current_user.role
+        if hasattr(role_value, 'value'):
+            role_value = role_value.value
+        
+        # 构建token数据
+        # 如果是管理员登录，需要使用admin_id；如果是普通用户，使用user_id
+        token_data = {
+            "sub": current_user.username,
+            "role": role_value,
+            "trading_account_id": account.id,
+            "broker_id": account.broker_id,
+            "account_id": account.account_id
+        }
+        
+        # 根据用户类型添加对应的ID字段
+        if isinstance(current_user, Admin):
+            # 管理员使用admin_id
+            token_data["admin_id"] = current_user.admin_id
+            logger.info(f"管理员 {current_user.admin_id} 登录券商账户")
+        else:
+            # 普通用户使用user_id
+            token_data["user_id"] = current_user.user_id
+            logger.info(f"用户 {current_user.user_id} 登录券商账户")
+        
+        new_token = create_access_token(data=token_data)
+        
+        logger.info(f"用户 {current_user.id} 登录券商账户成功: {account.id}")
+        
+        return UserBrokerageLoginResponse(
+            success=True,
+            message="登录成功",
+            account=UserBrokerageResponse.from_orm(account),
+            token=new_token,
+            decrypted_password=decrypted_password
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"登录券商账户失败: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="登录失败"
         )

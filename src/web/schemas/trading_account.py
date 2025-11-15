@@ -142,3 +142,19 @@ class UserBrokerageListResponse(BaseModel):
     accounts: list[UserBrokerageResponse]
     total: int
 
+
+class UserBrokerageLogin(BaseModel):
+    """券商账户登录请求"""
+    account_id: int = Field(..., description="账户ID")
+    password: Optional[str] = Field(None, description="密码（如果账户已记住密码可不传）")
+    remember: bool = Field(False, description="是否记住密码")
+
+
+class UserBrokerageLoginResponse(BaseModel):
+    """券商账户登录响应"""
+    success: bool
+    message: str
+    account: UserBrokerageResponse
+    token: str = Field(..., description="新的JWT token（包含账户信息）")
+    decrypted_password: Optional[str] = Field(None, description="解密后的密码（用于构建broker配置）")
+

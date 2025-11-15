@@ -6,7 +6,7 @@ import {
   getTradingAccountStatus,
   getTradingAccountList
 } from '@/api/tradingAccount'
-import { getBrokerageList } from '@/api/brokerage'
+import { getBrokerageList, loginBrokerage } from '@/api/brokerage'
 import { connectAccountWebSocket, getLatestAccountData } from '@/api/account'
 
 export const useTradingAccountStore = defineStore('tradingAccount', () => {
@@ -44,24 +44,64 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
    */
   async function login(loginData) {
     try {
-      const response = await loginTradingAccount(loginData)
+      // 使用新的 UserBrokerage 登录 API
+      const response = await loginBrokerage(loginData)
       
       if (response.success) {
+        console.log('📦 登录响应:', response)
+        
+        // 1. 先更新Token（最重要！强制覆盖）
+        if (response.token) {
+          const oldToken = localStorage.getItem('token')
+          
+          // 强制清除旧token
+          localStorage.removeItem('token')
+          
+          // 设置新token
+          localStorage.setItem('token', response.token)
+          
+          // 验证设置成功
+          const savedToken = localStorage.getItem('token')
+          
+          console.log('✅ Token已更新')
+          console.log('   旧token前20字符:', oldToken?.substring(0, 20))
+          console.log('   新token前20字符:', response.token.substring(0, 20))
+          console.log('   保存后token前20字符:', savedToken?.substring(0, 20))
+          
+          // 解码新token查看内容
+          try {
+            const parts = savedToken.split('.')
+            const payload = JSON.parse(atob(parts[1]))
+            console.log('   新token payload:', payload)
+          } catch (e) {
+            console.error('   解码token失败:', e)
+          }
+        } else {
+          console.error('❌ 响应中没有token!')
+        }
+        
+        // 2. 更新状态
         accountId.value = String(response.account.id)
         accountInfo.value = response.account
         isLoggedIn.value = true
+        hasBrokerConfig.value = !!response.decrypted_password
         
-        // 更新Token
-        if (response.token) {
-          localStorage.setItem('token', response.token)
-        }
-        
-        // 持久化
+        // 3. 持久化
         localStorage.setItem('trading_account_id', String(response.account.id))
         localStorage.setItem('trading_account_logged_in', 'true')
         
-        // 刷新账户列表（确保新创建的账户显示在列表中）
-        await fetchAccountList()
+        // 4. 验证token已保存
+        const savedToken = localStorage.getItem('token')
+        console.log('🔍 验证token已保存:', savedToken?.substring(0, 20))
+        
+        // 5. 刷新账户列表（使用新token）
+        console.log('🔄 准备刷新账户列表...')
+        try {
+          await fetchAccountList()
+          console.log('✅ 账户列表刷新成功')
+        } catch (err) {
+          console.error('❌ 刷新账户列表失败:', err)
+        }
         
         return { success: true, account: response.account }
       }

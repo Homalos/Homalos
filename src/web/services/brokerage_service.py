@@ -483,3 +483,136 @@ class BrokerageService:
             await self.db.rollback()
             logger.error(f"设置默认账户失败: {e}")
             return False
+    
+    async def login_brokerage_account(
+        self,
+        user_id: int,
+        account_id: int,
+        password: Optional[str] = None,
+        remember: bool = False
+    ) -> UserBrokerage:
+        """
+        登录券商账户
+        
+        Args:
+            user_id: 用户ID
+            account_id: 券商账户ID
+            password: 密码（可选，如果账户已记住密码）
+            remember: 是否记住密码
+            
+        Returns:
+            UserBrokerage: 登录成功的账户对象
+            
+        Raises:
+            HTTPException: 登录失败
+        """
+        try:
+            # 查询账户
+            result = await self.db.execute(
+                select(UserBrokerage).where(
+                    and_(
+                        UserBrokerage.id == account_id,
+                        UserBrokerage.user_id == user_id
+                    )
+                )
+            )
+            account = result.scalar_one_or_none()
+            
+            if not account:
+                logger.warning(f"账户不存在: user_id={user_id}, account_id={account_id}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="账户不存在"
+                )
+            
+            # 检查账户状态（大小写不敏感）
+            logger.info(f"账户状态类型: {type(account.status)}, 值: {account.status}")
+            
+            # account.status 可能是枚举对象或字符串
+            if hasattr(account.status, 'value'):
+                account_status = account.status.value.upper()
+                logger.info(f"枚举对象，提取值: {account_status}")
+            elif isinstance(account.status, str):
+                account_status = account.status.upper()
+                logger.info(f"字符串类型，转大写: {account_status}")
+            else:
+                # 可能是枚举类型本身
+                account_status = str(account.status).upper()
+                logger.info(f"其他类型，转字符串: {account_status}")
+            
+            target_status = AccountStatus.ACTIVE.value.upper()
+            logger.info(f"比较状态: {account_status} vs {target_status}")
+            
+            if account_status != target_status:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="账户未激活，请先激活账户"
+                )
+            
+            # 检查密码
+            password_provided = password and password.strip()
+            has_saved_password = account.password_encrypted and account.password_encrypted.strip()
+            
+            if password_provided:
+                # 用户提供了密码，验证密码
+                if not has_saved_password:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="账户未设置密码"
+                    )
+                
+                try:
+                    decrypted_password = self.cipher.decrypt(account.password_encrypted)
+                    if decrypted_password != password:
+                        logger.warning(f"密码错误: account_id={account_id}")
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="密码错误"
+                        )
+                except ValueError:
+                    logger.error(f"密码解密失败: account_id={account_id}")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="密码验证失败"
+                    )
+                
+                # 如果用户选择记住密码，更新字段
+                if remember and not account.remember_password:
+                    account.remember_password = True
+                    account.updated_at = datetime.utcnow()
+                    await self.db.commit()
+                    await self.db.refresh(account)
+            else:
+                # 用户未提供密码
+                if not has_saved_password:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="请输入密码"
+                    )
+                
+                if not account.remember_password:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="请输入密码"
+                    )
+                
+                # 免密登录
+                logger.info(f"使用已记住密码登录: user_id={user_id}, account_id={account_id}")
+            
+            # 更新最后连接时间
+            account.last_connected_at = datetime.utcnow()
+            account.updated_at = datetime.utcnow()
+            await self.db.commit()
+            await self.db.refresh(account)
+            
+            logger.info(f"券商账户登录成功: user_id={user_id}, account_id={account_id}")
+            return account
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"登录券商账户失败: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="登录失败"
+            )

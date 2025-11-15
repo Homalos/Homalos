@@ -117,3 +117,19 @@ export function activateBrokerage(brokerageId) {
 export function deactivateBrokerage(brokerageId) {
   return updateBrokerage(brokerageId, { status: 'inactive' })
 }
+
+/**
+ * 登录券商账户
+ * @param {Object} loginData - 登录数据
+ * @param {number} loginData.account_id - 账户ID
+ * @param {string} [loginData.password] - 密码（如果账户已记住密码可不传）
+ * @param {boolean} [loginData.remember] - 是否记住密码
+ * @returns {Promise<Object>} 登录结果
+ */
+export function loginBrokerage(loginData) {
+  return request({
+    url: '/api/user-brokerages/login',
+    method: 'post',
+    data: loginData
+  })
+}

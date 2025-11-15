@@ -21,13 +21,26 @@ const request = axios.create({
 request.interceptors.request.use(
   config => {
     console.log('发送请求:', config.method?.toUpperCase(), config.url)
-    console.log('请求头:', config.headers)
     
     // 从localStorage获取token
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+      console.log('🔑 使用token前20字符:', token.substring(0, 20))
+      
+      // 解码token查看内容
+      try {
+        const parts = token.split('.')
+        const payload = JSON.parse(atob(parts[1]))
+        console.log('🔑 Token payload:', payload)
+      } catch (e) {
+        console.error('🔑 解码token失败:', e)
+      }
+    } else {
+      console.warn('⚠️ 没有token')
     }
+    
+    console.log('请求头:', config.headers)
     
     // 如果没有设置Content-Type，axios会自动设置
     // 对于URLSearchParams，会自动设置为application/x-www-form-urlencoded
@@ -57,14 +70,18 @@ request.interceptors.response.use(
       
       switch (status) {
         case 401:
+          console.error('❌ 401错误 - URL:', error.config.url)
+          console.error('❌ 401错误 - 详情:', data.detail)
+          
           if (isTradingAccountAPI(error.config.url)) {
             // 资金账户相关API的401错误：只显示提示，不跳转
             ElMessage.error(data.detail || '密码错误或账户无权限')
           } else {
-            // 系统认证相关API的401错误：跳转登录页面
-            ElMessage.error('登录已过期，请重新登录')
-            localStorage.removeItem('token')
-            window.location.href = '/login'
+            // 系统认证相关API的401错误：暂时不跳转，只显示错误
+            ElMessage.error('认证失败: ' + (data.detail || '未知错误'))
+            console.error('❌ 暂时禁用跳转，方便调试')
+            // localStorage.removeItem('token')
+            // window.location.href = '/login'
           }
           break
         case 403:
