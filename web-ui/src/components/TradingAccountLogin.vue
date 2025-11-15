@@ -194,7 +194,7 @@ async function handleLogin() {
         // 保存上次登录的账户ID
         localStorage.setItem('last_trading_account_id', String(result.account.id))
         
-        ElMessage.success('登录成功')
+        // 不在这里显示成功提示，由父组件显示更具体的提示
         emit('success', result.account)
         handleClose()
       } else {

@@ -571,7 +571,10 @@ const accountOverviewTitle = computed(() => {
   }
   
   // 获取账户信息
-  const accountName = tradingAccountStore.accountInfo?.display_name || '未命名账户'
+  // 新的UserBrokerage模型使用account_name，旧的TradingAccount使用display_name
+  const accountName = tradingAccountStore.accountInfo?.account_name || 
+                      tradingAccountStore.accountInfo?.display_name || 
+                      '未命名账户'
   const accountId = tradingAccountStore.accountInfo?.account_id || ''
   
   // 加密账号
