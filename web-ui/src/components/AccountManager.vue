@@ -277,7 +277,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'requestLogin'])
 
 const brokerageStore = useBrokerageStore()
 const tradingAccountStore = useTradingAccountStore()
@@ -488,11 +488,31 @@ function handleAdd() {
  * 注意：API调用已在AddTradingAccountDialog中完成，这里只需要刷新列表
  */
 async function handleAddSuccess() {
-  // 关闭对话框
+  // 关闭添加对话框
   addDialogVisible.value = false
   
   // 刷新账户列表
   await brokerageStore.fetchBrokerages(true)
+  
+  // 询问是否立即登录
+  try {
+    await ElMessageBox.confirm(
+      '账户已添加成功！是否立即登录此账户？',
+      '添加成功',
+      {
+        confirmButtonText: '立即登录',
+        cancelButtonText: '稍后登录',
+        type: 'success'
+      }
+    )
+    
+    // 用户选择登录，关闭管理面板并打开登录对话框
+    visible.value = false
+    emit('requestLogin')
+  } catch {
+    // 用户选择稍后登录，不做处理
+    ElMessage.info('您可以随时点击"登录资金账户"进行登录')
+  }
 }
 
 /**

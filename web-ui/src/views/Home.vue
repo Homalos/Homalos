@@ -157,12 +157,13 @@
     <TradingAccountLogin 
       v-model="showTradingLogin" 
       @success="handleTradingLoginSuccess"
+      @goToManage="handleGoToManageAccounts"
     />
     
     <!-- 账户管理对话框 -->
     <AccountManager 
-      v-model="showAccountManager" 
-      @add="showTradingLogin = true"
+      v-model="showAccountManager"
+      @requestLogin="handleRequestLogin"
     />
     
     <!-- 首次引导对话框 -->
@@ -271,6 +272,20 @@ const handleSwitchToAlarms = () => {
  */
 const handleSwitchToAlarmSettings = () => {
   router.push('/alarms/settings')
+}
+
+/**
+ * 处理前往管理账户
+ */
+function handleGoToManageAccounts() {
+  showAccountManager.value = true
+}
+
+/**
+ * 处理请求登录（从账户管理器触发）
+ */
+function handleRequestLogin() {
+  showTradingLogin.value = true
 }
 
 /**

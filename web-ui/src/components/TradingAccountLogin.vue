@@ -6,30 +6,39 @@
     :close-on-click-modal="false"
     @close="handleClose"
   >
+    <!-- 无账户时的引导提示 -->
+    <el-alert
+      v-if="!hasAccounts"
+      title="还没有券商账户"
+      type="info"
+      :closable="false"
+      style="margin-bottom: 20px;"
+    >
+      <template #default>
+        <div style="margin-top: 8px;">
+          您还没有添加券商账户，请先在"管理资金账户"中添加您的券商账户信息。
+        </div>
+        <el-button
+          type="primary"
+          size="small"
+          style="margin-top: 12px;"
+          @click="handleGoToManage"
+        >
+          前往添加账户
+        </el-button>
+      </template>
+    </el-alert>
+
+    <!-- 有账户时显示登录表单 -->
     <el-form
+      v-if="hasAccounts"
       ref="formRef"
       :model="formData"
       :rules="rules"
       label-width="100px"
     >
-      <!-- 选择已有账户或新账户 -->
-      <el-form-item label="登录方式">
-        <el-radio-group v-model="loginMode">
-          <el-radio label="existing" :disabled="!hasAccounts">
-            使用已有账户
-          </el-radio>
-          <el-radio label="new">
-            输入新账户
-          </el-radio>
-        </el-radio-group>
-      </el-form-item>
-
-      <!-- 已有账户选择 -->
-      <el-form-item
-        v-if="loginMode === 'existing'"
-        label="选择账户"
-        prop="account_id"
-      >
+      <!-- 选择账户 -->
+      <el-form-item label="选择账户" prop="account_id">
         <el-select
           v-model="formData.account_id"
           placeholder="请选择账户"
@@ -38,10 +47,10 @@
           <el-option
             v-for="account in accountList"
             :key="account.id"
-            :label="account.display_name"
+            :label="account.account_name || account.display_name"
             :value="account.id"
           >
-            <span>{{ account.display_name }}</span>
+            <span>{{ account.account_name || account.display_name }}</span>
             <span style="float: right; color: #8492a6; font-size: 13px;">
               {{ account.broker_id }} - {{ account.account_id }}
             </span>
@@ -49,48 +58,7 @@
         </el-select>
       </el-form-item>
 
-      <!-- 新账户输入 -->
-      <template v-if="loginMode === 'new'">
-        <el-form-item label="开户机构" prop="broker_key">
-          <el-select
-            v-model="formData.broker_key"
-            placeholder="请选择开户机构"
-            style="width: 100%;"
-          >
-            <el-option
-              v-for="broker in brokerList"
-              :key="broker.broker_key"
-              :label="broker.name"
-              :value="broker.broker_key"
-            >
-              <span>{{ broker.name }}</span>
-            </el-option>
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="资金账户" prop="account_number">
-          <el-input
-            v-model="formData.account_number"
-            placeholder="请输入资金账户"
-          />
-        </el-form-item>
-
-        <el-form-item label="应用ID">
-          <el-input
-            v-model="formData.app_id"
-            placeholder="可选，留空使用默认值"
-          />
-        </el-form-item>
-
-        <el-form-item label="授权码">
-          <el-input
-            v-model="formData.auth_code"
-            placeholder="可选，留空使用默认值"
-          />
-        </el-form-item>
-      </template>
-
-      <!-- 密码（两种模式都需要） -->
+      <!-- 密码 -->
       <el-form-item label="交易密码" prop="password">
         <el-input
           v-model="formData.password"
@@ -116,6 +84,7 @@
     <template #footer>
       <el-button @click="handleClose">取消</el-button>
       <el-button
+        v-if="hasAccounts"
         type="primary"
         :loading="loading"
         @click="handleLogin"
@@ -131,7 +100,6 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Check } from '@element-plus/icons-vue'
 import { useTradingAccountStore } from '@/stores/tradingAccount'
-import { getBrokers } from '@/api/tradingAccount'
 
 const props = defineProps({
   modelValue: {
@@ -140,13 +108,11 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'success'])
+const emit = defineEmits(['update:modelValue', 'success', 'goToManage'])
 
 const tradingAccountStore = useTradingAccountStore()
 const formRef = ref(null)
 const loading = ref(false)
-const loginMode = ref('existing')
-const brokerList = ref([])
 
 const visible = computed({
   get: () => props.modelValue,
@@ -158,17 +124,13 @@ const accountList = computed(() => tradingAccountStore.accountList)
 
 const formData = reactive({
   account_id: null,
-  broker_key: '',
-  account_number: '',
-  app_id: '',
-  auth_code: '',
   password: '',
   remember: false
 })
 
 // 当前选中账户是否记住了密码
 const isPasswordRemembered = computed(() => {
-  if (loginMode.value === 'existing' && formData.account_id) {
+  if (formData.account_id) {
     const account = accountList.value.find(acc => acc.id === formData.account_id)
     return account?.remember_password || false
   }
@@ -178,12 +140,6 @@ const isPasswordRemembered = computed(() => {
 const rules = computed(() => ({
   account_id: [
     { required: true, message: '请选择账户', trigger: 'change' }
-  ],
-  broker_key: [
-    { required: true, message: '请选择开户机构', trigger: 'change' }
-  ],
-  account_number: [
-    { required: true, message: '请输入资金账号', trigger: 'blur' }
   ],
   password: [
     { 
@@ -207,6 +163,14 @@ const rules = computed(() => ({
 }))
 
 /**
+ * 前往管理账户
+ */
+function handleGoToManage() {
+  visible.value = false
+  emit('goToManage')
+}
+
+/**
  * 登录
  */
 async function handleLogin() {
@@ -219,17 +183,9 @@ async function handleLogin() {
     
     try {
       const loginData = {
+        account_id: formData.account_id,
         password: formData.password,
         remember: formData.remember
-      }
-      
-      if (loginMode.value === 'existing') {
-        loginData.account_id = formData.account_id
-      } else {
-        loginData.broker_key = formData.broker_key
-        loginData.account_number = formData.account_number
-        if (formData.app_id) loginData.app_id = formData.app_id
-        if (formData.auth_code) loginData.auth_code = formData.auth_code
       }
       
       const result = await tradingAccountStore.login(loginData)
@@ -258,39 +214,18 @@ async function handleLogin() {
  */
 function handleClose() {
   formRef.value?.resetFields()
-  // 清空新增的字段
-  formData.app_id = ''
-  formData.auth_code = ''
   visible.value = false
 }
 
-/**
- * 加载券商列表
- */
-async function loadBrokers() {
-  try {
-    const response = await getBrokers()
-    brokerList.value = response
-  } catch (error) {
-    console.error('加载券商列表失败:', error)
-  }
-}
-
 onMounted(() => {
-  loadBrokers()
-  
-  // 如果没有账户，默认使用新账户模式
-  if (!hasAccounts.value) {
-    loginMode.value = 'new'
-  } else {
-    // 自动选择上次登录的账户
+  // 自动选择上次登录的账户
+  if (hasAccounts.value) {
     const lastAccountId = localStorage.getItem('last_trading_account_id')
     if (lastAccountId) {
       const accountIdNum = parseInt(lastAccountId)
       const account = accountList.value.find(acc => acc.id === accountIdNum)
       if (account) {
         formData.account_id = accountIdNum
-        loginMode.value = 'existing'
       }
     }
   }
@@ -298,7 +233,7 @@ onMounted(() => {
 
 // 监听账户选择变化，自动设置remember状态
 watch(() => formData.account_id, (newAccountId) => {
-  if (newAccountId && loginMode.value === 'existing') {
+  if (newAccountId) {
     const account = accountList.value.find(acc => acc.id === newAccountId)
     if (account && account.remember_password) {
       formData.remember = true
