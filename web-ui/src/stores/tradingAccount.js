@@ -13,7 +13,18 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
   // 状态
   const accountId = ref(localStorage.getItem('trading_account_id') || null)
   const isLoggedIn = ref(localStorage.getItem('trading_account_logged_in') === 'true')
-  const accountInfo = ref(null)
+  
+  // 从localStorage恢复accountInfo
+  let savedAccountInfo = null
+  try {
+    const saved = localStorage.getItem('trading_account_info')
+    if (saved) {
+      savedAccountInfo = JSON.parse(saved)
+    }
+  } catch (e) {
+    console.error('恢复accountInfo失败:', e)
+  }
+  const accountInfo = ref(savedAccountInfo)
   const accountList = ref([])
   const hasBrokerConfig = ref(false) // 是否有完整的broker配置（用于连接网关）
   
@@ -63,6 +74,7 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
         // 3. 持久化
         localStorage.setItem('trading_account_id', String(response.account.id))
         localStorage.setItem('trading_account_logged_in', 'true')
+        localStorage.setItem('trading_account_info', JSON.stringify(response.account))
         
         // 4. 刷新账户列表
         try {
@@ -186,24 +198,19 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
     hasBrokerConfig.value = false
     localStorage.removeItem('trading_account_id')
     localStorage.removeItem('trading_account_logged_in')
+    localStorage.removeItem('trading_account_info')
   }
 
   /**
    * 初始化（页面加载时调用）
    */
   async function initialize() {
-    // 检查localStorage中的登录状态
+    // 从localStorage恢复登录状态
     if (isLoggedIn.value && accountId.value) {
-      try {
-        // 调用后端验证状态
-        const isValid = await fetchStatus()
-        if (!isValid) {
-          console.log('资金账户状态验证失败，已清理本地状态')
-        }
-      } catch (error) {
-        console.error('初始化资金账户状态失败:', error)
-        // fetchStatus内部已处理错误情况
-      }
+      console.log('从localStorage恢复资金账户登录状态:', accountId.value)
+      // 注意：不调用 fetchStatus()，因为旧的API需要特殊的token
+      // 资金账户的登录状态已经保存在localStorage中
+      // 如果token过期，后续API调用会返回401，届时会清理状态
     }
     
     // 获取账户列表
