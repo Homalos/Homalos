@@ -113,10 +113,13 @@
       <el-divider content-position="left">账户设置</el-divider>
 
       <el-form-item label="账户类型" prop="account_type">
-        <el-radio-group v-model="formData.account_type">
+        <el-radio-group v-model="formData.account_type" :disabled="isAccountTypeDisabled">
           <el-radio label="production">实盘账户</el-radio>
           <el-radio label="simulation">模拟账户</el-radio>
         </el-radio-group>
+        <div v-if="isAccountTypeDisabled" style="color: #909399; font-size: 12px; margin-top: 4px;">
+          账户类型由开户机构自动确定
+        </div>
       </el-form-item>
 
       <el-form-item>
@@ -157,6 +160,11 @@ const brokerList = ref([])
 const visible = computed({
   get: () => props.modelValue,
   set: (val) => emit('update:modelValue', val)
+})
+
+// 计算账户类型是否应该禁用（由开户机构自动确定）
+const isAccountTypeDisabled = computed(() => {
+  return !!formData.broker_code
 })
 
 const formData = reactive({
@@ -207,6 +215,16 @@ function handleBrokerChange(value) {
   const broker = brokerList.value.find(b => b.broker_key === value)
   if (broker) {
     formData.broker_name = broker.name
+    
+    // 根据券商配置的 is_simulation 字段自动设置账户类型
+    // 如果配置中未指定，则根据名称判断（向后兼容）
+    if (broker.is_simulation !== undefined) {
+      formData.account_type = broker.is_simulation ? 'simulation' : 'production'
+    } else {
+      // 降级方案：根据名称判断
+      formData.account_type = (broker.name && broker.name.includes('模拟')) ? 'simulation' : 'production'
+    }
+    
     // 自动填充投资者ID为资金账号（如果还没填）
     if (!formData.investor_id && formData.account_id) {
       formData.investor_id = formData.account_id

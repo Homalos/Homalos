@@ -133,3 +133,13 @@ export function loginBrokerage(loginData) {
     data: loginData
   })
 }
+
+/**
+ * 修改券商账户密码
+ * @param {number} brokerageId - 券商账户ID
+ * @param {string} newPassword - 新密码
+ * @returns {Promise<Object>} 更新结果
+ */
+export function changeBrokeragePassword(brokerageId, newPassword) {
+  return updateBrokerage(brokerageId, { password: newPassword })
+}

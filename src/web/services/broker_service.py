@@ -64,7 +64,8 @@ class BrokerService:
                     'broker_key': key,  # 使用配置key作为唯一标识符
                     'broker_id': broker_config.get('broker_id', '9999'),
                     'name': broker_names.get(key, key),
-                    'description': broker_config.get('md_address', '')  # 只显示地址，去掉broker_id
+                    'description': broker_config.get('md_address', ''),  # 只显示地址，去掉broker_id
+                    'is_simulation': broker_config.get('is_simulation', False)  # 是否为模拟券商
                 })
             
             logger.info(f"加载券商列表成功: {len(broker_list)} 个券商")

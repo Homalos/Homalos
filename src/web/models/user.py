@@ -264,6 +264,16 @@ class User(Base):
         """兼容性属性：返回last_login_at"""
         return self.last_login_at
     
+    @last_login.setter
+    def last_login(self, value: Optional[datetime]):
+        """兼容性属性：设置last_login_at"""
+        self.last_login_at = value
+    
+    @property
+    def email_verified(self) -> bool:
+        """判断邮箱是否已验证"""
+        return self.email_verified_at is not None
+    
     def __repr__(self):
         return f"<User(user_id={self.user_id}, username={self.username}, email={self.email})>"
 

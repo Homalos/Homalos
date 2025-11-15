@@ -183,7 +183,10 @@ async def get_user_brokerage(
             user_id = current_user.user_id
             user_type = "USER"
         
-        if brokerage.user_id != user_id or brokerage.user_type != user_type:
+        # 将枚举转换为字符串进行比较
+        brokerage_user_type = brokerage.user_type.value if hasattr(brokerage.user_type, 'value') else str(brokerage.user_type)
+        
+        if brokerage.user_id != user_id or brokerage_user_type.lower() != user_type.lower():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="无权访问此账户"
@@ -208,6 +211,8 @@ async def update_user_brokerage(
     current_user: User | Admin = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> UserBrokerageResponse:
+    # 调试：打印原始数据
+    logger.info(f"接收到更新请求，原始数据: {update_data}")
     """
     更新券商账户信息
     
@@ -240,7 +245,10 @@ async def update_user_brokerage(
             user_id = current_user.user_id
             user_type = "USER"
         
-        if brokerage.user_id != user_id or brokerage.user_type != user_type:
+        # 将枚举转换为字符串进行比较
+        brokerage_user_type = brokerage.user_type.value if hasattr(brokerage.user_type, 'value') else str(brokerage.user_type)
+        
+        if brokerage.user_id != user_id or brokerage_user_type.lower() != user_type.lower():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="无权访问此账户"
@@ -248,12 +256,31 @@ async def update_user_brokerage(
         
         # 更新字段
         update_dict = update_data.model_dump(exclude_unset=True)
+        logger.info(f"更新账户 {brokerage_id}，接收到的字段: {list(update_dict.keys())}")
         
         # 转换枚举字段为大写
         if 'account_type' in update_dict and update_dict['account_type']:
             update_dict['account_type'] = update_dict['account_type'].upper()
         if 'status' in update_dict and update_dict['status']:
             update_dict['status'] = update_dict['status'].upper()
+        
+        # 如果更新密码或敏感信息，需要加密
+        # 注意：前端传入的是明文，需要加密后存储
+        if 'password' in update_dict:
+            if update_dict['password']:  # 如果有值才加密
+                logger.info(f"更新账户 {brokerage_id} 的密码（加密后存储）")
+                update_dict['password_encrypted'] = service.cipher.encrypt(update_dict['password'])
+            del update_dict['password']  # 移除明文密码字段
+        
+        if 'auth_code' in update_dict:
+            if update_dict['auth_code']:  # 如果有值才加密
+                update_dict['auth_code'] = service.cipher.encrypt(update_dict['auth_code'])
+            # auth_code字段名不变，直接加密覆盖
+        
+        if 'app_id' in update_dict:
+            if update_dict['app_id']:  # 如果有值才加密
+                update_dict['app_id'] = service.cipher.encrypt(update_dict['app_id'])
+            # app_id字段名不变，直接加密覆盖
         
         for key, value in update_dict.items():
             setattr(brokerage, key, value)
@@ -316,7 +343,16 @@ async def delete_user_brokerage(
             user_id = current_user.user_id
             user_type = "USER"
         
-        if brokerage.user_id != user_id or brokerage.user_type != user_type:
+        # 将枚举转换为字符串进行比较
+        brokerage_user_type = brokerage.user_type.value if hasattr(brokerage.user_type, 'value') else str(brokerage.user_type)
+        
+        logger.info(f"[DELETE] 删除账户权限验证: brokerage_id={brokerage_id}, "
+                   f"brokerage.user_id={brokerage.user_id}, brokerage.user_type={brokerage_user_type}, "
+                   f"current_user_id={user_id}, current_user_type={user_type}")
+        
+        if brokerage.user_id != user_id or brokerage_user_type.lower() != user_type.lower():
+            logger.warning(f"[DELETE] 权限验证失败: 账户所有者({brokerage.user_id}, {brokerage.user_type}) != "
+                          f"当前用户({user_id}, {user_type})")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="无权访问此账户"
@@ -362,12 +398,22 @@ async def login_brokerage_account(
     try:
         service = BrokerageService(db)
         
+        # 根据用户类型获取正确的user_id和user_type
+        from src.web.models.admin import Admin
+        if isinstance(current_user, Admin):
+            user_id = current_user.admin_id
+            user_type = "ADMIN"
+        else:
+            user_id = current_user.user_id
+            user_type = "USER"
+        
         # 调用登录服务
         account = await service.login_brokerage_account(
-            user_id=current_user.id,
+            user_id=user_id,
             account_id=login_data.account_id,
             password=login_data.password,
-            remember=login_data.remember
+            remember=login_data.remember,
+            user_type=user_type
         )
         
         # 解密密码用于构建broker配置

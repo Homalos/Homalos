@@ -72,9 +72,12 @@ class AuthService:
         user = User(
             username=user_data.username,
             email=user_data.email,
+            phone=user_data.phone,
             full_name=user_data.full_name,
-            hashed_password=get_password_hash(user_data.password),
-            role=user_data.role
+            password_hash=get_password_hash(user_data.password),
+            timezone=user_data.timezone,
+            locale=user_data.locale,
+            avatar_url=user_data.avatar_url
         )
 
         self.db.add(user)
@@ -105,7 +108,7 @@ class AuthService:
         user = result.scalar_one_or_none()
 
         # 验证用户和密码
-        if not user or not verify_password(password, user.hashed_password):
+        if not user or not verify_password(password, user.password_hash):
             logger.warning(f"登录失败: 用户名或密码错误 - {username}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

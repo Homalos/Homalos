@@ -77,7 +77,19 @@ request.interceptors.response.use(
           }
           break
         case 403:
-          ElMessage.error('权限不足')
+          // 检查是否是券商账户相关API
+          const isBrokerageAPI403 = error.config.url && (
+            error.config.url.includes('/api/trading-account') ||
+            error.config.url.includes('/api/user-brokerages')
+          )
+          
+          if (isBrokerageAPI403) {
+            // 券商账户相关API的403错误：不显示通用提示，让组件自己处理具体错误
+            // 例如"账户未激活"等业务错误
+          } else {
+            // 其他API的403错误：显示权限不足
+            ElMessage.error('权限不足')
+          }
           break
         case 409:
           // 409 Conflict - 业务冲突错误（如账户已存在）

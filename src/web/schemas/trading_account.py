@@ -119,6 +119,9 @@ class UserBrokerageCreate(UserBrokerageBase):
 class UserBrokerageUpdate(BaseModel):
     """更新用户券商账户"""
     account_name: Optional[str] = Field(None, description="账户别名")
+    password: Optional[str] = Field(None, min_length=1, description="交易密码（明文，后端会加密）")
+    auth_code: Optional[str] = Field(None, description="授权码")
+    app_id: Optional[str] = Field(None, description="应用ID")
     status: Optional[str] = Field(None, description="账户状态")
     is_default: Optional[bool] = Field(None, description="是否为默认账户")
 

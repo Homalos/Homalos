@@ -489,7 +489,8 @@ class BrokerageService:
         user_id: int,
         account_id: int,
         password: Optional[str] = None,
-        remember: bool = False
+        remember: bool = False,
+        user_type: str = "USER"
     ) -> UserBrokerage:
         """
         登录券商账户
@@ -507,7 +508,7 @@ class BrokerageService:
             HTTPException: 登录失败
         """
         try:
-            # 查询账户
+            # 查询账户（需要同时匹配user_id和user_type）
             result = await self.db.execute(
                 select(UserBrokerage).where(
                     and_(
@@ -519,10 +520,10 @@ class BrokerageService:
             account = result.scalar_one_or_none()
             
             if not account:
-                logger.warning(f"账户不存在: user_id={user_id}, account_id={account_id}")
+                logger.warning(f"账户不存在或无权访问: user_id={user_id}, user_type={user_type}, account_id={account_id}")
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail="账户不存在"
+                    detail="账户不存在或无权访问"
                 )
             
             # 检查账户状态（大小写不敏感）

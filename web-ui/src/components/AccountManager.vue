@@ -265,7 +265,8 @@ import {
   deleteBrokerage,
   setDefaultBrokerage,
   activateBrokerage,
-  deactivateBrokerage
+  deactivateBrokerage,
+  changeBrokeragePassword
 } from '@/api/brokerage'
 import { getTradingCoreStatus } from '@/api/tradingCore'
 import AddBrokerageAccountDialog from './AddBrokerageAccountDialog.vue'
@@ -392,11 +393,13 @@ function isCurrentAccount(row) {
  */
 async function handleSetDefault(row) {
   try {
-    await switchTradingAccount(row.id)
+    // 使用新的 brokerage API
+    await setDefaultBrokerage(row.id)
     ElMessage.success('设置成功')
-    await tradingAccountStore.fetchAccountList()
+    // 刷新 brokerage store 的账户列表
+    await brokerageStore.fetchBrokerages(true)
   } catch (error) {
-    ElMessage.error('设置失败')
+    ElMessage.error(error.response?.data?.detail || '设置失败')
   }
 }
 
@@ -469,7 +472,8 @@ async function handleDelete(row) {
     // 使用新的 brokerage API
     await deleteBrokerage(row.id)
     ElMessage.success('删除成功')
-    await tradingAccountStore.fetchAccountList()
+    // 刷新 brokerage store 的账户列表
+    await brokerageStore.fetchBrokerages(true)
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error(error.response?.data?.detail || '删除失败')
@@ -495,25 +499,11 @@ async function handleAddSuccess() {
   // 刷新账户列表
   await brokerageStore.fetchBrokerages(true)
   
-  // 询问是否立即登录
-  try {
-    await ElMessageBox.confirm(
-      '账户已添加成功！是否立即登录此账户？',
-      '添加成功',
-      {
-        confirmButtonText: '立即登录',
-        cancelButtonText: '稍后登录',
-        type: 'success'
-      }
-    )
-    
-    // 用户选择登录，关闭管理面板并打开登录对话框
-    visible.value = false
-    emit('requestLogin')
-  } catch {
-    // 用户选择稍后登录，不做处理
-    ElMessage.info('您可以随时点击"登录资金账户"进行登录')
-  }
+  // 提示用户需要激活账户后才能登录
+  ElMessage.success({
+    message: '账户添加成功！请先激活账户后再登录',
+    duration: 3000
+  })
 }
 
 /**
@@ -592,15 +582,16 @@ async function handleSavePassword() {
     
     passwordLoading.value = true
     try {
-      await changeTradingAccountPassword(currentAccount.value.id, {
-        old_password: passwordFormData.old_password,
-        new_password: passwordFormData.new_password
-      })
+      // 使用新的 brokerage API 修改密码
+      await changeBrokeragePassword(currentAccount.value.id, passwordFormData.new_password)
       ElMessage.success('密码修改成功')
       passwordDialogVisible.value = false
       
       // 清空表单
       passwordFormRef.value?.resetFields()
+      
+      // 刷新账户列表
+      await brokerageStore.fetchBrokerages(true)
     } catch (error) {
       ElMessage.error(error.response?.data?.detail || '密码修改失败')
     } finally {
