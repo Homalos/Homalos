@@ -132,8 +132,8 @@ class BrokerageService:
         
         try:
             logger.info("===== STEP 1: 检查账户是否存在")
-            # 检查是否已存在相同的账户
-            existing = await self.db.execute(
+            # 检查是否已存在相同的资金账号
+            existing_account = await self.db.execute(
                 select(UserBrokerage).where(
                     and_(
                         UserBrokerage.user_id == user_id,
@@ -143,9 +143,23 @@ class BrokerageService:
                 )
             )
             
+            if existing_account.scalar_one_or_none():
+                raise ValueError(f"该券商的资金账号 {account_data['account_id']} 已存在")
+            
+            # 检查是否已存在相同的投资者ID
+            existing_investor = await self.db.execute(
+                select(UserBrokerage).where(
+                    and_(
+                        UserBrokerage.user_id == user_id,
+                        UserBrokerage.investor_id == account_data['investor_id'],
+                        UserBrokerage.broker_code == account_data['broker_code']
+                    )
+                )
+            )
+            
             logger.info("===== STEP 2: 检查结果")
-            if existing.scalar_one_or_none():
-                raise ValueError("该券商账户已存在")
+            if existing_investor.scalar_one_or_none():
+                raise ValueError(f"该券商的投资者ID {account_data['investor_id']} 已存在")
             
             logger.info("===== STEP 3: 处理默认账户")
             # 如果设置为默认账户，先取消其他默认账户

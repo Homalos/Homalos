@@ -58,15 +58,32 @@ export const useUserStore = defineStore('user', () => {
       const response = await registerApi({
         username: registerForm.username,
         password: registerForm.password,
-        email: registerForm.email || null,
-        full_name: registerForm.full_name || null,
-        role: 'admin'  // 默认注册管理员角色
+        confirm_password: registerForm.confirmPassword || registerForm.password,
+        email: registerForm.email,
+        phone: registerForm.phone || null,
+        full_name: registerForm.fullName || registerForm.full_name || null,
+        timezone: registerForm.timezone || 'Asia/Shanghai',
+        locale: registerForm.locale || 'zh-CN',
+        avatar_url: registerForm.avatar_url || null
       })
       return { success: true, user: response }
     } catch (error) {
+      console.error('注册API错误:', error.response?.data)
+      // 处理验证错误
+      let message = '注册失败'
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          // Pydantic验证错误
+          message = error.response.data.detail.map(err => 
+            `${err.loc.join('.')}: ${err.msg}`
+          ).join('; ')
+        } else {
+          message = error.response.data.detail
+        }
+      }
       return { 
         success: false, 
-        message: error.response?.data?.detail || '注册失败' 
+        message
       }
     }
   }

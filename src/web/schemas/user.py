@@ -17,7 +17,7 @@ from pydantic import BaseModel, EmailStr, Field, validator
 class UserBase(BaseModel):
     """用户基础模式"""
     username: str = Field(..., min_length=3, max_length=50, description="用户名")
-    email: EmailStr = Field(..., description="邮箱地址")
+    email: EmailStr = Field(..., description="邮箱地址")  # 必填，用于找回密码和通知
     phone: Optional[str] = Field(None, max_length=20, description="手机号")
     full_name: Optional[str] = Field(None, max_length=100, description="全名")
     timezone: str = Field(default="Asia/Shanghai", max_length=50, description="时区")

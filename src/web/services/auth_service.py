@@ -69,6 +69,7 @@ class AuthService:
                 )
 
         # 创建新用户
+        from src.web.models.user import UserStatus
         user = User(
             username=user_data.username,
             email=user_data.email,
@@ -77,7 +78,8 @@ class AuthService:
             password_hash=get_password_hash(user_data.password),
             timezone=user_data.timezone,
             locale=user_data.locale,
-            avatar_url=user_data.avatar_url
+            avatar_url=user_data.avatar_url,
+            status=UserStatus.ACTIVE  # 开发环境自动激活，生产环境应该是INACTIVE并发送激活邮件
         )
 
         self.db.add(user)

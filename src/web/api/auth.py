@@ -19,6 +19,9 @@ from src.web.schemas.user import UserCreate, UserResponse, PasswordResetRequest,
 from src.web.schemas.token import Token
 from src.web.services.auth_service import AuthService
 from src.web.models.user import User
+from src.utils.log import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 
@@ -36,6 +39,7 @@ async def register(
     - **email**: 邮箱（可选）
     - **full_name**: 全名（可选）
     """
+    logger.info(f"收到注册请求: username={user.username}, email={user.email}")
     auth_service = AuthService(db)
     new_user = await auth_service.register(user)
     return UserResponse.model_validate(new_user)

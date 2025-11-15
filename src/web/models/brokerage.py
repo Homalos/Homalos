@@ -270,7 +270,10 @@ class UserBrokerage(Base):
         Index('idx_user_brokerages_connection_status', 'connection_status'),
         Index('idx_user_brokerages_is_default', 'is_default'),
         Index('idx_user_brokerages_created_at', 'created_at'),
-        Index('idx_user_brokerages_unique', 'user_id', 'account_id', 'broker_code', unique=True),
+        # 唯一约束：同一用户在同一券商下的资金账号必须唯一
+        Index('idx_user_brokerages_unique_account', 'user_id', 'account_id', 'broker_code', unique=True),
+        # 唯一约束：同一用户在同一券商下的投资者ID必须唯一
+        Index('idx_user_brokerages_unique_investor', 'user_id', 'investor_id', 'broker_code', unique=True),
         {'comment': '用户券商账户表 - 支持多券商账户管理'}
     )
     

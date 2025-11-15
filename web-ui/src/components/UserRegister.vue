@@ -334,6 +334,8 @@ const handleRegister = async () => {
         avatar_url: undefined
       }
       
+      console.log('发送注册数据:', registerData)
+      
       // 发送注册请求
       const response = await fetch('/api/auth/register', {
         method: 'POST',
@@ -344,8 +346,14 @@ const handleRegister = async () => {
       })
       
       const data = await response.json()
+      console.log('注册响应:', data)
       
       if (!response.ok) {
+        // 显示详细的验证错误
+        if (data.detail && Array.isArray(data.detail)) {
+          const errors = data.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join('\n')
+          throw new Error(errors)
+        }
         throw new Error(data.detail || '注册失败')
       }
       

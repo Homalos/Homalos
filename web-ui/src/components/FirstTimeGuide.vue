@@ -33,43 +33,30 @@
         >
           <p>资金账户用于连接券商系统进行实际交易。</p>
           <p>您可以添加模拟账户进行测试，或添加实盘账户进行真实交易。</p>
+          <p style="margin-top: 10px; color: #E6A23C;">提示：点击"添加账户"按钮后，请在弹出的对话框中填写完整信息。</p>
         </el-alert>
 
-        <el-form :model="accountData" label-width="100px">
-          <el-form-item label="开户机构">
-            <el-select v-model="accountData.broker_key" placeholder="请选择">
-            <el-option
-              v-for="broker in brokerList"
-              :key="broker.broker_key"
-              :label="broker.name"
-              :value="broker.broker_key"
-            >
-              <span>{{ broker.name }}</span>
-            </el-option>
-            </el-select>
-          </el-form-item>
-          <el-form-item label="资金账户">
-            <el-input v-model="accountData.account_id" placeholder="请输入资金账户" />
-          </el-form-item>
-          <el-form-item label="应用ID">
-            <el-input v-model="accountData.app_id" placeholder="可选，留空使用默认值" />
-          </el-form-item>
-          <el-form-item label="授权码">
-            <el-input v-model="accountData.auth_code" placeholder="可选，留空使用默认值" />
-          </el-form-item>
-          <el-form-item label="交易密码">
-            <el-input
-              v-model="accountData.password"
-              type="password"
-              placeholder="请输入交易密码"
-              show-password
-            />
-          </el-form-item>
-          <el-form-item label="显示名称">
-            <el-input v-model="accountData.display_name" placeholder="如：模拟账户1" />
-          </el-form-item>
-        </el-form>
+        <div style="text-align: center; padding: 20px;">
+          <el-button
+            type="primary"
+            size="large"
+            :icon="Plus"
+            @click="showAddDialog = true"
+          >
+            添加资金账户
+          </el-button>
+          <p v-if="accountAdded" style="margin-top: 15px; color: #67C23A;">
+            <el-icon><SuccessFilled /></el-icon>
+            账户已添加成功！点击"下一步"继续
+          </p>
+        </div>
       </div>
+
+      <!-- 添加账户对话框 -->
+      <AddBrokerageAccountDialog
+        v-model="showAddDialog"
+        @success="handleAccountAdded"
+      />
 
       <!-- 步骤3：完成 -->
       <div v-show="currentStep === 2" class="step-panel">
@@ -93,10 +80,9 @@
       <el-button
         v-if="currentStep < 2"
         type="primary"
-        :loading="loading"
         @click="handleNext"
       >
-        {{ currentStep === 1 ? '添加账户' : '下一步' }}
+        下一步
       </el-button>
       <el-button v-if="currentStep === 2" type="primary" @click="handleFinish">
         开始使用
@@ -106,10 +92,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { addTradingAccount, getBrokers } from '@/api/tradingAccount'
-import { useTradingAccountStore } from '@/stores/tradingAccount'
+import { Plus, SuccessFilled } from '@element-plus/icons-vue'
+import { useBrokerageStore } from '@/stores/brokerage'
+import AddBrokerageAccountDialog from './AddBrokerageAccountDialog.vue'
 
 const props = defineProps({
   modelValue: {
@@ -120,22 +107,12 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'finish'])
 
-const tradingAccountStore = useTradingAccountStore()
+const brokerageStore = useBrokerageStore()
 
 const visible = ref(props.modelValue)
 const currentStep = ref(0)
-const loading = ref(false)
-const brokerList = ref([])
-
-const accountData = reactive({
-  broker_key: '',
-  account_id: '',
-  app_id: '',
-  auth_code: '',
-  password: '',
-  display_name: '',
-  is_default: true
-})
+const showAddDialog = ref(false)
+const accountAdded = ref(false)
 
 watch(() => props.modelValue, (val) => {
   visible.value = val
@@ -146,43 +123,26 @@ watch(visible, (val) => {
 })
 
 /**
+ * 账户添加成功回调
+ */
+function handleAccountAdded() {
+  accountAdded.value = true
+  ElMessage.success('账户添加成功！')
+}
+
+/**
  * 下一步
  */
-async function handleNext() {
+function handleNext() {
   if (currentStep.value === 0) {
     currentStep.value = 1
   } else if (currentStep.value === 1) {
-    // 验证表单
-    if (!accountData.broker_key || !accountData.account_id || !accountData.password) {
-      ElMessage.warning('请填写完整的账户信息')
+    // 检查是否已添加账户
+    if (!accountAdded.value) {
+      ElMessage.warning('请先添加资金账户')
       return
     }
-    
-    // 添加账户
-    loading.value = true
-    try {
-      const submitData = {
-        broker_key: accountData.broker_key,
-        broker_id: '', // 由后端自动获取
-        account_id: accountData.account_id,
-        password: accountData.password,
-        display_name: accountData.display_name,
-        is_default: accountData.is_default
-      }
-      
-      // 添加可选字段
-      if (accountData.app_id) submitData.app_id = accountData.app_id
-      if (accountData.auth_code) submitData.auth_code = accountData.auth_code
-      
-      await addTradingAccount(submitData)
-      await tradingAccountStore.fetchAccountList()
-      ElMessage.success('账户添加成功')
-      currentStep.value = 2
-    } catch (error) {
-      ElMessage.error('添加失败，请检查信息是否正确')
-    } finally {
-      loading.value = false
-    }
+    currentStep.value = 2
   }
 }
 
@@ -221,22 +181,6 @@ function handleFinish() {
 function handleViewDocs() {
   window.open('https://homalos.github.io/guide/quick_start', '_blank')
 }
-
-/**
- * 加载券商列表
- */
-async function loadBrokers() {
-  try {
-    const response = await getBrokers()
-    brokerList.value = response
-  } catch (error) {
-    console.error('加载券商列表失败:', error)
-  }
-}
-
-onMounted(() => {
-  loadBrokers()
-})
 </script>
 
 <style scoped>
