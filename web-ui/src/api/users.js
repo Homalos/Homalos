@@ -113,3 +113,22 @@ export function deleteUser(userId) {
     method: 'delete'
   })
 }
+
+/**
+ * 获取所有用户列表（含管理员）
+ * @param {Object} params - 查询参数
+ * @param {Number} params.page - 页码
+ * @param {Number} params.page_size - 每页数量
+ * @param {String} params.search - 搜索关键词
+ * @param {String} params.status - 状态筛选
+ * @param {String} params.role - 角色筛选
+ * @param {String} params.user_type - 用户类型筛选 (user/admin)
+ * @returns {Promise}
+ */
+export function getAllUsersList(params) {
+  return request({
+    url: '/api/users/all/list',
+    method: 'get',
+    params
+  })
+}

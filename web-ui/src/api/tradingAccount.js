@@ -1,7 +1,7 @@
 import request from './request'
 
 /**
- * 登录资金账户
+ * 登录券商账户
  * @param {Object} data - 登录数据
  * @param {number} data.account_id - 账户ID（已有账户）
  * @param {string} data.broker_id - 券商ID（新账户）

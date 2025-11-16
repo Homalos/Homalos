@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 
 from src.web.models.user import User, UserStatus, UserRole
+from src.web.models.admin import Admin, AdminStatus, AdminRole
 from src.web.models.user_preference import UserPreference
 from src.web.schemas.user import UserCreateByAdmin, UserUpdateByAdmin
 from src.utils.log import get_logger
@@ -99,6 +100,142 @@ class UserService:
         return list(users), total
     
     @staticmethod
+    async def get_all_users_list(
+        db: AsyncSession,
+        page: int = 1,
+        page_size: int = 20,
+        search: Optional[str] = None,
+        status: Optional[str] = None,
+        role: Optional[str] = None,
+        user_type: Optional[str] = None
+    ) -> Tuple[List[dict], int]:
+        """
+        获取所有用户列表（合并users和admins表）
+        
+        Args:
+            db: 数据库会话
+            page: 页码
+            page_size: 每页数量
+            search: 搜索关键词
+            status: 状态筛选
+            role: 角色筛选
+            user_type: 用户类型筛选 (user/admin)
+            
+        Returns:
+            (用户列表, 总数)
+        """
+        all_users = []
+        
+        # 查询普通用户
+        if not user_type or user_type == 'user':
+            users_query = select(User)
+            
+            if search:
+                search_pattern = f"%{search}%"
+                users_query = users_query.where(
+                    or_(
+                        User.username.like(search_pattern),
+                        User.email.like(search_pattern),
+                        User.phone.like(search_pattern),
+                        User.full_name.like(search_pattern)
+                    )
+                )
+            
+            if status:
+                try:
+                    status_enum = UserStatus[status.upper()]
+                    users_query = users_query.where(User.status == status_enum)
+                except KeyError:
+                    pass
+            
+            if role:
+                try:
+                    role_enum = UserRole[role.upper()]
+                    users_query = users_query.where(User.role == role_enum)
+                except KeyError:
+                    pass
+            
+            users_query = users_query.order_by(User.created_at.desc())
+            result = await db.execute(users_query)
+            users = result.scalars().all()
+            
+            for user in users:
+                all_users.append({
+                    'id': user.user_id,
+                    'user_type': 'user',
+                    'username': user.username,
+                    'email': user.email,
+                    'phone': user.phone,
+                    'full_name': user.full_name,
+                    'status': user.status.name.lower() if user.status else None,
+                    'role': user.role.name.lower() if user.role else None,
+                    'created_at': user.created_at,
+                    'last_login_at': user.last_login_at,
+                    'avatar_url': user.avatar_url
+                })
+        
+        # 查询管理员用户
+        if not user_type or user_type == 'admin':
+            admins_query = select(Admin)
+            
+            if search:
+                search_pattern = f"%{search}%"
+                admins_query = admins_query.where(
+                    or_(
+                        Admin.username.like(search_pattern),
+                        Admin.email.like(search_pattern),
+                        Admin.phone.like(search_pattern),
+                        Admin.full_name.like(search_pattern)
+                    )
+                )
+            
+            if status:
+                try:
+                    status_enum = AdminStatus[status.upper()]
+                    admins_query = admins_query.where(Admin.status == status_enum)
+                except KeyError:
+                    pass
+            
+            if role:
+                try:
+                    role_enum = AdminRole[role.upper()]
+                    admins_query = admins_query.where(Admin.role == role_enum)
+                except KeyError:
+                    pass
+            
+            admins_query = admins_query.order_by(Admin.created_at.desc())
+            result = await db.execute(admins_query)
+            admins = result.scalars().all()
+            
+            for admin in admins:
+                all_users.append({
+                    'id': admin.admin_id,
+                    'user_type': 'admin',
+                    'username': admin.username,
+                    'email': admin.email,
+                    'phone': admin.phone,
+                    'full_name': admin.full_name,
+                    'status': admin.status.name.lower() if admin.status else None,
+                    'role': admin.role.name.lower() if admin.role else None,
+                    'created_at': admin.created_at,
+                    'last_login_at': admin.last_login_at,
+                    'avatar_url': admin.avatar_url
+                })
+        
+        # 按创建时间排序
+        all_users.sort(key=lambda x: x['created_at'] if x['created_at'] else '', reverse=True)
+        
+        # 总数
+        total = len(all_users)
+        
+        # 分页
+        start = (page - 1) * page_size
+        end = start + page_size
+        paginated_users = all_users[start:end]
+        
+        return paginated_users, total
+    
+    @staticmethod
     async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
         """根据ID获取用户"""
         result = await db.execute(select(User).where(User.user_id == user_id))
@@ -117,75 +254,122 @@ class UserService:
         return result.scalar_one_or_none()
     
     @staticmethod
-    async def create_user(db: AsyncSession, user_data: UserCreateByAdmin) -> User:
+    async def create_user(db: AsyncSession, user_data: UserCreateByAdmin):
         """
-        创建用户
+        创建用户或管理员
         
         Args:
             db: 数据库会话
             user_data: 用户数据
             
         Returns:
-            创建的用户对象
+            创建的用户或管理员对象
             
         Raises:
             ValueError: 用户名或邮箱已存在
         """
-        # 检查用户名是否已存在
+        # 检查用户名是否已存在（在users和admins表中都检查）
         existing_user = await UserService.get_user_by_username(db, user_data.username)
         if existing_user:
             raise ValueError(f"用户名 '{user_data.username}' 已存在")
         
-        # 检查邮箱是否已存在
+        # 检查admins表中是否存在
+        result = await db.execute(select(Admin).where(Admin.username == user_data.username))
+        existing_admin = result.scalar_one_or_none()
+        if existing_admin:
+            raise ValueError(f"用户名 '{user_data.username}' 已存在")
+        
+        # 检查邮箱是否已存在（在users和admins表中都检查）
         existing_email = await UserService.get_user_by_email(db, user_data.email)
         if existing_email:
+            raise ValueError(f"邮箱 '{user_data.email}' 已被使用")
+        
+        result = await db.execute(select(Admin).where(Admin.email == user_data.email))
+        existing_admin_email = result.scalar_one_or_none()
+        if existing_admin_email:
             raise ValueError(f"邮箱 '{user_data.email}' 已被使用")
         
         # 加密密码
         password_hash = pwd_context.hash(user_data.password)
         
-        # 转换状态和角色
-        try:
-            status_enum = UserStatus[user_data.status.upper()]
-        except KeyError:
-            status_enum = UserStatus.ACTIVE
+        # 判断角色，如果是admin则创建到admins表
+        if user_data.role.upper() == 'ADMIN':
+            # 创建管理员（普通管理员，不是超级管理员）
+            try:
+                status_enum = AdminStatus[user_data.status.upper()]
+            except KeyError:
+                status_enum = AdminStatus.ACTIVE
+            
+            admin = Admin(
+                username=user_data.username,
+                email=user_data.email,
+                password_hash=password_hash,
+                phone=user_data.phone,
+                full_name=user_data.full_name,
+                status=status_enum,
+                role=AdminRole.NORMAL,  # 固定为普通管理员
+                timezone=user_data.timezone,
+                locale=user_data.locale,
+                mfa_enabled=False
+            )
+            
+            db.add(admin)
+            await db.commit()
+            await db.refresh(admin)
+            
+            # 为管理员创建默认的偏好设置
+            admin_preference = UserPreference(
+                user_id=admin.admin_id,
+                user_type='admin',  # 标识为管理员
+                theme='light',
+                language=user_data.locale if user_data.locale else 'zh-CN',
+                default_order_type='limit',
+                default_time_in_force='GTC'
+            )
+            db.add(admin_preference)
+            await db.commit()
+            
+            logger.info(f"创建普通管理员成功: {admin.username} (ID: {admin.admin_id}), 已创建默认偏好设置")
+            return admin
         
-        try:
-            role_enum = UserRole[user_data.role.upper()]
-        except KeyError:
-            role_enum = UserRole.NORMAL
-        
-        # 创建用户对象
-        user = User(
-            username=user_data.username,
-            email=user_data.email,
-            password_hash=password_hash,
-            phone=user_data.phone,
-            full_name=user_data.full_name,
-            status=status_enum,
-            role=role_enum,
-            timezone=user_data.timezone,
-            locale=user_data.locale
-        )
-        
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-        
-        # 自动创建默认的用户偏好设置
-        user_preference = UserPreference(
-            user_id=user.user_id,
-            theme='light',
-            language=user_data.locale if user_data.locale else 'zh-CN',
-            default_order_type='limit',
-            default_time_in_force='GTC'
-        )
-        db.add(user_preference)
-        await db.commit()
-        
-        logger.info(f"创建用户成功: {user.username} (ID: {user.user_id}), 已创建默认偏好设置")
-        
-        return user
+        else:
+            # 创建普通用户
+            try:
+                status_enum = UserStatus[user_data.status.upper()]
+            except KeyError:
+                status_enum = UserStatus.ACTIVE
+            
+            user = User(
+                username=user_data.username,
+                email=user_data.email,
+                password_hash=password_hash,
+                phone=user_data.phone,
+                full_name=user_data.full_name,
+                status=status_enum,
+                role=UserRole.NORMAL,  # 固定为普通用户
+                timezone=user_data.timezone,
+                locale=user_data.locale
+            )
+            
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+            
+            # 自动创建默认的用户偏好设置
+            user_preference = UserPreference(
+                user_id=user.user_id,
+                user_type='user',  # 标识为普通用户
+                theme='light',
+                language=user_data.locale if user_data.locale else 'zh-CN',
+                default_order_type='limit',
+                default_time_in_force='GTC'
+            )
+            db.add(user_preference)
+            await db.commit()
+            
+            logger.info(f"创建用户成功: {user.username} (ID: {user.user_id}), 已创建默认偏好设置")
+            
+            return user
     
     @staticmethod
     async def update_user(

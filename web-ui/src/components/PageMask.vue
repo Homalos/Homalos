@@ -11,7 +11,7 @@
         size="large"
         @click="handleLogin"
       >
-        登录资金账户
+        登录券商账户
       </el-button>
     </div>
   </div>
@@ -27,11 +27,11 @@ defineProps({
   },
   title: {
     type: String,
-    default: '请先登录资金账户'
+    default: '请先登录券商账户'
   },
   description: {
     type: String,
-    default: '此页面需要登录资金账户后才能访问'
+    default: '此页面需要登录券商账户后才能访问'
   }
 })
 

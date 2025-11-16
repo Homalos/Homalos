@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.web.core.database import get_db
 from src.web.core.security import get_current_user
 from src.web.models.user import User
-from src.web.models.admin import Admin
+from src.web.models.admin import Admin, AdminRole
 from src.web.schemas.user import (
     UserListResponse,
     UserListItem,
@@ -439,3 +439,63 @@ async def delete_user(
         "success": True,
         "message": f"用户已删除 (ID: {user_id})"
     }
+
+
+@router.get("/all/list", summary="获取所有用户列表（含管理员）")
+async def get_all_users(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+    search: str = Query(None, description="搜索关键词"),
+    status: str = Query(None, description="状态筛选"),
+    role: str = Query(None, description="角色筛选"),
+    user_type: str = Query(None, description="用户类型筛选 (user/admin)"),
+    current_user = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    获取所有用户列表（合并users和admins表）
+    
+    - **仅超级管理员可用**
+    - 合并显示普通用户和管理员用户
+    - 支持按用户类型筛选
+    """
+    # 检查管理员权限
+    check_admin_permission(current_user)
+    
+    # 检查是否为超级管理员
+    if isinstance(current_user, Admin):
+        if current_user.role != AdminRole.SUPER:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="只有超级管理员才能查看所有用户"
+            )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有超级管理员才能查看所有用户"
+        )
+    
+    try:
+        users, total = await UserService.get_all_users_list(
+            db=db,
+            page=page,
+            page_size=page_size,
+            search=search,
+            status=status,
+            role=role,
+            user_type=user_type
+        )
+        
+        return {
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "users": users
+        }
+        
+    except Exception as e:
+        logger.error(f"获取所有用户列表失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取所有用户列表失败: {str(e)}"
+        )

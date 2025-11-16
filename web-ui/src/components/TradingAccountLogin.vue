@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    title="登录资金账户"
+    title="登录券商账户"
     width="500px"
     :close-on-click-modal="false"
     @close="handleClose"

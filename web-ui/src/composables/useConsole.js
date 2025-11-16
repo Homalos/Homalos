@@ -87,9 +87,9 @@ export function useConsole() {
    */
   const handleStartTradingCore = async () => {
     try {
-      // 检查是否已登录资金账户
+      // 检查是否已登录券商账户
       if (!tradingAccountStore.isLoggedIn) {
-        ElMessage.warning('请先登录资金账户')
+        ElMessage.warning('请先登录券商账户')
         return
       }
 
@@ -203,9 +203,9 @@ export function useConsole() {
    */
   const handleConnectGateway = async () => {
     try {
-      // 检查是否已登录资金账户
+      // 检查是否已登录券商账户
       if (!tradingAccountStore.isLoggedIn) {
-        ElMessage.warning('请先登录资金账户')
+        ElMessage.warning('请先登录券商账户')
         return
       }
 

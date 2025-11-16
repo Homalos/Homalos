@@ -22,6 +22,7 @@ class UserPreference(Base):
     用户偏好设置表
     
     存储用户的个性化配置，如主题、图表设置、默认参数等
+    支持普通用户(users表)和管理员(admins表)
     """
     __tablename__ = "user_preferences"
     
@@ -29,11 +30,17 @@ class UserPreference(Base):
     
     user_id = Column(
         BigInteger, 
-        ForeignKey("users.user_id", ondelete="CASCADE"),
         nullable=False, 
-        unique=True,
         index=True,
-        comment="用户ID，外键关联users.user_id"
+        comment="用户ID，可以是users.user_id或admins.admin_id"
+    )
+    
+    user_type = Column(
+        String(10),
+        nullable=False,
+        default='user',
+        index=True,
+        comment="用户类型：user(普通用户) 或 admin(管理员)"
     )
     
     # 界面设置
@@ -90,13 +97,12 @@ class UserPreference(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
-    # 关联关系
-    user = relationship("User", back_populates="user_preferences")
-    
     __table_args__ = (
         Index('idx_user_preferences_user_id', 'user_id'),
-        {'comment': '用户偏好设置表'}
+        Index('idx_user_preferences_user_type', 'user_type'),
+        Index('idx_user_preferences_user_id_type', 'user_id', 'user_type', unique=True),
+        {'comment': '用户偏好设置表，支持普通用户和管理员'}
     )
     
     def __repr__(self):
-        return f"<UserPreference(id={self.id}, user_id={self.user_id}, theme={self.theme})>"
+        return f"<UserPreference(id={self.id}, user_id={self.user_id}, user_type={self.user_type}, theme={self.theme})>"

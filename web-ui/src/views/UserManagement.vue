@@ -51,6 +51,18 @@
           <el-option label="管理员" value="admin" />
         </el-select>
         
+        <el-select
+          v-model="filterUserType"
+          placeholder="用户类型"
+          style="width: 150px; margin-right: 10px;"
+          clearable
+          @change="handleSearch"
+        >
+          <el-option label="全部类型" value="" />
+          <el-option label="普通用户" value="user" />
+          <el-option label="管理员" value="admin" />
+        </el-select>
+        
         <el-button type="primary" @click="handleSearch">
           <el-icon><Search /></el-icon>
           搜索
@@ -69,7 +81,6 @@
         style="width: 100%; margin-top: 20px;"
         stripe
       >
-        <el-table-column prop="user_id" label="ID" width="80" />
         <el-table-column prop="username" label="用户名" width="150" />
         <el-table-column prop="email" label="邮箱" width="200" />
         <el-table-column prop="phone" label="手机号" width="130" />
@@ -83,10 +94,18 @@
           </template>
         </el-table-column>
         
-        <el-table-column label="角色" width="100">
+        <el-table-column label="角色" width="120">
           <template #default="{ row }">
-            <el-tag :type="row.role === 'admin' ? 'danger' : 'info'">
-              {{ row.role === 'admin' ? '管理员' : '普通用户' }}
+            <el-tag :type="getRoleTagType(row)">
+              {{ getRoleText(row) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        
+        <el-table-column label="用户类型" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.user_type === 'admin' ? 'warning' : 'success'">
+              {{ row.user_type === 'admin' ? '管理员' : '用户' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -268,27 +287,15 @@
           
           <el-form-item label="用户角色" prop="role">
             <el-radio-group v-model="userForm.role">
-              <el-radio label="normal">
-                <span class="role-label">普通用户</span>
-                <span class="role-desc">基础功能权限</span>
-              </el-radio>
-              <el-radio label="admin">
-                <span class="role-label">管理员</span>
-                <span class="role-desc">系统管理权限</span>
-              </el-radio>
+              <el-radio label="normal">普通用户</el-radio>
+              <el-radio label="admin">普通管理员</el-radio>
             </el-radio-group>
           </el-form-item>
           
           <el-form-item label="账户状态" prop="status">
             <el-radio-group v-model="userForm.status">
-              <el-radio label="active">
-                <span class="role-label">正常</span>
-                <span class="role-desc">可以正常使用系统</span>
-              </el-radio>
-              <el-radio label="inactive">
-                <span class="role-label">未激活</span>
-                <span class="role-desc">需要激活后才能使用</span>
-              </el-radio>
+              <el-radio label="active">正常</el-radio>
+              <el-radio label="inactive">未激活</el-radio>
             </el-radio-group>
           </el-form-item>
         </div>
@@ -380,6 +387,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh, ArrowDown } from '@element-plus/icons-vue'
 import {
   getUsersList,
+  getAllUsersList,
   createUser,
   updateUser,
   updateUserStatus,
@@ -400,6 +408,7 @@ const pageSize = ref(20)
 const searchKeyword = ref('')
 const filterStatus = ref('')
 const filterRole = ref('')
+const filterUserType = ref('')
 
 // 对话框
 const dialogVisible = ref(false)
@@ -577,8 +586,12 @@ const fetchUserList = async () => {
     if (filterRole.value) {
       params.role = filterRole.value
     }
+    if (filterUserType.value) {
+      params.user_type = filterUserType.value
+    }
     
-    const response = await getUsersList(params)
+    // 使用getAllUsersList获取合并的用户和管理员列表
+    const response = await getAllUsersList(params)
     userList.value = response.users
     total.value = response.total
   } catch (error) {
@@ -597,6 +610,7 @@ const handleReset = () => {
   searchKeyword.value = ''
   filterStatus.value = ''
   filterRole.value = ''
+  filterUserType.value = ''
   currentPage.value = 1
   fetchUserList()
 }
@@ -618,9 +632,15 @@ const handleAdd = () => {
 }
 
 const handleEdit = (row) => {
+  // 检查是否为管理员
+  if (row.user_type === 'admin') {
+    ElMessage.warning('管理员编辑功能暂未实现')
+    return
+  }
+  
   isEdit.value = true
   dialogTitle.value = '编辑用户'
-  currentUserId.value = row.user_id
+  currentUserId.value = row.id  // 使用row.id而不是row.user_id
   
   userForm.username = row.username
   userForm.email = row.email
@@ -632,7 +652,13 @@ const handleEdit = (row) => {
 
 const handleCommand = (command, row) => {
   currentUser.value = row
-  currentUserId.value = row.user_id
+  currentUserId.value = row.id  // 使用row.id而不是row.user_id
+  
+  // 检查是否为管理员（除了删除操作，删除操作在handleDelete中单独处理）
+  if (row.user_type === 'admin' && command !== 'delete') {
+    ElMessage.warning('管理员操作功能暂未实现')
+    return
+  }
   
   switch (command) {
     case 'status':
@@ -735,8 +761,11 @@ const handlePasswordSubmit = async () => {
 
 const handleDelete = async (row) => {
   try {
+    // 根据用户类型显示不同的提示
+    const userTypeText = row.user_type === 'admin' ? '管理员' : '用户'
+    
     await ElMessageBox.confirm(
-      `确定要删除用户 "${row.username}" 吗？此操作不可逆！`,
+      `确定要删除${userTypeText} "${row.username}" 吗？此操作不可逆！`,
       '删除确认',
       {
         confirmButtonText: '确定',
@@ -745,8 +774,17 @@ const handleDelete = async (row) => {
       }
     )
     
-    await deleteUser(row.user_id)
-    ElMessage.success('删除用户成功')
+    // 根据user_type判断删除哪种用户
+    if (row.user_type === 'admin') {
+      // TODO: 实现管理员删除API
+      ElMessage.warning('管理员删除功能暂未实现')
+      return
+    } else {
+      // 删除普通用户，使用row.id而不是row.user_id
+      await deleteUser(row.id)
+      ElMessage.success('删除用户成功')
+    }
+    
     fetchUserList()
   } catch (error) {
     if (error !== 'cancel') {
@@ -794,6 +832,37 @@ const getStatusText = (status) => {
     disabled: '禁用'
   }
   return textMap[status] || status
+}
+
+// 根据user_type和role组合获取角色文本
+const getRoleText = (row) => {
+  if (row.user_type === 'admin') {
+    // admins表：NORMAL=普通管理员, SUPER=超级管理员
+    if (row.role === 'super') {
+      return '超级管理员'
+    } else if (row.role === 'normal') {
+      return '普通管理员'
+    }
+    return '管理员'
+  } else {
+    // users表：NORMAL=普通用户
+    return '普通用户'
+  }
+}
+
+// 根据user_type和role组合获取标签类型
+const getRoleTagType = (row) => {
+  if (row.user_type === 'admin') {
+    // 管理员使用danger色系
+    if (row.role === 'super') {
+      return 'danger'  // 超级管理员：红色
+    } else {
+      return 'warning'  // 普通管理员：橙色
+    }
+  } else {
+    // 普通用户使用info色系
+    return 'info'  // 普通用户：灰色
+  }
 }
 
 const formatDateTime = (dateTime) => {
@@ -907,31 +976,4 @@ onMounted(() => {
   min-width: 40px;
 }
 
-/* 角色选择样式 */
-.role-label {
-  font-weight: 600;
-  color: #303133;
-  margin-right: 8px;
-}
-
-.role-desc {
-  font-size: 12px;
-  color: #909399;
-  display: block;
-  margin-top: 4px;
-  margin-left: 24px;
-}
-
-:deep(.el-radio) {
-  display: flex;
-  align-items: flex-start;
-  margin-bottom: 12px;
-  white-space: normal;
-}
-
-:deep(.el-radio__label) {
-  display: flex;
-  flex-direction: column;
-  white-space: normal;
-}
 </style>

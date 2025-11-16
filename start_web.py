@@ -27,7 +27,8 @@ if __name__ == "__main__":
             "src.web.main:app",
             host="0.0.0.0",
             port=8000,
-            reload=False,  # 禁用Uvicorn自动重载，使用策略管理器的Watchdog
+            reload=True,  # 启用热重载，代码修改后自动重启
+            reload_dirs=["src"],  # 监控src目录的变化
             log_level="info",
             timeout_graceful_shutdown=10,  # 优雅关闭超时10秒（Windows推荐设置）
         )

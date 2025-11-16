@@ -162,6 +162,7 @@
     <TradingAccountLogin 
       v-model="showTradingLogin" 
       @success="handleTradingLoginSuccess"
+      @goToManage="handleGoToManage"
     />
     
     <!-- 首次引导对话框 -->
@@ -416,14 +417,21 @@ const handleNotificationClick = () => {
 }
 
 /**
- * 资金账户登录成功
+ * 券商账户登录成功
  */
 function handleTradingLoginSuccess(account) {
-  ElMessage.success('资金账户登录成功')
+  ElMessage.success('券商账户登录成功')
   // 只在 about 页面或根路径时才跳转到 dashboard，否则保持当前页面
   if (route.path === '/about' || route.path === '/') {
     router.push('/dashboard')
   }
+}
+
+/**
+ * 前往管理券商账户
+ */
+function handleGoToManage() {
+  router.push('/brokerages')
 }
 
 /**

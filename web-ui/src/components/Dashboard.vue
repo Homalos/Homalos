@@ -565,7 +565,7 @@ function maskAccountId(accountId) {
 
 // 账户总览标题
 const accountOverviewTitle = computed(() => {
-  // 如果未登录资金账户，只显示"账户总览"
+  // 如果未登录券商账户，只显示"账户总览"
   if (!tradingAccountStore.isLoggedIn) {
     return '账户总览'
   }

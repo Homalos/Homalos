@@ -51,7 +51,7 @@ export const useTradingAccountStore = defineStore('tradingAccount', () => {
   })
 
   /**
-   * 登录资金账户
+   * 登录券商账户
    */
   async function login(loginData) {
     try {

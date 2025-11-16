@@ -22,12 +22,12 @@
               style="margin-bottom: 20px;"
             >
               <template #title>
-                <span style="font-weight: 600;">⚠️ 未登录资金账户</span>
+                <span style="font-weight: 600;">⚠️ 未登录券商账户</span>
               </template>
               <div style="margin-top: 8px;">
-                启动交易核心并连接网关需要先登录资金账户（输入密码）。
+                启动交易核心并连接网关需要先登录券商账户（输入密码）。
                 <br />
-                请前往"资金账户"面板登录后再启动交易核心。
+                请前往"券商账户"面板登录后再启动交易核心。
               </div>
             </el-alert>
             

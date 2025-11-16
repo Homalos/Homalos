@@ -216,18 +216,14 @@ class User(Base):
         foreign_keys="AuditLog.user_id"
     )
     
-    brokerage_accounts = relationship(
+    user_brokerages = relationship(
         "UserBrokerage", 
         cascade="all, delete-orphan",
         primaryjoin="and_(User.user_id == foreign(UserBrokerage.user_id), UserBrokerage.user_type == 'user')"
     )
     
-    user_preferences = relationship(
-        "UserPreference", 
-        back_populates="user", 
-        cascade="all, delete-orphan",
-        uselist=False  # 一对一关系
-    )
+    # user_preferences 关系已移除，因为user_preferences表现在支持users和admins两种用户类型
+    # 不再使用外键关联，改为通过user_id和user_type查询
     
     trading_accounts = relationship(
         "TradingAccount", 
