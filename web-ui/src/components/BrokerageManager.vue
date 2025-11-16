@@ -15,20 +15,21 @@
       stripe
       style="width: 100%"
     >
-      <el-table-column prop="account_name" label="账户名称" width="180">
+      <el-table-column prop="account_name" label="账户名称" min-width="120" />
+      
+      <el-table-column label="默认" width="80" align="center">
         <template #default="{ row }">
-          <div class="account-name">
-            {{ row.account_name }}
-            <el-tag v-if="row.is_default" type="success" size="small">默认</el-tag>
-          </div>
+          <el-icon v-if="row.is_default" color="#67C23A" :size="20">
+            <Check />
+          </el-icon>
         </template>
       </el-table-column>
       
-      <el-table-column prop="broker_name" label="券商" width="150" />
+      <el-table-column prop="broker_name" label="券商" min-width="180" show-overflow-tooltip />
       
-      <el-table-column prop="account_id" label="资金账号" width="150" />
+      <el-table-column prop="account_id" label="资金账号" min-width="120" />
       
-      <el-table-column prop="account_type" label="账户类型" width="100">
+      <el-table-column prop="account_type" label="账户类型" width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="row.account_type === 'production' ? 'danger' : 'info'" size="small">
             {{ row.account_type === 'production' ? '实盘' : '模拟' }}
@@ -36,18 +37,7 @@
         </template>
       </el-table-column>
       
-      <el-table-column prop="status" label="状态" width="100">
-        <template #default="{ row }">
-          <el-tag
-            :type="getStatusType(row.status)"
-            size="small"
-          >
-            {{ getStatusText(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      
-      <el-table-column prop="connection_status" label="连接状态" width="120">
+      <el-table-column prop="connection_status" label="连接状态" width="110" align="center">
         <template #default="{ row }">
           <el-tag
             v-if="row.connection_status"
@@ -60,14 +50,23 @@
         </template>
       </el-table-column>
       
-      <el-table-column prop="created_at" label="创建时间" width="180">
+      <el-table-column prop="created_at" label="创建时间" min-width="160">
         <template #default="{ row }">
           {{ formatDate(row.created_at) }}
         </template>
       </el-table-column>
       
-      <el-table-column label="操作" width="280" fixed="right">
+      <el-table-column label="操作" width="420" fixed="right">
         <template #default="{ row }">
+          <el-button
+            v-if="!isCurrentAccount(row)"
+            size="small"
+            type="success"
+            @click="handleSwitch(row)"
+          >
+            切换登录
+          </el-button>
+          
           <el-button
             v-if="!row.is_default"
             size="small"
@@ -77,28 +76,18 @@
           </el-button>
           
           <el-button
-            v-if="row.status === 'inactive'"
-            size="small"
-            type="success"
-            @click="handleActivate(row.id)"
-          >
-            激活
-          </el-button>
-          
-          <el-button
-            v-if="row.status === 'active'"
-            size="small"
-            type="warning"
-            @click="handleDeactivate(row.id)"
-          >
-            停用
-          </el-button>
-          
-          <el-button
             size="small"
             @click="handleEdit(row)"
           >
             编辑
+          </el-button>
+          
+          <el-button
+            size="small"
+            type="warning"
+            @click="handleChangePassword(row)"
+          >
+            修改密码
           </el-button>
           
           <el-button
@@ -113,77 +102,10 @@
     </el-table>
 
     <!-- 添加账户对话框 -->
-    <el-dialog
+    <AddBrokerageAccountDialog
       v-model="showAddDialog"
-      title="添加券商账户"
-      width="600px"
-    >
-      <el-form
-        ref="addFormRef"
-        :model="addForm"
-        :rules="addFormRules"
-        label-width="120px"
-      >
-        <el-form-item label="账户名称" prop="account_name">
-          <el-input v-model="addForm.account_name" placeholder="请输入账户别名" />
-        </el-form-item>
-        
-        <el-form-item label="券商代码" prop="broker_code">
-          <el-input v-model="addForm.broker_code" placeholder="如：simnow7x24" />
-        </el-form-item>
-        
-        <el-form-item label="券商名称" prop="broker_name">
-          <el-input v-model="addForm.broker_name" placeholder="如：SimNow 7x24" />
-        </el-form-item>
-        
-        <el-form-item label="资金账号" prop="account_id">
-          <el-input v-model="addForm.account_id" placeholder="请输入资金账号" />
-        </el-form-item>
-        
-        <el-form-item label="投资者ID" prop="investor_id">
-          <el-input v-model="addForm.investor_id" placeholder="请输入投资者ID" />
-        </el-form-item>
-        
-        <el-form-item label="券商ID" prop="broker_id">
-          <el-input v-model="addForm.broker_id" placeholder="请输入券商ID" />
-        </el-form-item>
-        
-        <el-form-item label="交易密码" prop="password">
-          <el-input
-            v-model="addForm.password"
-            type="password"
-            placeholder="请输入交易密码"
-            show-password
-          />
-        </el-form-item>
-        
-        <el-form-item label="授权码">
-          <el-input v-model="addForm.auth_code" placeholder="选填" />
-        </el-form-item>
-        
-        <el-form-item label="应用ID">
-          <el-input v-model="addForm.app_id" placeholder="选填" />
-        </el-form-item>
-        
-        <el-form-item label="账户类型" prop="account_type">
-          <el-radio-group v-model="addForm.account_type">
-            <el-radio label="simulation">模拟盘</el-radio>
-            <el-radio label="production">实盘</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        
-        <el-form-item label="设为默认">
-          <el-switch v-model="addForm.is_default" />
-        </el-form-item>
-      </el-form>
-      
-      <template #footer>
-        <el-button @click="showAddDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleAdd" :loading="brokerageStore.loading">
-          确定
-        </el-button>
-      </template>
-    </el-dialog>
+      @success="handleAddSuccess"
+    />
 
     <!-- 编辑账户对话框 -->
     <el-dialog
@@ -200,18 +122,6 @@
         <el-form-item label="账户名称" prop="account_name">
           <el-input v-model="editForm.account_name" placeholder="请输入账户别名" />
         </el-form-item>
-        
-        <el-form-item label="账户状态" prop="status">
-          <el-radio-group v-model="editForm.status">
-            <el-radio label="active">激活</el-radio>
-            <el-radio label="inactive">未激活</el-radio>
-            <el-radio label="error">错误</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        
-        <el-form-item label="设为默认">
-          <el-switch v-model="editForm.is_default" />
-        </el-form-item>
       </el-form>
       
       <template #footer>
@@ -221,77 +131,194 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 切换登录对话框 -->
+    <el-dialog
+      v-model="showSwitchDialog"
+      title="切换登录账户"
+      width="450px"
+    >
+      <el-form
+        ref="switchFormRef"
+        :model="switchForm"
+        :rules="switchFormRules"
+        label-width="100px"
+      >
+        <el-form-item label="账户信息">
+          <div class="account-info">
+            <div>{{ switchAccount?.account_name }}</div>
+            <div class="account-detail">
+              {{ switchAccount?.broker_name }} - {{ switchAccount?.account_id }}
+            </div>
+          </div>
+        </el-form-item>
+        <el-form-item label="账户密码" prop="password">
+          <el-input
+            v-model="switchForm.password"
+            type="password"
+            placeholder="请输入账户密码"
+            show-password
+          />
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <el-button @click="showSwitchDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleConfirmSwitch" :loading="switchLoading">
+          确认切换
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 修改密码对话框 -->
+    <el-dialog
+      v-model="showPasswordDialog"
+      title="修改账户密码"
+      width="450px"
+    >
+      <el-form
+        ref="passwordFormRef"
+        :model="passwordForm"
+        :rules="passwordFormRules"
+        label-width="100px"
+      >
+        <el-form-item label="账户信息">
+          <div class="account-info">
+            <div>{{ passwordAccount?.account_name }}</div>
+            <div class="account-detail">
+              {{ passwordAccount?.broker_name }} - {{ passwordAccount?.account_id }}
+            </div>
+          </div>
+        </el-form-item>
+        <el-form-item label="旧密码" prop="old_password">
+          <el-input
+            v-model="passwordForm.old_password"
+            type="password"
+            placeholder="请输入旧密码"
+            show-password
+          />
+        </el-form-item>
+        <el-form-item label="新密码" prop="new_password">
+          <el-input
+            v-model="passwordForm.new_password"
+            type="password"
+            placeholder="请输入新密码（至少6位）"
+            show-password
+          />
+        </el-form-item>
+        <el-form-item label="确认密码" prop="confirm_password">
+          <el-input
+            v-model="passwordForm.confirm_password"
+            type="password"
+            placeholder="请再次输入新密码"
+            show-password
+          />
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <el-button @click="showPasswordDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleConfirmPassword" :loading="passwordLoading">
+          确认修改
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Check } from '@element-plus/icons-vue'
 import { useBrokerageStore } from '@/stores/brokerage'
+import { useTradingAccountStore } from '@/stores/tradingAccount'
+import { changeBrokeragePassword } from '@/api/brokerage'
+import AddBrokerageAccountDialog from './AddBrokerageAccountDialog.vue'
 
 const brokerageStore = useBrokerageStore()
+const tradingAccountStore = useTradingAccountStore()
 
 // 对话框显示状态
 const showAddDialog = ref(false)
 const showEditDialog = ref(false)
+const showSwitchDialog = ref(false)
+const showPasswordDialog = ref(false)
 
 // 表单引用
-const addFormRef = ref(null)
 const editFormRef = ref(null)
+const switchFormRef = ref(null)
+const passwordFormRef = ref(null)
 
-// 添加表单
-const addForm = ref({
-  account_name: '',
-  broker_code: '',
-  broker_name: '',
-  account_id: '',
-  investor_id: '',
-  broker_id: '',
-  password: '',
-  auth_code: '',
-  app_id: '',
-  account_type: 'production',
-  is_default: false
-})
+// 加载状态
+const switchLoading = ref(false)
+const passwordLoading = ref(false)
+
+// 当前操作的账户
+const switchAccount = ref(null)
+const passwordAccount = ref(null)
 
 // 编辑表单
 const editForm = ref({
   id: null,
-  account_name: '',
-  status: 'active',
-  is_default: false
+  account_name: ''
+})
+
+// 切换登录表单
+const switchForm = reactive({
+  password: ''
+})
+
+// 修改密码表单
+const passwordForm = reactive({
+  old_password: '',
+  new_password: '',
+  confirm_password: ''
 })
 
 // 表单验证规则
-const addFormRules = {
-  account_name: [
-    { required: true, message: '请输入账户名称', trigger: 'blur' }
-  ],
-  broker_code: [
-    { required: true, message: '请输入券商代码', trigger: 'blur' }
-  ],
-  broker_name: [
-    { required: true, message: '请输入券商名称', trigger: 'blur' }
-  ],
-  account_id: [
-    { required: true, message: '请输入资金账号', trigger: 'blur' }
-  ],
-  investor_id: [
-    { required: true, message: '请输入投资者ID', trigger: 'blur' }
-  ],
-  broker_id: [
-    { required: true, message: '请输入券商ID', trigger: 'blur' }
-  ],
-  password: [
-    { required: true, message: '请输入交易密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
-  ]
-}
-
 const editFormRules = {
   account_name: [
     { required: true, message: '请输入账户名称', trigger: 'blur' }
+  ]
+}
+
+const switchFormRules = {
+  password: [
+    { required: true, message: '请输入账户密码', trigger: 'blur' },
+    { min: 6, message: '密码长度至少6位', trigger: 'blur' }
+  ]
+}
+
+const passwordFormRules = {
+  old_password: [
+    { required: true, message: '请输入旧密码', trigger: 'blur' }
+  ],
+  new_password: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, message: '密码长度至少6位', trigger: 'blur' },
+    { 
+      validator: (rule, value, callback) => {
+        if (value === passwordForm.old_password) {
+          callback(new Error('新密码不能与旧密码相同'))
+        } else {
+          callback()
+        }
+      }, 
+      trigger: 'blur' 
+    }
+  ],
+  confirm_password: [
+    { required: true, message: '请确认新密码', trigger: 'blur' },
+    { 
+      validator: (rule, value, callback) => {
+        if (value !== passwordForm.new_password) {
+          callback(new Error('两次输入的密码不一致'))
+        } else {
+          callback()
+        }
+      }, 
+      trigger: 'blur' 
+    }
   ]
 }
 
@@ -308,19 +335,15 @@ async function loadBrokerages() {
   }
 }
 
-// 添加账户
-async function handleAdd() {
-  try {
-    await addFormRef.value.validate()
-    await brokerageStore.addBrokerage(addForm.value)
-    ElMessage.success('添加券商账户成功')
-    showAddDialog.value = false
-    resetAddForm()
-  } catch (error) {
-    if (error !== false) {
-      ElMessage.error(error.message || '添加券商账户失败')
-    }
-  }
+// 添加账户成功回调
+async function handleAddSuccess() {
+  // 关闭对话框
+  showAddDialog.value = false
+  
+  // 刷新账户列表
+  await loadBrokerages()
+  
+  ElMessage.success('券商账户添加成功')
 }
 
 // 编辑账户
@@ -328,7 +351,6 @@ function handleEdit(row) {
   editForm.value = {
     id: row.id,
     account_name: row.account_name,
-    status: row.status,
     is_default: row.is_default
   }
   showEditDialog.value = true
@@ -381,64 +403,6 @@ async function handleSetDefault(id) {
   }
 }
 
-// 激活账户
-async function handleActivate(id) {
-  try {
-    await brokerageStore.activate(id)
-    ElMessage.success('激活账户成功')
-  } catch (error) {
-    ElMessage.error(error.message || '激活账户失败')
-  }
-}
-
-// 停用账户
-async function handleDeactivate(id) {
-  try {
-    await brokerageStore.deactivate(id)
-    ElMessage.success('停用账户成功')
-  } catch (error) {
-    ElMessage.error(error.message || '停用账户失败')
-  }
-}
-
-// 重置添加表单
-function resetAddForm() {
-  addForm.value = {
-    account_name: '',
-    broker_code: '',
-    broker_name: '',
-    account_id: '',
-    investor_id: '',
-    broker_id: '',
-    password: '',
-    auth_code: '',
-    app_id: '',
-    account_type: 'production',
-    is_default: false
-  }
-  addFormRef.value?.resetFields()
-}
-
-// 状态类型
-function getStatusType(status) {
-  const types = {
-    active: 'success',
-    inactive: 'info',
-    error: 'danger'
-  }
-  return types[status] || 'info'
-}
-
-// 状态文本
-function getStatusText(status) {
-  const texts = {
-    active: '激活',
-    inactive: '未激活',
-    error: '错误'
-  }
-  return texts[status] || status
-}
-
 // 连接状态类型
 function getConnectionType(status) {
   const types = {
@@ -467,6 +431,96 @@ function formatDate(dateString) {
   const date = new Date(dateString)
   return date.toLocaleString('zh-CN')
 }
+
+// 判断是否为当前登录账户
+function isCurrentAccount(row) {
+  return String(tradingAccountStore.accountId) === String(row.id)
+}
+
+// 切换登录
+function handleSwitch(row) {
+  switchAccount.value = row
+  switchForm.password = ''
+  showSwitchDialog.value = true
+  
+  // 清除表单验证状态
+  setTimeout(() => {
+    switchFormRef.value?.clearValidate()
+  }, 0)
+}
+
+// 确认切换
+async function handleConfirmSwitch() {
+  if (!switchFormRef.value) return
+  
+  await switchFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    
+    switchLoading.value = true
+    try {
+      // 调用登录方法切换账户
+      const result = await tradingAccountStore.login({
+        account_id: switchAccount.value.id,
+        password: switchForm.password
+      })
+      
+      if (result.success) {
+        ElMessage.success(`已切换到账户：${switchAccount.value.account_name}`)
+        showSwitchDialog.value = false
+        
+        // 清空表单
+        switchFormRef.value?.resetFields()
+      } else {
+        ElMessage.error(result.message || '切换失败')
+      }
+    } catch (error) {
+      ElMessage.error(error.response?.data?.detail || '切换失败，请检查密码')
+    } finally {
+      switchLoading.value = false
+    }
+  })
+}
+
+// 修改密码
+function handleChangePassword(row) {
+  passwordAccount.value = row
+  passwordForm.old_password = ''
+  passwordForm.new_password = ''
+  passwordForm.confirm_password = ''
+  showPasswordDialog.value = true
+  
+  // 清除表单验证状态
+  setTimeout(() => {
+    passwordFormRef.value?.clearValidate()
+  }, 0)
+}
+
+// 确认修改密码
+async function handleConfirmPassword() {
+  if (!passwordFormRef.value) return
+  
+  await passwordFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    
+    passwordLoading.value = true
+    try {
+      await changeBrokeragePassword(passwordAccount.value.id, {
+        old_password: passwordForm.old_password,
+        new_password: passwordForm.new_password
+      })
+      
+      ElMessage.success('密码修改成功')
+      showPasswordDialog.value = false
+      
+      // 清空表单
+      passwordFormRef.value?.resetFields()
+    } catch (error) {
+      ElMessage.error(error.response?.data?.detail || '密码修改失败')
+    } finally {
+      passwordLoading.value = false
+    }
+  })
+}
 </script>
 
 <style scoped>
@@ -491,5 +545,21 @@ function formatDate(dateString) {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.account-info {
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+}
+
+.account-info > div:first-child {
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.account-detail {
+  font-size: 12px;
+  color: #909399;
 }
 </style>

@@ -101,24 +101,6 @@ export function setDefaultBrokerage(brokerageId) {
 }
 
 /**
- * 激活券商账户
- * @param {number} brokerageId - 券商账户ID
- * @returns {Promise<Object>} 更新结果
- */
-export function activateBrokerage(brokerageId) {
-  return updateBrokerage(brokerageId, { status: 'active' })
-}
-
-/**
- * 停用券商账户
- * @param {number} brokerageId - 券商账户ID
- * @returns {Promise<Object>} 更新结果
- */
-export function deactivateBrokerage(brokerageId) {
-  return updateBrokerage(brokerageId, { status: 'inactive' })
-}
-
-/**
  * 登录券商账户
  * @param {Object} loginData - 登录数据
  * @param {number} loginData.account_id - 账户ID

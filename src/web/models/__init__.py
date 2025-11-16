@@ -13,5 +13,5 @@ from .user import User, UserStatus, UserRole  # noqa: F401
 from .audit_log import AuditLog  # noqa: F401
 from .user_preference import UserPreference  # noqa: F401
 from .admin import Admin, AdminStatus, AdminRole, AdminAuditLog  # noqa: F401
-from .brokerage import UserBrokerage, BrokerageAccountSnapshot, AccountType, AccountStatus, Environment, ConnectionStatus, UserType  # noqa: F401
+from .brokerage import UserBrokerage, BrokerageAccountSnapshot, AccountType, Environment, ConnectionStatus, UserType  # noqa: F401
 from .trading_account import TradingAccount  # noqa: F401

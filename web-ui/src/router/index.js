@@ -73,6 +73,12 @@ const routes = [
         meta: { requiresAuth: true }
       },
       {
+        path: 'user-management',
+        name: 'UserManagement',
+        component: () => import('@/views/UserManagement.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+      },
+      {
         path: 'settings',
         name: 'Settings',
         component: () => import('@/components/Settings.vue'),
@@ -104,6 +110,7 @@ router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
   const tradingAccountStore = useTradingAccountStore()
   const requiresAuth = to.meta.requiresAuth
+  const requiresAdmin = to.meta.requiresAdmin
 
   if (requiresAuth && !userStore.isLoggedIn) {
     // 需要登录但未登录，跳转到登录页
@@ -111,6 +118,11 @@ router.beforeEach(async (to, from, next) => {
   } else if (to.path === '/login' && userStore.isLoggedIn) {
     // 已登录但访问登录页，跳转到首页（保持当前路由或默认到 about）
     next('/')
+  } else if (requiresAdmin && !userStore.isAdmin) {
+    // 需要管理员权限但不是管理员，跳转到首页并提示
+    next('/')
+    // 可以在这里添加提示消息
+    console.warn('需要管理员权限才能访问此页面')
   } else {
     // 已通过系统登录，初始化资金账户Store
     if (userStore.isLoggedIn && to.path !== '/login') {

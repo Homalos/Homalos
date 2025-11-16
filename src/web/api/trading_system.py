@@ -17,6 +17,7 @@ from fastapi.responses import StreamingResponse
 from src.web.core.security import get_current_user
 from src.web.core.database import get_db
 from src.web.models.user import User
+from src.web.models.admin import Admin
 from src.web.services.trading_system_service import TradingSystemService
 from src.web.schemas.trading_system import (
     StartRequest, StartResponse,
@@ -28,13 +29,22 @@ from src.web.schemas.trading_system import (
 router = APIRouter(prefix="/trading-system", tags=["交易系统管理"])
 
 
-def check_admin_permission(current_user: User):
+def check_admin_permission(current_user):
     """检查管理员权限"""
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="需要管理员权限"
-        )
+    # 如果是Admin对象，直接允许（管理员登录）
+    if isinstance(current_user, Admin):
+        return
+    
+    # 如果是User对象，检查is_admin属性
+    if isinstance(current_user, User):
+        if hasattr(current_user, 'is_admin') and current_user.is_admin:
+            return
+    
+    # 否则拒绝访问
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="需要管理员权限才能控制交易系统"
+    )
 
 
 # ========== 控制接口 ==========

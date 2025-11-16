@@ -22,19 +22,6 @@
         </template>
       </el-table-column>
       <el-table-column prop="account_id" label="资金账号" width="120" />
-      <el-table-column label="状态" width="100">
-        <template #default="{ row }">
-          <el-tag v-if="row.status?.toUpperCase() === 'ACTIVE'" type="success" size="small">
-            激活
-          </el-tag>
-          <el-tag v-else-if="row.status?.toUpperCase() === 'INACTIVE'" type="info" size="small">
-            未激活
-          </el-tag>
-          <el-tag v-else type="danger" size="small">
-            错误
-          </el-tag>
-        </template>
-      </el-table-column>
       <el-table-column label="默认" width="80">
         <template #default="{ row }">
           <el-icon v-if="row.is_default" color="#67C23A">
@@ -50,31 +37,13 @@
       <el-table-column label="操作" width="320" fixed="right">
         <template #default="{ row }">
           <el-button
-            v-if="!isCurrentAccount(row) && row.status?.toUpperCase() === 'ACTIVE'"
+            v-if="!isCurrentAccount(row)"
             link
             type="success"
             size="small"
             @click="handleSwitch(row)"
           >
             切换
-          </el-button>
-          <el-button
-            v-if="row.status?.toUpperCase() === 'INACTIVE'"
-            link
-            type="success"
-            size="small"
-            @click="handleActivate(row)"
-          >
-            激活
-          </el-button>
-          <el-button
-            v-if="row.status?.toUpperCase() === 'ACTIVE'"
-            link
-            type="warning"
-            size="small"
-            @click="handleDeactivate(row)"
-          >
-            停用
           </el-button>
           <el-button
             v-if="!row.is_default"
@@ -137,13 +106,6 @@
       >
         <el-form-item label="账户名称">
           <el-input v-model="editFormData.account_name" />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-switch
-            v-model="editFormData.is_active"
-            active-text="激活"
-            inactive-text="禁用"
-          />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -264,8 +226,6 @@ import {
   updateBrokerage,
   deleteBrokerage,
   setDefaultBrokerage,
-  activateBrokerage,
-  deactivateBrokerage,
   changeBrokeragePassword
 } from '@/api/brokerage'
 import { getTradingCoreStatus } from '@/api/tradingCore'
@@ -295,8 +255,7 @@ const editDialogVisible = ref(false)
 const editFormRef = ref(null)
 const editFormData = reactive({
   id: null,
-  account_name: '',
-  is_active: true
+  account_name: ''
 })
 
 const passwordDialogVisible = ref(false)
@@ -409,7 +368,6 @@ async function handleSetDefault(row) {
 function handleEdit(row) {
   editFormData.id = row.id
   editFormData.account_name = row.account_name
-  editFormData.is_active = row.is_active
   editDialogVisible.value = true
 }
 
@@ -499,65 +457,11 @@ async function handleAddSuccess() {
   // 刷新账户列表
   await brokerageStore.fetchBrokerages(true)
   
-  // 提示用户需要激活账户后才能登录
+  // 提示用户账户添加成功
   ElMessage.success({
-    message: '账户添加成功！请先激活账户后再登录',
+    message: '账户添加成功！',
     duration: 3000
   })
-}
-
-/**
- * 激活账户
- */
-async function handleActivate(row) {
-  try {
-    await ElMessageBox.confirm(
-      `确定要激活账户 "${row.account_name}" 吗？`,
-      '激活账户',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'info'
-      }
-    )
-    
-    await brokerageStore.activate(row.id)
-    ElMessage.success('账户已激活')
-    
-    // 刷新列表
-    await brokerageStore.fetchBrokerages(true)
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.detail || '激活失败')
-    }
-  }
-}
-
-/**
- * 停用账户
- */
-async function handleDeactivate(row) {
-  try {
-    await ElMessageBox.confirm(
-      `确定要停用账户 "${row.account_name}" 吗？\n停用后需要重新激活才能使用。`,
-      '停用账户',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
-    await brokerageStore.deactivate(row.id)
-    ElMessage.success('账户已停用')
-    
-    // 刷新列表
-    await brokerageStore.fetchBrokerages(true)
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.detail || '停用失败')
-    }
-  }
 }
 
 /**

@@ -6,7 +6,7 @@
         <h2>Homalos 量化交易系统</h2>
       </div>
       <div class="header-right">
-        <!-- 资金账户登录按钮（未登录时显示） -->
+        <!-- 券商账户登录按钮（未登录时显示） -->
         <el-button
           v-if="!tradingAccountStore.isLoggedIn"
           class="login-account-transparent-btn"
@@ -16,7 +16,7 @@
           plain
         >
           <el-icon><Unlock /></el-icon>
-          登录资金账户
+          登录券商账户
         </el-button>
         
         <!-- 告警通知中心 -->
@@ -44,7 +44,7 @@
           </span>
           <template #dropdown>
             <el-dropdown-menu>
-              <!-- 资金账户状态 -->
+              <!-- 券商账户状态 -->
               <el-dropdown-item disabled divided>
                 <div class="account-status">
                   <el-icon v-if="tradingAccountStore.isLoggedIn" color="#67C23A">
@@ -55,27 +55,21 @@
                   </el-icon>
                   <span>
                     {{ tradingAccountStore.isLoggedIn ? 
-                      tradingAccountStore.accountInfo?.display_name || '资金账户已登录' : 
-                      '未登录资金账户' 
+                      tradingAccountStore.accountInfo?.display_name || '券商账户已登录' : 
+                      '未登录券商账户' 
                     }}
                   </span>
                 </div>
               </el-dropdown-item>
               
-              <!-- 管理资金账户 -->
-              <el-dropdown-item command="manage-accounts">
-                <el-icon><SwitchButton /></el-icon>
-                管理资金账户
-              </el-dropdown-item>
-              
-              <!-- 退出资金账户（仅在已登录时显示） -->
+              <!-- 退出券商账户（仅在已登录时显示） -->
               <el-dropdown-item 
                 v-if="tradingAccountStore.isLoggedIn" 
                 command="logout-trading"
                 divided
               >
                 <el-icon><Close /></el-icon>
-                退出资金账户
+                退出券商账户
               </el-dropdown-item>
               
               <!-- 退出系统登录 -->
@@ -125,6 +119,11 @@
             <el-icon><Wallet /></el-icon>
             <span>券商账户</span>
           </el-menu-item>
+          <!-- 用户管理（仅管理员可见） -->
+          <el-menu-item v-if="userStore.isAdmin" index="/user-management">
+            <el-icon><UserFilled /></el-icon>
+            <span>用户管理</span>
+          </el-menu-item>
           <el-menu-item index="/settings">
             <el-icon><Setting /></el-icon>
             <span>系统设置</span>
@@ -153,17 +152,10 @@
       </el-main>
     </el-container>
     
-    <!-- 资金账户登录对话框 -->
+    <!-- 券商账户登录对话框 -->
     <TradingAccountLogin 
       v-model="showTradingLogin" 
       @success="handleTradingLoginSuccess"
-      @goToManage="handleGoToManageAccounts"
-    />
-    
-    <!-- 账户管理对话框 -->
-    <AccountManager 
-      v-model="showAccountManager"
-      @requestLogin="handleRequestLogin"
     />
     
     <!-- 首次引导对话框 -->
@@ -179,6 +171,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   User,
+  UserFilled,
   ArrowDown,
   Monitor,
   DataAnalysis,
@@ -211,7 +204,6 @@ import {
 } from '@/composables'
 // 组件导入（页面组件由路由懒加载，这里只导入对话框和公共组件）
 import TradingAccountLogin from '@/components/TradingAccountLogin.vue'
-import AccountManager from '@/components/AccountManager.vue'
 import FirstTimeGuide from '@/components/FirstTimeGuide.vue'
 import PageMask from '@/components/PageMask.vue'
 import NotificationCenter from '@/components/NotificationCenter.vue'
@@ -231,7 +223,6 @@ const currentMenuIndex = computed(() => {
 
 // 对话框状态
 const showTradingLogin = ref(false)
-const showAccountManager = ref(false)
 const showFirstTimeGuide = ref(false)
 
 // ===== 使用 Composables =====
@@ -275,13 +266,6 @@ const handleSwitchToAlarmSettings = () => {
 }
 
 /**
- * 处理前往管理账户
- */
-function handleGoToManageAccounts() {
-  showAccountManager.value = true
-}
-
-/**
  * 处理请求登录（从账户管理器触发）
  */
 function handleRequestLogin() {
@@ -293,9 +277,6 @@ function handleRequestLogin() {
  */
 const handleUserCommand = async (command) => {
   switch (command) {
-    case 'manage-accounts':
-      showAccountManager.value = true
-      break
     case 'logout-trading':
       await handleLogoutTrading()
       break

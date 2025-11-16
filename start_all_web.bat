@@ -3,6 +3,7 @@ echo ============================================================
 echo   Homalos 量化交易系统 - Web服务启动
 echo ============================================================
 echo.
+call start_del_log.bat
 
 echo [1/2] 启动后端服务 (端口: 8000)...
 start "Homalos Backend" cmd /k "call .venv\Scripts\activate && python start_web.py"

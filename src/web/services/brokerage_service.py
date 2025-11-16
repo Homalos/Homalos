@@ -22,7 +22,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from src.web.models.brokerage import (
     UserBrokerage, BrokerageAccountSnapshot,
-    AccountType, AccountStatus, Environment, ConnectionStatus, UserType
+    AccountType, Environment, ConnectionStatus, UserType
 )
 from src.utils.log import get_logger
 
@@ -229,9 +229,6 @@ class BrokerageService:
                     UserBrokerage.user_type == user_type
                 )
             )
-            
-            if not include_inactive:
-                query = query.where(UserBrokerage.status == AccountStatus.ACTIVE)
             
             query = query.order_by(UserBrokerage.is_default.desc(), UserBrokerage.created_at.desc())
             
@@ -520,30 +517,6 @@ class BrokerageService:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="账户不存在或无权访问"
-                )
-            
-            # 检查账户状态（大小写不敏感）
-            logger.info(f"账户状态类型: {type(account.status)}, 值: {account.status}")
-            
-            # account.status 可能是枚举对象或字符串
-            if hasattr(account.status, 'value'):
-                account_status = account.status.value.upper()
-                logger.info(f"枚举对象，提取值: {account_status}")
-            elif isinstance(account.status, str):
-                account_status = account.status.upper()
-                logger.info(f"字符串类型，转大写: {account_status}")
-            else:
-                # 可能是枚举类型本身
-                account_status = str(account.status).upper()
-                logger.info(f"其他类型，转字符串: {account_status}")
-            
-            target_status = AccountStatus.ACTIVE.value.upper()
-            logger.info(f"比较状态: {account_status} vs {target_status}")
-            
-            if account_status != target_status:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="账户未激活，请先激活账户"
                 )
             
             # 检查密码

@@ -76,3 +76,81 @@ class PasswordResetConfirm(BaseModel):
     username: str = Field(..., description="用户名")
     email: EmailStr = Field(..., description="注册邮箱")
     new_password: str = Field(..., min_length=6, max_length=50, description="新密码")
+
+
+# ========== 用户管理相关Schema ==========
+
+class UserListItem(BaseModel):
+    """用户列表项"""
+    user_id: int
+    username: str
+    email: str
+    phone: Optional[str] = None
+    full_name: Optional[str] = None
+    status: str
+    role: str
+    email_verified: bool
+    phone_verified: bool
+    created_at: datetime
+    last_login_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class UserListResponse(BaseModel):
+    """用户列表响应"""
+    total: int = Field(..., description="总数")
+    page: int = Field(..., description="当前页")
+    page_size: int = Field(..., description="每页数量")
+    users: list[UserListItem] = Field(..., description="用户列表")
+
+
+class UserDetailResponse(UserResponse):
+    """用户详情响应（扩展）"""
+    role: str
+    mfa_secret: Optional[str] = None
+    failed_login_attempts: int = 0
+    locked_until: Optional[datetime] = None
+    password_changed_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class UserCreateByAdmin(BaseModel):
+    """管理员创建用户"""
+    username: str = Field(..., min_length=3, max_length=50)
+    email: EmailStr
+    password: str = Field(..., min_length=6, max_length=50)
+    phone: Optional[str] = None
+    full_name: Optional[str] = None
+    role: str = Field(default="normal", description="用户角色：normal/admin")
+    status: str = Field(default="active", description="用户状态：inactive/active/frozen/disabled")
+    timezone: str = Field(default="Asia/Shanghai")
+    locale: str = Field(default="zh-CN")
+
+
+class UserUpdateByAdmin(BaseModel):
+    """管理员更新用户"""
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    full_name: Optional[str] = None
+    timezone: Optional[str] = None
+    locale: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+
+class UserStatusUpdate(BaseModel):
+    """更新用户状态"""
+    status: str = Field(..., description="用户状态：inactive/active/frozen/disabled")
+
+
+class UserRoleUpdate(BaseModel):
+    """更新用户角色"""
+    role: str = Field(..., description="用户角色：normal/admin")
+
+
+class UserPasswordReset(BaseModel):
+    """管理员重置用户密码"""
+    new_password: str = Field(..., min_length=6, max_length=50, description="新密码")

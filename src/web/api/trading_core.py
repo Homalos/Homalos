@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.web.core.database import get_db
 from src.web.core.security import get_current_user
 from src.web.models.user import User
+from src.web.models.admin import Admin
 from src.web.schemas.trading_core import (
     StartCoreRequest,
     StartCoreResponse,
@@ -34,13 +35,22 @@ router = APIRouter(prefix="/trading-core", tags=["交易核心管理"])
 logger = get_logger(__name__)
 
 
-def check_admin_permission(current_user: User):
+def check_admin_permission(current_user):
     """检查管理员权限"""
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="需要管理员权限才能控制交易核心"
-        )
+    # 如果是Admin对象，直接允许（管理员登录）
+    if isinstance(current_user, Admin):
+        return
+    
+    # 如果是User对象，检查is_admin属性
+    if isinstance(current_user, User):
+        if hasattr(current_user, 'is_admin') and current_user.is_admin:
+            return
+    
+    # 否则拒绝访问
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="需要管理员权限才能控制交易核心"
+    )
 
 
 @router.post("/start", response_model=StartCoreResponse, summary="启动交易核心")
@@ -70,8 +80,8 @@ async def start_trading_core(
         from src.web.models.audit_log import AuditLog
         audit_log = AuditLog(
             user_id=current_user.id,
-            operation_type="start_trading_core",
-            target="trading_core",
+            action="start_trading_core",
+            resource="trading_core",
             details=f"启动结果: {result['message']}",
             success=result['success']
         )
@@ -151,8 +161,8 @@ async def stop_trading_core(
         from src.web.models.audit_log import AuditLog
         audit_log = AuditLog(
             user_id=current_user.id,
-            operation_type="stop_trading_core",
-            target="trading_core",
+            action="stop_trading_core",
+            resource="trading_core",
             details=f"停止结果: {result['message']}, force={request.force}, 停止策略数: {result.get('stopped_strategies_count', 0)}",
             success=result['success']
         )
@@ -202,8 +212,8 @@ async def restart_trading_core(
         from src.web.models.audit_log import AuditLog
         audit_log = AuditLog(
             user_id=current_user.id,
-            operation_type="restart_trading_core",
-            target="trading_core",
+            action="restart_trading_core",
+            resource="trading_core",
             details=f"重启结果: {start_result['message']}",
             success=start_result['success']
         )
@@ -284,8 +294,8 @@ async def connect_gateway(
         from src.web.models.audit_log import AuditLog
         audit_log = AuditLog(
             user_id=current_user.id,
-            operation_type="connect_gateway",
-            target="trading_core",
+            action="connect_gateway",
+            resource="trading_core",
             details=f"连接结果: {result['message']}",
             success=result['success']
         )
@@ -331,8 +341,8 @@ async def disconnect_gateway(
         from src.web.models.audit_log import AuditLog
         audit_log = AuditLog(
             user_id=current_user.id,
-            operation_type="disconnect_gateway",
-            target="trading_core",
+            action="disconnect_gateway",
+            resource="trading_core",
             details=f"断开结果: {result['message']}",
             success=result['success']
         )

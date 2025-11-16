@@ -188,6 +188,26 @@ class User(Base):
         comment="是否启用了MFA"
     )
     
+    # 安全增强字段
+    password_changed_at = Column(
+        DateTime,
+        nullable=True,
+        comment="密码最后修改时间"
+    )
+    
+    failed_login_attempts = Column(
+        BigInteger,
+        default=0,
+        nullable=False,
+        comment="连续登录失败次数"
+    )
+    
+    locked_until = Column(
+        DateTime,
+        nullable=True,
+        comment="账户锁定到期时间"
+    )
+    
     # 关联关系
     audit_logs = relationship(
         "AuditLog", 

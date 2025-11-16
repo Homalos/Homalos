@@ -105,7 +105,6 @@ class UserBrokerageBase(BaseModel):
     investor_id: str = Field(..., description="投资者ID", max_length=50)
     broker_id: str = Field(..., description="券商ID", max_length=50)
     account_type: str = Field("production", description="账户类型：simulation/production")
-    status: str = Field("inactive", description="账户状态：active/inactive/error")
     is_default: bool = Field(False, description="是否为默认账户")
 
 
@@ -122,7 +121,6 @@ class UserBrokerageUpdate(BaseModel):
     password: Optional[str] = Field(None, min_length=1, description="交易密码（明文，后端会加密）")
     auth_code: Optional[str] = Field(None, description="授权码")
     app_id: Optional[str] = Field(None, description="应用ID")
-    status: Optional[str] = Field(None, description="账户状态")
     is_default: Optional[bool] = Field(None, description="是否为默认账户")
 
 

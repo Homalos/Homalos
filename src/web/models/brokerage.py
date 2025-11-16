@@ -27,13 +27,6 @@ class AccountType(enum.Enum):
     PRODUCTION = "production"  # 实盘
 
 
-class AccountStatus(enum.Enum):
-    """账户状态枚举"""
-    ACTIVE = "active"      # 激活
-    INACTIVE = "inactive"  # 未激活
-    ERROR = "error"        # 错误
-
-
 class Environment(enum.Enum):
     """运行环境枚举"""
     DEV = "dev"      # 开发环境
@@ -171,14 +164,6 @@ class UserBrokerage(Base):
         comment="账户类型：simulation-模拟盘, production-实盘"
     )
     
-    status = Column(
-        SQLEnum(AccountStatus),
-        default=AccountStatus.INACTIVE,
-        nullable=False,
-        index=True,
-        comment="账户状态：active-激活, inactive-未激活, error-错误"
-    )
-    
     environment = Column(
         SQLEnum(Environment),
         default=Environment.PROD,
@@ -235,6 +220,27 @@ class UserBrokerage(Base):
         comment="最后错误信息"
     )
     
+    # 安全相关字段
+    remember_password = Column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="是否记住密码"
+    )
+    
+    failed_attempts = Column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="登录失败次数"
+    )
+    
+    locked_until = Column(
+        DateTime,
+        nullable=True,
+        comment="账户锁定到期时间"
+    )
+    
     # 时间戳
     created_at = Column(
         DateTime, 
@@ -265,7 +271,6 @@ class UserBrokerage(Base):
         Index('idx_user_brokerages_user_type', 'user_type'),
         Index('idx_user_brokerages_broker_code', 'broker_code'),
         Index('idx_user_brokerages_account_type', 'account_type'),
-        Index('idx_user_brokerages_status', 'status'),
         Index('idx_user_brokerages_environment', 'environment'),
         Index('idx_user_brokerages_connection_status', 'connection_status'),
         Index('idx_user_brokerages_is_default', 'is_default'),
@@ -278,11 +283,6 @@ class UserBrokerage(Base):
     )
     
     # 属性方法
-    @property
-    def is_active(self) -> bool:
-        """判断账户是否激活"""
-        return self.status == AccountStatus.ACTIVE
-    
     @property
     def is_connected(self) -> bool:
         """判断是否已连接"""

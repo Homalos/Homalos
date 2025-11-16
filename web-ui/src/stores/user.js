@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { login as loginApi, getCurrentUser, register as registerApi } from '@/api/auth'
 import { adminLogin, isAdminUsername } from '@/api/admin'
 
@@ -7,6 +7,13 @@ export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('token') || '')
   const userInfo = ref(null)
   const isLoggedIn = ref(!!token.value)
+  
+  // 计算属性：是否为管理员
+  const isAdmin = computed(() => {
+    if (!userInfo.value) return false
+    // 检查是否为Admin对象（有admin_id）或User对象且role为admin
+    return userInfo.value.admin_id !== undefined || userInfo.value.role === 'admin'
+  })
 
   /**
    * 登录 - 智能选择普通用户或管理员登录
@@ -115,6 +122,7 @@ export const useUserStore = defineStore('user', () => {
     token,
     userInfo,
     isLoggedIn,
+    isAdmin,
     login,
     register,
     logout,

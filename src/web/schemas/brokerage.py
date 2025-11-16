@@ -57,7 +57,6 @@ class BrokerageAccountUpdate(BaseModel):
     user_product_info: Optional[str] = Field(None, max_length=200, description="用户端产品信息")
     daily_order_limit: Optional[int] = Field(None, ge=1, description="每日订单限制")
     is_default: Optional[bool] = Field(None, description="是否为默认账户")
-    status: Optional[str] = Field(None, description="账户状态")
 
 
 class BrokerageAccountResponse(BrokerageAccountBase):
@@ -65,7 +64,6 @@ class BrokerageAccountResponse(BrokerageAccountBase):
     id: int
     user_id: int
     user_type: str
-    status: str
     connection_status: Optional[str] = None
     last_connected_at: Optional[datetime] = None
     last_disconnected_at: Optional[datetime] = None

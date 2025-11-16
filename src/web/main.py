@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from src.web.api import auth, monitor, datacenter, system_config, trading_account, strategy, alarm, trading_system, trading_core, account, admin_auth, brokerage
+from src.web.api import auth, monitor, system_config, trading_account, strategy, alarm, trading_system, trading_core, account, admin_auth, brokerage, users
 from src.web.core.database import init_db, close_db
 from src.web.services.strategy_service import strategy_service
 from src.web.services.trading_core_service import TradingCoreService
@@ -214,10 +214,11 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api")
 app.include_router(admin_auth.router, prefix="/api")      # 管理员认证路由
 app.include_router(monitor.router, prefix="/api")
-app.include_router(datacenter.router, prefix="/api")
+# datacenter.router 已移除 - 数据中心功能已废弃
 app.include_router(system_config.router, prefix="/api")
 app.include_router(trading_account.router, prefix="/api")
 app.include_router(brokerage.router, prefix="/api")       # 用户券商账户路由（新）
+app.include_router(users.router, prefix="/api")           # 用户管理路由
 app.include_router(strategy.router, prefix="/api")
 app.include_router(alarm.router, prefix="/api")
 app.include_router(account.router, prefix="/api")

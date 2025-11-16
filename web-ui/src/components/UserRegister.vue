@@ -59,11 +59,21 @@
             <el-input
               v-model="registerForm.password"
               type="password"
-              placeholder="请输入密码（至少6位）"
+              placeholder="请输入密码（至少6位，建议包含大小写字母、数字和特殊字符）"
               :prefix-icon="Lock"
               show-password
               size="large"
             />
+            <div class="password-strength">
+              <div class="strength-bar">
+                <div 
+                  class="strength-fill" 
+                  :class="passwordStrengthClass"
+                  :style="{ width: passwordStrengthWidth }"
+                ></div>
+              </div>
+              <span class="strength-text">{{ passwordStrengthText }}</span>
+            </div>
           </el-form-item>
           
           <el-form-item label="确认密码" prop="confirmPassword">
@@ -78,19 +88,9 @@
           </el-form-item>
         </div>
         
-        <!-- 个人信息 -->
+        <!-- 系统设置 -->
         <div class="form-section">
-          <h4 class="section-title">个人信息</h4>
-          
-          <el-form-item label="真实姓名" prop="fullName">
-            <el-input
-              v-model="registerForm.fullName"
-              placeholder="请输入真实姓名（可选）"
-              :prefix-icon="UserFilled"
-              size="large"
-              clearable
-            />
-          </el-form-item>
+          <h4 class="section-title">系统设置</h4>
           
           <el-row :gutter="16">
             <el-col :span="12">
@@ -221,8 +221,8 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { User, Lock, Message, Phone, UserFilled } from '@element-plus/icons-vue'
+import { ref, reactive, computed } from 'vue'
+import { User, Lock, Message, Phone } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 // 定义事件
@@ -243,7 +243,6 @@ const registerForm = reactive({
   phone: '',
   password: '',
   confirmPassword: '',
-  fullName: '',
   timezone: 'Asia/Shanghai',
   locale: 'zh-CN',
   agreeTerms: false
@@ -312,6 +311,43 @@ const registerRules = {
   ]
 }
 
+// 密码强度计算
+const passwordStrength = computed(() => {
+  const pwd = registerForm.password
+  if (!pwd) return 0
+  
+  let strength = 0
+  // 长度
+  if (pwd.length >= 6) strength += 1
+  if (pwd.length >= 10) strength += 1
+  if (pwd.length >= 14) strength += 1
+  
+  // 包含小写字母
+  if (/[a-z]/.test(pwd)) strength += 1
+  // 包含大写字母
+  if (/[A-Z]/.test(pwd)) strength += 1
+  // 包含数字
+  if (/\d/.test(pwd)) strength += 1
+  // 包含特殊字符
+  if (/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) strength += 1
+  
+  return Math.min(strength, 4)
+})
+
+const passwordStrengthText = computed(() => {
+  const texts = ['', '弱', '中等', '强', '很强']
+  return texts[passwordStrength.value] || ''
+})
+
+const passwordStrengthClass = computed(() => {
+  const classes = ['', 'weak', 'medium', 'strong', 'very-strong']
+  return classes[passwordStrength.value] || ''
+})
+
+const passwordStrengthWidth = computed(() => {
+  return `${passwordStrength.value * 25}%`
+})
+
 // 注册处理
 const handleRegister = async () => {
   if (!registerFormRef.value) return
@@ -328,10 +364,8 @@ const handleRegister = async () => {
         phone: registerForm.phone || undefined,
         password: registerForm.password,
         confirm_password: registerForm.confirmPassword,
-        full_name: registerForm.fullName || undefined,
         timezone: registerForm.timezone,
-        locale: registerForm.locale,
-        avatar_url: undefined
+        locale: registerForm.locale
       }
       
       console.log('发送注册数据:', registerData)
@@ -467,6 +501,54 @@ const handleRegister = async () => {
 
 .mr-2 {
   margin-right: 8px;
+}
+
+/* 密码强度显示 */
+.password-strength {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.strength-bar {
+  flex: 1;
+  height: 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.strength-fill {
+  height: 100%;
+  transition: all 0.3s ease;
+  border-radius: 3px;
+}
+
+.strength-fill.weak {
+  background: #f56c6c;
+  width: 25%;
+}
+
+.strength-fill.medium {
+  background: #e6a23c;
+  width: 50%;
+}
+
+.strength-fill.strong {
+  background: #409eff;
+  width: 75%;
+}
+
+.strength-fill.very-strong {
+  background: #67c23a;
+  width: 100%;
+}
+
+.strength-text {
+  font-size: 12px;
+  color: #909399;
+  min-width: 40px;
 }
 
 /* 响应式设计 */
