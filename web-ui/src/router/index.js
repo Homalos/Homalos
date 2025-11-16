@@ -79,6 +79,12 @@ const routes = [
         meta: { requiresAuth: true, requiresAdmin: true }
       },
       {
+        path: 'user-center',
+        name: 'UserCenter',
+        component: () => import('@/views/UserCenter.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
         path: 'settings',
         name: 'Settings',
         component: () => import('@/components/Settings.vue'),

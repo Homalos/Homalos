@@ -62,6 +62,12 @@
                 </div>
               </el-dropdown-item>
               
+              <!-- 个人中心 -->
+              <el-dropdown-item command="user-center">
+                <el-icon><User /></el-icon>
+                个人中心
+              </el-dropdown-item>
+              
               <!-- 退出券商账户（仅在已登录时显示） -->
               <el-dropdown-item 
                 v-if="tradingAccountStore.isLoggedIn" 
@@ -277,6 +283,9 @@ function handleRequestLogin() {
  */
 const handleUserCommand = async (command) => {
   switch (command) {
+    case 'user-center':
+      router.push('/user-center')
+      break
     case 'logout-trading':
       await handleLogoutTrading()
       break
