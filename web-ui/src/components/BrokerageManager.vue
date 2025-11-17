@@ -37,19 +37,6 @@
         </template>
       </el-table-column>
       
-      <el-table-column prop="connection_status" label="连接状态" width="110" align="center">
-        <template #default="{ row }">
-          <el-tag
-            v-if="row.connection_status"
-            :type="getConnectionType(row.connection_status)"
-            size="small"
-          >
-            {{ getConnectionText(row.connection_status) }}
-          </el-tag>
-          <span v-else>-</span>
-        </template>
-      </el-table-column>
-      
       <el-table-column prop="created_at" label="创建时间" min-width="160">
         <template #default="{ row }">
           {{ formatDate(row.created_at) }}
@@ -401,28 +388,6 @@ async function handleSetDefault(id) {
   } catch (error) {
     ElMessage.error(error.message || '设置默认账户失败')
   }
-}
-
-// 连接状态类型
-function getConnectionType(status) {
-  const types = {
-    connected: 'success',
-    disconnected: 'info',
-    connecting: 'warning',
-    error: 'danger'
-  }
-  return types[status] || 'info'
-}
-
-// 连接状态文本
-function getConnectionText(status) {
-  const texts = {
-    connected: '已连接',
-    disconnected: '已断开',
-    connecting: '连接中',
-    error: '连接错误'
-  }
-  return texts[status] || status
 }
 
 // 格式化日期

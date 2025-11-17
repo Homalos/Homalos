@@ -288,12 +288,28 @@
             </div>
           </template>
           <div style="padding: 10px 0;">
-            <div v-for="(item, index) in dashboardData.positions" :key="index" style="margin-bottom: 10px;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                <span>{{ item.name }}</span>
-                <span>{{ item.ratio }}%</span>
+            <div v-if="dashboardData.positions.length === 0" style="text-align: center; color: #909399; padding: 20px;">
+              暂无持仓
+            </div>
+            <div v-else>
+              <div v-for="(item, index) in dashboardData.positions" :key="index" style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-weight: 600; font-size: 14px;">{{ item.name }}</span>
+                    <el-tag :type="item.direction === '多' ? 'danger' : 'success'" size="small">
+                      {{ item.direction }}
+                    </el-tag>
+                  </div>
+                  <span style="font-weight: 600; color: #409EFF;">{{ item.ratio }}%</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #606266; margin-bottom: 5px;">
+                  <span>数量: {{ item.volume }}手 | 价格: {{ item.price.toFixed(2) }}</span>
+                  <span :style="{ color: item.pnl >= 0 ? '#67C23A' : '#F56C6C', fontWeight: 600 }">
+                    盈亏: {{ item.pnl >= 0 ? '+' : '' }}{{ item.pnl.toFixed(2) }}
+                  </span>
+                </div>
+                <el-progress :percentage="item.ratio" :color="item.color" :show-text="false" />
               </div>
-              <el-progress :percentage="item.ratio" :color="item.color" :show-text="false" />
             </div>
           </div>
         </el-card>
@@ -399,6 +415,7 @@ import { useSystemMonitor } from '@/composables'
 import { useTradingAccountStore } from '@/stores/tradingAccount'
 import { getTradingCoreStatus } from '@/api/tradingCore'
 import { getStrategies, getStrategyStatus } from '@/api/strategy'
+import { connectAccountWebSocket } from '@/api/account'
 import EquityCurveChart from './charts/EquityCurveChart.vue'
 import ProfitLossChart from './charts/ProfitLossChart.vue'
 import ReturnRateChart from './charts/ReturnRateChart.vue'
@@ -457,6 +474,53 @@ watch(
     dashboardData.account.floatingProfitLoss = newPnl
   },
   { immediate: true }
+)
+
+// 监听持仓数据，更新持仓概览
+watch(
+  () => tradingAccountStore.positions,
+  (newPositions) => {
+    if (newPositions && newPositions.length > 0) {
+      // 去重：根据instrument_id和direction合并相同的持仓
+      const positionMap = new Map()
+      newPositions.forEach(pos => {
+        const key = `${pos.instrument_id}_${pos.direction}`
+        if (!positionMap.has(key)) {
+          positionMap.set(key, pos)
+        }
+      })
+      
+      const uniquePositions = Array.from(positionMap.values())
+      
+      // 计算总市值
+      const totalValue = uniquePositions.reduce((sum, pos) => {
+        return sum + (pos.volume * pos.price)
+      }, 0)
+      
+      // 转换为仪表盘显示格式
+      dashboardData.positions = uniquePositions.map((pos, index) => {
+        const value = pos.volume * pos.price
+        const ratio = totalValue > 0 ? (value / totalValue * 100).toFixed(2) : 0
+        
+        // 根据方向选择颜色
+        const colors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399']
+        const colorIndex = index % colors.length
+        
+        return {
+          name: pos.instrument_id,
+          direction: pos.direction,
+          ratio: parseFloat(ratio),
+          color: colors[colorIndex],
+          volume: pos.volume,
+          price: pos.price,
+          pnl: pos.pnl
+        }
+      })
+    } else {
+      dashboardData.positions = []
+    }
+  },
+  { deep: true, immediate: true }
 )
 
 // 图表周期选择状态
