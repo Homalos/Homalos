@@ -889,15 +889,54 @@ onMounted(() => {
   padding: 20px;
 }
 
+/* 卡片样式 - 与仪表盘保持一致 */
+:deep(.el-card),
+.el-card {
+  border-radius: 12px !important;
+  border: 1px solid rgba(64, 158, 255, 0.08) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  overflow: hidden !important;
+}
+
+:deep(.el-card__header),
+.el-card__header {
+  border-radius: 12px 12px 0 0 !important;
+}
+
+:deep(.el-card__body),
+.el-card__body {
+  border-radius: 0 0 12px 12px !important;
+}
+
+:deep(.el-card.is-hover-shadow:hover),
+.el-card.is-hover-shadow:hover {
+  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.12) !important;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-weight: 600;
+  font-size: 16px;
+  color: #303133;
 }
 
 .card-header .title {
-  font-size: 18px;
-  font-weight: bold;
+  position: relative;
+  padding-left: 12px;
+}
+
+.card-header .title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  border-radius: 2px;
 }
 
 .filter-container {

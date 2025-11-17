@@ -1,15 +1,18 @@
 <template>
   <div class="brokerage-manager">
-    <div class="header">
-      <h2>券商账户管理</h2>
-      <el-button type="primary" @click="showAddDialog = true">
-        <el-icon><Plus /></el-icon>
-        添加账户
-      </el-button>
-    </div>
+    <el-card shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span class="title">券商账户管理</span>
+          <el-button type="primary" @click="showAddDialog = true">
+            <el-icon><Plus /></el-icon>
+            添加账户
+          </el-button>
+        </div>
+      </template>
 
-    <!-- 账户列表 -->
-    <el-table
+      <!-- 账户列表 -->
+      <el-table
       v-loading="brokerageStore.loading"
       :data="brokerageStore.brokerages"
       stripe
@@ -87,6 +90,7 @@
         </template>
       </el-table-column>
     </el-table>
+    </el-card>
 
     <!-- 添加账户对话框 -->
     <AddBrokerageAccountDialog
@@ -493,17 +497,55 @@ async function handleConfirmPassword() {
   padding: 20px;
 }
 
-.header {
+/* 卡片样式 - 与仪表盘保持一致 */
+:deep(.el-card),
+.el-card {
+  border-radius: 12px !important;
+  border: 1px solid rgba(64, 158, 255, 0.08) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  overflow: hidden !important;
+}
+
+:deep(.el-card__header),
+.el-card__header {
+  border-radius: 12px 12px 0 0 !important;
+}
+
+:deep(.el-card__body),
+.el-card__body {
+  border-radius: 0 0 12px 12px !important;
+}
+
+:deep(.el-card.is-hover-shadow:hover),
+.el-card.is-hover-shadow:hover {
+  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.12) !important;
+}
+
+/* 卡片header样式 */
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  font-weight: 600;
+  font-size: 16px;
+  color: #303133;
 }
 
-.header h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
+.card-header .title {
+  position: relative;
+  padding-left: 12px;
+}
+
+.card-header .title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  border-radius: 2px;
 }
 
 .account-name {
