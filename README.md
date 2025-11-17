@@ -51,71 +51,71 @@ Homalos now includes a modern web management interface built with FastAPI and Vu
 
 Login
 
-![login](D:\Project\PycharmProjects\Homalos\assets\ui\login.png)
+![login](assets\ui\login.png)
 
 User Registration
 
-![user_register](D:\Project\PycharmProjects\Homalos\assets\ui\user_register.png)
+![user_register](assets\ui\user_register.png)
 
 Admin Registration
 
-![admin_register](D:\Project\PycharmProjects\Homalos\assets\ui\admin_register.png)
+![admin_register](assets\ui\admin_register.png)
 
 Brokerage Account Login
 
-![brokerage_account_login](D:\Project\PycharmProjects\Homalos\assets\ui\brokerage_account_login.png)
+![brokerage_account_login](assets\ui\brokerage_account_login.png)
 
 Console
 
-![console](D:\Project\PycharmProjects\Homalos\assets\ui\console.png)
+![console](assets\ui\console.png)
 
 Strategy Management
 
-![strategy_management](D:\Project\PycharmProjects\Homalos\assets\ui\strategy_management.png)
+![strategy_management](assets\ui\strategy_management.png)
 
 Strategy Loading
 
-![strategy_loading](D:\Project\PycharmProjects\Homalos\assets\ui\strategy_loading.png)
+![strategy_loading](assets\ui\strategy_loading.png)
 
 Dashboard 1
 
-![dashboard](D:\Project\PycharmProjects\Homalos\assets\ui\dashboard1.png)
+![dashboard](assets\ui\dashboard1.png)
 
 Dashboard 2
 
-![dashboard2](D:\Project\PycharmProjects\Homalos\assets\ui\dashboard2.png)
+![dashboard2](assets\ui\dashboard2.png)
 
 Task Scheduler
 
-![task_scheduling](D:\Project\PycharmProjects\Homalos\assets\ui\task_scheduling.png)
+![task_scheduling](assets\ui\task_scheduling.png)
 
 Alarm Management
 
-![alarm_management](D:\Project\PycharmProjects\Homalos\assets\ui\alarm_management.png)
+![alarm_management](assets\ui\alarm_management.png)
 
 Notification Center
 
-![notification_center](D:\Project\PycharmProjects\Homalos\assets\ui\notification_center.png)
+![notification_center](assets\ui\notification_center.png)
 
 Brokerage Account Management
 
-![brokerage_account_management](D:\Project\PycharmProjects\Homalos\assets\ui\brokerage_account_management.png)
+![brokerage_account_management](assets\ui\brokerage_account_management.png)
 
 User Management (Admin Feature)
 
-![user_management](D:\Project\PycharmProjects\Homalos\assets\ui\user_management.png)
+![user_management](assets\ui\user_management.png)
 
 System Settings
 
-![system_settings](D:\Project\PycharmProjects\Homalos\assets\ui\system_settings.png)
+![system_settings](assets\ui\system_settings.png)
 
 About
 
-![about](D:\Project\PycharmProjects\Homalos\assets\ui\about.png)
+![about](assets\ui\about.png)
 
 Personal Center
 
-![personal_center](D:\Project\PycharmProjects\Homalos\assets\ui\personal_center.png)
+![personal_center](assets\ui\personal_center.png)
 
 
 
