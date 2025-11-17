@@ -455,6 +455,34 @@ async def login_brokerage_account(
         
         new_token = create_access_token(data=token_data)
         
+        # 设置broker配置到TradingCoreService（使用用户输入的密码）
+        if login_data.password:
+            try:
+                from src.web.services.trading_core_service import TradingCoreService
+                from src.common import load_broker_config
+                
+                # 加载broker基础配置
+                broker_data = load_broker_config()
+                broker_config = broker_data.get("broker_config", {}).copy()
+                
+                # 添加敏感信息（使用用户输入的密码）
+                broker_config["user_id"] = account.account_id
+                broker_config["password"] = login_data.password
+                
+                # 构建完整配置
+                full_config = {
+                    "broker_name": account.broker_id,
+                    "broker_config": broker_config
+                }
+                
+                # 设置到TradingCoreService
+                core_service = TradingCoreService.get_instance()
+                core_service.set_account_broker_config(full_config)
+                
+                logger.info(f"已设置broker配置到TradingCoreService: {account.broker_id}")
+            except Exception as e:
+                logger.warning(f"设置broker配置失败（不影响登录）: {e}")
+        
         logger.info(f"用户 {current_user.id} 登录券商账户成功: {account.id}")
         
         return UserBrokerageLoginResponse(

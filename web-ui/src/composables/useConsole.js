@@ -220,8 +220,8 @@ export function useConsole() {
       const result = await connectGateway()
       
       // 更新网关状态
-      if (result.gateway_status) {
-        consoleData.tradingCore.gateway = result.gateway_status
+      if (result.gateway) {
+        consoleData.tradingCore.gateway = result.gateway
       }
       
       consoleData.tradingCore.status = 'running'
@@ -230,7 +230,7 @@ export function useConsole() {
         'success',
         '网关连接',
         'CTP网关连接成功',
-        { gateway: result.gateway_status }
+        { gateway: result.gateway }
       )
       
       ElMessage.success('CTP网关已连接')
@@ -309,8 +309,8 @@ export function useConsole() {
       consoleData.tradingCore.message = status.message || ''
       
       // 更新网关状态
-      if (status.gateway_status) {
-        consoleData.tradingCore.gateway = status.gateway_status
+      if (status.gateway) {
+        consoleData.tradingCore.gateway = status.gateway
       }
       
       // 更新模块状态
