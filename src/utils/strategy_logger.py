@@ -32,7 +32,7 @@ class StrategyLoggerManager:
     def __init__(self):
         if not hasattr(self, '_initialized'):
             self._initialized = True
-            self._log_dir = Path(get_path_ins().log_path)
+            self._log_dir = get_path_ins.get_logs_dir()
             self._log_dir.mkdir(parents=True, exist_ok=True)
     
     def get_strategy_logger(self, name: str) -> logging.Logger:

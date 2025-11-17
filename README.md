@@ -43,55 +43,81 @@ This project is a new development fork of Homalos, a Python-based event-driven f
   - Data center control via Web API
   - Real-time data visualization
 
-### ✨ Recent Updates (v0.0.8.20251117)
-
-- 🎨 **Web Interface Enhancements**:
-  - **Position Display**: Real-time position overview with holdings, P&L, and market value ratio
-  - **Gateway Status**: Fixed real-time gateway status updates (Market/Trade/Settlement/Contract)
-  - **Unified Card Style**: Consistent rounded card design across all management interfaces
-  - **Brokerage Management**: Removed redundant connection status, streamlined account management
-  - **User Management**: Complete CRUD operations for system users with admin panel
-- 🔧 **Bug Fixes**:
-  - Fixed WebSocket field name mismatch (`gateway_status` → `gateway`) in Console component
-  - Fixed position data duplication issue with proper deduplication logic
-  - Removed Chinese contract name mapping (using contract codes directly for consistency)
-- 🏗️ **Architecture Improvements**:
-  - Account WebSocket integration for real-time position and account data
-  - Position data transformation with market value calculation
-  - Enhanced trading account store with position tracking
-- ✅ **Verified Features**:
-  - Dashboard: Real-time position display with volume, price, and P&L
-  - Console: Gateway status indicators update correctly after connection
-  - Brokerage: Clean account management interface without connection status
-  - User Management: Full admin capabilities with role-based access control
-
-### Previous Updates (v0.0.6.20251024)
-
-- 🚀 **Critical Performance & Stability Fixes**:
-  - Fixed `on_bar` callback not triggering due to payload key mismatch in `TradingCoreService`
-  - Fixed BarGenerator deadlock in subscription configuration updates
-  - Fixed FastAPI blocking issue caused by synchronous locks in `subscription_manager`
-  - Fixed ZeroMQ message corruption due to multi-threading race conditions
-  - Implemented non-blocking lock (trylock) for HTTP request handlers
-  - Added thread-safe ZeroMQ send operations with dedicated lock
-  - Optimized logging: Changed high-frequency `[VOLUME_UPDATE]` logs from INFO to DEBUG
-  - System now handles high-frequency market data without blocking
-- 🏗️ **Architecture Improvements**:
-  - ZeroMQ PUB-SUB pattern for strategy IPC (replacing `multiprocessing.Pipe`)
-  - Thread-safe message broadcasting with atomic send operations
-  - Improved strategy isolation with robust error handling
-  - Enhanced EventBus performance under concurrent workload
-  - Fixed BarGenerator lock management with proper `try-finally` pattern
-- ✅ **Verified Stability**:
-  - Web frontend: No timeout errors, all HTTP requests < 100ms
-  - Strategy callbacks: Successfully receiving both tick and bar data via ZeroMQ
-  - Message format: 100% correct (2-part messages, no corruption)
-  - K-line generation: Working correctly with proper volume calculation
-  - System performance: CPU < 5%, minimal overhead
-
 ## Web Interface
 
 Homalos now includes a modern web management interface built with FastAPI and Vue 3.
+
+### Interface Screenshots
+
+Login
+
+![login](D:\Project\PycharmProjects\Homalos\assets\ui\login.png)
+
+User Registration
+
+![user_register](D:\Project\PycharmProjects\Homalos\assets\ui\user_register.png)
+
+Admin Registration
+
+![admin_register](D:\Project\PycharmProjects\Homalos\assets\ui\admin_register.png)
+
+Brokerage Account Login
+
+![brokerage_account_login](D:\Project\PycharmProjects\Homalos\assets\ui\brokerage_account_login.png)
+
+Console
+
+![console](D:\Project\PycharmProjects\Homalos\assets\ui\console.png)
+
+Strategy Management
+
+![strategy_management](D:\Project\PycharmProjects\Homalos\assets\ui\strategy_management.png)
+
+Strategy Loading
+
+![strategy_loading](D:\Project\PycharmProjects\Homalos\assets\ui\strategy_loading.png)
+
+Dashboard 1
+
+![dashboard](D:\Project\PycharmProjects\Homalos\assets\ui\dashboard1.png)
+
+Dashboard 2
+
+![dashboard2](D:\Project\PycharmProjects\Homalos\assets\ui\dashboard2.png)
+
+Task Scheduler
+
+![task_scheduling](D:\Project\PycharmProjects\Homalos\assets\ui\task_scheduling.png)
+
+Alarm Management
+
+![alarm_management](D:\Project\PycharmProjects\Homalos\assets\ui\alarm_management.png)
+
+Notification Center
+
+![notification_center](D:\Project\PycharmProjects\Homalos\assets\ui\notification_center.png)
+
+Brokerage Account Management
+
+![brokerage_account_management](D:\Project\PycharmProjects\Homalos\assets\ui\brokerage_account_management.png)
+
+User Management (Admin Feature)
+
+![user_management](D:\Project\PycharmProjects\Homalos\assets\ui\user_management.png)
+
+System Settings
+
+![system_settings](D:\Project\PycharmProjects\Homalos\assets\ui\system_settings.png)
+
+About
+
+![about](D:\Project\PycharmProjects\Homalos\assets\ui\about.png)
+
+Personal Center
+
+![personal_center](D:\Project\PycharmProjects\Homalos\assets\ui\personal_center.png)
+
+
 
 ### Quick Start
 
