@@ -51,71 +51,71 @@ Homalos 现已包含基于 FastAPI 和 Vue 3 构建的现代化 Web 管理界面
 
 登录
 
-![login](D:\Project\PycharmProjects\Homalos\assets\ui\login.png)
+![login](..\assets\ui\login.png)
 
 用户注册
 
-![user_register](D:\Project\PycharmProjects\Homalos\assets\ui\user_register.png)
+![user_register](..\assets\ui\user_register.png)
 
 管理员注册
 
-![admin_register](D:\Project\PycharmProjects\Homalos\assets\ui\admin_register.png)
+![admin_register](..\assets\ui\admin_register.png)
 
 券商账户登录
 
-![brokerage_account_login](D:\Project\PycharmProjects\Homalos\assets\ui\brokerage_account_login.png)
+![brokerage_account_login](..\assets\ui\brokerage_account_login.png)
 
 控制台
 
-![console](D:\Project\PycharmProjects\Homalos\assets\ui\console.png)
+![console](..\assets\ui\console.png)
 
 策略管理
 
-![strategy_management](D:\Project\PycharmProjects\Homalos\assets\ui\strategy_management.png)
+![strategy_management](..\assets\ui\strategy_management.png)
 
 策略加载
 
-![strategy_loading](D:\Project\PycharmProjects\Homalos\assets\ui\strategy_loading.png)
+![strategy_loading](..\assets\ui\strategy_loading.png)
 
 仪表盘1
 
-![dashboard](D:\Project\PycharmProjects\Homalos\assets\ui\dashboard1.png)
+![dashboard](..\assets\ui\dashboard1.png)
 
 仪表盘2
 
-![dashboard2](D:\Project\PycharmProjects\Homalos\assets\ui\dashboard2.png)
+![dashboard2](..\assets\ui\dashboard2.png)
 
 任务调度器
 
-![task_scheduling](D:\Project\PycharmProjects\Homalos\assets\ui\task_scheduling.png)
+![task_scheduling](..\assets\ui\task_scheduling.png)
 
 告警管理
 
-![alarm_management](D:\Project\PycharmProjects\Homalos\assets\ui\alarm_management.png)
+![alarm_management](..\assets\ui\alarm_management.png)
 
 通知中心
 
-![notification_center](D:\Project\PycharmProjects\Homalos\assets\ui\notification_center.png)
+![notification_center](..\assets\ui\notification_center.png)
 
 券商账户管理
 
-![brokerage_account_management](D:\Project\PycharmProjects\Homalos\assets\ui\brokerage_account_management.png)
+![brokerage_account_management](..\assets\ui\brokerage_account_management.png)
 
 用户管理(管理员功能)
 
-![user_management](D:\Project\PycharmProjects\Homalos\assets\ui\user_management.png)
+![user_management](..\assets\ui\user_management.png)
 
 系统设置
 
-![system_settings](D:\Project\PycharmProjects\Homalos\assets\ui\system_settings.png)
+![system_settings](..\assets\ui\system_settings.png)
 
 关于
 
-![about](D:\Project\PycharmProjects\Homalos\assets\ui\about.png)
+![about](..\assets\ui\about.png)
 
 个人中心
 
-![personal_center](D:\Project\PycharmProjects\Homalos\assets\ui\personal_center.png)
+![personal_center](..\assets\ui\personal_center.png)
 
 
 
