@@ -40,7 +40,7 @@ from src.core.strategy_worker import run_strategy_process  # child entry
 from src.strategy.strategy_registry import StrategyRegistry
 from src.system_config import Config
 from src.utils.get_path import get_path_ins
-from src.utils.log.logger import get_logger
+from src.utils.strategy_logger import get_strategy_logger as get_logger
 
 # message delivered to WS clients will be JSON serializable dict:
 # {"sid":"...", "type":"log"/"order"/"error"/"status", "payload": ...}

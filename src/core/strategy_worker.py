@@ -16,9 +16,9 @@ from threading import Thread
 
 import zmq
 
-from src.utils.log import get_logger
+from src.utils.strategy_logger import get_strategy_logger
 
-_logger = get_logger("strategy_worker")
+_logger = get_strategy_logger("strategy_worker")
 
 
 def run_strategy_process(strategy_id: str, module_path: str, class_name: str, params: dict, conn, zmq_port: int = 5555):

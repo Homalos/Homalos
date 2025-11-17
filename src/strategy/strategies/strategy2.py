@@ -14,7 +14,7 @@ import datetime
 from src.core.constants import Interval
 from src.core.object import OrderData, TradeData, BarData, TickData
 from src.strategy.base_strategy import BaseStrategy, SpecificStrategy
-from src.utils.log import get_logger
+from src.utils.strategy_logger import get_strategy_logger as get_logger
 
 
 class Strategy2(BaseStrategy):

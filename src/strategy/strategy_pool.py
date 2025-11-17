@@ -25,7 +25,7 @@ from src.constants import TRADING_FLOW_DIR_NAME, trade_file_head
 from src.core.constants import Interval
 from src.strategy.base_strategy import BaseStrategy
 from src.utils.get_path import get_path_ins
-from src.utils.log import get_logger
+from src.utils.strategy_logger import get_strategy_logger as get_logger
 from src.utils.utility import write_csv, get_file_name
 
 

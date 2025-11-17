@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Dict, Any, List
 
 from src.strategy.base_strategy import BaseStrategy
-from src.utils.log import get_logger
+from src.utils.strategy_logger import get_strategy_logger as get_logger
 
 logger = get_logger(__name__)
 
