@@ -1,5 +1,136 @@
 # Update History
 
+## v0.0.8.20251117
+
+### 🎨 Web界面增强
+
+#### 实时持仓展示功能
+- **新增功能**：仪表盘持仓概览实时显示
+  - 显示合约代码、方向标签（多/空）
+  - 显示持仓量、价格、盈亏金额
+  - 显示市值占比和进度条
+  - 空仓时显示"暂无持仓"提示
+- **数据来源**：
+  - 后端通过WebSocket推送持仓数据（`/api/account/ws`）
+  - 前端tradingAccountStore接收并存储positions
+  - Dashboard监听positions变化并转换为显示格式
+- **去重逻辑**：
+  - 根据`instrument_id`和`direction`去重
+  - 避免重复显示相同持仓
+- **显示格式**：
+  ```
+  RM601 [多]                          60.5%
+  数量: 3手 | 价格: 2489.00    盈亏: -1770.00
+  ████████████████████░░░░░░░░░░
+  ```
+
+#### 网关状态实时更新修复
+- **问题**：控制台中网关状态指示器（行情网关、交易网关、结算确认、合约加载）不实时更新
+- **根本原因**：WebSocket字段名不匹配
+  - 后端返回`gateway`字段
+  - 前端使用`gateway_status`字段
+- **解决方案**：
+  - 修正`useConsole.js`中的字段名：`gateway_status` → `gateway`
+  - 修改3处：`handleConnectGateway`、日志记录、`fetchTradingCoreStatus`
+- **效果**：
+  - ✅ 网关连接后状态指示器立即更新为绿色✓
+  - ✅ 所有4个状态正确显示（行情、交易、结算、合约）
+
+#### 统一卡片风格设计
+- **目标**：券商账户和用户管理界面与仪表盘保持一致的视觉风格
+- **实现**：
+  - 添加12px圆角（`border-radius: 12px`）
+  - 添加淡蓝色边框（`rgba(64, 158, 255, 0.08)`）
+  - hover时显示蓝色阴影效果
+  - 标题左侧添加渐变色装饰条
+  - 平滑的过渡动画
+- **修改文件**：
+  - `BrokerageManager.vue` - 添加卡片包装和样式
+  - `UserManagement.vue` - 添加统一卡片样式
+- **效果**：所有管理界面视觉风格统一，用户体验一致
+
+#### 券商账户管理优化
+- **移除功能**：删除"连接状态"列
+  - 移除表格列显示
+  - 移除`getConnectionType()`和`getConnectionText()`辅助函数
+- **原因**：连接状态字段冗余，不需要在账户列表中显示
+- **效果**：界面更简洁，信息更聚焦
+
+### 🏗️ 架构改进
+
+#### 账户WebSocket集成
+- **实现**：
+  - 后端`/api/account/ws`推送账户和持仓数据
+  - 前端tradingAccountStore管理WebSocket连接
+  - Dashboard组件监听positions变化
+- **数据流程**：
+  ```
+  后端CTP网关查询持仓
+    ↓
+  TradingCoreService推送到WebSocket
+    ↓
+  tradingAccountStore接收并更新positions
+    ↓
+  Dashboard监听并转换为显示格式
+    ↓
+  模板渲染持仓概览
+  ```
+
+#### 持仓数据转换逻辑
+- **计算市值占比**：
+  ```javascript
+  const totalValue = positions.reduce((sum, pos) => 
+    sum + (pos.volume * pos.price), 0)
+  const ratio = (value / totalValue * 100).toFixed(2)
+  ```
+- **去重处理**：
+  ```javascript
+  const positionMap = new Map()
+  positions.forEach(pos => {
+    const key = `${pos.instrument_id}_${pos.direction}`
+    if (!positionMap.has(key)) {
+      positionMap.set(key, pos)
+    }
+  })
+  ```
+
+### 🔧 修改文件
+
+**前端组件**：
+- ✅ `web-ui/src/components/Dashboard.vue` - 添加持仓展示和WebSocket导入
+- ✅ `web-ui/src/composables/useConsole.js` - 修正gateway字段名
+- ✅ `web-ui/src/components/BrokerageManager.vue` - 添加卡片样式，移除连接状态
+- ✅ `web-ui/src/views/UserManagement.vue` - 添加统一卡片样式
+
+**后端服务**：
+- ✅ `src/web/api/account.py` - WebSocket推送持仓数据（已存在）
+- ✅ `src/web/services/trading_core_service.py` - 持仓数据管理（已存在）
+
+**状态管理**：
+- ✅ `web-ui/src/stores/tradingAccount.js` - positions字段和WebSocket处理（已存在）
+
+### ✅ 功能验证
+
+**持仓展示**：
+- ✅ 后端成功查询持仓（RM601: 3手，SA601: 2手）
+- ✅ WebSocket正确推送持仓数据
+- ✅ 前端正确接收并去重
+- ✅ 仪表盘正确显示持仓信息（合约、数量、价格、盈亏）
+- ✅ 市值占比计算准确
+- ✅ 进度条显示正常
+
+**网关状态**：
+- ✅ 连接网关后状态立即更新
+- ✅ 4个指示器全部显示正确（行情✓、交易✓、结算✓、合约✓）
+- ✅ 策略管理中状态显示正常
+
+**界面风格**：
+- ✅ 券商账户管理采用圆角卡片
+- ✅ 用户管理采用圆角卡片
+- ✅ 所有界面风格统一一致
+
+---
+
 ## v0.0.7.20251026
 
 ### 🔴 重大变更（BREAKING CHANGES）

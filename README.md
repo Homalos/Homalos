@@ -43,7 +43,29 @@ This project is a new development fork of Homalos, a Python-based event-driven f
   - Data center control via Web API
   - Real-time data visualization
 
-### ✨ Recent Updates (v0.0.6.20251024)
+### ✨ Recent Updates (v0.0.8.20251117)
+
+- 🎨 **Web Interface Enhancements**:
+  - **Position Display**: Real-time position overview with holdings, P&L, and market value ratio
+  - **Gateway Status**: Fixed real-time gateway status updates (Market/Trade/Settlement/Contract)
+  - **Unified Card Style**: Consistent rounded card design across all management interfaces
+  - **Brokerage Management**: Removed redundant connection status, streamlined account management
+  - **User Management**: Complete CRUD operations for system users with admin panel
+- 🔧 **Bug Fixes**:
+  - Fixed WebSocket field name mismatch (`gateway_status` → `gateway`) in Console component
+  - Fixed position data duplication issue with proper deduplication logic
+  - Removed Chinese contract name mapping (using contract codes directly for consistency)
+- 🏗️ **Architecture Improvements**:
+  - Account WebSocket integration for real-time position and account data
+  - Position data transformation with market value calculation
+  - Enhanced trading account store with position tracking
+- ✅ **Verified Features**:
+  - Dashboard: Real-time position display with volume, price, and P&L
+  - Console: Gateway status indicators update correctly after connection
+  - Brokerage: Clean account management interface without connection status
+  - User Management: Full admin capabilities with role-based access control
+
+### Previous Updates (v0.0.6.20251024)
 
 - 🚀 **Critical Performance & Stability Fixes**:
   - Fixed `on_bar` callback not triggering due to payload key mismatch in `TradingCoreService`
@@ -66,28 +88,6 @@ This project is a new development fork of Homalos, a Python-based event-driven f
   - Message format: 100% correct (2-part messages, no corruption)
   - K-line generation: Working correctly with proper volume calculation
   - System performance: CPU < 5%, minimal overhead
-
-### Previous Updates (v0.0.5.20251022)
-
-- 🏗️ **Core Architecture Optimization**:
-  - Event.py refactoring: Converted 10 module-level functions to `Event` class methods
-  - Improved API: `Event.tick()` vs `create_tick_event()`
-  - Python 3.10+ union type syntax (`|` instead of `Optional`)
-  - Better encapsulation and reduced namespace pollution
-- ⏱️ **Built-in Timer Mechanism**:
-  - EventBus now has built-in timer for second-level periodic tasks
-  - Configurable interval (default 1 second)
-  - Automatic TIMER event publishing to general queue
-  - Thread-safe start/stop mechanism
-  - Use case: Periodic account/position queries
-- 🐛 **Bug Fixes**:
-  - Fixed TraderGateway timer event handler signature mismatch
-  - Added account query logging for better observability
-  - Enhanced monitoring and debugging capabilities
-- 📝 **Developer Experience**:
-  - Out-of-the-box timer functionality
-  - Clear logging for all query operations
-  - Flexible configuration options
 
 ## Web Interface
 
