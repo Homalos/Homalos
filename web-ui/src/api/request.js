@@ -20,14 +20,25 @@ const request = axios.create({
 // 请求拦截器
 request.interceptors.request.use(
   config => {
-    console.log('发送请求:', config.method?.toUpperCase(), config.url)
-    console.log('请求头:', config.headers)
-    
-    // 从localStorage获取token
+    // 从localStorage获取token并添加到请求头
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    
+    // 打印请求日志
+    console.log('发送请求:', config.method?.toUpperCase(), config.url)
+    
+    // 优化请求头日志输出
+    const headersToLog = {
+      Accept: config.headers.Accept,
+      Authorization: config.headers.Authorization ? '***' : undefined
+    }
+    // 只在有Content-Type时才显示
+    if (config.headers['Content-Type']) {
+      headersToLog['Content-Type'] = config.headers['Content-Type']
+    }
+    console.log('请求头:', headersToLog)
     
     // 如果没有设置Content-Type，axios会自动设置
     // 对于URLSearchParams，会自动设置为application/x-www-form-urlencoded

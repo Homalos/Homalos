@@ -112,6 +112,27 @@ function cleanupExpiredLogs(logs) {
     .slice(-MAX_STORED_LOGS) // 保留最近的指定条数
 }
 
+// 日志去重函数
+function deduplicateLogs(logs) {
+  const seen = new Map()
+  const result = []
+  
+  for (const log of logs) {
+    // 使用ID作为唯一标识
+    const id = log.id || generateMessageId(log)
+    
+    if (!seen.has(id)) {
+      seen.set(id, true)
+      result.push({
+        ...log,
+        id // 确保每条日志都有ID
+      })
+    }
+  }
+  
+  return result
+}
+
 export const useStrategyStore = defineStore('strategy', () => {
   // ========== 状态 ==========
   const strategies = ref({})

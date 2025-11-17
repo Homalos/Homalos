@@ -94,7 +94,7 @@ class TradingCoreService:
         
         # 账户数据推送
         self._latest_account_data: Optional[dict] = None
-        self._latest_positions: list[dict] = []
+        self._latest_positions: dict[str, dict] = {}  # 改为字典，key为"instrument_id_direction"
         self._account_ws_queue: Optional[asyncio.Queue] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None  # 主事件循环引用
         
@@ -931,6 +931,10 @@ class TradingCoreService:
             # 保存最新数据
             self._latest_account_data = account_dict
             
+            # 清空持仓字典，准备接收新一轮持仓数据
+            # 因为账户查询通常在持仓查询之前执行
+            self._latest_positions.clear()
+            
             # 推送到WebSocket（线程安全）
             if self._account_ws_queue and self._loop:
                 asyncio.run_coroutine_threadsafe(
@@ -972,16 +976,19 @@ class TradingCoreService:
                     "yd_volume": getattr(position_data, 'yd_volume', 0)
                 }
             
-            # 累积持仓数据
-            # 注意：持仓事件会分批到达，需要累积后再推送
-            self._latest_positions.append(position_dict)
+            # 使用字典存储持仓数据，自动去重和更新
+            # key格式: "instrument_id_direction"
+            position_key = f"{position_dict['instrument_id']}_{position_dict['direction']}"
+            self._latest_positions[position_key] = position_dict
             
             # 推送到WebSocket（线程安全）
             if self._account_ws_queue and self._loop:
+                # 转换为列表推送
+                positions_list = list(self._latest_positions.values())
                 asyncio.run_coroutine_threadsafe(
                     self._push_account_to_ws({
                         "type": "positions",
-                        "data": self._latest_positions.copy()
+                        "data": positions_list
                     }),
                     self._loop
                 )
@@ -1158,9 +1165,11 @@ class TradingCoreService:
                 "data": self._latest_account_data
             })
         if self._latest_positions:
+            # 转换字典为列表
+            positions_list = list(self._latest_positions.values())
             await self._push_account_to_ws({
                 "type": "positions",
-                "data": self._latest_positions.copy()
+                "data": positions_list
             })
     
     def unregister_account_ws(self):
@@ -1197,7 +1206,7 @@ class TradingCoreService:
         Returns:
             list[dict]: 持仓数据列表
         """
-        return self._latest_positions.copy()
+        return list(self._latest_positions.values())
 
 
 # 全局单例访问

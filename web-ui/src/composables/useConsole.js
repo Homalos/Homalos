@@ -318,19 +318,17 @@ export function useConsole() {
         consoleData.tradingCore.modules = status.modules
       }
       
-      // 计算运行时长
-      if (status.status === 'running' && consoleData.tradingCore.startupTime) {
-        const now = new Date()
-        const diffMinutes = Math.floor((now - consoleData.tradingCore.startupTime) / 60000)
-        if (diffMinutes < 60) {
-          consoleData.tradingCore.runningTime = `${diffMinutes}m`
-        } else {
-          const hours = Math.floor(diffMinutes / 60)
-          const minutes = diffMinutes % 60
-          consoleData.tradingCore.runningTime = `${hours}h${minutes}m`
-        }
-      } else if (status.status !== 'running') {
+      // 更新运行时长（使用后端返回的数据）
+      if (status.running_time) {
+        consoleData.tradingCore.runningTime = status.running_time
+      } else {
         consoleData.tradingCore.runningTime = '-'
+      }
+      
+      // 更新启动时间
+      if (status.status === 'running' && status.startup_time) {
+        consoleData.tradingCore.startupTime = new Date(status.startup_time)
+      } else if (status.status !== 'running') {
         consoleData.tradingCore.startupTime = null
         
         // 如果轮询中发现已停止，停止轮询

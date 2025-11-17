@@ -114,11 +114,11 @@
             <span>任务调度器</span>
           </el-menu-item>
           <el-menu-item index="/alarms">
-            <el-icon><Bell /></el-icon>
+            <el-icon><Warning /></el-icon>
             <span>告警管理</span>
           </el-menu-item>
           <el-menu-item index="/notifications">
-            <el-icon><Bell /></el-icon>
+            <el-icon><Message /></el-icon>
             <span>通知中心</span>
           </el-menu-item>
           <el-menu-item index="/brokerages">
@@ -192,7 +192,9 @@ import {
   CircleCheckFilled,
   SwitchButton,
   Close,
-  Wallet
+  Wallet,
+  Warning,
+  Message
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'

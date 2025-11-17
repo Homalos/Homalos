@@ -31,9 +31,9 @@
               </div>
             </el-alert>
             
-            <!-- 免密登录警告（缺少完整配置） -->
+            <!-- 免密登录警告（缺少完整配置，且网关未连接） -->
             <el-alert 
-              v-else-if="tradingAccountStore.isLoggedIn && !tradingAccountStore.hasBrokerConfig" 
+              v-else-if="tradingAccountStore.isLoggedIn && !tradingAccountStore.hasBrokerConfig && !isGatewayConnected" 
               type="warning" 
               :closable="false"
               style="margin-bottom: 20px;"
