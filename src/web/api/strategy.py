@@ -85,6 +85,35 @@ async def list_strategies():
         raise HTTPException(status_code=500, detail=f"获取策略列表失败: {str(e)}")
 
 
+@router.get("/uuid/{strategy_uuid}", summary="通过UUID获取策略信息")
+async def get_strategy_by_uuid(strategy_uuid: str):
+    """
+    通过UUID获取策略配置信息
+    
+    Args:
+        strategy_uuid: 策略UUID
+        
+    Returns:
+        dict: 包含策略ID和配置信息
+    """
+    try:
+        result = strategy_service.get_strategy_by_uuid(strategy_uuid)
+        if result is None:
+            raise HTTPException(status_code=404, detail=f"策略UUID {strategy_uuid} 不存在")
+        
+        sid, config = result
+        return {
+            "sid": sid,
+            "uuid": strategy_uuid,
+            "config": config
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"通过UUID获取策略失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"获取策略失败: {str(e)}")
+
+
 @router.post("/{sid}/start", response_model=OperationResponse, summary="启动策略")
 async def start_strategy(sid: str):
     """

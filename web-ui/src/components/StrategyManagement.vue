@@ -177,7 +177,7 @@
           <!-- 通用操作：详情 -->
           <el-button 
             size="small" 
-            @click="handleShowDetail(scope.row)"
+            @click="handleShowDetail(scope.row.sid)"
           >
             详情
           </el-button>
@@ -251,85 +251,6 @@
     </div>
   </el-card>
 
-  <!-- 策略详情抽屉 -->
-  <el-drawer
-    v-model="detailDrawerVisible"
-    :title="`策略详情 - ${currentStrategy?.sid || ''}`"
-    size="60%"
-    direction="rtl"
-  >
-    <div v-if="currentStrategy" class="strategy-detail">
-      <!-- 基础信息 -->
-      <el-card shadow="never" class="detail-section">
-        <template #header>
-          <span class="section-title">基础信息</span>
-        </template>
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="策略ID" :span="2">
-            <el-tag size="small" type="info">{{ getShortStrategyId(currentStrategy.sid) }}</el-tag>
-            <span style="margin-left: 10px; font-size: 12px; color: #909399;">
-              完整ID: {{ currentStrategy.sid }}
-            </span>
-          </el-descriptions-item>
-          <el-descriptions-item label="策略名称">{{ currentStrategy.name || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="作者">{{ currentStrategy.author || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="类名">{{ currentStrategy.class }}</el-descriptions-item>
-          <el-descriptions-item label="模块路径" :span="2">{{ currentStrategy.module }}</el-descriptions-item>
-          <el-descriptions-item label="文件路径" :span="2">{{ currentStrategy.file }}</el-descriptions-item>
-          <el-descriptions-item label="策略描述" :span="2">
-            {{ currentStrategy.description || '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="订阅合约" :span="2">
-            <el-tag 
-              v-for="instrument in currentStrategy.instruments" 
-              :key="instrument" 
-              size="small" 
-              style="margin-right: 8px;"
-            >
-              {{ instrument }}
-            </el-tag>
-            <span v-if="!currentStrategy.instruments || currentStrategy.instruments.length === 0">-</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="是否启用" :span="2">
-            <el-tag :type="currentStrategy.enabled ? 'success' : 'info'">
-              {{ currentStrategy.enabled ? '已启用' : '已禁用' }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="参数配置" :span="2">
-            <pre>{{ JSON.stringify(currentStrategy.params, null, 2) }}</pre>
-          </el-descriptions-item>
-        </el-descriptions>
-      </el-card>
-
-      <!-- 运行状态 -->
-      <el-card shadow="never" class="detail-section" v-if="currentStrategyStatus">
-        <template #header>
-          <span class="section-title">运行状态</span>
-        </template>
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="进程ID">{{ currentStrategyStatus.pid || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="运行状态">
-            <el-tag :type="currentStrategyStatus.alive ? 'success' : 'info'">
-              {{ currentStrategyStatus.alive ? '运行中' : '已停止' }}
-            </el-tag>
-          </el-descriptions-item>
-        </el-descriptions>
-      </el-card>
-
-      <!-- 占位：持仓/委托/成交信息（待对接交易网关） -->
-      <el-card shadow="never" class="detail-section">
-        <template #header>
-          <span class="section-title">交易信息</span>
-        </template>
-        <el-alert
-          title="提示"
-          type="info"
-          description="持仓、委托、成交数据需要对接交易网关后才能显示"
-          :closable="false"
-        />
-      </el-card>
-    </div>
-  </el-drawer>
 
   <!-- 文件选择对话框 -->
   <el-dialog
@@ -387,8 +308,6 @@ const strategyStore = useStrategyStore()
 const router = useRouter()
 
 // ========== 状态 ==========
-const detailDrawerVisible = ref(false)
-const currentStrategy = ref(null)
 const selectedLogType = ref('')
 const fileSelectDialogVisible = ref(false)
 const availableFiles = ref([])
@@ -414,11 +333,6 @@ const strategyList = computed(() => {
     sid,
     ...config
   }))
-})
-
-const currentStrategyStatus = computed(() => {
-  if (!currentStrategy.value) return null
-  return strategyStore.strategyStatus[currentStrategy.value.sid]
 })
 
 const filteredMessages = computed(() => {
@@ -716,9 +630,15 @@ async function handleUnloadStrategy(sid) {
   }
 }
 
-function handleShowDetail(row) {
-  currentStrategy.value = row
-  detailDrawerVisible.value = true
+function handleShowDetail(sid) {
+  // 优先使用UUID进行跳转
+  const strategy = strategyStore.strategies[sid]
+  if (strategy && strategy.uuid) {
+    router.push(`/strategy/uuid/${strategy.uuid}`)
+  } else {
+    // 降级使用sid
+    router.push(`/strategy/${encodeURIComponent(sid)}`)
+  }
 }
 
 function handleClearHistory() {
@@ -1064,56 +984,6 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-/* 策略详情抽屉优化 */
-.strategy-detail {
-  padding: 0 20px 20px;
-}
-
-.detail-section {
-  margin-bottom: 20px;
-}
-
-.section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-  position: relative;
-  padding-left: 12px;
-}
-
-/* section标题左侧装饰条 */
-.section-title::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 18px;
-  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
-  border-radius: 2px;
-}
-
-/* Drawer内的卡片优化 */
-:deep(.el-drawer .el-card) {
-  border-radius: 12px;
-  border: 1px solid rgba(64, 158, 255, 0.08);
-}
-
-:deep(.el-drawer .el-card.is-never-shadow) {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-/* Descriptions优化 */
-:deep(.el-descriptions__label) {
-  font-weight: 600;
-  color: #606266;
-  background: linear-gradient(135deg, #f5f7fa 0%, #f9f9f9 100%);
-}
-
-:deep(.el-descriptions__content) {
-  color: #303133;
-}
 
 /* Dialog中的按钮 */
 :deep(.el-dialog .el-button--primary) {

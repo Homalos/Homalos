@@ -41,6 +41,18 @@ const routes = [
         meta: { requiresAuth: true, requiresTradingAuth: true }
       },
       {
+        path: 'strategy/:sid',
+        name: 'StrategyDetail',
+        component: () => import('@/views/StrategyDetail.vue'),
+        meta: { requiresAuth: true, requiresTradingAuth: true }
+      },
+      {
+        path: 'strategy/uuid/:uuid',
+        name: 'StrategyDetailByUUID',
+        component: () => import('@/views/StrategyDetail.vue'),
+        meta: { requiresAuth: true, requiresTradingAuth: true }
+      },
+      {
         path: 'task-scheduler',
         name: 'TaskScheduler',
         component: () => import('@/components/TaskScheduler.vue'),

@@ -11,7 +11,8 @@
       "FG601"
     ],
     "enabled": true,
-    "params": {}
+    "params": {},
+    "uuid": "615d3c18-2005-4116-a47d-dcf587d12a33"
   },
   "src.strategy.strategies.ma_cross.MACrossStrategy": {
     "file": "src/strategy/strategies/ma_cross.py",
@@ -24,6 +25,7 @@
       "SA601"
     ],
     "enabled": true,
-    "params": {}
+    "params": {},
+    "uuid": "cc05dbe5-b892-4284-8ca5-6ac80704b4c2"
   }
 }

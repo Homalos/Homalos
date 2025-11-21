@@ -222,6 +222,19 @@ class StrategyService:
         manager = self.get_manager()
         return manager.registry.list_all()
     
+    def get_strategy_by_uuid(self, strategy_uuid: str) -> tuple[str, Dict[str, Any]] | None:
+        """
+        通过UUID获取策略配置
+        
+        Args:
+            strategy_uuid: 策略UUID
+            
+        Returns:
+            tuple[str, dict] | None: (策略ID, 策略配置) 或 None
+        """
+        manager = self.get_manager()
+        return manager.registry.get_by_uuid(strategy_uuid)
+    
     async def start_strategy(self, sid: str):
         """启动策略（异步）"""
         manager = self.get_manager()

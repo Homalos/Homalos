@@ -31,3 +31,5 @@ con
 web-ui/node_modules/
 .qoder
 .windsurf
+.docs/
+.scripts/

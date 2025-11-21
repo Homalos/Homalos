@@ -12,6 +12,7 @@
 import importlib.util
 import inspect
 import traceback
+import uuid
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -71,7 +72,10 @@ class StrategyScanner:
                 strategy_info = self._scan_file(py_file)
                 if strategy_info:
                     strategy_id = strategy_info["strategy_id"]
+                    # 生成UUID（如果不存在）
+                    strategy_uuid = str(uuid.uuid4())
                     discovered[strategy_id] = {
+                        "uuid": strategy_uuid,  # 新增UUID字段
                         "file": strategy_info["file"],
                         "module": strategy_info["module"],
                         "class": strategy_info["class"],
@@ -232,9 +236,10 @@ class StrategyScanner:
         
         for strategy_id, new_config in discovered.items():
             if strategy_id in merged:
-                # 已存在：保留enabled和params，更新其他字段
+                # 已存在：保留enabled、params和uuid，更新其他字段
                 old_config = merged[strategy_id]
                 merged[strategy_id] = {
+                    "uuid": old_config.get("uuid", new_config["uuid"]),  # 保留原有UUID，如果没有则使用新生成的
                     "file": new_config["file"],
                     "module": new_config["module"],
                     "class": new_config["class"],
