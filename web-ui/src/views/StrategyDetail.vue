@@ -262,9 +262,33 @@ const router = useRouter()
 const strategyStore = useStrategyStore()
 
 // ========== 状态 ==========
-const strategyId = ref(route.params.sid || null)
-const strategyUuid = ref(route.params.uuid || null)
+const strategyId = ref(null)
+const strategyUuid = ref(null)
 const strategy = ref(null)
+
+// UUID格式正则表达式
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// 自动识别id参数是UUID还是sid
+function identifyIdType(id) {
+  if (!id) return { type: null, value: null }
+  
+  // 检查是否为UUID格式
+  if (UUID_REGEX.test(id)) {
+    return { type: 'uuid', value: id }
+  }
+  
+  // 否则视为sid
+  return { type: 'sid', value: id }
+}
+
+// 初始化时识别路由参数
+const idInfo = identifyIdType(route.params.id)
+if (idInfo.type === 'uuid') {
+  strategyUuid.value = idInfo.value
+} else if (idInfo.type === 'sid') {
+  strategyId.value = idInfo.value
+}
 
 // ========== 计算属性 ==========
 const currentStrategyStatus = computed(() => {
@@ -451,11 +475,18 @@ function loadStrategyData() {
   if (!strategyId.value) return
   
   // 从store中获取策略信息
-  strategy.value = strategyStore.strategies[strategyId.value]
+  const strategyConfig = strategyStore.strategies[strategyId.value]
   
-  if (!strategy.value) {
+  if (!strategyConfig) {
     ElMessage.error('策略不存在或未加载')
     router.push('/strategy')
+    return
+  }
+  
+  // 构建完整的策略对象，包含sid
+  strategy.value = {
+    sid: strategyId.value,
+    ...strategyConfig
   }
 }
 
@@ -473,15 +504,17 @@ onMounted(async () => {
 })
 
 // 监听路由参数变化
-watch(() => route.params.sid, (newSid) => {
-  strategyId.value = newSid
-  strategyUuid.value = null  // 清除UUID
-  loadStrategyData()
-})
-
-watch(() => route.params.uuid, (newUuid) => {
-  strategyUuid.value = newUuid
-  strategyId.value = null  // 清除SID，让loadStrategyData重新查找
+watch(() => route.params.id, (newId) => {
+  const idInfo = identifyIdType(newId)
+  
+  if (idInfo.type === 'uuid') {
+    strategyUuid.value = idInfo.value
+    strategyId.value = null  // 清除SID，让loadStrategyData重新查找
+  } else if (idInfo.type === 'sid') {
+    strategyId.value = idInfo.value
+    strategyUuid.value = null  // 清除UUID
+  }
+  
   loadStrategyData()
 })
 </script>

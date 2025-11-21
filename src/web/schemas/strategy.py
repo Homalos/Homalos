@@ -15,6 +15,7 @@ from typing import Optional, Dict, Any
 
 class StrategyInfo(BaseModel):
     """策略基本信息"""
+    uuid: Optional[str] = Field(None, description="策略UUID")
     file: str = Field(..., description="策略文件路径")
     module: str = Field(..., description="策略模块路径")
     class_name: str = Field(default="Strategy", alias="class", description="策略类名")

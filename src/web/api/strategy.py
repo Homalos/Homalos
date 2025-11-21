@@ -114,6 +114,26 @@ async def get_strategy_by_uuid(strategy_uuid: str):
         raise HTTPException(status_code=500, detail=f"获取策略失败: {str(e)}")
 
 
+@router.post("/reload-config", summary="重新加载策略配置")
+async def reload_strategy_config():
+    """
+    重新加载策略注册表配置文件
+    用于在配置文件被外部修改后刷新内存中的配置
+    """
+    try:
+        manager = strategy_service.get_manager()
+        manager.registry.reload()
+        strategies = manager.registry.list_all()
+        return {
+            "success": True,
+            "message": "策略配置已重新加载",
+            "total": len(strategies)
+        }
+    except Exception as e:
+        logger.error(f"重新加载配置失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"重新加载配置失败: {str(e)}")
+
+
 @router.post("/{sid}/start", response_model=OperationResponse, summary="启动策略")
 async def start_strategy(sid: str):
     """

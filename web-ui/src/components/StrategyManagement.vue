@@ -631,10 +631,10 @@ async function handleUnloadStrategy(sid) {
 }
 
 function handleShowDetail(sid) {
-  // 优先使用UUID进行跳转
+  // 优先使用UUID进行跳转（简化URL）
   const strategy = strategyStore.strategies[sid]
   if (strategy && strategy.uuid) {
-    router.push(`/strategy/uuid/${strategy.uuid}`)
+    router.push(`/strategy/${strategy.uuid}`)
   } else {
     // 降级使用sid
     router.push(`/strategy/${encodeURIComponent(sid)}`)

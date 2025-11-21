@@ -62,6 +62,12 @@ class StrategyRegistry:
         self.strategies.pop(sid, None)
         self.save()
 
+    def reload(self):
+        """重新加载配置文件"""
+        self._load()
+        self._build_uuid_index()
+        self.logger.info("策略配置已重新加载")
+    
     def list_all(self):
         return self.strategies
 

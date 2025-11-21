@@ -1,20 +1,21 @@
 {
   "src.strategy.strategies.strategy1.Strategy1": {
+    "uuid": "615d3c18-2005-4116-a47d-dcf587d12a33",
     "file": "src/strategy/strategies/strategy1.py",
     "module": "src.strategy.strategies.strategy1",
     "class": "Strategy1",
     "name": "策略1",
-    "description": "策略1测试，用来测试从行情->交易信号->下单全流程",
+    "description": "用来测试从行情->交易信号->下单全流程",
     "author": "Lumosylva",
     "instruments": [
       "SA601",
       "FG601"
     ],
     "enabled": true,
-    "params": {},
-    "uuid": "615d3c18-2005-4116-a47d-dcf587d12a33"
+    "params": {}
   },
   "src.strategy.strategies.ma_cross.MACrossStrategy": {
+    "uuid": "cc05dbe5-b892-4284-8ca5-6ac80704b4c2",
     "file": "src/strategy/strategies/ma_cross.py",
     "module": "src.strategy.strategies.ma_cross",
     "class": "MACrossStrategy",
@@ -25,7 +26,51 @@
       "SA601"
     ],
     "enabled": true,
-    "params": {},
-    "uuid": "cc05dbe5-b892-4284-8ca5-6ac80704b4c2"
+    "params": {}
+  },
+  "src.strategy.strategies.strategy2.Strategy2": {
+    "uuid": "74c797b6-d8b0-4371-9298-5aa1936a43c1",
+    "file": "src/strategy/strategies/strategy2.py",
+    "module": "src.strategy.strategies.strategy2",
+    "class": "Strategy2",
+    "name": "策略2",
+    "description": "性能测试策略2 - 用于多策略并发测试",
+    "author": "Performance Test",
+    "instruments": [
+      "SA601",
+      "FG601"
+    ],
+    "enabled": true,
+    "params": {}
+  },
+  "src.strategy.strategies.strategy3.Strategy3": {
+    "uuid": "6703e1fb-e445-4b38-8980-1b49e3bf62bc",
+    "file": "src/strategy/strategies/strategy3.py",
+    "module": "src.strategy.strategies.strategy3",
+    "class": "Strategy3",
+    "name": "策略3",
+    "description": "性能测试策略3 - 用于多策略并发测试",
+    "author": "Performance Test",
+    "instruments": [
+      "SA601",
+      "FG601"
+    ],
+    "enabled": true,
+    "params": {}
+  },
+  "src.strategy.strategies.strategy4.Strategy4": {
+    "uuid": "f798cd62-c3a6-4b0b-9083-2f2226b57b52",
+    "file": "src/strategy/strategies/strategy4.py",
+    "module": "src.strategy.strategies.strategy4",
+    "class": "Strategy4",
+    "name": "策略4",
+    "description": "性能测试策略4 - 用于多策略并发测试",
+    "author": "Performance Test",
+    "instruments": [
+      "SA601",
+      "FG601"
+    ],
+    "enabled": true,
+    "params": {}
   }
 }
