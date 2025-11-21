@@ -10,6 +10,15 @@ function isTradingAccountAPI(url) {
   return url && url.includes('/api/trading-account')
 }
 
+/**
+ * 检查是否为登录相关API
+ * @param {string} url - 请求URL
+ * @returns {boolean} 是否为登录API
+ */
+function isLoginAPI(url) {
+  return url && (url.includes('/api/auth/login') || url.includes('/api/admin/auth/login'))
+}
+
 // 创建axios实例
 const request = axios.create({
   baseURL: 'http://localhost:8000',
@@ -71,17 +80,23 @@ request.interceptors.response.use(
           console.error('❌ 401错误 - URL:', error.config.url)
           console.error('❌ 401错误 - 详情:', data.detail)
           
+          // 检查是否是登录API
+          const isLoginRequest = isLoginAPI(error.config.url)
+          
           // 检查是否是资金账户或券商账户相关API
           const isBrokerageAPI = error.config.url && (
             error.config.url.includes('/api/trading-account') ||
             error.config.url.includes('/api/user-brokerages')
           )
           
-          if (isBrokerageAPI) {
+          if (isLoginRequest) {
+            // 登录API的401错误：不显示错误信息，让userStore统一处理
+            // 避免智能登录机制的重复提示
+          } else if (isBrokerageAPI) {
             // 资金账户/券商账户相关API的401错误：不显示提示，让组件自己处理
             // 不调用 ElMessage.error，避免重复提示
           } else {
-            // 系统认证相关API的401错误：跳转登录页面
+            // 其他API的401错误：跳转登录页面
             ElMessage.error('登录已过期，请重新登录')
             localStorage.removeItem('token')
             window.location.href = '/login'

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { login as loginApi, getCurrentUser, register as registerApi } from '@/api/auth'
 import { adminLogin, isAdminUsername } from '@/api/admin'
+import { ElMessage } from 'element-plus'
 
 export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('token') || '')
@@ -21,6 +22,7 @@ export const useUserStore = defineStore('user', () => {
   async function login(loginForm) {
     try {
       let response
+      let lastError = null
       
       // 检测是否为管理员用户名，优先尝试管理员登录
       if (isAdminUsername(loginForm.username)) {
@@ -30,6 +32,7 @@ export const useUserStore = defineStore('user', () => {
           console.log('管理员登录成功')
         } catch (adminError) {
           console.log('管理员登录失败，尝试普通用户登录:', adminError.message)
+          lastError = adminError
           // 管理员登录失败，尝试普通用户登录
           response = await loginApi(loginForm)
           console.log('普通用户登录成功')
@@ -41,6 +44,7 @@ export const useUserStore = defineStore('user', () => {
           console.log('普通用户登录成功')
         } catch (userError) {
           console.log('普通用户登录失败，尝试管理员登录:', userError.message)
+          lastError = userError
           // 普通用户登录失败，尝试管理员登录
           response = await adminLogin(loginForm)
           console.log('管理员登录成功')
@@ -53,6 +57,11 @@ export const useUserStore = defineStore('user', () => {
       return true
     } catch (error) {
       console.error('登录失败:', error.message)
+      
+      // 显示错误信息
+      const errorMessage = error.response?.data?.detail || '用户名或密码错误'
+      ElMessage.error(`登录失败: ${errorMessage}`)
+      
       return false
     }
   }
