@@ -117,51 +117,106 @@
     </el-row>
 
     <!-- 详细信息 -->
-    <el-row :gutter="20">
-      <!-- 基础信息 -->
-      <el-col :span="12">
-        <el-card shadow="hover" class="detail-section">
-          <template #header>
-            <span class="section-title">基础信息</span>
+    <el-card shadow="hover" class="detail-section">
+      <template #header>
+        <span class="section-title">基础信息</span>
+      </template>
+      <el-descriptions :column="1" border v-if="strategy">
+        <el-descriptions-item label="策略UUID" :span="1">
+          <el-tag size="small" type="success">{{ strategy.uuid || '-' }}</el-tag>
+          <el-button 
+            v-if="strategy.uuid"
+            type="text" 
+            size="small" 
+            @click="copyUuid"
+            style="margin-left: 8px;"
+          >
+            复制
+          </el-button>
+        </el-descriptions-item>
+        <el-descriptions-item label="策略名称">{{ strategy.name || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="作者">{{ strategy.author || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="文件路径">{{ strategy.file }}</el-descriptions-item>
+        <el-descriptions-item label="策略描述">
+          {{ strategy.description || '-' }}
+        </el-descriptions-item>
+      </el-descriptions>
+      <el-skeleton v-else :rows="8" animated />
+    </el-card>
+
+    <!-- 持仓卡片 -->
+    <el-card shadow="hover" class="detail-section" style="margin-top: 20px;">
+      <template #header>
+        <span class="section-title">持仓</span>
+      </template>
+      <el-table :data="positions" stripe border v-if="positions.length > 0">
+        <el-table-column prop="instrument" label="合约" width="100" />
+        <el-table-column prop="direction" label="多空" width="80" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.direction === '多' ? 'success' : 'danger'">
+              {{ row.direction }}
+            </el-tag>
           </template>
-          <el-descriptions :column="1" border v-if="strategy">
-            <el-descriptions-item label="策略ID" :span="1">
-              <el-tag size="small" type="info">{{ getShortStrategyId(strategy.sid) }}</el-tag>
-              <div style="margin-top: 8px; font-size: 12px; color: #909399;">
-                完整ID: {{ strategy.sid }}
-              </div>
-            </el-descriptions-item>
-            <el-descriptions-item label="策略UUID" :span="1">
-              <el-tag size="small" type="success">{{ strategy.uuid || '-' }}</el-tag>
-              <el-button 
-                v-if="strategy.uuid"
-                type="text" 
-                size="small" 
-                @click="copyUuid"
-                style="margin-left: 8px;"
-              >
-                复制
-              </el-button>
-            </el-descriptions-item>
-            <el-descriptions-item label="策略名称">{{ strategy.name || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="作者">{{ strategy.author || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="类名">{{ strategy.class }}</el-descriptions-item>
-            <el-descriptions-item label="模块路径">{{ strategy.module }}</el-descriptions-item>
-            <el-descriptions-item label="文件路径">{{ strategy.file }}</el-descriptions-item>
-            <el-descriptions-item label="策略描述">
-              {{ strategy.description || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="是否启用">
-              <el-switch
-                :model-value="strategy.enabled"
-                @change="handleToggleEnabled"
-              />
-            </el-descriptions-item>
-          </el-descriptions>
-          <el-skeleton v-else :rows="8" animated />
-        </el-card>
-      </el-col>
-    </el-row>
+        </el-table-column>
+        <el-table-column label="可用/总仓" width="120" align="center">
+          <template #default="{ row }">
+            {{ row.available }}/{{ row.total }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="open_price" label="开仓均价" width="100" align="right" />
+        <el-table-column prop="last_price" label="最新价" width="100" align="right" />
+        <el-table-column prop="pnl_per_lot" label="逐笔盈亏" width="100" align="right">
+          <template #default="{ row }">
+            <span :style="row.pnl_per_lot > 0 ? { color: '#f56c6c' } : row.pnl_per_lot < 0 ? { color: '#67c23a' } : {}">
+              {{ row.pnl_per_lot }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="profit_price" label="盈利价差" width="100" align="right" />
+        <el-table-column prop="pnl_ratio" label="浮盈比例" width="100" align="right">
+          <template #default="{ row }">
+            {{ (row.pnl_ratio * 100).toFixed(2) }}%
+          </template>
+        </el-table-column>
+        <el-table-column prop="margin" label="保证金" width="100" align="right" />
+        <el-table-column prop="market_value" label="市值" width="100" align="right" />
+        <el-table-column prop="pnl_mark" label="盯市盈亏" width="100" align="right">
+          <template #default="{ row }">
+            <span :style="row.pnl_mark > 0 ? { color: '#f56c6c' } : row.pnl_mark < 0 ? { color: '#67c23a' } : {}">
+              {{ row.pnl_mark }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="stop_profit" label="止盈价" width="100" align="right" />
+        <el-table-column prop="stop_loss" label="止损价" width="100" align="right" />
+        <el-table-column label="操作" width="220" fixed="right" align="center">
+          <template #default="{ row }">
+            <el-button 
+              type="danger" 
+              size="small"
+              @click="handleClosePosition(row)"
+            >
+              一键平仓
+            </el-button>
+            <el-button 
+              type="warning" 
+              size="small"
+              @click="handlePartialClose(row)"
+            >
+              部分平仓
+            </el-button>
+            <el-button 
+              type="primary" 
+              size="small"
+              @click="handleReversePosition(row)"
+            >
+              反手开仓
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-empty v-else description="暂无持仓" />
+    </el-card>
 
     <!-- 策略日志 -->
     <el-card shadow="hover" class="detail-section" style="margin-top: 20px;">
@@ -278,6 +333,7 @@ const availableTraceIds = ref([])
 const availableContexts = ref([])
 const selectedTraceId = ref(null)
 const selectedContext = ref(null)
+const positions = ref([])  // 持仓列表
 
 // UUID格式正则表达式
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -425,6 +481,66 @@ function clearLogs() {
   selectedTraceId.value = null
   selectedContext.value = null
   ElMessage.success('日志已清空')
+}
+
+// ========== 持仓操作 ==========
+function handleClosePosition(row) {
+  ElMessageBox.confirm(
+    `确认平仓 ${row.instrument} ${row.direction}仓 ${row.total}手？`,
+    '平仓确认',
+    {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    ElMessage.success('平仓请求已提交')
+    // TODO: 调用后端API执行平仓操作
+  }).catch(() => {
+    ElMessage.info('已取消')
+  })
+}
+
+function handlePartialClose(row) {
+  ElMessageBox.prompt(
+    `请输入要平仓的手数（最多 ${row.available} 手）`,
+    '部分平仓',
+    {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      inputPattern: /^[0-9]+$/,
+      inputErrorMessage: '请输入正整数'
+    }
+  ).then(({ value }) => {
+    const closeAmount = parseInt(value)
+    if (closeAmount > row.available) {
+      ElMessage.error(`平仓手数不能超过可用手数 ${row.available}`)
+      return
+    }
+    ElMessage.success(`部分平仓请求已提交，平仓 ${closeAmount} 手`)
+    // TODO: 调用后端API执行部分平仓操作
+  }).catch(() => {
+    ElMessage.info('已取消')
+  })
+}
+
+function handleReversePosition(row) {
+  ElMessageBox.prompt(
+    `请输入反手开仓的手数`,
+    '反手开仓',
+    {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      inputPattern: /^[0-9]+$/,
+      inputErrorMessage: '请输入正整数'
+    }
+  ).then(({ value }) => {
+    const reverseAmount = parseInt(value)
+    ElMessage.success(`反手开仓请求已提交，开仓 ${reverseAmount} 手`)
+    // TODO: 调用后端API执行反手开仓操作
+  }).catch(() => {
+    ElMessage.info('已取消')
+  })
 }
 
 // ========== 事件处理 ==========
