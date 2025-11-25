@@ -455,11 +455,27 @@ class RiskManager:
     def _handle_account_update(self, event: Event):
         """处理账户更新事件"""
         try:
-            account_data = event.payload
+            # 从事件中提取账户数据
+            payload = event.payload
+            account_data = payload.get("data") if isinstance(payload, dict) else payload
             
-            self.account_balance = account_data.get("balance", 0.0)
-            self.available_funds = account_data.get("available", 0.0)
-            self.total_margin = account_data.get("margin", 0.0)
+            if account_data is None:
+                self.logger.warning("账户数据为空")
+                return
+            
+            # 支持两种格式：AccountData 对象或字典
+            if hasattr(account_data, 'balance'):
+                # AccountData 对象格式
+                self.account_balance = account_data.balance
+                self.available_funds = account_data.available if hasattr(account_data, 'available') else (account_data.balance - account_data.frozen)
+                self.total_margin = account_data.frozen if hasattr(account_data, 'frozen') else 0.0
+            else:
+                # 字典格式
+                self.account_balance = account_data.get("balance", 0.0)
+                self.available_funds = account_data.get("available", 0.0)
+                self.total_margin = account_data.get("margin", 0.0)
+            
+            self.logger.debug(f"账户更新: 余额={self.account_balance}, 可用={self.available_funds}, 保证金={self.total_margin}")
             
         except Exception as e:
             self.logger.error(f"处理账户更新异常: {e}", exc_info=True)

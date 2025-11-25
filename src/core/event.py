@@ -140,7 +140,7 @@ class Event(object):
         Returns:
             Event: 账户事件对象
         """
-        return cls.create(EventType.ACCOUNT, payload, source)
+        return cls.create(EventType.ACCOUNT_UPDATE, payload, source)
 
     @classmethod
     def contract(cls, payload: dict[str, Any] | None = None, source: str = "unknown") -> "Event":

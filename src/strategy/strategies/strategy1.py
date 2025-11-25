@@ -58,7 +58,7 @@ class Strategy1(BaseStrategy):
                 bar_intervals: list[Interval]
         ) -> None:
             super().__init__(base_strategy, instrument_id, bar_intervals)
-            self.logger = get_logger(self.__class__.__name__)
+            self.logger = get_logger(name=strategy_id)
             self.base_strategy: BaseStrategy = base_strategy
             self.strategy_id: str = strategy_id
             self.instrument_id: str = instrument_id
