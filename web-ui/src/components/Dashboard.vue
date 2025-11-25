@@ -477,9 +477,14 @@ watch(
 )
 
 // 监听持仓数据，更新持仓概览
+// 使用计算属性来确保数组长度变化被检测到
+const positionCount = computed(() => tradingAccountStore.positions.length)
+
 watch(
-  () => tradingAccountStore.positions,
-  (newPositions) => {
+  positionCount,
+  () => {
+    const newPositions = tradingAccountStore.positions
+    console.log('[Dashboard] 持仓数据更新，新持仓数量:', newPositions?.length || 0)
     if (newPositions && newPositions.length > 0) {
       // 去重：根据instrument_id和direction合并相同的持仓
       const positionMap = new Map()
@@ -491,6 +496,7 @@ watch(
       })
       
       const uniquePositions = Array.from(positionMap.values())
+      console.log('[Dashboard] 去重后持仓数量:', uniquePositions.length)
       
       // 计算总市值
       const totalValue = uniquePositions.reduce((sum, pos) => {
@@ -516,11 +522,13 @@ watch(
           pnl: pos.pnl
         }
       })
+      console.log('[Dashboard] 持仓概览已更新:', dashboardData.positions.map(p => p.name))
     } else {
+      console.log('[Dashboard] 持仓为空，清空持仓概览')
       dashboardData.positions = []
     }
   },
-  { deep: true, immediate: true }
+  { immediate: true }
 )
 
 // 图表周期选择状态

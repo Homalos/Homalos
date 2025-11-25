@@ -149,7 +149,7 @@
       <template #header>
         <span class="section-title">持仓</span>
       </template>
-      <el-table :data="positions" stripe border v-if="positions.length > 0">
+      <el-table :data="displayPositions" stripe border v-if="displayPositions.length > 0">
         <el-table-column prop="instrument" label="合约" width="100" />
         <el-table-column prop="direction" label="多空" width="80" align="center">
           <template #default="{ row }">
@@ -189,29 +189,31 @@
         </el-table-column>
         <el-table-column prop="stop_profit" label="止盈价" width="100" align="right" />
         <el-table-column prop="stop_loss" label="止损价" width="100" align="right" />
-        <el-table-column label="操作" width="220" fixed="right" align="center">
+        <el-table-column label="操作" width="280" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button 
-              type="danger" 
-              size="small"
-              @click="handleClosePosition(row)"
-            >
-              一键平仓
-            </el-button>
-            <el-button 
-              type="warning" 
-              size="small"
-              @click="handlePartialClose(row)"
-            >
-              部分平仓
-            </el-button>
-            <el-button 
-              type="primary" 
-              size="small"
-              @click="handleReversePosition(row)"
-            >
-              反手开仓
-            </el-button>
+            <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+              <el-button 
+                type="danger" 
+                size="small"
+                @click="handleClosePosition(row)"
+              >
+                一键平仓
+              </el-button>
+              <el-button 
+                type="warning" 
+                size="small"
+                @click="handlePartialClose(row)"
+              >
+                部分平仓
+              </el-button>
+              <el-button 
+                type="primary" 
+                size="small"
+                @click="handleReversePosition(row)"
+              >
+                反手开仓
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -316,12 +318,14 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStrategyStore } from '@/stores/strategy'
+import { useTradingAccountStore } from '@/stores/tradingAccount'
 import { getStrategyLogs } from '@/api/strategy'
 
 // ========== 初始化 ==========
 const route = useRoute()
 const router = useRouter()
 const strategyStore = useStrategyStore()
+const tradingAccountStore = useTradingAccountStore()
 
 // ========== 状态 ==========
 const strategyId = ref(null)
@@ -333,7 +337,40 @@ const availableTraceIds = ref([])
 const availableContexts = ref([])
 const selectedTraceId = ref(null)
 const selectedContext = ref(null)
-const positions = ref([])  // 持仓列表
+
+// 持仓数据 - 从策略自己维护的持仓列表获取（而不是账户全局持仓）
+const displayPositions = computed(() => {
+  if (!strategy.value || !strategy.value.positions) {
+    return []
+  }
+  
+  // 策略维护的持仓列表
+  const strategyPositions = strategy.value.positions || []
+  
+  return strategyPositions.map((pos, index) => {
+    const colors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399']
+    const direction = typeof pos.direction === 'string' ? pos.direction : 
+                     (pos.direction === 1 ? '多' : pos.direction === -1 ? '空' : '多')
+    
+    return {
+      instrument: pos.instrument_id,
+      direction: direction,
+      available: pos.volume || 0,
+      total: pos.volume || 0,
+      open_price: pos.avg_price || pos.price || 0,
+      last_price: pos.last_price || pos.price || 0,
+      pnl_per_lot: pos.pnl || 0,
+      profit_price: 0,
+      pnl_ratio: pos.pnl_ratio || 0,
+      margin: 0,
+      market_value: (pos.volume || 0) * (pos.last_price || pos.price || 0),
+      pnl_mark: pos.pnl || 0,
+      stop_profit: pos.stop_profit || 0,
+      stop_loss: pos.stop_loss || 0,
+      color: colors[index % colors.length]
+    }
+  })
+})
 
 // UUID格式正则表达式
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

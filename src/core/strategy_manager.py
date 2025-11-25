@@ -142,7 +142,13 @@ class StrategyManager(object):
         if self.event_bus:
             # 订阅策略信号结果事件
             self.event_bus.subscribe(EventType.STRATEGY_SIGNAL_RESULT, self._handle_signal_result)
-            self.logger.info("已订阅策略信号结果事件")
+            self.logger.info("✓ 已订阅策略信号结果事件")
+            
+            # 订阅成交执行事件，转发给策略进程
+            self.event_bus.subscribe(EventType.TRADE_EXECUTION, self._handle_trade_execution)
+            self.logger.info("✓ 已订阅成交执行事件 (TRADE_EXECUTION)")
+        else:
+            self.logger.warning("⚠️ 事件总线未初始化，无法订阅事件")
         
         # 加载所有已启用策略的持久化状态
         # 使用临时字典存储，避免影响load_strategy的判断
@@ -799,6 +805,67 @@ class StrategyManager(object):
         
         except Exception as e:
             self.logger.error(f"处理信号结果事件异常: {e}", exc_info=True)
+    
+    def _handle_trade_execution(self, event):
+        """处理成交执行事件，转发给所有运行中的策略进程"""
+        try:
+            payload = event.payload
+            trade_data_dict = payload.get("data", {})
+            trade_data = trade_data_dict.get("trade_data")  # 提取 TradeData 对象
+            instrument_id = trade_data_dict.get("instrument_id")
+            
+            if not instrument_id:
+                self.logger.warning("成交事件缺少合约ID，无法转发")
+                return
+            
+            if not trade_data:
+                self.logger.warning(f"成交事件缺少trade_data对象: {trade_data_dict}")
+                return
+            
+            self.logger.info(f"[成交事件转发] 收到成交: {instrument_id}, TradeID: {getattr(trade_data, 'trade_id', 'N/A')}, "
+                           f"方向: {getattr(trade_data, 'direction', 'N/A')}, 价格: {getattr(trade_data, 'price', 'N/A')}")
+            
+            # 转发成交事件给所有运行中的策略进程
+            forwarded_count = 0
+            with self._lock:
+                for sid, meta in self._meta.items():
+                    proc = meta.get("proc")
+                    conn = meta.get("conn")
+                    
+                    # 检查策略进程是否运行
+                    if not proc or not proc.is_alive():
+                        continue
+                    
+                    # 检查该策略是否订阅了该合约
+                    subscription_info = self._strategy_subscriptions.get(sid, {})
+                    subscribed_instruments = subscription_info.get("instruments", [])
+                    
+                    if instrument_id not in subscribed_instruments:
+                        continue
+                    
+                    # 转发成交事件给策略进程
+                    try:
+                        trade_event_msg = {
+                            "type": "event",
+                            "event": {
+                                "type": "trade",
+                                "data": trade_data  # TradeData 对象
+                            }
+                        }
+                        conn.send(trade_event_msg)
+                        forwarded_count += 1
+                        self.logger.info(f"✓ 已转发成交事件给策略 {sid}: {instrument_id}")
+                    except (BrokenPipeError, EOFError):
+                        # 管道已关闭，策略进程已退出
+                        self.logger.debug(f"无法转发成交事件给策略 {sid}，进程已退出")
+                    except Exception as e:
+                        self.logger.warning(f"转发成交事件给策略 {sid} 失败: {e}")
+            
+            if forwarded_count == 0:
+                self.logger.warning(f"成交事件 {instrument_id} 没有被转发给任何策略 (运行中的策略数: {len(self._meta)})")
+        
+        except Exception as e:
+            self.logger.error(f"处理成交执行事件异常: {e}", exc_info=True)
     
     def get_strategy_subscriptions(self) -> dict[str, dict[str, Any]]:
         """获取所有策略的订阅信息"""

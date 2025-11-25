@@ -1075,7 +1075,9 @@ class CtpTdApi(TdApi):
                 }
             )
             self.gateway.event_bus.publish(trade_execution_event)
-            self.logger.debug(f"已发布成交回报事件: TradeID={trade.trade_id}, OrderID={order_id}")
+            self.logger.info(f"✓ 已发布成交回报事件到事件总线: TradeID={trade.trade_id}, OrderID={order_id}, Instrument={instrument_id}")
+        else:
+            self.logger.warning("⚠️ 事件总线未初始化，无法发布成交事件")
 
         self.logger.info(f"TradeID: {trade.trade_id}, "
                          f"OrderSysID: {trade.order_id}, "
