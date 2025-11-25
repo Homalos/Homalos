@@ -325,9 +325,11 @@ class RiskManager:
                 if deviation > max_price_deviation:
                     return RiskCheckResult(False, f"价格偏离过大: {deviation:.4f} > {max_price_deviation}")
         
-        # 检查价格精度（简化）
+        # 检查价格精度（使用浮点数容差避免精度问题）
         min_tick: float = float(cast(float, self.config.get("min_tick_size", 0.01)))
-        if order_request.price % min_tick != 0:
+        # 使用容差检查，避免浮点数精度问题
+        remainder = order_request.price % min_tick
+        if abs(remainder) > 1e-9 and abs(remainder - min_tick) > 1e-9:
             return RiskCheckResult(False, f"价格精度错误: 价格必须是{min_tick}的整数倍")
         
         return RiskCheckResult(True)
@@ -381,6 +383,7 @@ class RiskManager:
                 approved_event = Event(
                     EventType.TRADE_ORDER_APPROVED,
                     payload={
+                        "signal_id": event.payload.get("signal_id"),  # 添加 signal_id
                         "order_request": order_request,
                         "strategy_id": strategy_id,
                         "risk_check_result": risk_result
@@ -398,6 +401,7 @@ class RiskManager:
                 rejected_event = Event(
                     EventType.TRADE_ORDER_REJECTED,
                     payload={
+                        "signal_id": event.payload.get("signal_id"),  # 添加 signal_id
                         "order_request": order_request,
                         "strategy_id": strategy_id,
                         "risk_check_result": risk_result

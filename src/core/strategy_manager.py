@@ -536,6 +536,26 @@ class StrategyManager(object):
                 self.logger.info(f"[{sid}] {msg.get('payload')}")
             elif mtype == "error":
                 self.logger.error(f"[{sid}] ERROR {msg.get('payload')}\n{msg.get('trace')}")
+            elif mtype == "trade_signal":
+                # 处理交易信号（新增）
+                signal_data = msg.get("payload", {})
+                self.logger.info(f"[{sid}] 收到交易信号: {signal_data.get('instrument_id')} "
+                               f"{signal_data.get('direction')} {signal_data.get('offset')} "
+                               f"{signal_data.get('volume')}@{signal_data.get('price')}")
+                try:
+                    # 发布交易信号事件到事件总线
+                    if self.event_bus:
+                        event = Event(
+                            EventType.STRATEGY_TRADE_SIGNAL,
+                            payload={
+                                "strategy_id": signal_data.get("strategy_id"),
+                                "signal_data": signal_data
+                            }
+                        )
+                        self.event_bus.publish(event)
+                        self.logger.debug(f"[{sid}] 交易信号已发布到事件总线")
+                except Exception as e:
+                    self.logger.exception(f"处理交易信号失败: {e}")
             elif mtype == "subscription":
                 # 处理策略订阅信息（新增）
                 subscription_info = msg.get("payload", {})

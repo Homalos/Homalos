@@ -7,11 +7,11 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 策略1demo
+@Description: 策略1demo - 演示交易链路的完整流程
 """
 import datetime
 
-from src.core.constants import Interval
+from src.core.constants import Interval, Direction, Offset
 from src.core.object import OrderData, TradeData, BarData, TickData
 from src.strategy.base_strategy import BaseStrategy, SpecificStrategy
 from src.utils.strategy_logger import get_strategy_logger as get_logger
@@ -22,7 +22,7 @@ class Strategy1(BaseStrategy):
 
     def __init__(self):
         super().__init__()
-        self.logger = get_logger(self.__class__.__name__)
+        self.logger = get_logger(name=self.__class__.__name__)
         self.strategy_name: str = "策略1"
         self.strategy_content: str = "用来测试从行情->交易信号->下单全流程"
         self.author: str = "Lumosylva"
@@ -124,6 +124,32 @@ class Strategy1(BaseStrategy):
                           bar.last_volume
                         ]
                       )
+            
+            # ========== 交易信号生成逻辑 ==========
+            # 演示：简单的交易策略 - 当收盘价高于开盘价时做多，低于开盘价时做空
+            try:
+                if bar.close_price > bar.open_price:
+                    # 做多信号：收盘价 > 开盘价
+                    self.logger.info(f"[{self.instrument_id}] 生成做多信号: close({bar.close_price}) > open({bar.open_price})")
+                    self.send_order(
+                        direction=Direction.LONG,
+                        offset=Offset.OPEN,
+                        volume=1,
+                        price=bar.close_price,
+                        exchange_id=bar.exchange_id
+                    )
+                elif bar.close_price < bar.open_price:
+                    # 做空信号：收盘价 < 开盘价
+                    self.logger.info(f"[{self.instrument_id}] 生成做空信号: close({bar.close_price}) < open({bar.open_price})")
+                    self.send_order(
+                        direction=Direction.SHORT,
+                        offset=Offset.OPEN,
+                        volume=1,
+                        price=bar.close_price,
+                        exchange_id=bar.exchange_id
+                    )
+            except Exception as e:
+                self.logger.error(f"[{self.instrument_id}] 生成交易信号异常: {e}", exc_info=True)
 
 
         def on_trade(self, trade: TradeData) -> None:

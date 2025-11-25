@@ -243,6 +243,93 @@
         :closable="false"
       />
     </el-card>
+
+    <!-- 策略日志 -->
+    <el-card shadow="hover" class="detail-section" style="margin-top: 20px;">
+      <template #header>
+        <div class="log-header">
+          <span class="section-title">策略日志</span>
+          <div class="log-controls">
+            <!-- Trace ID 过滤 -->
+            <el-select 
+              v-if="availableTraceIds.length > 0"
+              v-model="selectedTraceId"
+              placeholder="按 Trace ID 过滤"
+              size="small"
+              clearable
+              style="width: 200px; margin-right: 8px;"
+              @change="loadLogs"
+            >
+              <el-option 
+                v-for="id in availableTraceIds" 
+                :key="id"
+                :label="id.substring(0, 8) + '...'"
+                :value="id"
+              />
+            </el-select>
+            
+            <!-- Context 过滤 -->
+            <el-select 
+              v-if="availableContexts.length > 0"
+              v-model="selectedContext"
+              placeholder="按 Context 过滤"
+              size="small"
+              clearable
+              style="width: 150px; margin-right: 8px;"
+              @change="loadLogs"
+            >
+              <el-option 
+                v-for="ctx in availableContexts" 
+                :key="ctx"
+                :label="ctx"
+                :value="ctx"
+              />
+            </el-select>
+            
+            <!-- 刷新按钮 -->
+            <el-button 
+              type="primary" 
+              size="small"
+              @click="loadLogs"
+              :loading="logsLoading"
+            >
+              <el-icon><Refresh /></el-icon>
+              刷新日志
+            </el-button>
+          </div>
+        </div>
+      </template>
+      
+      <div v-if="strategyLogs.length > 0" class="logs-container">
+        <div class="logs-info">
+          <span>共 {{ strategyLogs.length }} 条日志</span>
+          <el-button 
+            type="text" 
+            size="small"
+            @click="clearLogs"
+          >
+            清空
+          </el-button>
+        </div>
+        <div class="logs-list">
+          <div 
+            v-for="(log, index) in strategyLogs" 
+            :key="index"
+            class="log-item"
+            :class="getLogClass(log)"
+          >
+            <div class="log-header-info" v-if="log.timestamp || log.level || log.trace_id">
+              <span v-if="log.timestamp" class="log-timestamp">{{ log.timestamp }}</span>
+              <span v-if="log.level" class="log-level" :class="`level-${log.level.toLowerCase()}`">{{ log.level }}</span>
+              <span v-if="log.trace_id" class="log-trace-id" :title="log.trace_id">{{ log.trace_id.substring(0, 8) }}</span>
+              <span v-if="log.context" class="log-context">[{{ log.context }}]</span>
+            </div>
+            <div class="log-content">{{ log.content || log.message }}</div>
+          </div>
+        </div>
+      </div>
+      <el-empty v-else description="暂无日志" />
+    </el-card>
   </div>
 </template>
 
@@ -255,6 +342,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStrategyStore } from '@/stores/strategy'
+import { getStrategyLogs } from '@/api/strategy'
 
 // ========== 初始化 ==========
 const route = useRoute()
@@ -265,6 +353,12 @@ const strategyStore = useStrategyStore()
 const strategyId = ref(null)
 const strategyUuid = ref(null)
 const strategy = ref(null)
+const strategyLogs = ref([])
+const logsLoading = ref(false)
+const availableTraceIds = ref([])
+const availableContexts = ref([])
+const selectedTraceId = ref(null)
+const selectedContext = ref(null)
 
 // UUID格式正则表达式
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -361,6 +455,57 @@ function getRunningDuration(startTime) {
   const seconds = Math.floor((duration % (1000 * 60)) / 1000)
   
   return `${hours}时${minutes}分${seconds}秒`
+}
+
+// ========== 日志相关方法 ==========
+function getLogClass(log) {
+  if (!log || !log.level) return 'log-default'
+  
+  // 根据日志级别判断样式
+  const level = log.level.toUpperCase()
+  if (level === 'ERROR') {
+    return 'log-error'
+  } else if (level === 'WARNING') {
+    return 'log-warning'
+  } else if (level === 'INFO') {
+    return 'log-info'
+  } else if (level === 'DEBUG') {
+    return 'log-debug'
+  }
+  return 'log-default'
+}
+
+async function loadLogs() {
+  if (!strategyId.value) return
+  
+  logsLoading.value = true
+  try {
+    const response = await getStrategyLogs(
+      strategyId.value, 
+      100, 
+      selectedTraceId.value, 
+      selectedContext.value
+    )
+    if (response.code === 200 && response.data) {
+      strategyLogs.value = response.data.logs || []
+      availableTraceIds.value = response.data.available_trace_ids || []
+      availableContexts.value = response.data.available_contexts || []
+    } else {
+      ElMessage.warning('获取日志失败')
+    }
+  } catch (error) {
+    console.error('获取日志失败:', error)
+    ElMessage.error('获取日志失败')
+  } finally {
+    logsLoading.value = false
+  }
+}
+
+function clearLogs() {
+  strategyLogs.value = []
+  selectedTraceId.value = null
+  selectedContext.value = null
+  ElMessage.success('日志已清空')
 }
 
 // ========== 事件处理 ==========
@@ -501,10 +646,15 @@ onMounted(async () => {
   }
   
   loadStrategyData()
+  
+  // 自动加载日志
+  if (strategyId.value) {
+    await loadLogs()
+  }
 })
 
 // 监听路由参数变化
-watch(() => route.params.id, (newId) => {
+watch(() => route.params.id, async (newId) => {
   const idInfo = identifyIdType(newId)
   
   if (idInfo.type === 'uuid') {
@@ -516,6 +666,11 @@ watch(() => route.params.id, (newId) => {
   }
   
   loadStrategyData()
+  
+  // 加载日志
+  if (strategyId.value) {
+    await loadLogs()
+  }
 })
 </script>
 
@@ -729,5 +884,176 @@ code {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 12px;
   color: #e6a23c;
+}
+
+/* 日志相关样式 */
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.log-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.logs-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.logs-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #ebeef5;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.logs-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 400px;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  background: #fafafa;
+}
+
+.log-item {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.log-item:last-child {
+  border-bottom: none;
+}
+
+.log-header-info {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.log-timestamp {
+  color: #909399;
+  font-weight: 500;
+}
+
+.log-level {
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.log-level.level-error {
+  background: #f56c6c;
+  color: white;
+}
+
+.log-level.level-warning {
+  background: #e6a23c;
+  color: white;
+}
+
+.log-level.level-info {
+  background: #409eff;
+  color: white;
+}
+
+.log-level.level-debug {
+  background: #909399;
+  color: white;
+}
+
+.log-trace-id {
+  background: #f5f7fa;
+  padding: 1px 4px;
+  border-radius: 2px;
+  color: #606266;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  cursor: pointer;
+}
+
+.log-trace-id:hover {
+  background: #e6f7ff;
+  color: #409eff;
+}
+
+.log-context {
+  color: #67c23a;
+  font-weight: 600;
+}
+
+.log-content {
+  display: block;
+  color: #303133;
+}
+
+/* 日志级别颜色 */
+.log-error {
+  background: #fef0f0;
+  color: #f56c6c;
+  border-left: 3px solid #f56c6c;
+  padding-left: 9px;
+}
+
+.log-warning {
+  background: #fdf6ec;
+  color: #e6a23c;
+  border-left: 3px solid #e6a23c;
+  padding-left: 9px;
+}
+
+.log-info {
+  background: #f0f9ff;
+  color: #409eff;
+  border-left: 3px solid #409eff;
+  padding-left: 9px;
+}
+
+.log-debug {
+  background: #f5f7fa;
+  color: #909399;
+  border-left: 3px solid #909399;
+  padding-left: 9px;
+}
+
+.log-default {
+  background: #ffffff;
+  color: #606266;
+}
+
+/* 日志列表滚动条美化 */
+.logs-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.logs-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.logs-list::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 3px;
+}
+
+.logs-list::-webkit-scrollbar-thumb:hover {
+  background: #a8abb2;
 }
 </style>

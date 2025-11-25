@@ -712,6 +712,167 @@ class StrategyService:
         """获取状态存储信息统计"""
         manager = self.get_manager()
         return manager.state_persistence.get_storage_info()
+    
+    def get_strategy_logs(self, sid: str, limit: int = 100, trace_id: str = None, context: str = None) -> dict:
+        """
+        获取策略的日志，支持按 trace_id 和 context 过滤
+        
+        注意：只返回当前策略相关的日志，不返回其他模块的日志
+        
+        Args:
+            sid: 策略ID
+            limit: 返回的最大日志条数（仅在没有 trace_id 过滤时使用）
+            trace_id: 可选，按 trace_id 过滤日志（精确追踪）
+            context: 可选，按 context 标签过滤日志（通常为策略相关的 context）
+            
+        Returns:
+            dict: 包含日志列表和统计信息
+        """
+        try:
+            from datetime import datetime
+            from pathlib import Path
+            
+            manager = self.get_manager()
+            
+            # 从策略管理器获取策略的日志缓冲区
+            # 如果策略正在运行，获取其进程的日志
+            if sid in manager.registry.strategies:
+                strategy_config = manager.registry.strategies[sid]
+                
+                # 构建日志文件路径：logs/strategy_YYYYMMDD.log
+                logs_dir = get_path_ins.get_logs_dir()
+                log_file_path = logs_dir / f"strategy_{datetime.now().strftime('%Y%m%d')}.log"
+                
+                logs = []
+                trace_ids = set()  # 收集所有 trace_id
+                contexts = set()   # 收集所有 context
+                
+                try:
+                    if log_file_path.exists():
+                        with open(log_file_path, 'r', encoding='utf-8') as f:
+                            # 读取所有行用于过滤
+                            all_lines = f.readlines()
+                            
+                            for line in all_lines:
+                                line = line.strip()
+                                if not line:
+                                    continue
+                                
+                                # 解析日志行，提取 trace_id 和 context
+                                parsed = self._parse_log_line(line)
+                                
+                                # 只收集有 trace_id 或 context 的日志（即策略相关的日志）
+                                # 这样可以过滤掉其他模块的日志
+                                if not (parsed.get('trace_id') or parsed.get('context')):
+                                    continue
+                                
+                                # 收集所有 trace_id 和 context
+                                if parsed.get('trace_id'):
+                                    trace_ids.add(parsed['trace_id'])
+                                if parsed.get('context'):
+                                    contexts.add(parsed['context'])
+                                
+                                # 应用过滤条件
+                                if trace_id and parsed.get('trace_id') != trace_id:
+                                    continue
+                                if context and parsed.get('context') != context:
+                                    continue
+                                
+                                logs.append(parsed)
+                            
+                            # 如果指定了 trace_id，返回所有匹配的日志（完整链路）
+                            # 否则只保留最后 limit 条
+                            if not trace_id:
+                                logs = logs[-limit:] if len(logs) > limit else logs
+                    else:
+                        self.logger.debug(f"日志文件不存在: {log_file_path}")
+                        logs = []
+                    
+                except Exception as e:
+                    self.logger.warning(f"读取日志文件失败 {log_file_path}: {str(e)}")
+                    logs = []
+                
+                return {
+                    "logs": logs,
+                    "count": len(logs),
+                    "available_trace_ids": sorted(list(trace_ids)),
+                    "available_contexts": sorted(list(contexts)),
+                    "filter": {
+                        "trace_id": trace_id,
+                        "context": context
+                    }
+                }
+            else:
+                self.logger.warning(f"策略 {sid} 不存在")
+                return {"logs": [], "count": 0, "available_trace_ids": [], "available_contexts": [], "filter": {}}
+                
+        except Exception as e:
+            self.logger.error(f"获取策略日志失败: {str(e)}", exc_info=True)
+            return {"logs": [], "count": 0, "available_trace_ids": [], "available_contexts": [], "filter": {}}
+    
+    def _parse_log_line(self, line: str) -> dict:
+        """
+        解析日志行，提取时间戳、级别、trace_id、context 等信息
+        日志格式: 2025-11-25 10:54:06.843 | INFO | [context] trace_id - module:line - 消息
+        
+        Args:
+            line: 日志行
+            
+        Returns:
+            dict: 解析后的日志信息
+        """
+        result = {
+            "message": line,
+            "timestamp": None,
+            "level": None,
+            "context": None,
+            "trace_id": None,
+            "module": None,
+            "content": None
+        }
+        
+        try:
+            # 尝试解析日志格式
+            parts = line.split(' | ')
+            
+            if len(parts) >= 3:
+                # 提取时间戳
+                result["timestamp"] = parts[0].strip()
+                
+                # 提取日志级别
+                result["level"] = parts[1].strip()
+                
+                # 提取 context 和 trace_id
+                rest = ' | '.join(parts[2:])
+                
+                # 从 [context] 中提取 context
+                import re
+                context_match = re.search(r'\[([^\]]+)\]', rest)
+                if context_match:
+                    result["context"] = context_match.group(1)
+                
+                # 从日志中提取 trace_id（通常在 context 后面）
+                # 格式: [context] trace_id - module:line - message
+                trace_match = re.search(r'\[([^\]]+)\]\s+([a-f0-9\-]+)\s+', rest)
+                if trace_match:
+                    result["trace_id"] = trace_match.group(2)
+                
+                # 提取模块信息
+                module_match = re.search(r'-\s+([^:]+):(\d+)\s+-', rest)
+                if module_match:
+                    result["module"] = f"{module_match.group(1)}:{module_match.group(2)}"
+                
+                # 提取消息内容
+                content_match = re.search(r'-\s+(.+)$', rest)
+                if content_match:
+                    result["content"] = content_match.group(1)
+                else:
+                    result["content"] = rest
+                    
+        except Exception as e:
+            self.logger.debug(f"解析日志行失败: {str(e)}")
+        
+        return result
 
 
 # 全局单例

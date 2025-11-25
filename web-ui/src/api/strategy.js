@@ -292,3 +292,23 @@ export function createStrategyWebSocket(onMessage, onError = null, onClose = nul
   }
 }
 
+/**
+ * 获取策略日志
+ * @param {string} sid - 策略ID
+ * @param {number} limit - 返回的最大日志条数，默认100（仅在没有 trace_id 过滤时使用）
+ * @param {string} traceId - 可选，按 trace_id 过滤日志（精确追踪）
+ * @param {string} context - 可选，按 context 标签过滤日志
+ * @returns {Promise} 日志列表和追踪信息
+ */
+export function getStrategyLogs(sid, limit = 100, traceId = null, context = null) {
+  const params = { limit }
+  if (traceId) params.trace_id = traceId
+  if (context) params.context = context
+  
+  return request({
+    url: `/api/strategies/${sid}/logs`,
+    method: 'get',
+    params
+  })
+}
+

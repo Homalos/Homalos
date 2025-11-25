@@ -24,7 +24,7 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Optional, Any
 
-from src.core.constants import Interval
+from src.core.constants import Interval, Direction, Offset, Exchange
 from src.core.object import TickData, BarData, OrderData, TradeData
 from src.strategy.decorators import check_on_bar, check_on_tick
 
@@ -159,6 +159,8 @@ class SpecificStrategy(ABC):
         self.bar_intervals: list[Interval] = bar_intervals or {}
         self.kline_lock = None
         self.bar_data: Optional[BarData] = None
+        self._conn = None  # 与主进程的通信连接（由策略工作进程设置）
+        self._strategy_id = None  # 策略ID（由策略工作进程设置）
 
     # ---- 生命周期回调 ----
     @abstractmethod
@@ -199,6 +201,57 @@ class SpecificStrategy(ABC):
     def on_alarm(self) -> None:
         """到达设置闹钟时间时执行"""
         pass
+    
+    # ========== 交易下单方法 ==========
+    
+    def send_order(
+            self,
+            direction: Direction,
+            offset: Offset,
+            volume: int,
+            price: float,
+            exchange_id: Exchange = Exchange.UNKNOWN
+    ) -> bool:
+        """
+        发送交易信号到主进程
+        
+        Args:
+            direction: 交易方向 (LONG/SHORT)
+            offset: 开平方向 (OPEN/CLOSE/CLOSE_TODAY/CLOSE_YESTERDAY)
+            volume: 交易数量
+            price: 交易价格
+            exchange_id: 交易所ID
+            
+        Returns:
+            bool: 是否成功发送信号
+        """
+        if not self._conn:
+            print(f"[{self.instrument_id}] 错误: Connection 未初始化，无法发送交易信号")
+            return False
+        
+        try:
+            # 构建交易信号消息
+            signal_msg = {
+                "type": "trade_signal",
+                "payload": {
+                    "strategy_id": self._strategy_id,
+                    "instrument_id": self.instrument_id,
+                    "direction": direction.value,
+                    "offset": offset.value,
+                    "volume": volume,
+                    "price": price,
+                    "exchange_id": exchange_id.value
+                }
+            }
+            
+            # 通过 Connection 发送信号到主进程
+            self._conn.send(signal_msg)
+            print(f"[{self.instrument_id}] 已发送交易信号: {direction.value} {offset.value} {volume}@{price}")
+            return True
+            
+        except Exception as e:
+            print(f"[{self.instrument_id}] 发送交易信号失败: {e}")
+            return False
     
     # ========== 状态持久化方法（可选实现） ==========
     

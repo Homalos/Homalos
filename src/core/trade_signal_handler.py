@@ -11,6 +11,7 @@
 """
 import asyncio
 import uuid
+import threading
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -137,6 +138,29 @@ class TradeSignalHandler:
         self._signal_callbacks[callback_type].append(callback)
         self.logger.debug(f"已注册 {callback_type} 回调函数")
     
+    def _create_async_task(self, coro):
+        """
+        安全地创建异步任务，处理没有事件循环的情况
+        
+        Args:
+            coro: 协程对象
+        """
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(coro)
+        except RuntimeError:
+            # 没有运行中的事件循环，使用线程池处理
+            def run_async_in_thread():
+                try:
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    new_loop.run_until_complete(coro)
+                finally:
+                    new_loop.close()
+            
+            thread = threading.Thread(target=run_async_in_thread, daemon=True)
+            thread.start()
+    
     def process_trade_signal(self, signal: TradeSignal) -> str:
         """
         处理交易信号（同步接口）
@@ -168,8 +192,8 @@ class TradeSignalHandler:
         # 触发回调
         self._trigger_callbacks("signal_received", signal)
         
-        # 异步处理信号
-        asyncio.create_task(self._process_signal_async(signal_id))
+        # 异步处理信号（使用线程池避免事件循环问题）
+        self._create_async_task(self._process_signal_async(signal_id))
         
         return signal_id
     
@@ -372,8 +396,8 @@ class TradeSignalHandler:
             # 触发回调
             self._trigger_callbacks("signal_rejected", record.signal)
             
-            # 通知策略
-            asyncio.create_task(
+            # 通知策略（安全地创建异步任务）
+            self._create_async_task(
                 self._notify_strategy_signal_result(signal_id, "rejected", record.error_message)
             )
             
@@ -438,7 +462,7 @@ class TradeSignalHandler:
                     self._trigger_callbacks("signal_filled", record.signal)
                     
                     # 通知策略
-                    asyncio.create_task(
+                    self._create_async_task(
                         self._notify_strategy_signal_result(signal_id, "filled", "订单全部成交")
                     )
                     
@@ -448,7 +472,7 @@ class TradeSignalHandler:
                     self.signal_statistics["cancelled_signals"] += 1
                     
                     # 通知策略
-                    asyncio.create_task(
+                    self._create_async_task(
                         self._notify_strategy_signal_result(signal_id, "cancelled", "订单已撤销")
                     )
             

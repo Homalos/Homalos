@@ -21,7 +21,7 @@ class Strategy4(BaseStrategy):
 
     def __init__(self):
         super().__init__()
-        self.logger = get_logger(self.__class__.__name__)
+        self.logger = get_logger(name=self.__class__.__name__)
         self.strategy_name: str = "策略4"
         self.strategy_content: str = "性能测试策略4 - 用于多策略并发测试"
         self.author: str = "Performance Test"

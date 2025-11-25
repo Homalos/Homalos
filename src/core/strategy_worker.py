@@ -111,6 +111,10 @@ def _run_strategy_process_impl(strategy_id: str, module_path: str, class_name: s
     conn.send({"type": "log", "sid": strategy_id, "payload": "Initializing specific strategies..."})
     for inst_id, spec_strategy in specific_strategy_map.items():
         try:
+            # 为每个 SpecificStrategy 设置 Connection 和 strategy_id（用于发送交易信号）
+            spec_strategy._conn = conn
+            spec_strategy._strategy_id = strategy_id
+            
             if hasattr(spec_strategy, 'on_init'):
                 spec_strategy.on_init()
                 conn.send({"type": "log", "sid": strategy_id, "payload": f"on_init() called for {inst_id}"})

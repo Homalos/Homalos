@@ -126,6 +126,7 @@ class Exchange(Enum):
     # SSE = "SSE"             # 上海证券交易所 Shanghai Stock Exchange
     # SZSE = "SZSE"           # 深圳证券交易所 Shenzhen Stock Exchange
     # BSE = "BSE"             # 北京证券交易所 Beijing Stock Exchange
+    UNKNOWN = "UNKNOWN"     # 未知交易所
 
 
 class Currency(Enum):

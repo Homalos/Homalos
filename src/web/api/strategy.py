@@ -578,3 +578,43 @@ async def websocket_endpoint(
         except Exception:
             pass
 
+
+# ========== 策略日志相关端点 ==========
+
+@router.get("/{sid}/logs", summary="获取策略日志")
+async def get_strategy_logs(
+    sid: str,
+    limit: int = Query(100, ge=1, le=1000, description="返回最近N条日志"),
+    trace_id: Optional[str] = Query(None, description="可选：按 trace_id 过滤日志"),
+    context: Optional[str] = Query(None, description="可选：按 context 标签过滤日志")
+):
+    """
+    获取指定策略的最近日志，支持按 trace_id 和 context 过滤
+    
+    Args:
+        sid: 策略ID
+        limit: 返回的最大日志条数
+        trace_id: 可选，按 trace_id 过滤日志
+        context: 可选，按 context 标签过滤日志
+        
+    Returns:
+        包含日志列表和追踪信息的响应
+    """
+    try:
+        result = strategy_service.get_strategy_logs(sid, limit, trace_id, context)
+        return {
+            "code": 200,
+            "message": "获取日志成功",
+            "data": {
+                "sid": sid,
+                "logs": result.get("logs", []),
+                "count": result.get("count", 0),
+                "available_trace_ids": result.get("available_trace_ids", []),
+                "available_contexts": result.get("available_contexts", []),
+                "filter": result.get("filter", {})
+            }
+        }
+    except Exception as e:
+        logger.error(f"获取策略日志失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"获取日志失败: {str(e)}")
+
