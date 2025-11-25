@@ -58,12 +58,11 @@ class Strategy1(BaseStrategy):
                 bar_intervals: list[Interval]
         ) -> None:
             super().__init__(base_strategy, instrument_id, bar_intervals)
-            self.logger = get_logger(name=strategy_id)
+            self.logger = get_logger(name=base_strategy.strategy_name)
             self.base_strategy: BaseStrategy = base_strategy
             self.strategy_id: str = strategy_id
             self.instrument_id: str = instrument_id
             self.bar_intervals: list[Interval] = bar_intervals
-            self.counter: int = 0
             # 创建csv文件
             for bar_interval in bar_intervals:
                 write_csv(
@@ -94,10 +93,15 @@ class Strategy1(BaseStrategy):
             pass
 
         def on_tick(self, tick: TickData) -> None:
-            self.counter += 1
             # 降低日志频率，避免I/O阻塞FastAPI事件循环
-            if self.counter % 80 == 0:
-                self.logger.info(f"{self.strategy_id} 收到tick: {tick.instrument_id} @ {tick.last_price}, 累计: {self.counter}")
+            self.logger.info(f"收到tick: "
+                             f"{self.base_strategy.strategy_name} "
+                             f"{tick.trading_day} "
+                             f"{tick.exchange_id} "
+                             f"{tick.instrument_id} "
+                             f"{tick.last_price} "
+                             f"{tick.update_time} "
+                             f"{tick.update_millisec}")
 
         def on_bar(self, bar: BarData) -> None:
             self.logger.info(f"{self.base_strategy.strategy_name} 收到bar: "
@@ -108,22 +112,22 @@ class Strategy1(BaseStrategy):
                              f"close={bar.close_price} "
                              f"vol={bar.volume}")
 
-            write_csv(f"{self.instrument_id}_{bar.bar_type.value}.csv",
-                      "a+",
-                      [
-                          bar.bar_type.value,
-                          bar.update_time,
-                          bar.instrument_id,
-                          bar.exchange_id.value,
-                          bar.volume,
-                          bar.open_interest,
-                          bar.open_price,
-                          bar.high_price,
-                          bar.low_price,
-                          bar.close_price,
-                          bar.last_volume
-                        ]
-                      )
+            # write_csv(f"{self.instrument_id}_{bar.bar_type.value}.csv",
+            #           "a+",
+            #           [
+            #               bar.bar_type.value,
+            #               bar.update_time,
+            #               bar.instrument_id,
+            #               bar.exchange_id.value,
+            #               bar.volume,
+            #               bar.open_interest,
+            #               bar.open_price,
+            #               bar.high_price,
+            #               bar.low_price,
+            #               bar.close_price,
+            #               bar.last_volume
+            #             ]
+            #           )
             
             # ========== 交易信号生成逻辑 ==========
             # 演示：简单的交易策略 - 当收盘价高于开盘价时做多，低于开盘价时做空

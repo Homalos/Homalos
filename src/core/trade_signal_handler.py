@@ -269,13 +269,16 @@ class TradeSignalHandler:
     def _create_order_request(self, signal: TradeSignal) -> Optional[OrderRequest]:
         """根据交易信号创建订单请求"""
         try:
+            from src.core.constants import OrderType
+            
             order_request = OrderRequest(
                 instrument_id=signal.instrument_id,
                 exchange_id=signal.exchange_id,
                 direction=signal.direction,
                 offset=signal.offset,
                 volume=signal.volume,
-                price=signal.price
+                price=signal.price,
+                order_type=OrderType.LIMIT  # 默认使用限价单
             )
             return order_request
         except Exception as e:
@@ -343,10 +346,19 @@ class TradeSignalHandler:
                 self.logger.warning("订单审批事件缺少signal_id")
                 return
             
+            if not order_request:
+                self.logger.warning(f"订单审批事件缺少order_request: {signal_id}")
+                return
+            
             with self._lock:
                 record = self.execution_records.get(signal_id)
                 if not record:
                     self.logger.warning(f"找不到信号记录: {signal_id}")
+                    return
+                
+                # ✅ 防止重复提交：检查是否已经处于已批准或已提交状态
+                if record.execution_status in ["approved", "submitted"]:
+                    self.logger.warning(f"信号已被处理，跳过重复提交: {signal_id}, 当前状态: {record.execution_status}")
                     return
                 
                 record.execution_status = "approved"
@@ -407,6 +419,15 @@ class TradeSignalHandler:
     def _submit_order_to_gateway(self, signal_id: str, order_request: OrderRequest):
         """提交订单到交易网关"""
         try:
+            # ✅ 数据验证
+            if not signal_id:
+                self.logger.error("提交订单时缺少signal_id")
+                return
+            
+            if not order_request:
+                self.logger.error(f"提交订单时缺少order_request: {signal_id}")
+                return
+            
             # 发送订单提交事件
             submit_event = Event(
                 EventType.ORDER_SUBMIT_REQUEST,
@@ -422,6 +443,8 @@ class TradeSignalHandler:
                 if record:
                     record.execution_status = "submitted"
                     record.submission_time = datetime.now()
+                else:
+                    self.logger.warning(f"提交订单时找不到信号记录: {signal_id}")
             
             self.logger.info(f"订单已提交到交易网关: {signal_id}")
             

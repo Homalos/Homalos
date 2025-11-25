@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field, validator
 class BrokerageAccountBase(BaseModel):
     """券商账户基础模式"""
     account_name: str = Field(..., min_length=1, max_length=100, description="账户别名")
-    broker_code: str = Field(..., min_length=1, max_length=50, description="券商代码")
+    broker_code: str = Field(..., min_length=1, max_length=50, description="服务器节点配置：simnow/simnow7x24/tts/tts7x24 等")
     broker_name: str = Field(..., min_length=1, max_length=100, description="券商名称")
     account_id: str = Field(..., min_length=1, max_length=50, description="资金账户")
     investor_id: str = Field(..., min_length=1, max_length=50, description="投资者代码")

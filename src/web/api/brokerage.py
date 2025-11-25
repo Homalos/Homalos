@@ -459,19 +459,57 @@ async def login_brokerage_account(
         if login_data.password:
             try:
                 from src.web.services.trading_core_service import TradingCoreService
-                from src.common import load_broker_config
+                from src.common import get_node_config
+                from src.utils.config_manager import ConfigManager
+                from src.system_config import Config
+                import os
                 
-                # 加载broker基础配置
-                broker_data = load_broker_config()
-                broker_config = broker_data.get("broker_config", {}).copy()
+                # 根据账户的 broker_code 加载对应的服务器节点配置
+                brokers_filepath = Config.brokers_filepath
+                if not os.path.exists(brokers_filepath):
+                    raise ValueError(f"brokers.yaml 配置文件不存在: {brokers_filepath}")
                 
-                # 添加敏感信息（使用用户输入的密码）
-                broker_config["user_id"] = account.account_id
-                broker_config["password"] = login_data.password
+                cfg_manager = ConfigManager(str(brokers_filepath))
+                
+                # 使用 broker_code 作为节点名称查询配置
+                node_config = get_node_config(cfg_manager, account.broker_code)
+                if not node_config:
+                    raise ValueError(f"节点配置不存在: {account.broker_code}")
+                
+                # 解密敏感信息
+                decrypted_app_id = ""
+                decrypted_auth_code = ""
+                
+                if account.app_id:
+                    try:
+                        decrypted_app_id = service.cipher.decrypt(account.app_id)
+                    except Exception as e:
+                        logger.warning(f"解密 app_id 失败: {e}")
+                        decrypted_app_id = ""
+                
+                if account.auth_code:
+                    try:
+                        decrypted_auth_code = service.cipher.decrypt(account.auth_code)
+                    except Exception as e:
+                        logger.warning(f"解密 auth_code 失败: {e}")
+                        decrypted_auth_code = ""
+                
+                # 构建broker配置（包含行情和交易地址）
+                broker_config = {
+                    "broker_id": account.broker_id,
+                    "user_id": account.account_id,
+                    "password": login_data.password,
+                    "md_address": node_config.get("md_address"),
+                    "td_address": node_config.get("td_address"),
+                    "app_id": decrypted_app_id or node_config.get("app_id", ""),
+                    "auth_code": decrypted_auth_code or node_config.get("auth_code", ""),
+                    "product_info": node_config.get("product_info", ""),
+                    "api_type": node_config.get("api_type", "ctp"),
+                }
                 
                 # 构建完整配置
                 full_config = {
-                    "broker_name": account.broker_id,
+                    "broker_name": account.broker_code,
                     "broker_config": broker_config
                 }
                 
@@ -479,9 +517,13 @@ async def login_brokerage_account(
                 core_service = TradingCoreService.get_instance()
                 core_service.set_account_broker_config(full_config)
                 
-                logger.info(f"已设置broker配置到TradingCoreService: {account.broker_id}")
+                logger.info(f"已设置broker配置到TradingCoreService: broker_code={account.broker_code}, "
+                           f"md_address={broker_config.get('md_address')}, "
+                           f"td_address={broker_config.get('td_address')}, "
+                           f"app_id={'有' if decrypted_app_id else '无'}, "
+                           f"auth_code={'有' if decrypted_auth_code else '无'}")
             except Exception as e:
-                logger.warning(f"设置broker配置失败（不影响登录）: {e}")
+                logger.warning(f"设置broker配置失败（不影响登录）: {e}", exc_info=True)
         
         logger.info(f"用户 {current_user.id} 登录券商账户成功: {account.id}")
         

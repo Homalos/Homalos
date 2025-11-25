@@ -328,13 +328,8 @@ async function loadBrokerages() {
 
 // 添加账户成功回调
 async function handleAddSuccess() {
-  // 关闭对话框
-  showAddDialog.value = false
-  
   // 刷新账户列表
   await loadBrokerages()
-  
-  ElMessage.success('券商账户添加成功')
 }
 
 // 编辑账户

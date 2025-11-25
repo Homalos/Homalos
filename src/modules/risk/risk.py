@@ -336,6 +336,12 @@ class RiskManager:
     
     def _check_trading_time(self, order_request: OrderRequest) -> RiskCheckResult:
         """交易时间检查"""
+        # 开发模式下绕过交易时间检查
+        from src.system_config import Config
+        if Config.dev_mode:
+            self.logger.debug(f"开发模式：绕过交易时间检查")
+            return RiskCheckResult(True)
+        
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
         

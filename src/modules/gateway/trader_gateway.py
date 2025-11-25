@@ -360,7 +360,11 @@ class CtpTdApi(TdApi):
         if not self.auth_status and self.auth_code:
             self.authenticate()
         else:
-            # 若已经授权，则直接登录方法
+            # 若已经授权或不需要认证，则直接登录方法
+            if not self.auth_status:
+                # 如果不需要认证（auth_code为空），则跳过认证
+                self.auth_status = True
+                self.logger.info("跳过认证，直接登录")
             self.login()
 
     def onFrontDisconnected(self, reason: SupportsInt) -> None:
@@ -651,9 +655,11 @@ class CtpTdApi(TdApi):
             if last:
                 self.logger.info("查询所有持仓成功")
                 for position in self.positions.values():
-                    # 将仓位数据推送到事件总线
-                    self.gateway.on_position(position)
-                    self.logger.info(f"持仓数据: {position}")
+                    # 只推送持仓数量大于0的仓位
+                    if position.volume > 0:
+                        # 将仓位数据推送到事件总线
+                        self.gateway.on_position(position)
+                        self.logger.info(f"持仓数据: {position}")
 
                 self.positions.clear()
 
@@ -1319,9 +1325,11 @@ class CtpTdApi(TdApi):
         :return:
         """
         if not self.all_status_ready():
+            self.logger.warning(f"网关状态未就绪: connect={self.connect_status}, auth={self.auth_status}, login={self.login_status}, confirmed={self.has_confirmed}")
             return ""
 
         if not req:
+            self.logger.warning("订单请求为空")
             return ""
 
         if req.offset not in OFFSET_ENUM_TO_CTP:

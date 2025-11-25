@@ -42,35 +42,5 @@
     ],
     "enabled": true,
     "params": {}
-  },
-  "src.strategy.strategies.strategy3.Strategy3": {
-    "uuid": "6703e1fb-e445-4b38-8980-1b49e3bf62bc",
-    "file": "src/strategy/strategies/strategy3.py",
-    "module": "src.strategy.strategies.strategy3",
-    "class": "Strategy3",
-    "name": "策略3",
-    "description": "性能测试策略3 - 用于多策略并发测试",
-    "author": "Performance Test",
-    "instruments": [
-      "SA601",
-      "FG601"
-    ],
-    "enabled": true,
-    "params": {}
-  },
-  "src.strategy.strategies.strategy4.Strategy4": {
-    "uuid": "f798cd62-c3a6-4b0b-9083-2f2226b57b52",
-    "file": "src/strategy/strategies/strategy4.py",
-    "module": "src.strategy.strategies.strategy4",
-    "class": "Strategy4",
-    "name": "策略4",
-    "description": "性能测试策略4 - 用于多策略并发测试",
-    "author": "Performance Test",
-    "instruments": [
-      "SA601",
-      "FG601"
-    ],
-    "enabled": true,
-    "params": {}
   }
 }
