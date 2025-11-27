@@ -93,8 +93,6 @@ class TraderGateway(BaseGateway):
         self.query_functions: list = []
         self.logger = get_logger(self.__class__.__name__)
 
-        # 订阅查询合约事件
-        self.event_bus.subscribe(EventType.TD_QRY_INS, self.update_instrument_handler)
         
         # 设置网关事件处理器
         if self.event_bus:

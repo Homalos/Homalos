@@ -278,7 +278,7 @@
       </el-col>
     </el-row>
 
-    <!-- 4. 持仓概览（独占一行） -->
+    <!-- 4. 持仓概览（表格形式） -->
     <el-row style="margin-bottom: 20px;">
       <el-col :span="24">
         <el-card shadow="hover">
@@ -287,31 +287,29 @@
               <span>持仓概览</span>
             </div>
           </template>
-          <div style="padding: 10px 0;">
-            <div v-if="dashboardData.positions.length === 0" style="text-align: center; color: #909399; padding: 20px;">
-              暂无持仓
-            </div>
-            <div v-else>
-              <div v-for="(item, index) in dashboardData.positions" :key="index" style="margin-bottom: 15px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-weight: 600; font-size: 14px;">{{ item.name }}</span>
-                    <el-tag :type="item.direction === '多' ? 'danger' : 'success'" size="small">
-                      {{ item.direction }}
-                    </el-tag>
-                  </div>
-                  <span style="font-weight: 600; color: #409EFF;">{{ item.ratio }}%</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #606266; margin-bottom: 5px;">
-                  <span>数量: {{ item.volume }}手 | 价格: {{ item.price.toFixed(2) }}</span>
-                  <span :style="{ color: item.pnl >= 0 ? '#F56C6C' : '#67C23A', fontWeight: 600 }">
-                    盈亏: {{ item.pnl >= 0 ? '+' : '' }}{{ item.pnl.toFixed(2) }}
-                  </span>
-                </div>
-                <el-progress :percentage="item.ratio" :color="item.color" :show-text="false" />
-              </div>
-            </div>
-          </div>
+          <el-table :data="dashboardData.positions" stripe style="width: 100%" :fit="true" :show-summary="true" :summary-method="getSummaries">
+            <el-table-column prop="name" label="合约代号" />
+            <el-table-column label="多空" width="100">
+              <template #default="{ row }">
+                <el-tag :type="row.direction === '多' ? 'danger' : 'success'" size="small">
+                  {{ row.direction }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="price" label="价格" align="right">
+              <template #default="{ row }">
+                {{ row.price.toFixed(2) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="volume" label="数量(手)" align="right" />
+            <el-table-column label="盈亏" align="right">
+              <template #default="{ row }">
+                <span :style="{ color: row.pnl >= 0 ? '#F56C6C' : '#67C23A', fontWeight: 600 }">
+                  {{ row.pnl >= 0 ? '+' : '' }}{{ row.pnl.toFixed(2) }}
+                </span>
+              </template>
+            </el-table-column>
+          </el-table>
         </el-card>
       </el-col>
     </el-row>
@@ -633,6 +631,32 @@ function maskAccountId(accountId) {
   const visiblePart = accountStr.slice(-4)  // 后4位
   const maskedPart = '*'.repeat(accountStr.length - 4)  // 前面用*替代
   return maskedPart + visiblePart
+}
+
+/**
+ * 表格统计行方法 - 计算总数量和总盈亏
+ */
+function getSummaries(param) {
+  const { columns, data } = param
+  const sums = []
+  
+  columns.forEach((column, index) => {
+    if (index === 0) {
+      sums[index] = '合计'
+    } else if (column.property === 'volume') {
+      // 计算总数量
+      const total = data.reduce((sum, item) => sum + (item.volume || 0), 0)
+      sums[index] = total
+    } else if (column.property === 'pnl' || (column.label === '盈亏')) {
+      // 计算总盈亏
+      const total = data.reduce((sum, item) => sum + (item.pnl || 0), 0)
+      sums[index] = total >= 0 ? `+${total.toFixed(2)}` : `${total.toFixed(2)}`
+    } else {
+      sums[index] = ''
+    }
+  })
+  
+  return sums
 }
 
 // 账户总览标题

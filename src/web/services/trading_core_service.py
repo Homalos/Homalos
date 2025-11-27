@@ -723,8 +723,8 @@ class TradingCoreService:
         self._event_bus.subscribe(EventType.TD_GATEWAY_LOGIN, self._handle_td_login)
         self._event_bus.subscribe(EventType.TD_CONFIRM_SUCCESS, self._handle_td_confirm)
         self._event_bus.subscribe(EventType.TD_QRY_INS, self._handle_td_qry_ins)
-        self._event_bus.subscribe(EventType.ACCOUNT_UPDATE, self._handle_account_data)
-        self.logger.info(f"[WebSocket] 已订阅 ACCOUNT_UPDATE 事件，处理器: {self._handle_account_data}")
+        self._event_bus.subscribe(EventType.ACCOUNT, self._handle_account_data)
+        self.logger.info(f"[WebSocket] 已订阅 ACCOUNT 事件，处理器: {self._handle_account_data}")
         self._event_bus.subscribe(EventType.POSITION, self._handle_position_data)
         
         self.logger.info("网关事件处理器已设置")
@@ -887,9 +887,9 @@ class TradingCoreService:
             self._td_login_status = True
             self._td_confirm_status = True
             self.logger.info("结算单确认成功，交易网关完全就绪")
-            # 发送查询合约事件
-            if self._event_bus:
-                self._event_bus.publish(Event(EventType.TD_QRY_INS, {}))
+            # 查询合约信息
+            if self._trader_gateway:
+                self._trader_gateway.update_instrument_handler(Event(EventType.TD_QRY_INS, {}))
         else:
             self._td_login_status = False
             self._td_confirm_status = False
