@@ -84,9 +84,15 @@ class AdminLogin(BaseModel):
     mfa_code: Optional[str] = Field(None, description="MFA验证码")
 
 
-class AdminResponse(AdminBase):
+class AdminResponse(BaseModel):
     """管理员响应模式"""
     admin_id: int
+    username: str
+    email: str  # 改为 str 而不是 EmailStr，避免严格验证
+    phone: Optional[str] = None
+    full_name: Optional[str] = None
+    timezone: str
+    locale: str
     role: str
     status: str
     email_verified: bool

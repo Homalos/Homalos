@@ -12,7 +12,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from sqlalchemy import (
-    Column, String, Boolean, DateTime, BigInteger, 
+    Column, String, Boolean, DateTime, Integer, BigInteger, 
     Enum as SQLEnum, Index, ForeignKey
 )
 from sqlalchemy.orm import relationship
@@ -45,9 +45,9 @@ class Admin(Base):
 
     # 主键 - 使用BIGINT自增ID
     admin_id = Column(
-        BigInteger, 
+        Integer, 
         primary_key=True, 
-        index=True, 
+        index=True,
         autoincrement=True,
         comment="管理员唯一标识，主键"
     )
@@ -360,7 +360,7 @@ class AdminAuditLog(Base):
     """
     __tablename__ = "admin_audit_logs"
     
-    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     
     admin_id = Column(
         BigInteger, 

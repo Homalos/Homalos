@@ -10,9 +10,8 @@
 @Description: 用户偏好设置数据模型
 """
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, BigInteger, DateTime, Index, ForeignKey
+from sqlalchemy import Column, String, Integer, BigInteger, DateTime, Index, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.mysql import LONGTEXT
 
 from .base import Base
 
@@ -75,21 +74,21 @@ class UserPreference(Base):
     
     # 图表设置
     chart_settings = Column(
-        LONGTEXT, 
+        Text, 
         nullable=True,
         comment="图表配置，JSON格式存储"
     )
     
     # 通知设置
     notification_settings = Column(
-        LONGTEXT, 
+        Text, 
         nullable=True,
         comment="通知配置，JSON格式存储"
     )
     
     # 其他自定义设置
     custom_settings = Column(
-        LONGTEXT, 
+        Text, 
         nullable=True,
         comment="其他自定义设置，JSON格式存储"
     )

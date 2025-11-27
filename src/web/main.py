@@ -13,11 +13,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from src.web.api import auth, monitor, system_config, trading_account, strategy, alarm, trading_system, trading_core, account, admin_auth, brokerage, users
+from src.web.api import auth, monitor, system_config, trading_account, strategy, alarm, trading_system, trading_core, account, admin_auth, brokerage, users, strategy_db, strategy_position, websocket_position
 from src.web.core.database import init_db, close_db
 from src.web.services.strategy_service import strategy_service
 from src.web.services.trading_core_service import TradingCoreService
 from src.web.services.monitor_service import MonitorService
+from src.web.services.position_sync_service import start_position_sync, stop_position_sync, get_position_sync_service
 from src.utils.log import get_logger
 from src.utils.get_path import get_path_ins
 import asyncio
@@ -137,6 +138,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"策略服务初始化失败: {e}", exc_info=True)
     
+    # 启动持仓同步服务
+    try:
+        await start_position_sync()
+        logger.info("持仓同步服务已启动")
+    except Exception as e:
+        logger.warning("启动持仓同步服务失败（可能策略管理器未启动）: " + str(e))
+    
     yield
     
     # 关闭时执行
@@ -170,7 +178,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"关闭策略服务失败: {e}", exc_info=True)
     
-    # 关闭Web告警管理器
+    # 3. 关闭持仓同步服务
+    try:
+        await stop_position_sync()
+        logger.info("持仓同步服务已关闭")
+    except Exception as e:
+        logger.error("关闭持仓同步服务失败: " + str(e), exc_info=True)
+    
+    # 4. 关闭Web告警管理器
     try:
         if web_alarm_mgr:
             await web_alarm_mgr.shutdown()
@@ -220,6 +235,9 @@ app.include_router(trading_account.router, prefix="/api")
 app.include_router(brokerage.router, prefix="/api")       # 用户券商账户路由（新）
 app.include_router(users.router, prefix="/api")           # 用户管理路由
 app.include_router(strategy.router, prefix="/api")
+app.include_router(strategy_db.router)                    # 策略数据库路由
+app.include_router(strategy_position.router)              # 策略持仓路由
+app.include_router(websocket_position.router)             # WebSocket 持仓推送路由
 app.include_router(alarm.router, prefix="/api")
 app.include_router(account.router, prefix="/api")
 app.include_router(trading_system.router, prefix="/api")  # 旧版（subprocess方式）
@@ -237,6 +255,34 @@ async def root():
         "docs": "/docs",
         "redoc": "/redoc"
     }
+
+
+@app.get("/api/position-sync/stats", tags=["持仓同步"])
+async def get_position_sync_stats():
+    """
+    获取持仓同步统计信息
+    
+    返回持仓同步服务的统计数据，包括：
+    - is_running: 服务是否运行中
+    - zmq_url: ZeroMQ 连接地址
+    - received: 接收的消息数
+    - synced: 成功同步的数量
+    - failed: 失败的数量
+    - last_sync_time: 最后同步时间
+    """
+    try:
+        service = get_position_sync_service()
+        stats = service.get_stats()
+        return {
+            "success": True,
+            "data": stats
+        }
+    except Exception as e:
+        logger.error("获取持仓同步统计失败: " + str(e))
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 @app.get("/health", tags=["健康检查"])

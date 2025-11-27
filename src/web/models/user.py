@@ -17,7 +17,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import foreign
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.mysql import LONGTEXT
 import enum
 
 from .base import Base

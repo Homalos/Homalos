@@ -315,11 +315,13 @@ import {
   CircleCheck, CircleClose, TrendCharts, DataAnalysis, Clock
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStrategyStore } from '@/stores/strategy'
 import { useTradingAccountStore } from '@/stores/tradingAccount'
 import { getStrategyLogs } from '@/api/strategy'
+import { getStrategyPositions, getStrategyPositionHistory } from '@/api/strategy-position'
+import WebSocketClient from '@/utils/websocket'
 
 // ========== 初始化 ==========
 const route = useRoute()
@@ -338,17 +340,52 @@ const availableContexts = ref([])
 const selectedTraceId = ref(null)
 const selectedContext = ref(null)
 
-// 持仓数据 - 从策略自己维护的持仓列表获取（而不是账户全局持仓）
+// 数据库持仓数据
+const dbPositions = ref([])
+const positionsLoading = ref(false)
+const useDbPositions = ref(true)  // 是否使用数据库持仓（默认使用）
+
+// WebSocket 实时推送
+const wsClient = ref(null)
+const wsConnected = ref(false)
+
+// 持仓数据 - 支持从数据库或内存获取
 const displayPositions = computed(() => {
+  const colors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399']
+  
+  // 如果使用数据库持仓，优先显示数据库数据
+  if (useDbPositions.value && dbPositions.value && dbPositions.value.length > 0) {
+    return dbPositions.value.map((pos, index) => {
+      return {
+        position_id: pos.position_id,
+        instrument: pos.symbol,
+        direction: pos.direction === 'LONG' ? '多' : '空',
+        available: pos.volume || 0,
+        total: pos.volume || 0,
+        open_price: pos.avg_price || 0,
+        last_price: pos.last_price || 0,
+        pnl_per_lot: pos.position_pnl || 0,
+        profit_price: 0,
+        pnl_ratio: 0,
+        margin: 0,
+        market_value: (pos.volume || 0) * (pos.last_price || 0),
+        pnl_mark: pos.position_pnl || 0,
+        stop_profit: 0,
+        stop_loss: 0,
+        is_closed: pos.is_closed,
+        color: colors[index % colors.length]
+      }
+    })
+  }
+  
+  // 否则显示策略维护的内存持仓
   if (!strategy.value || !strategy.value.positions) {
     return []
   }
   
-  // 策略维护的持仓列表
   const strategyPositions = strategy.value.positions || []
   
   return strategyPositions.map((pos, index) => {
-    const colors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399']
     const direction = typeof pos.direction === 'string' ? pos.direction : 
                      (pos.direction === 1 ? '多' : pos.direction === -1 ? '空' : '多')
     
@@ -467,6 +504,89 @@ function getRunningDuration(startTime) {
   const seconds = Math.floor((duration % (1000 * 60)) / 1000)
   
   return `${hours}时${minutes}分${seconds}秒`
+}
+
+// ========== 持仓相关方法 ==========
+async function loadDbPositions() {
+  if (!strategyId.value) return
+  
+  positionsLoading.value = true
+  try {
+    const response = await getStrategyPositions(strategyId.value)
+    if (response && response.success) {
+      dbPositions.value = response.data.positions || []
+      useDbPositions.value = true
+      ElMessage.success('持仓数据已加载')
+    } else {
+      ElMessage.warning('加载持仓数据失败')
+      useDbPositions.value = false
+    }
+  } catch (error) {
+    console.error('加载持仓数据失败:', error)
+    ElMessage.error('加载持仓数据失败')
+    useDbPositions.value = false
+  } finally {
+    positionsLoading.value = false
+  }
+}
+
+// ========== WebSocket 相关方法 ==========
+async function initWebSocket() {
+  if (!strategyId.value) return
+  
+  try {
+    // 构建 WebSocket URL
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const host = window.location.host
+    const wsUrl = `${protocol}//${host}/ws/positions?strategy_id=${strategyId.value}`
+    
+    // 创建 WebSocket 客户端
+    wsClient.value = new WebSocketClient(wsUrl)
+    
+    // 监听持仓更新
+    wsClient.value.on('position_update', ({ strategy_id, data }) => {
+      console.log('[WebSocket] 收到持仓更新:', data)
+      
+      // 更新本地持仓数据
+      if (data && data.symbol) {
+        const existingIndex = dbPositions.value.findIndex(
+          (pos) => pos.symbol === data.symbol && pos.direction === data.direction
+        )
+        
+        if (existingIndex > -1) {
+          // 更新现有持仓
+          dbPositions.value[existingIndex] = {
+            ...dbPositions.value[existingIndex],
+            ...data
+          }
+        } else {
+          // 添加新持仓
+          dbPositions.value.push(data)
+        }
+      }
+    })
+    
+    // 监听心跳响应
+    wsClient.value.on('pong', () => {
+      console.log('[WebSocket] 心跳响应')
+    })
+    
+    // 连接到服务器
+    await wsClient.value.connect()
+    wsConnected.value = true
+    console.log('[WebSocket] 已连接到持仓推送服务')
+  } catch (error) {
+    console.error('[WebSocket] 连接失败:', error)
+    wsConnected.value = false
+  }
+}
+
+function closeWebSocket() {
+  if (wsClient.value) {
+    wsClient.value.disconnect()
+    wsClient.value = null
+  }
+  wsConnected.value = false
 }
 
 // ========== 日志相关方法 ==========
@@ -601,6 +721,8 @@ async function handleRefresh() {
     strategyStore.fetchStatus()
   ])
   loadStrategyData()
+  // 同时刷新持仓数据
+  await loadDbPositions()
   ElMessage.success('刷新成功')
 }
 
@@ -719,10 +841,24 @@ onMounted(async () => {
   
   loadStrategyData()
   
-  // 自动加载日志
+  // 自动加载持仓、日志和 WebSocket
   if (strategyId.value) {
-    await loadLogs()
+    await Promise.all([
+      loadDbPositions(),
+      loadLogs(),
+      initWebSocket()
+    ])
   }
+})
+
+// 页面卸载时关闭 WebSocket
+watch(() => route.params.id, () => {
+  closeWebSocket()
+}, { immediate: false })
+
+// 组件卸载时关闭 WebSocket
+onBeforeUnmount(() => {
+  closeWebSocket()
 })
 
 // 监听路由参数变化

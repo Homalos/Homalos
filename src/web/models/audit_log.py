@@ -10,9 +10,8 @@
 @Description: 审计日志数据模型 - 重新设计版本
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Boolean, ForeignKey, Index
+from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Boolean, ForeignKey, Index, Text
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.mysql import LONGTEXT
 
 from src.web.models.base import Base
 
@@ -25,7 +24,7 @@ class AuditLog(Base):
     """
     __tablename__ = "audit_logs"
     
-    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     
     user_id = Column(
         BigInteger, 
@@ -74,7 +73,7 @@ class AuditLog(Base):
     )
     
     details = Column(
-        LONGTEXT, 
+        Text, 
         nullable=True,
         comment="操作详情，JSON格式存储"
     )

@@ -14,6 +14,7 @@ import datetime
 from src.core.constants import Interval, Direction, Offset
 from src.core.object import OrderData, TradeData, BarData, TickData
 from src.strategy.base_strategy import BaseStrategy, SpecificStrategy
+from src.strategy.zmq_strategy_mixin import ZeroMQStrategyMixin
 from src.utils.strategy_logger import get_strategy_logger as get_logger
 from src.utils.utility import write_csv
 
@@ -46,7 +47,7 @@ class Strategy1(BaseStrategy):
         """每分钟调用一次执行"""
         pass
 
-    class Specific(SpecificStrategy):
+    class Specific(SpecificStrategy, ZeroMQStrategyMixin):
         """
         策略的详细策略文件
         """
@@ -58,6 +59,7 @@ class Strategy1(BaseStrategy):
                 bar_intervals: list[Interval]
         ) -> None:
             super().__init__(base_strategy, instrument_id, bar_intervals)
+            ZeroMQStrategyMixin.__init__(self)  # 初始化 ZeroMQ Mixin
             self.logger = get_logger(name=base_strategy.strategy_name)
             self.base_strategy: BaseStrategy = base_strategy
             self.strategy_id: str = strategy_id
@@ -233,6 +235,9 @@ class Strategy1(BaseStrategy):
                     existing_position = pos
                     break
             
+            # 转换方向为标准格式
+            direction_str = "LONG" if trade.direction == Direction.LONG else "SHORT"
+            
             if existing_position:
                 # 更新现有持仓
                 existing_position["volume"] += trade.trade_volume
@@ -244,6 +249,17 @@ class Strategy1(BaseStrategy):
                 existing_position["avg_price"] = total_cost / existing_position["volume"]
                 existing_position["pnl"] = (trade.trade_price - existing_position["avg_price"]) * existing_position["volume"]
                 self.logger.info(f"[{self.instrument_id}] 更新持仓: {existing_position}")
+                
+                # 发布持仓更新到 ZeroMQ
+                self.publish_position_update(
+                    strategy_id=self.base_strategy.strategy_id,
+                    symbol=trade.instrument_id,
+                    direction=direction_str,
+                    volume=existing_position["volume"],
+                    avg_price=existing_position["avg_price"],
+                    exchange=trade.exchange_id,
+                    offset="OPEN"
+                )
             else:
                 # 创建新的持仓记录
                 new_position = {
@@ -258,6 +274,17 @@ class Strategy1(BaseStrategy):
                 }
                 self.base_strategy.positions.append(new_position)
                 self.logger.info(f"[{self.instrument_id}] 新增持仓: {new_position}")
+                
+                # 发布持仓更新到 ZeroMQ
+                self.publish_position_update(
+                    strategy_id=self.base_strategy.strategy_id,
+                    symbol=trade.instrument_id,
+                    direction=direction_str,
+                    volume=trade.trade_volume,
+                    avg_price=trade.trade_price,
+                    exchange=trade.exchange_id,
+                    offset="OPEN"
+                )
 
 
 def get_strategy():
