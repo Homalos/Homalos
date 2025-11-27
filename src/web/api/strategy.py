@@ -21,7 +21,8 @@
 注意：策略热重载功能已禁用（出于安全考虑）。请使用"停止-修改-启动"流程修改策略。
 """
 import asyncio
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Query, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, Any
 
 from src.core.constants import Interval
@@ -31,6 +32,7 @@ from src.web.schemas.strategy import (
     StrategyStatusResponse,
     OperationResponse
 )
+from src.web.core.database import get_db
 from pydantic import BaseModel, Field
 from src.utils.log import get_logger
 
@@ -135,18 +137,19 @@ async def reload_strategy_config():
 
 
 @router.post("/{sid}/start", response_model=OperationResponse, summary="启动策略")
-async def start_strategy(sid: str):
+async def start_strategy(sid: str, db: AsyncSession = Depends(get_db)):
     """
     启动指定的策略
     
     Args:
         sid: 策略ID
+        db: 数据库会话
         
     Returns:
         OperationResponse: 操作结果
     """
     try:
-        await strategy_service.start_strategy(sid)
+        await strategy_service.start_strategy(sid, db)
         return {
             "status": "started",
             "sid": sid,

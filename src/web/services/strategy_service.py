@@ -264,7 +264,7 @@ class StrategyService:
         manager = self.get_manager()
         return manager.registry.get_by_uuid(strategy_uuid)
     
-    async def start_strategy(self, sid: str):
+    async def start_strategy(self, sid: str, db=None):
         """启动策略（异步）"""
         manager = self.get_manager()
         
@@ -275,6 +275,31 @@ class StrategyService:
         import asyncio
         await asyncio.to_thread(manager.load_strategy, sid)
         self.logger.info(f"策略 {sid} 已启动")
+        
+        # 延迟同步账户持仓到策略（等待持仓查询完成）
+        if db and self._trading_core:
+            try:
+                # 轮询等待持仓被查询到（最多等待 10 秒）
+                trader_gateway = self._trading_core.get_trader_gateway()
+                if trader_gateway:
+                    max_wait = 10  # 最多等待 10 秒
+                    wait_interval = 0.5  # 每 0.5 秒检查一次
+                    elapsed = 0
+                    
+                    while elapsed < max_wait:
+                        if hasattr(trader_gateway, 'positions') and trader_gateway.positions:
+                            self.logger.info(f"检测到持仓数据，开始同步")
+                            break
+                        await asyncio.sleep(wait_interval)
+                        elapsed += wait_interval
+                    
+                    if elapsed >= max_wait:
+                        self.logger.warning(f"等待持仓超时（{max_wait}秒），仍然尝试同步")
+                
+                await self._sync_account_positions_to_strategy(sid, db)
+            except Exception as e:
+                self.logger.error(f"同步账户持仓到策略失败: {e}", exc_info=True)
+                # 不中断策略启动，仅记录错误
     
     async def stop_strategy(self, sid: str):
         """停止策略（异步）"""
@@ -305,14 +330,6 @@ class StrategyService:
         
         return stopped_count
     
-    # 策略热重载功能已禁用（出于安全考虑）
-    # 原因：运行中策略的热重载可能导致持仓/订单状态丢失
-    # 请使用"停止-修改-启动"流程修改策略
-    # 
-    # async def reload_strategy(self, sid: str):
-    #     """重载策略（已禁用）"""
-    #     raise NotImplementedError("策略热重载功能已禁用。请停止策略，修改代码后重新启动。")
-    
     def enable_strategy(self, sid: str):
         """启用策略"""
         manager = self.get_manager()
@@ -328,6 +345,98 @@ class StrategyService:
             manager.registry.strategies[sid]["enabled"] = False
             manager.registry.save()
         self.logger.info(f"策略 {sid} 已禁用")
+    
+    async def _sync_account_positions_to_strategy(self, sid: str, db):
+        """将账户持仓同步到策略"""
+        try:
+            from sqlalchemy import select
+            from src.web.models.strategy import Strategy
+            from src.web.models.strategy_position import StrategyPosition
+            
+            # 1. 获取策略 ID
+            result = await db.execute(
+                select(Strategy).where(Strategy.module_path == sid)
+            )
+            strategy = result.scalar_one_or_none()
+            if not strategy:
+                self.logger.warning(f"策略 {sid} 不存在，无法同步持仓")
+                return
+            
+            strategy_id = strategy.strategy_id
+            self.logger.info(f"开始同步账户持仓到策略 {sid} (ID: {strategy_id})")
+            
+            # 2. 从交易核心获取账户持仓
+            if not self._trading_core:
+                self.logger.warning("交易核心未设置，无法获取账户持仓")
+                return
+            
+            trader_gateway = self._trading_core.get_trader_gateway()
+            if not trader_gateway:
+                self.logger.warning("交易网关未初始化，无法获取账户持仓")
+                return
+            
+            # 获取账户持仓（从 trader_gateway.positions 字典中获取）
+            account_positions = list(trader_gateway.positions.values()) if hasattr(trader_gateway, 'positions') else []
+            if not account_positions:
+                self.logger.info(f"账户无持仓，策略 {sid} 同步完成")
+                return
+            
+            self.logger.info(f"账户持仓数: {len(account_positions)}")
+            
+            # 3. 为每个持仓创建或更新 StrategyPosition 记录
+            synced_count = 0
+            for pos_data in account_positions:
+                try:
+                    # 检查持仓是否已存在
+                    result = await db.execute(
+                        select(StrategyPosition).where(
+                            StrategyPosition.strategy_id == strategy_id,
+                            StrategyPosition.symbol == pos_data.instrument_id,
+                            StrategyPosition.direction == ('LONG' if pos_data.direction.value == '多' else 'SHORT'),
+                            StrategyPosition.is_closed == False
+                        )
+                    )
+                    existing_pos = result.scalar_one_or_none()
+                    
+                    if existing_pos:
+                        # 更新现有持仓
+                        existing_pos.volume = pos_data.volume
+                        existing_pos.frozen = pos_data.frozen
+                        existing_pos.avg_price = pos_data.price
+                        existing_pos.last_price = pos_data.price
+                        existing_pos.position_pnl = pos_data.pnl
+                        self.logger.info(f"更新持仓: {pos_data.instrument_id} {pos_data.direction.value} {pos_data.volume}手")
+                    else:
+                        # 创建新持仓
+                        new_pos = StrategyPosition(
+                            strategy_id=strategy_id,
+                            symbol=pos_data.instrument_id,
+                            exchange=pos_data.exchange_id.value if pos_data.exchange_id else '',
+                            direction='LONG' if pos_data.direction.value == '多' else 'SHORT',
+                            volume=pos_data.volume,
+                            frozen=pos_data.frozen,
+                            avg_price=pos_data.price,
+                            last_price=pos_data.price,
+                            position_pnl=pos_data.pnl,
+                            yd_volume=pos_data.yd_volume,
+                            is_closed=False
+                        )
+                        db.add(new_pos)
+                        self.logger.info(f"新增持仓: {pos_data.instrument_id} {pos_data.direction.value} {pos_data.volume}手")
+                    
+                    synced_count += 1
+                
+                except Exception as e:
+                    self.logger.error(f"同步持仓失败 {pos_data.instrument_id}: {e}", exc_info=True)
+            
+            # 4. 保存到数据库
+            await db.commit()
+            self.logger.info(f"✅ 策略 {sid} 持仓同步完成，共同步 {synced_count} 个持仓")
+        
+        except Exception as e:
+            await db.rollback()
+            self.logger.error(f"同步账户持仓失败: {e}", exc_info=True)
+            raise
     
     def scan_and_load_strategies(self) -> Dict[str, Any]:
         """

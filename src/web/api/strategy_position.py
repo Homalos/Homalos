@@ -31,18 +31,52 @@ async def get_strategy_by_sid(
     db: AsyncSession
 ) -> Strategy:
     """
-    根据策略 SID（module_path）查询策略
+    根据策略标识查询策略（支持 UUID、SID、整数ID）
     
     Args:
-        sid: 策略 SID（如 src.strategy.strategies.strategy1.Strategy1）
+        sid: 策略标识，可以是：
+            - UUID: 615d3c18-2005-4116-a47d-dcf587d12a33
+            - SID: src.strategy.strategies.strategy1.Strategy1
+            - 整数ID: 1
         db: 数据库会话
         
     Returns:
         Strategy: 策略对象，如果不存在返回 None
     """
+    logger.info(f"[get_strategy_by_sid] 开始查询策略: {sid}")
+    
+    # 尝试按整数 ID 查询
+    try:
+        strategy_id_int = int(sid)
+        logger.info(f"[get_strategy_by_sid] 尝试按整数 ID 查询: {strategy_id_int}")
+        query = select(Strategy).where(Strategy.strategy_id == strategy_id_int)
+        result = await db.execute(query)
+        strategy = result.scalar_one_or_none()
+        if strategy:
+            logger.info(f"[get_strategy_by_sid] 按整数 ID 找到策略: {strategy.name}")
+            return strategy
+    except ValueError:
+        pass
+    
+    # 尝试按 UUID 查询
+    logger.info(f"[get_strategy_by_sid] 尝试按 UUID 查询: {sid}")
+    query = select(Strategy).where(Strategy.uuid == sid)
+    result = await db.execute(query)
+    strategy = result.scalar_one_or_none()
+    if strategy:
+        logger.info(f"[get_strategy_by_sid] 按 UUID 找到策略: {strategy.name}")
+        return strategy
+    
+    # 尝试按 module_path（SID）查询
+    logger.info(f"[get_strategy_by_sid] 尝试按 module_path 查询: {sid}")
     query = select(Strategy).where(Strategy.module_path == sid)
     result = await db.execute(query)
-    return result.scalar_one_or_none()
+    strategy = result.scalar_one_or_none()
+    if strategy:
+        logger.info(f"[get_strategy_by_sid] 按 module_path 找到策略: {strategy.name}")
+    else:
+        logger.warning(f"[get_strategy_by_sid] 未找到策略: {sid}")
+    return strategy
 
 
 async def verify_strategy_ownership(
@@ -92,14 +126,19 @@ async def get_strategy_current_positions(
     """
     try:
         # 将 strategy_id 转换为整数（如果是数字字符串）
+        strategy_id_int = None
         try:
             strategy_id_int = int(strategy_id)
+            logger.info(f"策略ID为整数: {strategy_id_int}")
         except ValueError:
             # 如果不是数字，尝试从数据库查询
+            logger.info(f"策略ID为字符串，尝试查询: {strategy_id}")
             strategy = await get_strategy_by_sid(strategy_id, db)
             if not strategy:
+                logger.warning(f"策略不存在: {strategy_id}")
                 raise HTTPException(status_code=404, detail="策略不存在")
             strategy_id_int = strategy.strategy_id
+            logger.info(f"查询到策略: {strategy_id_int}")
         
         # 验证策略所有权
         await verify_strategy_ownership(strategy_id_int, current_user, db)
@@ -111,7 +150,7 @@ async def get_strategy_current_positions(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("获取策略持仓失败: " + str(e))
+        logger.error("获取策略持仓失败: " + str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="获取策略持仓失败: " + str(e))
 
 

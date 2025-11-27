@@ -513,17 +513,21 @@ async function loadDbPositions() {
   positionsLoading.value = true
   try {
     const response = await getStrategyPositions(strategyId.value)
-    if (response && response.success) {
-      dbPositions.value = response.data.positions || []
+    // 后端返回 StrategyPositionListResponse 格式：{ total, positions }
+    if (response && response.positions !== undefined) {
+      dbPositions.value = response.positions || []
       useDbPositions.value = true
-      ElMessage.success('持仓数据已加载')
+      if (dbPositions.value.length > 0) {
+        ElMessage.success(`持仓数据已加载，共 ${dbPositions.value.length} 个持仓`)
+      }
     } else {
+      console.warn('持仓数据格式错误:', response)
       ElMessage.warning('加载持仓数据失败')
       useDbPositions.value = false
     }
   } catch (error) {
     console.error('加载持仓数据失败:', error)
-    ElMessage.error('加载持仓数据失败')
+    ElMessage.error('加载持仓数据失败: ' + (error.message || '未知错误'))
     useDbPositions.value = false
   } finally {
     positionsLoading.value = false

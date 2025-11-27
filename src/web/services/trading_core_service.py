@@ -582,6 +582,10 @@ class TradingCoreService:
         """获取告警管理器"""
         return self._alarm_manager
     
+    def get_trader_gateway(self) -> Optional[TraderGateway]:
+        """获取交易网关"""
+        return self._trader_gateway
+    
     # ========== 内部方法 ==========
     
     async def _initialize_modules(self):
