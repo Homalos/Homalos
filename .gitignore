@@ -42,4 +42,3 @@ migrations/
 scripts/
 docs/
 tests/
-config/instrument_exchange.json
