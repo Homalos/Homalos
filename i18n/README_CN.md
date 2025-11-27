@@ -195,7 +195,7 @@ cd Homalos
 
 # 安装 Python 依赖
 .venv\Scripts\activate
-uv pip install -r requirements.txt
+uv sync
 
 # 安装前端依赖
 cd web-ui

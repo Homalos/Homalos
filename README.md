@@ -193,7 +193,7 @@ cd Homalos
 
 # Install Python dependencies
 .venv\Scripts\activate
-uv pip install -r requirements.txt
+uv sync
 
 # Install frontend dependencies
 cd web-ui
