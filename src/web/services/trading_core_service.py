@@ -723,7 +723,8 @@ class TradingCoreService:
         self._event_bus.subscribe(EventType.TD_GATEWAY_LOGIN, self._handle_td_login)
         self._event_bus.subscribe(EventType.TD_CONFIRM_SUCCESS, self._handle_td_confirm)
         self._event_bus.subscribe(EventType.TD_QRY_INS, self._handle_td_qry_ins)
-        self._event_bus.subscribe(EventType.ACCOUNT, self._handle_account_data)
+        self._event_bus.subscribe(EventType.ACCOUNT_UPDATE, self._handle_account_data)
+        self.logger.info(f"[WebSocket] 已订阅 ACCOUNT_UPDATE 事件，处理器: {self._handle_account_data}")
         self._event_bus.subscribe(EventType.POSITION, self._handle_position_data)
         
         self.logger.info("网关事件处理器已设置")
@@ -888,7 +889,7 @@ class TradingCoreService:
             self.logger.info("结算单确认成功，交易网关完全就绪")
             # 发送查询合约事件
             if self._event_bus:
-                self._event_bus.publish(Event(EventType.DATA_CENTER_QRY_INS, {}))
+                self._event_bus.publish(Event(EventType.TD_QRY_INS, {}))
         else:
             self._td_login_status = False
             self._td_confirm_status = False
@@ -907,29 +908,41 @@ class TradingCoreService:
     def _handle_account_data(self, event: Event):
         """处理账户资金数据事件"""
         try:
+            self.logger.debug(f"[WebSocket] _handle_account_data 被调用")
             data = event.payload
             if not data:
+                self.logger.warning("账户数据事件payload为空")
                 return
             
             # 从事件中提取AccountData对象
             account_data = data.get("data")
             if not account_data:
+                self.logger.warning("账户数据事件中data字段为空")
                 return
             
+            self.logger.debug(f"[WebSocket] 收到账户数据对象: {account_data}")
+            
             # 转换为字典格式
-            if hasattr(account_data, 'to_dict'):
-                account_dict = account_data.to_dict()
-            else:
-                # 兼容旧格式
-                account_dict = {
-                    "account_id": getattr(account_data, 'account_id', ''),
-                    "balance": getattr(account_data, 'balance', 0.0),
-                    "frozen": getattr(account_data, 'frozen', 0.0),
-                    "available": getattr(account_data, 'available', 0.0)
-                }
+            try:
+                if hasattr(account_data, 'to_dict'):
+                    account_dict = account_data.to_dict()
+                    self.logger.debug(f"[WebSocket] 使用 to_dict() 转换: {account_dict}")
+                else:
+                    # 兼容旧格式
+                    account_dict = {
+                        "account_id": getattr(account_data, 'account_id', ''),
+                        "balance": getattr(account_data, 'balance', 0.0),
+                        "frozen": getattr(account_data, 'frozen', 0.0),
+                        "available": getattr(account_data, 'available', 0.0)
+                    }
+                    self.logger.debug(f"[WebSocket] 使用手动转换: {account_dict}")
+            except Exception as e:
+                self.logger.error(f"[WebSocket] 转换账户数据失败: {e}", exc_info=True)
+                return
             
             # 保存最新数据
             self._latest_account_data = account_dict
+            self.logger.info(f"[WebSocket] ✅ 账户数据已缓存: balance={account_dict.get('balance')}, available={account_dict.get('available')}, frozen={account_dict.get('frozen')}")
             
             # 清空持仓字典，准备接收新一轮持仓数据
             # 因为账户查询通常在持仓查询之前执行
@@ -937,6 +950,7 @@ class TradingCoreService:
             
             # 推送到WebSocket（线程安全）
             if self._account_ws_queue and self._loop:
+                self.logger.info("[WebSocket] 推送账户数据到WebSocket")
                 asyncio.run_coroutine_threadsafe(
                     self._push_account_to_ws({
                         "type": "account",
@@ -944,6 +958,8 @@ class TradingCoreService:
                     }),
                     self._loop
                 )
+            else:
+                self.logger.debug(f"[WebSocket] WebSocket未连接，等待客户端连接 (queue={self._account_ws_queue is not None}, loop={self._loop is not None})")
         
         except Exception as e:
             self.logger.error(f"处理账户数据失败: {e}", exc_info=True)
@@ -1156,21 +1172,28 @@ class TradingCoreService:
             queue: WebSocket消息队列
         """
         self._account_ws_queue = queue
-        self.logger.info("账户数据WebSocket已注册")
+        self.logger.info("[WebSocket] 账户数据WebSocket已注册")
         
         # 如果有缓存数据，立即推送
         if self._latest_account_data:
+            self.logger.info(f"[WebSocket] 推送缓存的账户数据: balance={self._latest_account_data.get('balance')}")
             await self._push_account_to_ws({
                 "type": "account",
                 "data": self._latest_account_data
             })
+        else:
+            self.logger.warning("[WebSocket] 没有缓存的账户数据")
+        
         if self._latest_positions:
             # 转换字典为列表
             positions_list = list(self._latest_positions.values())
+            self.logger.info(f"[WebSocket] 推送缓存的持仓数据: {len(positions_list)}条")
             await self._push_account_to_ws({
                 "type": "positions",
                 "data": positions_list
             })
+        else:
+            self.logger.debug("[WebSocket] 没有缓存的持仓数据")
     
     def unregister_account_ws(self):
         """注销账户数据 WebSocket 队列"""

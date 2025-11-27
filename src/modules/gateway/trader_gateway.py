@@ -17,11 +17,28 @@ from typing import SupportsInt
 
 from src.constants import INSTRUMENT_EXCHANGE_FILENAME, PRODUCT_INFO_FILENAME, Const
 from src.core.base_gateway import BaseGateway
-from src.core.constants import ErrorReason, Currency, Exchange, Direction, Product, OrderStatus, OrderType, RspCode, \
+from src.core.constants import (
+    ErrorReason,
+    Currency,
+    Exchange,
+    Direction,
+    Product,
+    OrderStatus,
+    OrderType,
+    RspCode,
     RspMsg
+)
 from src.core.event import EventType, Event
 from src.core.event_bus import EventBus
-from src.core.object import OrderRequest, CancelRequest, ContractData, OrderData, PositionData, AccountData, TradeData
+from src.core.object import (
+    OrderRequest,
+    CancelRequest,
+    ContractData,
+    OrderData,
+    PositionData,
+    AccountData,
+    TradeData
+)
 from src.core.strategy_trade_logger import get_strategy_trade_logger
 from src.ctp.api import TdApi
 from src.ctp.api.ctp_constant import (
@@ -36,7 +53,11 @@ from src.modules.gateway.gateway_const import (
     ORDER_STATUS_CTP_TO_ENUM,
     symbol_contract_map,
     DIRECTION_CTP_TO_ENUM,
-    PRODUCT_CTP_TO_ENUM, CHINA_TZ, ORDER_TYPE_CTP_TO_ENUM, DIRECTION_ENUM_TO_CTP, OFFSET_ENUM_TO_CTP,
+    PRODUCT_CTP_TO_ENUM,
+    CHINA_TZ,
+    ORDER_TYPE_CTP_TO_ENUM,
+    DIRECTION_ENUM_TO_CTP,
+    OFFSET_ENUM_TO_CTP,
     ORDER_TYPE_ENUM_TO_CTP
 )
 from src.modules.gateway.gateway_helper import (
@@ -46,7 +67,15 @@ from src.modules.gateway.gateway_helper import (
 )
 from src.utils.get_path import get_path_ins
 from src.utils.log import get_logger
-from src.utils.utility import prepare_address, write_json, load_ini, write_ini, del_num, delete_file, sleep
+from src.utils.utility import (
+    prepare_address,
+    write_json,
+    load_ini,
+    write_ini,
+    del_num,
+    delete_file,
+    sleep
+)
 
 
 class TraderGateway(BaseGateway):
@@ -59,14 +88,13 @@ class TraderGateway(BaseGateway):
         super().__init__(event_bus, gateway_name)
         self.event_bus = event_bus
         self.gateway_name: str = gateway_name
-        # CTP API相关
         self.td_api: CtpTdApi | None = None
         self.count: int = 0  # 资金和持仓的查询间隔
         self.query_functions: list = []
         self.logger = get_logger(self.__class__.__name__)
 
-        # 订阅数据中心合约更新事件
-        self.event_bus.subscribe(EventType.DATA_CENTER_QRY_INS, self.update_instrument_handler)
+        # 订阅查询合约事件
+        self.event_bus.subscribe(EventType.TD_QRY_INS, self.update_instrument_handler)
         
         # 设置网关事件处理器
         if self.event_bus:
@@ -1004,8 +1032,6 @@ class CtpTdApi(TdApi):
             self.logger.info("可能原因: 价格超出涨跌停板、资金不足、合约不存在等")
 
         self.logger.info(f"状态变化: {old_status} -> {order_status.value}")
-
-
 
         timestamp_str: str = f"{data.get('InsertDate', '')} {data.get('InsertTime', '')}"
         timestamp: datetime = datetime.strptime(timestamp_str, "%Y%m%d %H:%M:%S").replace(tzinfo=CHINA_TZ)

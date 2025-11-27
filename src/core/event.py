@@ -226,7 +226,7 @@ class EventType(object):
     # ===== 基础业务事件 =====
     ORDER = "order"  # 订单事件
     POSITION = "position"  # 持仓事件
-    ACCOUNT = "account"  # 账户事件
+    ACCOUNT = "account"  # 账户事件(账户更新优先使用 ACCOUNT_UPDATE 事件类型)
     CONTRACT = "contract"  # 合约事件
 
     # ===== 网关连接事件 =====
@@ -236,11 +236,6 @@ class EventType(object):
     TD_QRY_INS = "td.qry.ins"  # 交易网关查询合约事件
     TD_CONFIRM_SUCCESS = "td.confirm.success"  # 结算单确认成功(也代表交易网关就绪)
     TD_ALREADY_CONFIRMED = "td.already.confirmed"  # 结算单已经确认过事件(也代表交易网关就绪)
-
-    # ===== 数据中心事件 =====
-    DATA_CENTER_START = "data_center.start"  # 数据中心启动事件
-    DATA_CENTER_STOP = "data_center.stop"  # 数据中心停止事件
-    DATA_CENTER_QRY_INS = "data_center.qry_ins"  # 数据中心查询合约事件
 
     # ===== 策略管理事件 =====
     STRATEGY_LOADED = "strategy.loaded"  # 策略加载完成

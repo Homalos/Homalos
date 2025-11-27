@@ -614,7 +614,7 @@ class StartIntegratedSystem(object):
             None
         """
         try:
-            self.event_bus.publish(Event(EventType.DATA_CENTER_QRY_INS, {}))
+            self.event_bus.publish(Event(EventType.TD_QRY_INS, {}))
             self.logger.info("已发送查询合约事件")
         except Exception as e:
             self.logger.error(f"发送查询合约事件失败: {e}", exc_info=True)
