@@ -98,18 +98,20 @@ class Strategy1(BaseStrategy):
 
         def on_tick(self, tick: TickData) -> None:
             # 降低日志频率，避免I/O阻塞FastAPI事件循环
-            self.logger.info(f"收到tick: "
-                             f"{self.base_strategy.strategy_name} "
-                             f"{tick.trading_day} "
-                             f"{tick.exchange_id} "
-                             f"{tick.instrument_id} "
-                             f"{tick.last_price} "
-                             f"{tick.update_time} "
-                             f"{tick.update_millisec}")
+            # self.logger.info(f"收到tick: "
+            #                  f"{self.base_strategy.strategy_name} "
+            #                  f"{tick.trading_day} "
+            #                  f"{tick.exchange_id} "
+            #                  f"{tick.instrument_id} "
+            #                  f"{tick.last_price} "
+            #                  f"{tick.update_time} "
+            #                  f"{tick.update_millisec}")
+            pass
 
         def on_bar(self, bar: BarData) -> None:
             self.logger.info(f"{self.base_strategy.strategy_name} 收到bar: "
                              f"{bar.instrument_id} "
+                             f"{bar.exchange_id.value} "
                              f"open={bar.open_price} "
                              f"high={bar.high_price} "
                              f"low={bar.low_price} "

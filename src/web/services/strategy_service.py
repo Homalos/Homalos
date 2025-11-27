@@ -36,6 +36,35 @@ class StrategyService:
         self._trading_core = trading_core
         self.logger.info("交易核心服务已关联到策略服务")
     
+    def update_core_dependencies(self):
+        """
+        更新交易核心依赖（在交易核心启动后调用）
+        
+        这用于处理以下场景：
+        - 策略管理器在交易核心启动前初始化，使用了独立的EventBus
+        - 交易核心启动后，需要切换到交易核心的EventBus
+        """
+        if not self._initialized or not self._manager:
+            self.logger.warning("策略管理器未初始化，无法更新依赖")
+            return
+        
+        if not self._trading_core:
+            self.logger.warning("交易核心未设置，无法更新依赖")
+            return
+        
+        try:
+            # 获取交易核心的EventBus
+            event_bus = self._trading_core.get_event_bus()
+            if event_bus:
+                self.logger.info("从交易核心获取EventBus，准备更新策略管理器")
+                # 更新策略管理器的EventBus
+                self._manager.update_event_bus(event_bus)
+                self.logger.info("✓ 策略管理器已更新为使用交易核心的EventBus")
+            else:
+                self.logger.warning("交易核心的EventBus为None，无法更新")
+        except Exception as e:
+            self.logger.error(f"更新策略管理器依赖失败: {e}", exc_info=True)
+    
     def get_manager(self) -> StrategyManager:
         """获取策略管理器实例"""
         if not self._initialized or self._manager is None:

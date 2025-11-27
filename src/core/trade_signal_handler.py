@@ -22,6 +22,7 @@ from src.core.constants import Direction, Offset, Exchange, OrderStatus
 from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.object import OrderRequest, TradeData
+from src.core.strategy_trade_logger import get_strategy_trade_logger
 from src.utils.log.logger import get_logger
 
 
@@ -98,10 +99,18 @@ class TradeSignalHandler:
         # 回调函数注册
         self._signal_callbacks: Dict[str, List[Callable]] = defaultdict(list)
         
+        # ✅ 防止重复启动
+        self._started = False
+        
         self.logger.info("交易信号处理器初始化完成")
     
     async def startup(self):
         """启动交易信号处理器"""
+        # ✅ 防止重复启动
+        if self._started:
+            self.logger.debug("交易信号处理器已启动，跳过重复启动")
+            return
+        
         self.logger.info("交易信号处理器启动中...")
         
         # 订阅事件
@@ -111,6 +120,7 @@ class TradeSignalHandler:
         self.event_bus.subscribe(EventType.ORDER_STATUS_UPDATE, self._handle_order_update)
         self.event_bus.subscribe(EventType.TRADE_EXECUTION, self._handle_trade_execution)
         
+        self._started = True
         self.logger.info("交易信号处理器启动完成")
     
     async def shutdown(self):
@@ -188,6 +198,20 @@ class TradeSignalHandler:
             
             self.logger.info(f"收到交易信号: {signal.strategy_id} -> {signal.instrument_id} "
                            f"{signal.direction.value} {signal.offset.value} {signal.volume}@{signal.price}")
+            
+            # 转发到策略日志
+            try:
+                strategy_logger = get_strategy_trade_logger()
+                strategy_logger.log_signal_received(
+                    signal.strategy_id, 
+                    signal.instrument_id,
+                    signal.direction.value,
+                    signal.offset.value,
+                    signal.volume,
+                    signal.price
+                )
+            except Exception as e:
+                self.logger.debug(f"转发策略日志失败: {e}")
         
         # 触发回调
         self._trigger_callbacks("signal_received", signal)
@@ -358,22 +382,26 @@ class TradeSignalHandler:
                 
                 # ✅ 防止重复提交：检查是否已经处于已批准或已提交状态
                 if record.execution_status in ["approved", "submitted"]:
-                    self.logger.warning(f"信号已被处理，跳过重复提交: {signal_id}, 当前状态: {record.execution_status}")
+                    self.logger.debug(f"信号已被处理，跳过重复提交: {signal_id}, 当前状态: {record.execution_status}")
                     return
                 
+                # ✅ 原子操作：立即标记为已批准，防止并发处理
                 record.execution_status = "approved"
                 record.risk_check_result = risk_check_result
                 
                 # 更新统计
                 self.signal_statistics["approved_signals"] += 1
+                
+                # 保存record以便后续使用
+                signal_record = record
             
             self.logger.info(f"信号风控通过: {signal_id}")
             
-            # 提交订单到交易网关
+            # 提交订单到交易网关（在锁外执行，避免长时间持锁）
             self._submit_order_to_gateway(signal_id, order_request)
             
             # 触发回调
-            self._trigger_callbacks("signal_approved", record.signal)
+            self._trigger_callbacks("signal_approved", signal_record.signal)
             
         except Exception as e:
             self.logger.error(f"处理订单审批事件异常: {e}", exc_info=True)

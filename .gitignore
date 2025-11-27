@@ -29,7 +29,17 @@ logs/
 con
 .git-rewrite
 web-ui/node_modules/
+web-ui/.vscode/
 .qoder
 .windsurf
 .docs/
 .scripts/
+files.txt
+*.csv
+start_del_log.bat
+tools/
+migrations/
+scripts/
+docs/
+tests/
+config/instrument_exchange.json

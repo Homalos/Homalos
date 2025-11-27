@@ -22,6 +22,7 @@ from src.core.constants import ErrorReason, Currency, Exchange, Direction, Produ
 from src.core.event import EventType, Event
 from src.core.event_bus import EventBus
 from src.core.object import OrderRequest, CancelRequest, ContractData, OrderData, PositionData, AccountData, TradeData
+from src.core.strategy_trade_logger import get_strategy_trade_logger
 from src.ctp.api import TdApi
 from src.ctp.api.ctp_constant import (
     THOST_TERT_QUICK,
@@ -85,12 +86,13 @@ class TraderGateway(BaseGateway):
         
         Args:
             event: 订单提交事件，payload格式:
-                   {"signal_id": "信号ID", "order_request": OrderRequest对象}
+                   {"signal_id": "信号ID", "order_request": OrderRequest对象, "strategy_id": "策略ID"}
         """
         try:
             payload = event.payload
             order_request = payload.get('order_request')
             signal_id = payload.get('signal_id')
+            strategy_id = payload.get('strategy_id')
             
             if not order_request:
                 self.logger.warning("订单提交请求数据为空")
@@ -104,6 +106,19 @@ class TraderGateway(BaseGateway):
             
             if order_id:
                 self.logger.info(f"订单提交成功，OrderID: {order_id}, SignalID: {signal_id}")
+                
+                # 转发到策略日志
+                try:
+                    if strategy_id:
+                        strategy_logger = get_strategy_trade_logger()
+                        strategy_logger.log_order_submitted(
+                            strategy_id,
+                            order_request.instrument_id,
+                            order_id,
+                            signal_id
+                        )
+                except Exception as e:
+                    self.logger.debug(f"转发策略日志失败: {e}")
             else:
                 self.logger.error(f"订单提交失败，SignalID: {signal_id}")
             

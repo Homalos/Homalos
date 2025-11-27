@@ -303,6 +303,14 @@ class EventBus:
         :return:
         """
         with self._lock:
+            # ✅ 防止重复订阅：检查该订阅者是否已存在
+            existing_subscribers = self._subscribers[event_type]
+            for existing_sub, _ in existing_subscribers:
+                if existing_sub == subscriber:
+                    # 订阅者已存在，跳过
+                    return
+            
+            # 添加新订阅者
             self._subscribers[event_type].append((subscriber, async_mode))
 
     def unsubscribe(self, event_type: str, subscriber) -> None:

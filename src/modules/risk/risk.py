@@ -20,6 +20,7 @@ from src.core.constants import Direction, Offset
 from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.object import OrderRequest
+from src.core.strategy_trade_logger import get_strategy_trade_logger
 from src.utils.log import get_logger
 
 
@@ -386,6 +387,18 @@ class RiskManager:
                 # 风控通过，转发给交易网关
                 self.logger.info(f"风控检查通过，转发订单: {order_request.instrument_id}")
                 
+                # 转发到策略日志
+                try:
+                    signal_id = event.payload.get("signal_id")
+                    strategy_logger = get_strategy_trade_logger()
+                    strategy_logger.log_risk_check_passed(
+                        strategy_id,
+                        order_request.instrument_id,
+                        signal_id
+                    )
+                except Exception as e:
+                    self.logger.debug(f"转发策略日志失败: {e}")
+                
                 approved_event = Event(
                     EventType.TRADE_ORDER_APPROVED,
                     payload={
@@ -403,6 +416,19 @@ class RiskManager:
             else:
                 # 风控不通过，发送拒绝事件和告警
                 self.logger.warning(f"风控检查失败: {risk_result.reason}")
+                
+                # 转发到策略日志
+                try:
+                    signal_id = event.payload.get("signal_id")
+                    strategy_logger = get_strategy_trade_logger()
+                    strategy_logger.log_risk_check_failed(
+                        strategy_id,
+                        order_request.instrument_id,
+                        risk_result.reason,
+                        signal_id
+                    )
+                except Exception as e:
+                    self.logger.debug(f"转发策略日志失败: {e}")
                 
                 rejected_event = Event(
                     EventType.TRADE_ORDER_REJECTED,

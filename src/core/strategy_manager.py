@@ -37,6 +37,7 @@ from src.core.event import Event, EventType
 from src.core.event_bus import EventBus
 from src.core.state_persistence import StatePersistenceManager
 from src.core.strategy_worker import run_strategy_process  # child entry
+from src.core.strategy_trade_logger import get_strategy_trade_logger
 from src.strategy.strategy_registry import StrategyRegistry
 from src.system_config import Config
 from src.utils.get_path import get_path_ins
@@ -138,17 +139,8 @@ class StrategyManager(object):
                 except RuntimeError as e:
                     self.logger.warning(f"无法获取事件循环: {e}")
         
-        # 设置事件订阅（新增）
-        if self.event_bus:
-            # 订阅策略信号结果事件
-            self.event_bus.subscribe(EventType.STRATEGY_SIGNAL_RESULT, self._handle_signal_result)
-            self.logger.info("✓ 已订阅策略信号结果事件")
-            
-            # 订阅成交执行事件，转发给策略进程
-            self.event_bus.subscribe(EventType.TRADE_EXECUTION, self._handle_trade_execution)
-            self.logger.info("✓ 已订阅成交执行事件 (TRADE_EXECUTION)")
-        else:
-            self.logger.warning("⚠️ 事件总线未初始化，无法订阅事件")
+        # 设置事件订阅
+        self._setup_event_subscriptions()
         
         # 加载所有已启用策略的持久化状态
         # 使用临时字典存储，避免影响load_strategy的判断
@@ -806,6 +798,35 @@ class StrategyManager(object):
         except Exception as e:
             self.logger.error(f"处理信号结果事件异常: {e}", exc_info=True)
     
+    def _setup_event_subscriptions(self):
+        """设置事件订阅（可重复调用以更新EventBus）"""
+        if self.event_bus:
+            # 订阅策略信号结果事件
+            self.event_bus.subscribe(EventType.STRATEGY_SIGNAL_RESULT, self._handle_signal_result)
+            self.logger.info("✓ 已订阅策略信号结果事件")
+            
+            # 订阅成交执行事件，转发给策略进程
+            self.event_bus.subscribe(EventType.TRADE_EXECUTION, self._handle_trade_execution)
+            self.logger.info("✓ 已订阅成交执行事件 (TRADE_EXECUTION)")
+        else:
+            self.logger.warning("⚠️ 事件总线未初始化，无法订阅事件")
+    
+    def update_event_bus(self, event_bus):
+        """
+        更新事件总线（在交易核心启动后调用）
+        
+        这用于处理以下场景：
+        - 策略管理器在交易核心启动前初始化，使用了独立的EventBus
+        - 交易核心启动后，需要切换到交易核心的EventBus
+        """
+        if event_bus and event_bus != self.event_bus:
+            self.logger.info(f"更新事件总线: {self.event_bus} -> {event_bus}")
+            self.event_bus = event_bus
+            # 重新设置订阅
+            self._setup_event_subscriptions()
+        elif not event_bus:
+            self.logger.warning("⚠️ 新的事件总线为None，无法更新")
+    
     def _handle_trade_execution(self, event):
         """处理成交执行事件，转发给所有运行中的策略进程"""
         try:
@@ -855,6 +876,20 @@ class StrategyManager(object):
                         conn.send(trade_event_msg)
                         forwarded_count += 1
                         self.logger.info(f"✓ 已转发成交事件给策略 {sid}: {instrument_id}")
+                        
+                        # 转发到策略日志
+                        try:
+                            strategy_logger = get_strategy_trade_logger()
+                            strategy_logger.log_order_traded(
+                                sid,
+                                instrument_id,
+                                getattr(trade_data, 'order_id', 'N/A'),
+                                getattr(trade_data, 'trade_id', 'N/A'),
+                                getattr(trade_data, 'volume', 0),
+                                getattr(trade_data, 'price', 0.0)
+                            )
+                        except Exception as e:
+                            self.logger.debug(f"转发策略日志失败: {e}")
                     except (BrokenPipeError, EOFError):
                         # 管道已关闭，策略进程已退出
                         self.logger.debug(f"无法转发成交事件给策略 {sid}，进程已退出")
