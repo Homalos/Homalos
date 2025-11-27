@@ -304,7 +304,7 @@
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 12px; color: #606266; margin-bottom: 5px;">
                   <span>数量: {{ item.volume }}手 | 价格: {{ item.price.toFixed(2) }}</span>
-                  <span :style="{ color: item.pnl >= 0 ? '#67C23A' : '#F56C6C', fontWeight: 600 }">
+                  <span :style="{ color: item.pnl >= 0 ? '#F56C6C' : '#67C23A', fontWeight: 600 }">
                     盈亏: {{ item.pnl >= 0 ? '+' : '' }}{{ item.pnl.toFixed(2) }}
                   </span>
                 </div>
@@ -455,10 +455,10 @@ watch(
 watch(
   () => tradingAccountStore.accountData,
   (newAccountData) => {
-    if (newAccountData && newAccountData.balance > 0) {
-      dashboardData.account.totalEquity = newAccountData.balance
-      dashboardData.account.availableFunds = newAccountData.available
-      dashboardData.account.marginUsed = newAccountData.frozen
+    if (newAccountData) {
+      dashboardData.account.totalEquity = newAccountData.balance || 0
+      dashboardData.account.availableFunds = newAccountData.available || 0
+      dashboardData.account.marginUsed = newAccountData.frozen || 0
       dashboardData.account.fundUtilizationRate = newAccountData.balance > 0
         ? (newAccountData.frozen / newAccountData.balance) * 100
         : 0
