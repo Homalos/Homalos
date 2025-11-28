@@ -1,5 +1,5 @@
 @echo off
 call .venv\Scripts\activate
-python -m src.web.scripts.init_admin
+python scripts/init_admin.py
 pause
 

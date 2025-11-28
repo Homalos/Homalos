@@ -24,7 +24,7 @@ echo   前端页面: http://localhost:5173
 echo.
 echo   默认管理员账户:
 echo   用户名: admin
-echo   密码: admin123
+echo   密码: Admin@123456
 echo.
 echo   按任意键打开前端页面...
 echo ============================================================

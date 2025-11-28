@@ -44,9 +44,9 @@ class User(Base):
     """
     __tablename__ = "users"
 
-    # 主键 - 使用BIGINT自增ID，与业务无关
+    # 主键 - 使用INT自增ID，与业务无关
     user_id = Column(
-        BigInteger, 
+        Integer, 
         primary_key=True, 
         index=True, 
         autoincrement=True,

@@ -121,18 +121,21 @@ Homalos 现已包含基于 FastAPI 和 Vue 3 构建的现代化 Web 管理界面
 
 ### 快速开始
 
-1. **初始化管理员账户**
+1. **初始化超级管理员账户**
+   
    ```bash
+   # 初始化或重置超级管理员账户
    init_admin.bat
-   ```
-   默认凭据：`admin` / `admin123`
-
+```
+   默认凭据：`admin` / `Admin@123456`
+   
 2. **启动所有服务**
+   
    ```bash
    start_all_web.bat
    ```
-   这将启动后端（端口 8000）和前端（端口 5173）
-
+这将启动后端（端口 8000）和前端（端口 5173）
+   
 3. **访问 Web 界面**
    - 前端：http://localhost:5173
    - API 文档：http://localhost:8000/docs
