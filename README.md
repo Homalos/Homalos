@@ -126,9 +126,10 @@ Personal Center
    ```bash
    # Initialize or reset the super administrator account
    init_admin.bat
-```
+   ```
+
    Default credentials: `admin` / `Admin@123456`
-   
+
 2. **Start All Services**
    
    ```bash
