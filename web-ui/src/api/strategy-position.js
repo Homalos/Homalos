@@ -40,6 +40,22 @@ export function getStrategyPositionHistory(strategyId, limit = 100) {
 }
 
 /**
+ * 获取策略成交记录
+ * @param {number} strategyId - 策略ID
+ * @param {number} limit - 返回的最大记录数（默认100）
+ * @returns {Promise}
+ */
+export function getStrategyTrades(strategyId, limit = 100) {
+  return request({
+    url: `/api/strategies-db/${strategyId}/trades`,
+    method: 'get',
+    params: {
+      limit
+    }
+  })
+}
+
+/**
  * 获取持仓同步统计信息
  * @returns {Promise}
  */
@@ -53,5 +69,6 @@ export function getPositionSyncStats() {
 export default {
   getStrategyPositions,
   getStrategyPositionHistory,
+  getStrategyTrades,
   getPositionSyncStats
 }

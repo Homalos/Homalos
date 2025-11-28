@@ -150,12 +150,21 @@
         <span class="section-title">持仓</span>
       </template>
       <el-table :data="displayPositions" stripe border v-if="displayPositions.length > 0">
-        <el-table-column prop="instrument" label="合约" width="100" />
+        <el-table-column prop="instrument" label="合约" width="80" />
         <el-table-column prop="direction" label="多空" width="80" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.direction === '多' ? 'success' : 'danger'">
+            <span 
+              v-if="row.direction === '多'"
+              class="direction-tag direction-long"
+            >
               {{ row.direction }}
-            </el-tag>
+            </span>
+            <span 
+              v-else
+              class="direction-tag direction-short"
+            >
+              {{ row.direction }}
+            </span>
           </template>
         </el-table-column>
         <el-table-column label="可用/总仓" width="120" align="center">
@@ -218,6 +227,47 @@
         </el-table-column>
       </el-table>
       <el-empty v-else description="暂无持仓" />
+    </el-card>
+
+    <!-- 成交卡片 -->
+    <el-card shadow="hover" class="detail-section" style="margin-top: 20px;">
+      <template #header>
+        <span class="section-title">成交</span>
+      </template>
+      <el-table :data="trades" stripe border v-if="trades.length > 0" :default-sort="{ prop: 'trade_time', order: 'descending' }">
+        <el-table-column prop="symbol" label="合约" width="80" />
+        <el-table-column prop="direction" label="多空" width="80" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.direction === 'LONG' ? 'danger' : 'success'">
+              {{ row.direction === 'LONG' ? '多' : '空' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="offset_type" label="开平" width="80" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.offset_type === 'OPEN' ? 'primary' : 'warning'">
+              {{ row.offset_type === 'OPEN' ? '开' : '平' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="trade_price" label="成交价" width="100" align="right" />
+        <el-table-column prop="trade_volume" label="成交量" width="100" align="center" />
+        <el-table-column prop="pnl" label="平仓盈亏" width="100" align="right">
+          <template #default="{ row }">
+            <span :style="row.pnl > 0 ? { color: '#f56c6c' } : row.pnl < 0 ? { color: '#67c23a' } : {}">
+              {{ row.pnl }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="commission" label="手续费" width="100" align="right" />
+        <el-table-column prop="order_id" label="订单编号" width="150" />
+        <el-table-column prop="trade_time" label="时间" width="180" sortable align="center">
+          <template #default="{ row }">
+            {{ formatTradeTime(row.trade_time) }}
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-empty v-else description="暂无成交记录" />
     </el-card>
 
     <!-- 策略日志 -->
@@ -320,7 +370,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useStrategyStore } from '@/stores/strategy'
 import { useTradingAccountStore } from '@/stores/tradingAccount'
 import { getStrategyLogs } from '@/api/strategy'
-import { getStrategyPositions, getStrategyPositionHistory } from '@/api/strategy-position'
+import { getStrategyPositions, getStrategyPositionHistory, getStrategyTrades } from '@/api/strategy-position'
 import WebSocketClient from '@/utils/websocket'
 
 // ========== 初始化 ==========
@@ -344,6 +394,10 @@ const selectedContext = ref(null)
 const dbPositions = ref([])
 const positionsLoading = ref(false)
 const useDbPositions = ref(true)  // 是否使用数据库持仓（默认使用）
+
+// 成交记录数据
+const trades = ref([])
+const tradesLoading = ref(false)
 
 // WebSocket 实时推送
 const wsClient = ref(null)
@@ -531,6 +585,56 @@ async function loadDbPositions() {
     useDbPositions.value = false
   } finally {
     positionsLoading.value = false
+  }
+}
+
+// ========== 成交相关方法 ==========
+async function loadTrades() {
+  if (!strategyId.value) return
+  
+  tradesLoading.value = true
+  try {
+    const response = await getStrategyTrades(strategyId.value)
+    // 后端返回 StrategyTradeListResponse 格式：{ total, trades }
+    if (response && response.trades !== undefined) {
+      trades.value = response.trades || []
+      if (trades.value.length > 0) {
+        ElMessage.success(`成交记录已加载，共 ${trades.value.length} 条`)
+      }
+    } else {
+      console.warn('成交数据格式错误:', response)
+      ElMessage.warning('加载成交数据失败')
+    }
+  } catch (error) {
+    console.error('加载成交数据失败:', error)
+    ElMessage.error('加载成交数据失败: ' + (error.message || '未知错误'))
+  } finally {
+    tradesLoading.value = false
+  }
+}
+
+function formatTradeTime(timestamp) {
+  if (!timestamp) return '-'
+  
+  try {
+    // 处理 ISO 格式的时间戳
+    const date = new Date(timestamp)
+    if (isNaN(date.getTime())) {
+      return timestamp
+    }
+    
+    // 格式化为 YYYY-MM-DD HH:mm:ss
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    const seconds = String(date.getSeconds()).padStart(2, '0')
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  } catch (error) {
+    console.error('格式化时间失败:', error)
+    return timestamp
   }
 }
 
@@ -725,8 +829,11 @@ async function handleRefresh() {
     strategyStore.fetchStatus()
   ])
   loadStrategyData()
-  // 同时刷新持仓数据
-  await loadDbPositions()
+  // 同时刷新持仓和成交数据
+  await Promise.all([
+    loadDbPositions(),
+    loadTrades()
+  ])
   ElMessage.success('刷新成功')
 }
 
@@ -845,10 +952,11 @@ onMounted(async () => {
   
   loadStrategyData()
   
-  // 自动加载持仓、日志和 WebSocket
+  // 自动加载持仓、成交、日志和 WebSocket
   if (strategyId.value) {
     await Promise.all([
       loadDbPositions(),
+      loadTrades(),
       loadLogs(),
       initWebSocket()
     ])
@@ -1051,6 +1159,27 @@ watch(() => route.params.id, async (newId) => {
 :deep(.el-tag--info) {
   background: linear-gradient(135deg, rgba(144, 147, 153, 0.9) 0%, rgba(144, 147, 153, 0.8) 100%);
   color: #ffffff;
+}
+
+/* 方向标签样式 */
+.direction-tag {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.direction-long {
+  background-color: #fef0f0;
+  color: #f56c6c;
+  border: 1px solid rgba(245, 108, 108, 0.2);
+}
+
+.direction-short {
+  background-color: #f0f9f0;
+  color: #67c23a;
+  border: 1px solid rgba(103, 194, 58, 0.2);
 }
 
 /* 统计组件优化 */
