@@ -1196,38 +1196,45 @@ class TradingCoreService:
             # 没有缓存数据，主动查询一次
             self.logger.info("[WebSocket] 没有缓存的账户数据，主动查询...")
             try:
-                if self._trader_gateway:
-                    # 先发送查询请求
-                    self._trader_gateway.query_account()
-                    self.logger.info("[WebSocket] 已发送账户查询请求")
-                    
-                    # 等待查询完成（最多等待3秒）
-                    for i in range(30):  # 30 * 0.1 = 3秒
-                        await asyncio.sleep(0.1)
-                        if self._latest_account_data:
-                            self.logger.info(f"[WebSocket] 查询后推送账户数据: balance={self._latest_account_data.get('balance')}")
-                            await self._push_account_to_ws({
-                                "type": "account",
-                                "data": self._latest_account_data
-                            })
-                            break
-                    else:
-                        # 3秒后仍无数据，尝试构造默认数据
-                        self.logger.warning("[WebSocket] 查询3秒后仍无账户数据，尝试从网关直接获取")
-                        try:
-                            # 尝试从网关获取最后一次查询的账户数据
-                            if hasattr(self._trader_gateway, '_last_account_data'):
-                                account_data = self._trader_gateway._last_account_data
-                                if account_data:
-                                    self.logger.info(f"[WebSocket] 从网关获取账户数据: balance={account_data.get('balance')}")
-                                    await self._push_account_to_ws({
-                                        "type": "account",
-                                        "data": account_data
-                                    })
-                        except Exception as e:
-                            self.logger.error(f"[WebSocket] 从网关获取账户数据失败: {e}")
+                # 等待交易网关初始化（最多等待10秒）
+                for i in range(100):  # 100 * 0.1 = 10秒
+                    if self._trader_gateway:
+                        self.logger.info("[WebSocket] 交易网关已初始化，发送账户查询请求")
+                        break
+                    await asyncio.sleep(0.1)
                 else:
-                    self.logger.warning("[WebSocket] 交易网关未初始化，无法查询账户数据")
+                    self.logger.warning("[WebSocket] 等待10秒后交易网关仍未初始化")
+                    return
+                
+                # 发送查询请求
+                self._trader_gateway.query_account()
+                self.logger.info("[WebSocket] 已发送账户查询请求")
+                
+                # 等待查询完成（最多等待3秒）
+                for i in range(30):  # 30 * 0.1 = 3秒
+                    await asyncio.sleep(0.1)
+                    if self._latest_account_data:
+                        self.logger.info(f"[WebSocket] 查询后推送账户数据: balance={self._latest_account_data.get('balance')}")
+                        await self._push_account_to_ws({
+                            "type": "account",
+                            "data": self._latest_account_data
+                        })
+                        break
+                else:
+                    # 3秒后仍无数据，尝试从网关直接获取
+                    self.logger.warning("[WebSocket] 查询3秒后仍无账户数据，尝试从网关直接获取")
+                    try:
+                        # 尝试从网关获取最后一次查询的账户数据
+                        if hasattr(self._trader_gateway, '_last_account_data'):
+                            account_data = self._trader_gateway._last_account_data
+                            if account_data:
+                                self.logger.info(f"[WebSocket] 从网关获取账户数据: balance={account_data.get('balance')}")
+                                await self._push_account_to_ws({
+                                    "type": "account",
+                                    "data": account_data
+                                })
+                    except Exception as e:
+                        self.logger.error(f"[WebSocket] 从网关获取账户数据失败: {e}")
             except Exception as e:
                 self.logger.error(f"[WebSocket] 主动查询账户数据失败: {e}", exc_info=True)
         
