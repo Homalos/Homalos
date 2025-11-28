@@ -57,6 +57,7 @@ async def init_db() -> None:
     try:
         from src.web.models.base import Base
         from src.web.models import user  # noqa: F401 导入所有模型以注册表
+        from src.web.models.strategy_trade import StrategyTrade  # noqa: F401 导入成交记录模型
 
         async with engine.begin() as conn:
             # 创建所有表

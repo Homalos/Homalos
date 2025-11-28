@@ -130,8 +130,11 @@ async def lifespan(app: FastAPI):
         # 将策略服务传递给交易核心（用于停止核心时停止所有策略）
         trading_core.set_strategy_service(strategy_service)
         
-        # 初始化策略管理器（即使核心未启动也可以初始化）
-        await strategy_service.initialize_manager(loop)
+        # 获取数据库会话工厂（用于持仓事件处理）
+        from src.web.core.database import async_session_maker
+        
+        # 初始化策略管理器（传递数据库会话工厂用于持仓同步）
+        await strategy_service.initialize_manager(loop, async_session_maker)
         
         logger.info("策略服务已初始化")
         logger.info("注意：启动策略前需要先启动交易核心")

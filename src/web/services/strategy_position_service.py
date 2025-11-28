@@ -15,9 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 
 from src.web.models.strategy_position import StrategyPosition
+from src.web.models.strategy_trade import StrategyTrade
 from src.web.schemas.strategy_position import (
     StrategyPositionResponse, StrategyPositionListResponse,
-    StrategyPositionUpdate, StrategyPositionCreate
+    StrategyPositionUpdate, StrategyPositionCreate,
+    StrategyTradeResponse, StrategyTradeListResponse
 )
 from src.utils.log import get_logger
 
@@ -251,4 +253,111 @@ class StrategyPositionService:
         except Exception as e:
             await db.rollback()
             self.logger.error("平仓失败: " + str(e), exc_info=True)
+            raise
+
+    async def get_trades(
+        self,
+        db: AsyncSession,
+        strategy_id: int,
+        limit: int = 100
+    ) -> StrategyTradeListResponse:
+        """
+        获取策略成交记录
+        
+        Args:
+            db: 数据库会话
+            strategy_id: 策略ID
+            limit: 返回的最大记录数
+            
+        Returns:
+            StrategyTradeListResponse: 成交记录列表
+        """
+        try:
+            # 查询成交记录，按成交时间倒序排列
+            query = select(StrategyTrade).where(
+                StrategyTrade.strategy_id == strategy_id
+            ).order_by(StrategyTrade.trade_time.desc()).limit(limit)
+            
+            result = await db.execute(query)
+            trades = result.scalars().all()
+            
+            trade_list = [StrategyTradeResponse.from_orm(t) for t in trades]
+            
+            self.logger.info("查询策略 {} 的成交记录: 共 {} 个".format(strategy_id, len(trade_list)))
+            
+            return StrategyTradeListResponse(
+                total=len(trade_list),
+                trades=trade_list
+            )
+        
+        except Exception as e:
+            self.logger.error("获取成交记录失败: " + str(e), exc_info=True)
+            raise
+
+    async def create_trade(
+        self,
+        db: AsyncSession,
+        strategy_id: int,
+        symbol: str,
+        exchange: str,
+        direction: str,
+        offset_type: str,
+        trade_price: float,
+        trade_volume: int,
+        commission: float = 0.0,
+        order_id: str = None,
+        pnl: float = 0.0,
+        trade_time: datetime = None
+    ) -> StrategyTradeResponse:
+        """
+        创建成交记录
+        
+        Args:
+            db: 数据库会话
+            strategy_id: 策略ID
+            symbol: 合约代码
+            exchange: 交易所代码
+            direction: 成交方向 (LONG/SHORT)
+            offset_type: 开平类型 (OPEN/CLOSE)
+            trade_price: 成交价格
+            trade_volume: 成交数量
+            commission: 手续费
+            order_id: 订单编号
+            pnl: 成交盈亏
+            trade_time: 成交时间（如果为None则使用当前时间）
+            
+        Returns:
+            StrategyTradeResponse: 成交记录
+        """
+        try:
+            if trade_time is None:
+                trade_time = datetime.utcnow()
+            
+            trade = StrategyTrade(
+                strategy_id=strategy_id,
+                symbol=symbol,
+                exchange=exchange,
+                direction=direction,
+                offset_type=offset_type,
+                trade_price=trade_price,
+                trade_volume=trade_volume,
+                commission=commission,
+                order_id=order_id,
+                pnl=pnl,
+                trade_time=trade_time
+            )
+            
+            db.add(trade)
+            await db.commit()
+            await db.refresh(trade)
+            
+            self.logger.info("创建成交记录: {} {} {} {}手 @ {} 手续费: {}".format(
+                symbol, direction, offset_type, trade_volume, trade_price, commission
+            ))
+            
+            return StrategyTradeResponse.from_orm(trade)
+        
+        except Exception as e:
+            await db.rollback()
+            self.logger.error("创建成交记录失败: " + str(e), exc_info=True)
             raise

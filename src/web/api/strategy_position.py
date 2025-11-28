@@ -17,7 +17,7 @@ from src.web.core.security import get_current_user
 from src.web.models.admin import Admin
 from src.web.models.strategy import Strategy
 from src.web.services.strategy_position_service import StrategyPositionService
-from src.web.schemas.strategy_position import StrategyPositionListResponse
+from src.web.schemas.strategy_position import StrategyPositionListResponse, StrategyTradeListResponse
 from src.utils.log import get_logger
 from sqlalchemy import select
 
@@ -192,3 +192,42 @@ async def get_strategy_position_history(
     except Exception as e:
         logger.error("获取历史持仓失败: " + str(e))
         raise HTTPException(status_code=500, detail="获取历史持仓失败: " + str(e))
+
+
+@router.get("/{strategy_id}/trades", response_model=StrategyTradeListResponse)
+async def get_strategy_trades(
+    strategy_id: str,
+    limit: int = Query(100, ge=1, le=1000, description="返回的最大记录数"),
+    current_user: Admin = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    获取策略成交记录
+    
+    - strategy_id 可以是整数 ID 或字符串 SID
+    - 只能查看自己创建的策略的成交记录
+    - 按成交时间倒序排列
+    """
+    try:
+        # 将 strategy_id 转换为整数（如果是数字字符串）
+        try:
+            strategy_id_int = int(strategy_id)
+        except ValueError:
+            # 如果不是数字，尝试从数据库查询
+            strategy = await get_strategy_by_sid(strategy_id, db)
+            if not strategy:
+                raise HTTPException(status_code=404, detail="策略不存在")
+            strategy_id_int = strategy.strategy_id
+        
+        # 验证策略所有权
+        await verify_strategy_ownership(strategy_id_int, current_user, db)
+        
+        # 获取成交记录
+        result = await position_service.get_trades(db, strategy_id_int, limit)
+        return result
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("获取成交记录失败: " + str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="获取成交记录失败: " + str(e))

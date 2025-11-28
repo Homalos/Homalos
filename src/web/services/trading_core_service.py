@@ -455,6 +455,13 @@ class TradingCoreService:
             
             self.logger.info(f"所有网关登录成功，耗时: {connection_duration:.2f}秒")
             
+            # 注册持仓事件监听器到交易核心的EventBus
+            if self._strategy_service:
+                try:
+                    self._strategy_service.register_position_listener()
+                except Exception as e:
+                    self.logger.error(f"注册持仓事件监听器失败: {e}", exc_info=True)
+            
             return {
                 "success": True,
                 "message": "网关连接成功",
