@@ -99,41 +99,41 @@
       style="width: 100%"
       v-loading="strategyStore.isLoading"
     >
-      <el-table-column label="策略ID" width="200">
+      <el-table-column label="策略ID" min-width="180">
         <template #default="scope">
           {{ getShortStrategyId(scope.row.sid) }}
         </template>
       </el-table-column>
-      <el-table-column label="策略名称" width="150">
+      <el-table-column label="策略名称" min-width="120">
         <template #default="scope">
           {{ scope.row.name || getStrategyName(scope.row.sid) || scope.row.class }}
         </template>
       </el-table-column>
-      <el-table-column label="浮动盈亏" width="120" align="right">
+      <el-table-column label="浮动盈亏" min-width="100" align="right">
         <template #default="scope">
           <span :style="getPnlStyle(getStrategyPnl(scope.row.sid))">
             {{ formatPnl(getStrategyPnl(scope.row.sid)) }}
           </span>
         </template>
       </el-table-column>
-      <el-table-column label="交易次数" width="100" align="center">
+      <el-table-column label="交易次数" min-width="80" align="center">
         <template #default="scope">
           {{ getStrategyTradeCount(scope.row.sid) || 0 }}
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="100">
+      <el-table-column label="状态" min-width="80">
         <template #default="scope">
           <el-tag :type="getStrategyStatus(scope.row.sid) === '运行中' ? 'success' : 'info'">
             {{ getStrategyStatus(scope.row.sid) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="启动时间" width="180">
+      <el-table-column label="启动时间" min-width="160">
         <template #default="scope">
           {{ formatStartTime(getStrategyStartTime(scope.row.sid)) }}
         </template>
       </el-table-column>
-      <el-table-column label="启用" width="80">
+      <el-table-column label="启用" min-width="70">
         <template #default="scope">
           <el-switch
             :model-value="scope.row.enabled"
@@ -141,7 +141,7 @@
           />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="280" fixed="right">
+      <el-table-column label="操作" min-width="240" fixed="right">
         <template #default="scope">
           <!-- 已停止策略的操作：启动、卸载、详情 -->
           <template v-if="getStrategyStatus(scope.row.sid) === '已停止'">
@@ -898,6 +898,12 @@ onMounted(async () => {
 :deep(.el-table) {
   border-radius: 8px;
   overflow: hidden;
+  width: 100% !important;
+}
+
+:deep(.el-table__wrapper) {
+  width: 100% !important;
+  overflow-x: auto !important;
 }
 
 :deep(.el-table th.el-table__cell) {

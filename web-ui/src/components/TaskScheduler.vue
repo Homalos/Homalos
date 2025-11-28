@@ -39,33 +39,33 @@
       
       <!-- 任务列表表格 -->
       <el-table :data="scheduledTasks" stripe style="width: 100%">
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="name" label="任务名称" width="150" />
-        <el-table-column label="任务类型" width="120">
+        <el-table-column prop="id" label="ID" min-width="50" />
+        <el-table-column prop="name" label="任务名称" min-width="120" />
+        <el-table-column label="任务类型" min-width="100">
           <template #default="{ row }">
             <el-tag :color="taskTypeMap[row.type].color" style="color: white;">
               {{ taskTypeMap[row.type].name }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="执行配置" width="200">
+        <el-table-column label="执行配置" min-width="160">
           <template #default="{ row }">
             {{ formatTaskConfig(row) }}
           </template>
         </el-table-column>
-        <el-table-column label="下次执行" width="180">
+        <el-table-column label="下次执行" min-width="150">
           <template #default="{ row }">
             {{ getRelativeTime(calculateNextRunTime(row)) }}
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="100">
+        <el-table-column label="状态" min-width="80">
           <template #default="{ row }">
             <el-tag :type="row.status === 'enabled' ? 'success' : 'info'">
               {{ row.status === 'enabled' ? '已启用' : '已禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="300">
+        <el-table-column label="操作" min-width="260" fixed="right">
           <template #default="{ row }">
             <el-button 
               size="small" 
