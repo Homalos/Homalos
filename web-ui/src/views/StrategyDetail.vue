@@ -149,7 +149,7 @@
       <template #header>
         <span class="section-title">持仓</span>
       </template>
-      <el-table :data="displayPositions" stripe border v-if="displayPositions.length > 0">
+      <el-table :data="displayPositions" stripe border>
         <el-table-column prop="instrument" label="合约" width="80" />
         <el-table-column prop="direction" label="多空" width="80" align="center">
           <template #default="{ row }">
@@ -225,8 +225,12 @@
             </div>
           </template>
         </el-table-column>
+        <template #empty>
+          <div class="table-empty-container">
+            <el-empty description="暂无持仓" />
+          </div>
+        </template>
       </el-table>
-      <el-empty v-else description="暂无持仓" />
     </el-card>
 
     <!-- 成交卡片 -->
@@ -234,7 +238,7 @@
       <template #header>
         <span class="section-title">成交</span>
       </template>
-      <el-table :data="trades" stripe border v-if="trades.length > 0" :default-sort="{ prop: 'trade_time', order: 'descending' }">
+      <el-table :data="trades" stripe border :default-sort="{ prop: 'trade_time', order: 'descending' }">
         <el-table-column prop="symbol" label="合约" width="80" />
         <el-table-column prop="direction" label="多空" width="80" align="center">
           <template #default="{ row }">
@@ -266,8 +270,12 @@
             {{ formatTradeTime(row.trade_time) }}
           </template>
         </el-table-column>
+        <template #empty>
+          <div class="table-empty-container">
+            <el-empty description="暂无成交记录" />
+          </div>
+        </template>
       </el-table>
-      <el-empty v-else description="暂无成交记录" />
     </el-card>
 
     <!-- 策略日志 -->
@@ -1180,6 +1188,15 @@ watch(() => route.params.id, async (newId) => {
   background-color: #f0f9f0;
   color: #67c23a;
   border: 1px solid rgba(103, 194, 58, 0.2);
+}
+
+/* 表格空状态容器 */
+.table-empty-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 20px;
+  min-height: 100px;
 }
 
 /* 统计组件优化 */

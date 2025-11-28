@@ -91,11 +91,26 @@
 
     <el-container>
       <!-- 侧边栏 -->
-      <el-aside width="200px" class="sidebar">
+      <el-aside :width="sidebarWidth" class="sidebar" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+        <!-- 侧边栏顶部按钮 -->
+        <div class="sidebar-header">
+          <el-button 
+            type="text" 
+            class="collapse-btn"
+            @click="toggleSidebar"
+            :title="sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
+          >
+            <el-icon>
+              <component :is="sidebarCollapsed ? 'ArrowRight' : 'ArrowLeft'" />
+            </el-icon>
+          </el-button>
+        </div>
+        
         <el-menu
           :default-active="currentMenuIndex"
           class="sidebar-menu"
           @select="handleMenuSelect"
+          :collapse="sidebarCollapsed"
         >
           <el-menu-item index="/dashboard">
             <el-icon><Monitor /></el-icon>
@@ -180,6 +195,8 @@ import {
   User,
   UserFilled,
   ArrowDown,
+  ArrowLeft,
+  ArrowRight,
   Monitor,
   DataAnalysis,
   Setting,
@@ -230,6 +247,10 @@ const currentMenuIndex = computed(() => {
   return path
 })
 
+// 侧边栏状态
+const sidebarCollapsed = ref(false)
+const sidebarWidth = computed(() => sidebarCollapsed.value ? '64px' : '200px')
+
 // 对话框状态
 const showTradingLogin = ref(false)
 const showFirstTimeGuide = ref(false)
@@ -244,6 +265,13 @@ const {
 
 const handleMenuSelect = (path) => {
   router.push(path)
+}
+
+/**
+ * 切换侧边栏展开/收起
+ */
+const toggleSidebar = () => {
+  sidebarCollapsed.value = !sidebarCollapsed.value
 }
 
 /**
@@ -547,11 +575,49 @@ onMounted(async () => {
 
 .sidebar {
   background-color: #f5f7fa;
+  transition: width 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 12px 8px;
+  display: flex;
+  justify-content: center;
+  border-bottom: 1px solid #e4e7eb;
+}
+
+.collapse-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  color: #606266;
+}
+
+.collapse-btn:hover {
+  background-color: #e4e7eb;
+  color: #303133;
 }
 
 .sidebar-menu {
   border-right: none;
-  height: 100%;
+  height: calc(100% - 64px);
+  overflow-y: auto;
+  transition: width 0.3s ease;
+}
+
+.sidebar.sidebar-collapsed {
+  width: 64px !important;
+}
+
+.sidebar.sidebar-collapsed .sidebar-menu {
+  width: 64px;
 }
 
 .main-content {
