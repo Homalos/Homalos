@@ -92,6 +92,7 @@ class TraderGateway(BaseGateway):
         self.count: int = 0  # 资金和持仓的查询间隔
         self.query_functions: list = []
         self.logger = get_logger(self.__class__.__name__)
+        self._last_account_data: dict | None = None  # 保存最后一次查询的账户数据
 
         
         # 设置网关事件处理器
@@ -758,6 +759,14 @@ class CtpTdApi(TdApi):
             if last:
                 self.logger.info("查询资金账户成功")
                 self.logger.info(f"账户数据: {account}")
+            
+            # 保存最后一次查询的账户数据（用于WebSocket直接获取）
+            self._last_account_data = {
+                "account_id": account.account_id,
+                "balance": account.balance,
+                "frozen": account.frozen,
+                "available": account.available
+            }
             
             # 推送账户信息到事件总线
             self.gateway.on_account(account)
