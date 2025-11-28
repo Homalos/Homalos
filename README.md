@@ -26,7 +26,8 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
 
 This project is a new development fork of Homalos, a Python-based event-driven futures trading platform designed to be deployed on a single machine with minimal external dependencies.
 
-- **Current Status**: Under development
+- **Current Status:** Under development. Please stay tuned.
+- This project uses `UV` to manage the Python environment and dependency library installation. It is recommended that you also install it, so that you can quickly keep your local configuration consistent with this project.
 
 ## Features
 
@@ -117,7 +118,22 @@ Personal Center
 
 ![personal_center](assets/ui/personal_center.png)
 
+## Installation
 
+```bash
+# Clone repository
+git clone https://github.com/Homalos/Homalos.git
+cd Homalos
+
+.venv\Scripts\activate
+# Install Python dependencies
+uv sync
+
+# Install frontend dependencies
+cd web-ui
+npm install
+cd ..
+```
 
 ### Quick Start
 
@@ -133,7 +149,7 @@ Personal Center
 2. **Start All Services**
    
    ```bash
-   start_all_web.bat
+   start_web.bat
    ```
 This will start both backend (port 8000) and frontend (port 5173)
    
@@ -159,51 +175,6 @@ This will start both backend (port 8000) and frontend (port 5173)
 ### Documentation
 
 See [Web System Guide](docs/Web系统使用指南.md) for detailed documentation.
-
-### Strategy Management
-
-**⚠️ Important: Strategy Hot Reload is Disabled**
-
-For safety reasons, strategy hot reload has been disabled in production environments. Modifying running strategies could lead to:
-
-- Loss of position state
-- Loss of order state  
-- Interrupted trading logic
-
-**Safe Strategy Modification Process:**
-
-1. Stop the strategy in the Strategy Management panel
-2. Confirm the strategy status is "Stopped"
-3. Edit your strategy code in `src/strategy/strategies/`
-4. Save the file (the strategy will NOT auto-start)
-5. (Optional) Run unit tests to verify your changes
-6. Click "Start" button to run the modified strategy
-
-**Why no hot reload?**
-
-- Current system lacks position/order synchronization with CTP Gateway
-- Missing order callback routing to strategy processes
-- State persistence doesn't include trading information
-- Risk of duplicate orders or position inconsistencies
-
-This follows industry best practices (vnpy, Zipline) where code changes require explicit restarts.
-
-## Installation
-
-```bash
-# Clone repository
-git clone https://github.com/Homalos/Homalos.git
-cd Homalos
-
-# Install Python dependencies
-.venv\Scripts\activate
-uv sync
-
-# Install frontend dependencies
-cd web-ui
-npm install
-cd ..
-```
 
 ## License
 
