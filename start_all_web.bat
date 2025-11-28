@@ -1,9 +1,24 @@
 @echo off
+setlocal
 echo ============================================================
 echo   Homalos 量化交易系统 - Web服务启动
 echo ============================================================
 echo.
-call start_del_log.bat
+
+set "logFolder=logs"
+
+if exist "%logFolder%" (
+    echo Clearing all .log files in %logFolder%...
+    del /q "%logFolder%\*.log" >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo Operation completed successfully.
+    ) else (
+        echo No .log files found or error occurred.
+    )
+) else (
+    echo Folder "%logFolder%" does not exist.
+)
+endlocal
 
 echo [1/2] 启动后端服务 (端口: 8000)...
 start "Homalos Backend" cmd /k "call .venv\Scripts\activate && python start_web.py"
