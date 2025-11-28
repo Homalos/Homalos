@@ -8,6 +8,15 @@
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
 @Description: 系统集成入口 - 完整的数据流程和模块协调
+
+⚠️ 【已废弃】
+此脚本为旧的独立交易系统架构，已被 Web 集成架构取代。
+当前项目使用 src/web/main.py 作为主入口，该脚本已集成所有交易核心功能。
+
+保留此文件仅作为历史参考和备份。
+新功能开发请在 src/web/ 目录下进行。
+
+如需独立运行交易系统，请参考此文件的实现逻辑。
 """
 import asyncio
 import signal
