@@ -121,18 +121,20 @@ Personal Center
 
 ### Quick Start
 
-1. **Initialize Admin Account**
+1. **Initialize the super administrator account**
+   
    ```bash
    init_admin.bat
    ```
-   Default credentials: `admin` / `admin123`
-
+Default credentials: `admin` / `Admin@123456`
+   
 2. **Start All Services**
+   
    ```bash
    start_all_web.bat
    ```
-   This will start both backend (port 8000) and frontend (port 5173)
-
+This will start both backend (port 8000) and frontend (port 5173)
+   
 3. **Access Web Interface**
    - Frontend: http://localhost:5173
    - API Docs: http://localhost:8000/docs

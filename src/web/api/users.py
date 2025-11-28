@@ -446,7 +446,7 @@ async def get_all_users(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     search: str = Query(None, description="搜索关键词"),
-    status: str = Query(None, description="状态筛选"),
+    user_status: str = Query(None, description="状态筛选"),
     role: str = Query(None, description="角色筛选"),
     user_type: str = Query(None, description="用户类型筛选 (user/admin)"),
     current_user = Depends(get_current_user),
@@ -481,7 +481,7 @@ async def get_all_users(
             page=page,
             page_size=page_size,
             search=search,
-            status=status,
+            status=user_status,
             role=role,
             user_type=user_type
         )
