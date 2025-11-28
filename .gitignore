@@ -37,6 +37,7 @@ web-ui/.vscode/
 files.txt
 *.csv
 start_del_log.bat
+compress.bat
 tools/
 migrations/
 scripts/
