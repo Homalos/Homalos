@@ -54,6 +54,7 @@ class StrategyResponse(BaseModel):
     status: str = Field(..., description="策略状态")
     enabled: bool = Field(..., description="是否启用")
     admin_id: int = Field(..., description="创建者管理员ID")
+    admin_username: Optional[str] = Field(None, description="创建者管理员用户名")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="最后更新时间")
 

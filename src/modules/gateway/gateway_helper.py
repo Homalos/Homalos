@@ -170,16 +170,18 @@ def build_rtn_order_data(
 
     return order
 
-def build_trade_data(data: dict, contract: ContractData, order_id: str, timestamp: datetime):
+def build_trade_data(data: dict, contract: ContractData, order_id: str, timestamp: datetime, strategy_id: int = None):
     """
     组装成交数据
     :param data: 原始数据
     :param contract: 缓存数据
     :param order_id: 订单ID
     :param timestamp: 时间戳
+    :param strategy_id: ✅ 新增：策略ID
     :return:
     """
     trade: TradeData = TradeData(
+        strategy_id = strategy_id,  # ✅ 新增：设置策略ID
         instrument_id = data.get("InstrumentID"),
         exchange_id = contract.exchange_id,
         order_id = order_id,

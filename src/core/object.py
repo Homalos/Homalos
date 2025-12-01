@@ -118,6 +118,7 @@ class OrderData(BaseData):
     """
     订单数据
     """
+    strategy_id: int = None  # ✅ 新增：策略ID，用于绑定订单到具体策略
     instrument_id: str = None
     exchange_id: Exchange = None
     order_id: str = None
@@ -150,6 +151,7 @@ class TradeData(BaseData):
     交易数据包含订单成交的相关信息。一个订单可能包含多个成交记录。
     Trade data contains information of a fill of an order. One order can have several trade fills.
     """
+    strategy_id: int = None  # ✅ 新增：策略ID，用于绑定成交到具体策略
     instrument_id: str = None
     exchange_id: Exchange = None
     order_id: str = None  # 报单编号
@@ -168,6 +170,7 @@ class PositionData(BaseData):
     Position数据用于跟踪每个单独的位置持有情况。
     Position data is used for tracking each individual position holding.
     """
+    strategy_id: int = None  # ✅ 新增：策略ID，用于绑定持仓到具体策略
     instrument_id: str = None
     exchange_id: Exchange = None
     direction: Direction = None
@@ -181,6 +184,7 @@ class PositionData(BaseData):
     def to_dict(self) -> dict:
         """转换为字典格式（用于 WebSocket 推送）"""
         return {
+            "strategy_id": self.strategy_id,
             "instrument_id": self.instrument_id,
             "exchange_id": self.exchange_id.value if self.exchange_id else "",
             "direction": self.direction.value if self.direction else "",
@@ -267,6 +271,7 @@ class OrderRequest(BaseData):
     订单委托请求
     Request sending to specific gateway for creating a new order.
     """
+    strategy_id: int = None  # ✅ 新增：策略ID，用于绑定订单到具体策略
     instrument_id: str = None
     exchange_id: Exchange = None
     direction: Direction = None
@@ -287,6 +292,7 @@ class OrderRequest(BaseData):
 
         """
         order: OrderData = OrderData(
+            strategy_id=self.strategy_id,  # ✅ 传递策略ID
             instrument_id=self.instrument_id,
             exchange_id=self.exchange_id,
             order_id=order_id,

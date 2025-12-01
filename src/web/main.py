@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from src.web.api import auth, monitor, system_config, trading_account, strategy, alarm, trading_system, trading_core, account, admin_auth, brokerage, users, strategy_db, strategy_position, websocket_position
-from src.web.core.database import init_db, close_db
+from src.web.core.database import init_db, close_db, async_session_maker
 from src.web.services.strategy_service import strategy_service
 from src.web.services.trading_core_service import TradingCoreService
 from src.web.services.monitor_service import MonitorService
@@ -22,8 +22,86 @@ from src.web.services.position_sync_service import start_position_sync, stop_pos
 from src.utils.log import get_logger
 from src.utils.get_path import get_path_ins
 import asyncio
+import json
+from pathlib import Path
+from sqlalchemy import select
 
 logger = get_logger(__name__)
+
+
+async def sync_strategies_to_db():
+    """将策略注册表中的策略同步到数据库"""
+    from src.web.models.strategy import Strategy, StrategyStatus
+    from src.system_config import Config
+    
+    # 检查是否启用自动同步
+    strategy_sync_config = Config.system_config.get("base", {}).get("strategy_sync", {})
+    if not strategy_sync_config.get("auto_sync", True):
+        logger.info("策略自动同步已禁用，跳过同步")
+        return
+    
+    # 获取默认管理员ID
+    default_admin_id = strategy_sync_config.get("default_admin_id", 1)
+    
+    # 读取策略注册表
+    registry_path = get_path_ins.join_path("src", "strategy", "strategy_registry.json")
+    if not Path(registry_path).exists():
+        logger.warning(f"策略注册表不存在: {registry_path}")
+        return
+    
+    with open(registry_path, 'r', encoding='utf-8') as f:
+        registry = json.load(f)
+    
+    if not registry:
+        logger.info("策略注册表为空，跳过同步")
+        return
+    
+    logger.info(f"开始同步 {len(registry)} 个策略到数据库（默认管理员ID: {default_admin_id}）...")
+    
+    async with async_session_maker() as db:
+        synced_count = 0
+        skipped_count = 0
+        
+        for module_path, config in registry.items():
+            try:
+                # 检查策略是否已存在
+                result = await db.execute(
+                    select(Strategy).where(Strategy.module_path == module_path)
+                )
+                existing = result.scalar_one_or_none()
+                
+                if existing:
+                    skipped_count += 1
+                    continue
+                
+                # 创建新策略（关联到配置中的默认管理员）
+                strategy = Strategy(
+                    admin_id=default_admin_id,
+                    uuid=config.get('uuid'),
+                    name=config.get('name', module_path.split('.')[-1]),
+                    description=config.get('description', ''),
+                    author=config.get('author', ''),
+                    file_path=config.get('file', ''),
+                    module_path=module_path,
+                    class_name=config.get('class', 'Strategy'),
+                    instruments=config.get('instruments', []),
+                    parameters=config.get('params', {}),
+                    status=StrategyStatus.ACTIVE,
+                    enabled=config.get('enabled', True)
+                )
+                
+                db.add(strategy)
+                await db.commit()
+                
+                logger.info(f"✓ 策略已同步: {strategy.name} (ID: {strategy.strategy_id}, 创建者: {default_admin_id})")
+                synced_count += 1
+            
+            except Exception as e:
+                await db.rollback()
+                logger.error(f"同步策略失败: {config.get('name')} - {str(e)}")
+        
+        if synced_count > 0:
+            logger.info(f"策略同步完成: 新增 {synced_count} 个，已存在 {skipped_count} 个")
 
 
 def ignore_windows_connection_reset(loop, context):
@@ -64,6 +142,12 @@ async def lifespan(app: FastAPI):
     
     # 初始化数据库
     await init_db()
+    
+    # 同步策略到数据库
+    try:
+        await sync_strategies_to_db()
+    except Exception as e:
+        logger.warning(f"同步策略到数据库失败: {e}")
     
     # 初始化交易核心服务（不自动启动）
     try:

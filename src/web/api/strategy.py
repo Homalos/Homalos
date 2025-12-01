@@ -72,7 +72,7 @@ router = APIRouter(prefix="/strategies", tags=["策略管理"])
 
 
 @router.get("/", response_model=StrategyListResponse, summary="获取策略列表")
-async def list_strategies():
+async def list_strategies(db: AsyncSession = Depends(get_db)):
     """
     获取所有注册的策略配置
     
@@ -80,7 +80,51 @@ async def list_strategies():
         StrategyListResponse: 包含所有策略配置的字典
     """
     try:
+        from sqlalchemy import select
+        from src.web.models.strategy import Strategy
+        from src.web.models.admin import Admin
+        
         strategies = strategy_service.list_strategies()
+        
+        # 从数据库查询每个策略的创建者信息
+        logger.info(f"开始查询 {len(strategies)} 个策略的创建者信息...")
+        for sid, config in strategies.items():
+            try:
+                # 按 module_path 查询策略（sid 就是完整的 module.Class）
+                module_path = sid
+                logger.debug(f"查询策略 {sid}, module_path={module_path}")
+                
+                if module_path:
+                    result = await db.execute(
+                        select(Strategy).where(Strategy.module_path == module_path)
+                    )
+                    strategy = result.scalar_one_or_none()
+                    logger.debug(f"  数据库查询结果: {strategy}")
+                    
+                    if strategy and strategy.admin_id:
+                        # 查询管理员信息
+                        admin_result = await db.execute(
+                            select(Admin).where(Admin.admin_id == strategy.admin_id)
+                        )
+                        admin = admin_result.scalar_one_or_none()
+                        logger.debug(f"  管理员查询结果: {admin}")
+                        
+                        if admin:
+                            config['admin_username'] = admin.username
+                            logger.info(f"✓ 策略 {sid} 的创建者: {admin.username}")
+                        else:
+                            config['admin_username'] = None
+                            logger.warning(f"✗ 管理员ID {strategy.admin_id} 不存在")
+                    else:
+                        config['admin_username'] = None
+                        logger.warning(f"✗ 策略 {sid} 在数据库中不存在或无admin_id")
+                else:
+                    config['admin_username'] = None
+                    logger.warning(f"✗ 策略 {sid} 没有module_path")
+            except Exception as e:
+                logger.error(f"查询策略 {sid} 的创建者失败: {e}", exc_info=True)
+                config['admin_username'] = None
+        
         return {"strategies": strategies}
     except Exception as e:
         logger.error(f"获取策略列表失败: {e}", exc_info=True)

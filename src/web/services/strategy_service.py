@@ -190,16 +190,6 @@ class StrategyService:
             # 启动状态加载和自动保存任务
             await self._manager.startup()
             
-            # 注册持仓事件监听器（用于实时同步持仓到数据库）
-            if self._manager.event_bus:
-                from src.core.event import EventType
-                self._manager.event_bus.subscribe(
-                    EventType.POSITION,
-                    self._on_position_event,
-                    async_mode=True
-                )
-                self.logger.info("✓ 持仓事件监听器已注册")
-            
             # 策略热重载功能已禁用（出于安全考虑）
             # strategies_dir = get_path_ins.join_path("src", "strategy", "strategies")
             # self._manager.start_watchdog(str(strategies_dir))
@@ -1037,9 +1027,9 @@ class StrategyService:
     
     async def _on_position_event(self, event):
         """
-        持仓事件处理器
+        持仓事件处理器 - 改进版
         
-        当交易网关推送持仓事件时，自动同步到数据库
+        当交易网关推送持仓事件时，只为该策略创建/更新持仓（不再复制到所有策略）
         """
         if not self._db:
             self.logger.debug("数据库会话工厂未初始化，跳过持仓同步")
@@ -1055,6 +1045,14 @@ class StrategyService:
         if not position_data:
             return
         
+        # ✅ 新增：检查持仓是否有策略ID
+        strategy_id = getattr(position_data, 'strategy_id', None)
+        if not strategy_id:
+            # 持仓没有 strategy_id 说明是历史持仓或账户级别持仓
+            # 这些持仓已在网关查询时被分配给策略1，此处不应该出现
+            self.logger.warning(f"[持仓事件] 持仓缺少 strategy_id，跳过处理: {position_data.instrument_id}")
+            return
+        
         # 创建数据库会话
         db = None
         try:
@@ -1067,68 +1065,58 @@ class StrategyService:
             
             from sqlalchemy import select
             from src.web.models.strategy_position import StrategyPosition
-            from src.web.models.strategy import Strategy
             
-            # 获取所有策略（不仅是运行中的）
-            # 因为持仓是账户级别的，应该同步到所有策略
-            manager = self.get_manager()
-            all_strategies = list(manager.registry.strategies.keys())
+            # ✅ 改进：只为该策略创建/更新持仓
+            self.logger.info(f"[持仓事件] 收到持仓更新: {position_data.instrument_id} {position_data.direction.value} {position_data.volume}手，策略ID: {strategy_id}")
             
-            if not all_strategies:
-                self.logger.debug("[持仓事件] 没有可用的策略")
-                return
+            # 检查持仓是否已存在
+            result = await db.execute(
+                select(StrategyPosition).where(
+                    StrategyPosition.strategy_id == strategy_id,
+                    StrategyPosition.symbol == position_data.instrument_id,
+                    StrategyPosition.direction == ('LONG' if position_data.direction.value == '多' else 'SHORT'),
+                    StrategyPosition.is_closed == False
+                )
+            )
+            existing_pos = result.scalar_one_or_none()
             
-            self.logger.info(f"[持仓事件] 收到持仓更新: {position_data.instrument_id} {position_data.direction.value} {position_data.volume}手，将同步到 {len(all_strategies)} 个策略")
-            
-            # 为每个策略同步持仓
-            for sid in all_strategies:
-                try:
-                    # 获取策略 ID
-                    result = await db.execute(
-                        select(Strategy).where(Strategy.module_path == sid)
-                    )
-                    strategy = result.scalar_one_or_none()
-                    if not strategy:
-                        continue
-                    
-                    strategy_id = strategy.strategy_id
-                    
-                    # 检查持仓是否已存在
-                    result = await db.execute(
-                        select(StrategyPosition).where(
-                            StrategyPosition.strategy_id == strategy_id,
-                            StrategyPosition.symbol == position_data.instrument_id,
-                            StrategyPosition.direction == ('LONG' if position_data.direction.value == '多' else 'SHORT'),
-                            StrategyPosition.is_closed == False
-                        )
-                    )
-                    existing_pos = result.scalar_one_or_none()
-                    
-                    if existing_pos:
-                        # 更新现有持仓
-                        existing_pos.volume = position_data.volume
-                        existing_pos.frozen = position_data.frozen
-                        existing_pos.avg_price = position_data.price
-                        existing_pos.last_price = position_data.price
-                        existing_pos.position_pnl = position_data.pnl
-                    else:
-                        # 创建新持仓
-                        new_pos = StrategyPosition(
-                            strategy_id=strategy_id,
-                            symbol=position_data.instrument_id,
-                            exchange=position_data.exchange_id.value if position_data.exchange_id else '',
-                            direction='LONG' if position_data.direction.value == '多' else 'SHORT',
-                            volume=position_data.volume,
-                            frozen=position_data.frozen,
-                            avg_price=position_data.price,
-                            last_price=position_data.price,
-                            position_pnl=position_data.pnl,
-                            is_closed=False
-                        )
-                        db.add(new_pos)
-                    
-                except Exception as e:
-                    self.logger.error(f"同步持仓到策略 {sid} 失败: {e}", exc_info=True)
+            if existing_pos:
+                # ✅ 新增：检查持仓数据是否有变化
+                has_change = (
+                    existing_pos.volume != position_data.volume or
+                    existing_pos.frozen != position_data.frozen or
+                    existing_pos.avg_price != position_data.price or
+                    existing_pos.position_pnl != position_data.pnl
+                )
+                
+                if has_change:
+                    # 只在数据有变化时才更新
+                    existing_pos.volume = position_data.volume
+                    existing_pos.frozen = position_data.frozen
+                    existing_pos.avg_price = position_data.price
+                    existing_pos.last_price = position_data.price
+                    existing_pos.position_pnl = position_data.pnl
+                    self.logger.info(f"[持仓事件] 更新持仓: 策略ID={strategy_id}, {position_data.instrument_id} {position_data.direction.value} {position_data.volume}手")
+                else:
+                    # 数据没有变化，跳过更新
+                    self.logger.debug(f"[持仓事件] 持仓数据未变化，跳过更新: 策略ID={strategy_id}, {position_data.instrument_id} {position_data.direction.value} {position_data.volume}手")
+                    return
+            else:
+                # 创建新持仓
+                new_pos = StrategyPosition(
+                    strategy_id=strategy_id,
+                    symbol=position_data.instrument_id,
+                    exchange=position_data.exchange_id.value if position_data.exchange_id else '',
+                    direction='LONG' if position_data.direction.value == '多' else 'SHORT',
+                    volume=position_data.volume,
+                    frozen=position_data.frozen,
+                    avg_price=position_data.price,
+                    last_price=position_data.price,
+                    position_pnl=position_data.pnl,
+                    is_closed=False
+                )
+                db.add(new_pos)
+                self.logger.info(f"[持仓事件] 新增持仓: 策略ID={strategy_id}, {position_data.instrument_id} {position_data.direction.value} {position_data.volume}手")
             
             # 提交数据库更改
             await db.commit()
@@ -1151,9 +1139,9 @@ class StrategyService:
 
     async def _on_trade_event(self, event):
         """
-        成交事件处理器
+        成交事件处理器 - 改进版
         
-        当交易网关推送成交事件时，自动创建成交记录到数据库
+        当交易网关推送成交事件时，只为该策略创建成交记录（不再复制到所有策略）
         """
         if not self._db:
             self.logger.debug("数据库会话工厂未初始化，跳过成交记录创建")
@@ -1169,23 +1157,29 @@ class StrategyService:
         if not trade_data:
             return
         
+        # ✅ 新增：检查成交是否有策略ID
+        strategy_id = getattr(trade_data, 'strategy_id', None)
+        if not strategy_id:
+            # 成交没有 strategy_id 说明是非策略产生的成交（如手动交易）
+            # 只有通过策略发送的订单成交才会有 strategy_id
+            self.logger.debug(f"[成交事件] 成交缺少 strategy_id（非策略成交），跳过处理: {trade_data.instrument_id}")
+            return
+        
         try:
             # 创建数据库会话
-            async with self._db() as db:
+            db = None
+            if callable(self._db):
+                db = self._db()
+            else:
+                db = self._db
+            
+            try:
                 from src.web.services.strategy_position_service import StrategyPositionService
                 from src.web.services.commission_loader import get_commission_loader
                 position_service = StrategyPositionService()
                 commission_loader = get_commission_loader()
                 
-                # 获取所有策略
-                manager = self.get_manager()
-                all_strategies = list(manager.registry.strategies.keys())
-                
-                if not all_strategies:
-                    self.logger.debug("[成交事件] 没有可用的策略")
-                    return
-                
-                self.logger.info(f"[成交事件] 收到成交更新: {trade_data.instrument_id} {trade_data.direction.value} {trade_data.offset.value} {trade_data.volume}手 @ {trade_data.price}")
+                self.logger.info(f"[成交事件] 收到成交更新: {trade_data.instrument_id} {trade_data.direction.value} {trade_data.offset.value} {trade_data.volume}手 @ {trade_data.price}，策略ID: {strategy_id}")
                 
                 # 确定开平类型
                 offset_type = 'OPEN' if trade_data.offset.value == '开' else 'CLOSE'
@@ -1198,51 +1192,45 @@ class StrategyService:
                     offset_type=offset_type
                 )
                 
-                # 为每个策略创建成交记录
-                for sid in all_strategies:
-                    try:
-                        # 获取策略 ID
-                        from sqlalchemy import select
-                        from src.web.models.strategy import Strategy
-                        
-                        query = select(Strategy).where(Strategy.module_path == sid)
-                        result = await db.execute(query)
-                        strategy = result.scalar_one_or_none()
-                        
-                        if not strategy:
-                            self.logger.debug(f"[成交事件] 策略 {sid} 未在数据库中找到")
-                            continue
-                        
-                        strategy_id = strategy.strategy_id
-                        
-                        # 创建成交记录
-                        await position_service.create_trade(
-                            db=db,
-                            strategy_id=strategy_id,
-                            symbol=trade_data.instrument_id,
-                            exchange=trade_data.exchange_id.value if trade_data.exchange_id else '',
-                            direction='LONG' if trade_data.direction.value == '多' else 'SHORT',
-                            offset_type=offset_type,
-                            trade_price=trade_data.price,
-                            trade_volume=trade_data.volume,
-                            commission=commission,
-                            order_id=trade_data.order_id,
-                            pnl=0.0,  # 成交时盈亏为0，平仓时才有盈亏
-                            trade_time=trade_data.timestamp
-                        )
-                        
-                        self.logger.info(f"[成交事件] 成交记录已创建: 策略 {sid} {trade_data.instrument_id} {trade_data.direction.value} {offset_type} {trade_data.volume}手 手续费: {commission}")
+                # ✅ 改进：只为该策略创建成交记录
+                try:
+                    # 创建成交记录
+                    await position_service.create_trade(
+                        db=db,
+                        strategy_id=strategy_id,
+                        symbol=trade_data.instrument_id,
+                        exchange=trade_data.exchange_id.value if trade_data.exchange_id else '',
+                        direction='LONG' if trade_data.direction.value == '多' else 'SHORT',
+                        offset_type=offset_type,
+                        trade_price=trade_data.price,
+                        trade_volume=trade_data.volume,
+                        commission=commission,
+                        order_id=trade_data.order_id,
+                        pnl=0.0,  # 成交时盈亏为0，平仓时才有盈亏
+                        trade_time=trade_data.timestamp
+                    )
                     
-                    except Exception as e:
-                        self.logger.error(f"为策略 {sid} 创建成交记录失败: {e}", exc_info=True)
+                    self.logger.info(f"[成交事件] 成交记录已创建: 策略ID={strategy_id} {trade_data.instrument_id} {trade_data.direction.value} {offset_type} {trade_data.volume}手 手续费: {commission}")
+                
+                except Exception as e:
+                    self.logger.error(f"为策略ID {strategy_id} 创建成交记录失败: {e}", exc_info=True)
                 
                 # 提交数据库更改
                 await db.commit()
+            
+            finally:
+                # 关闭会话（如果是由 async_session_maker 创建的）
+                if db and callable(self._db):
+                    try:
+                        await db.close()
+                    except:
+                        pass
         
         except Exception as e:
             self.logger.error(f"[成交事件] 处理成交事件失败: {e}", exc_info=True)
             try:
-                await db.rollback()
+                if db:
+                    await db.rollback()
             except:
                 pass
 

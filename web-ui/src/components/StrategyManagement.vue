@@ -99,9 +99,13 @@
       style="width: 100%"
       v-loading="strategyStore.isLoading"
     >
-      <el-table-column label="策略ID" min-width="180">
+      <el-table-column label="策略UUID" min-width="280">
         <template #default="scope">
-          {{ getShortStrategyId(scope.row.sid) }}
+          <el-tooltip :content="scope.row.uuid || '无UUID'" placement="top">
+            <span style="font-family: monospace; font-size: 12px;">
+              {{ formatUUID(scope.row.uuid) }}
+            </span>
+          </el-tooltip>
         </template>
       </el-table-column>
       <el-table-column label="策略名称" min-width="120">
@@ -121,7 +125,7 @@
           {{ getStrategyTradeCount(scope.row.sid) || 0 }}
         </template>
       </el-table-column>
-      <el-table-column label="状态" min-width="80">
+      <el-table-column label="状态" min-width="100">
         <template #default="scope">
           <el-tag :type="getStrategyStatus(scope.row.sid) === '运行中' ? 'success' : 'info'">
             {{ getStrategyStatus(scope.row.sid) }}
@@ -351,6 +355,13 @@ function getStrategyStatus(sid) {
 function getStrategyPID(sid) {
   const status = strategyStore.strategyStatus[sid]
   return status ? status.pid : null
+}
+
+function formatUUID(uuid) {
+  // 格式化UUID显示：显示完整UUID
+  // 例如: 615d3c18-2005-4116-a47d-dcf587d12a33
+  if (!uuid) return '-'
+  return uuid
 }
 
 function getShortStrategyId(sid) {

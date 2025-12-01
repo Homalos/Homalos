@@ -296,6 +296,7 @@ class TradeSignalHandler:
             from src.core.constants import OrderType
             
             order_request = OrderRequest(
+                strategy_id=signal.strategy_id,  # ✅ 设置策略ID
                 instrument_id=signal.instrument_id,
                 exchange_id=signal.exchange_id,
                 direction=signal.direction,

@@ -98,10 +98,18 @@ async def verify_strategy_ownership(
     Raises:
         HTTPException: 如果策略不存在或无权限
     """
-    query = select(Strategy).where(
-        Strategy.strategy_id == strategy_id,
-        Strategy.admin_id == current_user.admin_id
-    )
+    from src.web.models.admin import AdminRole
+    
+    # 超级管理员可以查看所有策略
+    if current_user.role == AdminRole.SUPER:
+        query = select(Strategy).where(Strategy.strategy_id == strategy_id)
+    else:
+        # 普通管理员只能查看自己创建的策略
+        query = select(Strategy).where(
+            Strategy.strategy_id == strategy_id,
+            Strategy.admin_id == current_user.admin_id
+        )
+    
     result = await db.execute(query)
     strategy = result.scalar_one_or_none()
     

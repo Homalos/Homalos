@@ -25,6 +25,7 @@ class StrategyInfo(BaseModel):
     instruments: list[str] = Field(default_factory=list, description="订阅的合约列表")
     enabled: bool = Field(..., description="是否启用")
     params: Dict[str, Any] = Field(default_factory=dict, description="策略参数")
+    admin_username: Optional[str] = Field(None, description="创建者管理员用户名")
     
     class Config:
         populate_by_name = True

@@ -375,6 +375,7 @@ class CtpTdApi(TdApi):
         self.instrument_exchange_map: dict = {}  # 合约代码和交易所映射
 
         self.sysid_order_id_map: dict[str, str] = {}  # 系统ID和订单ID映射
+        self.order_cache: dict[str, OrderData] = {}  # ✅ 新增：订单缓存，用于在成交时获取 strategy_id
 
         self.current_date: str = datetime.now().strftime("%Y%m%d")  # 当前自然日
 
@@ -699,6 +700,12 @@ class CtpTdApi(TdApi):
                 for position in self.positions.values():
                     # 只推送持仓数量大于0的仓位
                     if position.volume > 0:
+                        # ✅ 新增：为历史持仓分配 strategy_id = 1（策略1）
+                        # 这些是在系统启动前就存在的持仓，分配给策略1进行管理
+                        if not position.strategy_id:
+                            position.strategy_id = 1
+                            self.logger.info(f"[历史持仓] 为持仓分配 strategy_id=1: {position.instrument_id}")
+                        
                         # 将仓位数据推送到事件总线
                         self.gateway.on_position(position)
                         self.logger.info(f"持仓数据: {position}")
@@ -1051,6 +1058,9 @@ class CtpTdApi(TdApi):
 
         order: OrderData = build_rtn_order_data(data, contract, order_id, order_type, order_status, timestamp)
 
+        # ✅ 新增：缓存订单数据，用于在成交时获取 strategy_id
+        self.order_cache[order_id] = order
+
         # 发布订单状态更新事件到事件总线
         if self.gateway.event_bus:
             order_status_event = Event(
@@ -1106,7 +1116,25 @@ class CtpTdApi(TdApi):
         timestamp_str: str = f"{data.get('TradeDate', '')} {data.get('TradeTime', '')}"
         timestamp: datetime = datetime.strptime(timestamp_str, "%Y%m%d %H:%M:%S").replace(tzinfo=CHINA_TZ)
 
-        trade: TradeData = build_trade_data(data, contract, order_id, timestamp)
+        # ✅ 新增：从订单缓存获取 strategy_id
+        strategy_id = None
+        cached_order = self.order_cache.get(order_id)
+        if cached_order:
+            strategy_id = cached_order.strategy_id
+            self.logger.debug(f"从订单缓存获取 strategy_id: {strategy_id}")
+        else:
+            self.logger.warning(f"订单缓存中未找到订单 {order_id}，strategy_id 将为 None")
+
+        trade: TradeData = build_trade_data(data, contract, order_id, timestamp, strategy_id)
+
+        # ✅ 新增：更新持仓的 strategy_id
+        if strategy_id:
+            posi_direction: str = data.get("OffsetFlag", "")  # 获取持仓多空方向
+            position_key: str = f"{instrument_id, posi_direction}"
+            position: PositionData | None = self.positions.get(position_key)
+            if position:
+                position.strategy_id = strategy_id
+                self.logger.debug(f"已更新持仓 strategy_id: {position_key} -> {strategy_id}")
 
         # 发布成交回报事件到事件总线
         if self.gateway.event_bus:

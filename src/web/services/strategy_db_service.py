@@ -14,6 +14,7 @@ from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.web.models.strategy import Strategy, StrategyStatus
+from src.web.models.admin import Admin
 from src.web.schemas.strategy_db import (
     StrategyCreate, StrategyUpdate, StrategyResponse, StrategyListResponse
 )
@@ -25,6 +26,36 @@ class StrategyDbService:
 
     def __init__(self):
         self.logger = get_logger(self.__class__.__name__)
+
+    async def _build_strategy_response(
+        self,
+        db: AsyncSession,
+        strategy: Strategy
+    ) -> StrategyResponse:
+        """
+        构建策略响应，包含创建者信息
+        
+        Args:
+            db: 数据库会话
+            strategy: 策略对象
+            
+        Returns:
+            StrategyResponse: 包含创建者信息的策略响应
+        """
+        # 获取创建者信息
+        admin_username = None
+        if strategy.admin_id:
+            result = await db.execute(
+                select(Admin).where(Admin.admin_id == strategy.admin_id)
+            )
+            admin = result.scalar_one_or_none()
+            if admin:
+                admin_username = admin.username
+        
+        # 构建响应
+        response = StrategyResponse.from_orm(strategy)
+        response.admin_username = admin_username
+        return response
 
     async def create_strategy(
         self,
@@ -65,7 +96,7 @@ class StrategyDbService:
             
             self.logger.info(f"策略创建成功: {strategy.name} (ID: {strategy.strategy_id}, 创建者: {admin_id})")
             
-            return StrategyResponse.from_orm(strategy)
+            return await self._build_strategy_response(db, strategy)
         
         except Exception as e:
             await db.rollback()
@@ -100,7 +131,7 @@ class StrategyDbService:
             strategy = result.scalar_one_or_none()
             
             if strategy:
-                return StrategyResponse.from_orm(strategy)
+                return await self._build_strategy_response(db, strategy)
             return None
         
         except Exception as e:
@@ -134,7 +165,7 @@ class StrategyDbService:
             strategy = result.scalar_one_or_none()
             
             if strategy:
-                return StrategyResponse.from_orm(strategy)
+                return await self._build_strategy_response(db, strategy)
             return None
         
         except Exception as e:
@@ -184,7 +215,11 @@ class StrategyDbService:
             result = await db.execute(query)
             strategies = result.scalars().all()
             
-            strategy_list = [StrategyResponse.from_orm(s) for s in strategies]
+            # 构建包含创建者信息的策略列表
+            strategy_list = []
+            for s in strategies:
+                response = await self._build_strategy_response(db, s)
+                strategy_list.append(response)
             
             self.logger.info(f"查询管理员 {admin_id} 的策略列表: 共 {total} 个，返回 {len(strategy_list)} 个")
             

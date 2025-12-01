@@ -12,3 +12,10 @@ base:
   - 数据库：SQLite
   timezone: Asia/Shanghai
   dev_mode: true
+  
+  # 策略同步配置
+  strategy_sync:
+    # 默认管理员ID（启动时同步策略时使用）
+    default_admin_id: 1
+    # 是否启用自动同步
+    auto_sync: true

@@ -898,6 +898,10 @@ class TradingCoreService:
             self._td_login_status = True
             self._td_confirm_status = True
             self.logger.info("结算单确认成功，交易网关完全就绪")
+            # ✅ 新增：查询账户数据（用于仪表盘显示）
+            if self._trader_gateway:
+                self.logger.info("开始查询账户数据...")
+                self._trader_gateway.query_account()
             # 查询合约信息
             if self._trader_gateway:
                 self._trader_gateway.update_instrument_handler(Event(EventType.TD_QRY_INS, {}))
@@ -1210,9 +1214,11 @@ class TradingCoreService:
                 self._trader_gateway.query_account()
                 self.logger.info("[WebSocket] 已发送账户查询请求")
                 
-                # 等待查询完成（最多等待3秒）
-                for i in range(30):  # 30 * 0.1 = 3秒
+                # 等待查询完成（最多等待5秒）
+                for i in range(50):  # 50 * 0.1 = 5秒
                     await asyncio.sleep(0.1)
+                    
+                    # 优先检查事件处理的缓存
                     if self._latest_account_data:
                         self.logger.info(f"[WebSocket] 查询后推送账户数据: balance={self._latest_account_data.get('balance')}")
                         await self._push_account_to_ws({
@@ -1220,23 +1226,62 @@ class TradingCoreService:
                             "data": self._latest_account_data
                         })
                         break
+                    
+                    # 如果事件处理没有更新缓存，尝试从网关直接获取
+                    if hasattr(self._trader_gateway, '_last_account_data') and self._trader_gateway._last_account_data:
+                        account_data = self._trader_gateway._last_account_data
+                        self.logger.info(f"[WebSocket] 从网关获取账户数据: balance={account_data.get('balance')}")
+                        await self._push_account_to_ws({
+                            "type": "account",
+                            "data": account_data
+                        })
+                        break
+                    
+                    # 调试日志：显示当前状态
+                    if i % 10 == 0:  # 每1秒打印一次
+                        has_last_data = hasattr(self._trader_gateway, '_last_account_data')
+                        last_data_value = self._trader_gateway._last_account_data if has_last_data else None
+                        self.logger.debug(f"[WebSocket] 轮询 {i*0.1:.1f}s: _latest_account_data={bool(self._latest_account_data)}, _last_account_data={last_data_value}")
                 else:
-                    # 3秒后仍无数据，尝试从网关直接获取
-                    self.logger.warning("[WebSocket] 查询3秒后仍无账户数据，尝试从网关直接获取")
-                    try:
-                        # 尝试从网关获取最后一次查询的账户数据
-                        if hasattr(self._trader_gateway, '_last_account_data'):
-                            account_data = self._trader_gateway._last_account_data
-                            if account_data:
-                                self.logger.info(f"[WebSocket] 从网关获取账户数据: balance={account_data.get('balance')}")
-                                await self._push_account_to_ws({
-                                    "type": "account",
-                                    "data": account_data
-                                })
-                    except Exception as e:
-                        self.logger.error(f"[WebSocket] 从网关获取账户数据失败: {e}")
+                    # 5秒后仍无数据
+                    self.logger.warning("[WebSocket] 查询5秒后仍无账户数据")
+                    # 最后尝试一次从网关获取
+                    if hasattr(self._trader_gateway, '_last_account_data') and self._trader_gateway._last_account_data:
+                        account_data = self._trader_gateway._last_account_data
+                        self.logger.info(f"[WebSocket] 轮询超时后从网关获取账户数据: balance={account_data.get('balance')}")
+                        await self._push_account_to_ws({
+                            "type": "account",
+                            "data": account_data
+                        })
+                    else:
+                        # ✅ 新增：即使没有数据也推送一个空账户数据，避免前端显示为0
+                        self.logger.warning("[WebSocket] 无法获取账户数据，推送默认数据")
+                        default_account_data = {
+                            "account_id": "",
+                            "balance": 0,
+                            "frozen": 0,
+                            "available": 0
+                        }
+                        await self._push_account_to_ws({
+                            "type": "account",
+                            "data": default_account_data
+                        })
             except Exception as e:
                 self.logger.error(f"[WebSocket] 主动查询账户数据失败: {e}", exc_info=True)
+                # ✅ 新增：异常时也推送默认数据
+                default_account_data = {
+                    "account_id": "",
+                    "balance": 0,
+                    "frozen": 0,
+                    "available": 0
+                }
+                try:
+                    await self._push_account_to_ws({
+                        "type": "account",
+                        "data": default_account_data
+                    })
+                except:
+                    pass
         
         if self._latest_positions:
             # 转换字典为列表

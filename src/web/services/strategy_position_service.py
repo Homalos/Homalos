@@ -58,7 +58,10 @@ class StrategyPositionService:
             
             position_list = [StrategyPositionResponse.from_orm(p) for p in positions]
             
-            self.logger.info("查询策略 {} 的当前持仓: 共 {} 个".format(strategy_id, len(position_list)))
+            # ✅ 新增：详细日志，显示查询条件和结果
+            self.logger.info(f"查询策略 {strategy_id} 的当前持仓: 共 {len(position_list)} 个")
+            for pos in position_list:
+                self.logger.debug(f"  - {pos.symbol} {pos.direction} {pos.volume}手 (strategy_id={pos.strategy_id})")
             
             return StrategyPositionListResponse(
                 total=len(position_list),
